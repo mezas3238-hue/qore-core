@@ -7,10 +7,21 @@
 **Rama A1 cognitiva:** agent/scalper-architect-a-cognition-20261010 / PR [#758](https://github.com/mezas3238-hue/qore-core/pull/758).
 **PR de programa / integración anterior:** [#623](https://github.com/mezas3238-hue/qore-core/pull/623).
 **Issues de coordinación:** [#757 metodología](https://github.com/mezas3238-hue/qore-core/issues/757), [#756 cognitiva](https://github.com/mezas3238-hue/qore-core/issues/756).
-**HEAD A2 auditado previo a este handoff:** 99e930e14b29be94dd3e71618a12b06d644378d9. **HEAD A1 visto en branch pública:** aacf4f4c267dc53fac88a618dc9e90be3e099327. A1 puede seguir avanzando; comprobar SHA real antes de reutilizar integraciones.
+**HEAD comprobado al preparar este cierre, ANTES del commit final de este documento:** B metodología 1d56044c030f372da2cdd32f8a7424e86499d0d4; A cognitiva e03f7330078725d4c5206a64ea0c5bde4efb0eac. El commit final de B es el registrado en GitHub para esta edición. Comprobar SHA en ambos PR antes de ejecutar workflows: A1 y B evolucionan en paralelo.
 **Estado de todos los PR:** OPEN/DRAFT, sin merge. **Trader: NO CERTIFICADO. NINGUNA autorización VPS, LIVE, MT5 o real capital.**
 
 > **ORDEN OPERATIVA DEL OWNER:** Ya NO desea otro panel pasivo ni un nuevo filtrado. Quiere los sensores alimentando la cognitiva potente REAL del Trader Scalper; el Master Frame debe razonar cada entrada y producir PASS/WAIT/ABSTAIN, el motor PAPER debe ejecutar sólo las entradas autorizadas y cuantificar SI mejora el drawdown, Profit Factor, expectativa, cantidad de operaciones y preservación de ganadores. Esta orden manda sobre una investigación cosmética adicional. Al mismo tiempo, la auditoría décima A1 ordenó congelar nuevas capas/modelos/filtros hasta cerrar fidelidad CISD, divergencias y Candle 3. Ambas exigencias se concilian **reutilizando la arquitectura cognitiva YA IMPLEMENTADA**, cerrando defectos de fuentes y construyendo evidencia histórica auténtica, sin inventar un nuevo score/política.
+
+
+## ACTUALIZACIÓN DEFINITIVA — ESTADO REAL AL ENTREGAR AL SUCESOR
+
+**Prioridad absoluta del Owner:** integrar sensores al CEREBRO Master Frame verdadero del Trader Scalper; este cerebro decide cada oportunidad ANTES de abrirla en PAPER; comparar su drawdown, PF, rentabilidad y preservación de ganadores con V49. **No volver a agregar un veto simple ni un panel meramente pasivo.**
+
+**Hechos ya probados:** (1) la interfaz sensor→contexto Master Frame→PASS/WAIT/ABSTAIN→PAPER y memoria selected-and-settled-only funciona en tests con fixtures; (2) A1 construyó 2.822 barreras temporales reales en nueve mercados para 2.876 oportunidades V49, con 2.791 barreras 9/9 M1 exactas y 31 barreras de feed parcial; (3) 2.876 percepciones origen ascienden a DEGRADED y 22.522 permanecen BAD, 0 GOOD; (4) los regímenes permanecen UNRESOLVED, grafo causal UNKNOWN, spread/commission físico y World Model completo no están atestados; (5) **NO existe un replay histórico económico Full Master Frame de 2.876 decisiones con PF y DD calculados**. Es incorrecto asignar al cerebro los PF .664 de V49, 1.595 de V50-G reducido o .621 del veto de discrepancias.
+
+**CI confirmada en commits exactos:** [B Methodology #38093821695](https://github.com/mezas3238-hue/qore-core/actions/runs/38093821695) y [B Cert V2 #38093824349](https://github.com/mezas3238-hue/qore-core/actions/runs/38093824349), SUCCESS en 1d56044; [A1 Cognition #38094209281](https://github.com/mezas3238-hue/qore-core/actions/runs/38094209281) y [A1 CISD outcome-blind nine-market #38094209262](https://github.com/mezas3238-hue/qore-core/actions/runs/38094209262), SUCCESS en e03f733. A1 tuvo fallos CI en SHA anteriores y fueron subsanados; no afirmar que calidad de CI demuestra rentabilidad.
+
+**Congelación metodológica vigente:** [A1 Décima auditoría METHOD-FIRST](https://github.com/mezas3238-hue/qore-core/blob/agent/scalper-architect-a-cognition-20261010/docs/research/QORE_SCALPER_A1_TENTH_AUDIT_METHOD_FIRST_FREEZE_2026-10-10.md) prohíbe nuevas políticas/regímenes/filtros mientras B completa fidelidad CISD/Candle3, resolver las 381 discrepancias por causa y testigos de H1/M15/M1. Esa congelación NO prohíbe cablear y comprobar las funciones Master Frame ya implementadas con hechos nativos; exige no fingir entradas o epistemología a partir de los resultados futuros. La prioridad es **terminar la integración REAL y el replay**, no crear nuevas capas teóricas.
 
 ---
 
@@ -331,3 +342,51 @@ Todo relativo a src/qore/infrastructure/trader_lab/ salvo cuando se indique:
 **Éxito de sucesor = menos DD demostrable gracias al VERDADERO cerebro actuando sobre información causal, sin violar source TTrades ni diezmar ganadoras, con tiempo, identidad, riesgo, costes y OOS explicados.**
 
 **FIN — CONTINUAR EN GITHUB, SIN VPS Y SIN LIVE.**
+
+---
+
+# 12. NOTA FINAL FIRMADA DE CONTINUIDAD — TRABAJO EXACTO DE LA PRÓXIMA MISIÓN
+
+## 12.1 Estado económico congelado
+
+V49 nueve mercados, datos provider-native M1, 2025-09-17 a 2026-09-17: 2.876 oportunidades únicas, 2.020 seleccionadas MAX3 portfolio, 1.167 ganadoras, 852 perdedoras y 1 plana, PF bruto 0.664463, neto −233.269R, drawdown máximo 236.134R, ganancias originales +461.943R. Los umbrales de conservación son **934 ganadoras originales** y **415.7485R de su masa original**; mantener frecuencia y n útil, además de PF OOS y drawdown. R no es porcentaje de equity; no se han aplicado BID/ASK, comisión y slippage físicos. Datos y fuente: [V49 nine market #38053946695](https://github.com/mezas3238-hue/qore-core/actions/runs/38053946695), M1 proveedor [#35548099334](https://github.com/mezas3238-hue/qore-core/actions/runs/35548099334). No cambiar el control.
+
+Intentos anteriores descartados:
+- V50-G Geometry 220 operaciones, PF 1.096 DD20.33R; V50-G llamada Cognition (puente PARTIAL, no Master Full) solo 94 operaciones PF1.595 DD9R y apenas 37 ganadoras originales. Fracaso por destrucción de población.
+- Cambiar targets HTF más lejos preservó 942 winners pero 387.58R originales y empeoró DD 279.56R. Stops M1/M15 y veto de ruido no recuperaron edge.
+- Baseline aleatorio misma tesis H1 a 30 minutos 54.9%-56.2% frente 43.6% del M1 real: evidencia de selección temporal desfavorable, NO PF de entradas aleatorias.
+- Stage sweep→CISD −12.56 puntos de favorabilidad +30m, CISD→entry = cero delay; no promover una entrada en barrido antes de validación.
+- Sensor con rechazo mecánico de discordancias 381: 1.910 trades, PF .62131, DD252.10R, 385.08R masa ganadora original: RECHAZADO. El Master Frame debe interpretar, no convertir estos sensores en hard gates.
+
+## 12.2 Diferencias metodológicas y fuentes, sin confundirlas con PF
+
+Origen general: [TTrades Scalping Model](https://ttrades.com/ttrades-scalping-model-simple-day-trading-strategy/) H1 tesis Candle2/3→M15 protected swing→M1 timing. [Understanding CISD](https://ttrades.com/understanding-the-change-in-state-of-delivery-cisd/), [MSS versus CISD](https://ttrades.com/market-structure-shifts-vs-change-in-the-state-of-delivery-a-clear-comparison/) y [CISD Confirms Swing Points](https://ttrades.com/how-change-in-the-state-of-delivery-confirms-swing-points/): cierre por encima/debajo de la primera apertura de la serie de velas opuestas, vinculada al swing y al POI/HTF pertinentes. V49 cumple el nivel de cierre básico en Sweep (series[0].open), pero **no está certificada la identidad correcta de la serie/swing/POI**.
+
+El censo 381 clasificado [#38076268436](https://github.com/mezas3238-hue/qore-core/actions/runs/38076268436): **247 primeros eventos de otra familia antes de la entrada V49** (171 originales FVG frente sensor Sweep temprano, 76 originales Sweep frente sensor FVG temprano), **134 misma vela distinta familia** (original Sweep frente sensor FVG). Seis/ninguna otra categoría detectada: en panel as-of no puede verse una CISD posterior, y no hubo falta de observación. Los 381 tienen **familia distinta**, no prueba de signo CISD invertido; comprobar por source ID ventana hasta próximo setup M15/H1 as-of, POI y precedencia de evento, no por mejor retorno MFE. La ventaja temprana a +30m es +5.80 puntos en 224 pares, pero a +15m es −3.35 y +60m es 0; MAE aumenta. No constituye una entrada monetizable.
+
+**Candle 3** sigue SOURCE_AMBIGUITY: lectura diciembre 2025 C3 dentro del rango C2 y cierre fuera de su cuerpo frente interpretación enero 2026 que cita cierre más allá de apertura/rango. B debe A/B separado autor-fiel con universos distintos, no escoger por PF in-sample. Contextos Asia/London/NY pueden tener rutas fuente Daily/H4 divergentes del genérico QORE; ver ledger autor en sección 1 y archivos adicionales listados en §9.
+
+## 12.3 Lo construido en cognitiva REAL y funciones del cerebro
+
+La rama A1 PR #758 conserva:
+1. **Master Frame:** capitalizer_master_cognitive_frame.py; recibe el mundo y hipótesis, mercado/regímenes, grafo intermercado, evidencia candidata y presión. Evalúa estado epistemológico, incertidumbre y razonamiento WHY; la existencia de la API no significa que el mundo histórico esté construido.
+2. **Entrada y sensorización:** capitalizer_a1_trader_cognition_port.py, capitalizer_scalper_entry_timing_sensors_shadow_v1.py, capitalizer_scalper_sensor_master_frame_bridge_v1.py y capitalizer_a1_sensorized_paper_runtime_v1.py. H1 sesgo/antigüedad, stop M15 declarado, M1 sweep/opposing series/FVG/retrace/CISD, rango H1 parcial, reloj NY, session runway, volatilidad, gaps, target y broker bid/ask si son reales. Cada sensor con status, reloj y procedencia, NO con winner-R futuro. Sin testigo causal real, estado NOT_AVAILABLE, nunca cero o GOOD inventados.
+3. **Competición:** capitalizer_a1_multi_hypothesis_research.py, capitalizer_a1_joint_competition_research.py; estudiar oportunidades concurrentes a igual timestamp en nueve mercados. MAX3 aplica **a escala de portafolio por sesión/fecha**, no 3 por símbolo.
+4. **Memoria temporal:** capitalizer_a1_chronological_cognitive_replay.py y cognitiva Master PAPER; solo outcomes efectivamente elegidos y settled antes del siguiente decision_at, no registrar ni aprender pérdidas de hipotéticos rechazados.
+5. **Trader PAPER real con fixtures:** capitalizer_a1_master_frame_paper_trader_integration_v1.py::run_real_master_frame_paper_trader y capitalizer_high_frequency_trader_v49.py::select_master_frame_trade_intents. DEBEN reconciliarse en una ruta única, sin PASS simultáneos inconsistentes. En fixtures se prueban decisiones sobre datos sintéticos, **no existe resultado económico histórico real 2876**.
+6. **Observación 9 mercados:** capitalizer_a1_native_nine_market_bar_witness_v1.py, capitalizer_a1_native_nine_market_epistemic_inputs_v1.py, capitalizer_a1_native_clock_bound_perception_v2.py, capitalizer_a1_native_source_session_clock_attestation_v1.py, protected pivot v2/v3 e independent attestation. 2.822 barreras, 2.876 IDs, 2.791 9/9 M1 exactas, 31 parciales, 2.876 DEGRADED, 22.522 BAD, 0 GOOD; 2.375 testigos protected swing M1 (1.885 iniciales +490 pivotes siguientes), 501 sin ese testigo; 12 M15 y 124 H1 sin prueba independiente; esto NO prueba que sean inválidas.
+7. **Frontera contra futuro:** capitalizer_a1_cisd_outcome_blind_method_boundary_v1.py, CI A1 nine-market reciente SUCCESS, impide pasar MFE/MAE/retornos posteriores de la auditoría B a decisión Master. Mantener los tests causales y right-censorship de h1_state_until futuro.
+
+## 12.4 Responsabilidades y Definition of Done inequívocas
+
+**B metodología / PR #759, issue #757**: publicar por fuente la causa de **cada una de las 381 discrepancias** (ventana H1/M15/route priority/source swing y POI), resolver Candle 3 A/B con texto de fuente y pruebas causales, y reconciliar testigos H1/M15/M1. NO reescribir el libro V49 ni eliminar Sweep/FVG o introducir veto por inventario epistémico. Los defectos demostrados deben corregirse con prueba negativa y nueva comparación OOS congelada.
+
+**A cognitiva / PR #758, issue #756**: sincronizar 2.822 barreras reales, nueve snapshots fuente por instante, regímenes y causal graph honestamente UNKNOWN si faltan hechos; construir World Model con sesiones NY/DST, posiciones open/settled, presupuesto/pressure y memoria elegida/settled-only. Aplicar los sensores A2 as-of y confirmar fuentes H1/M15/M1; ejecutar verdadero build_master_cognitive_frame por cada uno de los 2.876 IDs, publicar PASS/WAIT/ABSTAIN más WHY, hash de world/sensores/engine, fuente temporal, elegibilidad MAX3, orden PAPER, settlement y cambios de memoria. Si alguno falta, BLOCKED con conteos e IDs y PF cognitivo NULL, nunca un PF fingido.
+
+**Comparación entregable**: A = V49 control 2.020 PF .66446 DD236.134R; A0 = NOOP sensores idéntico; B = Master FULL A1 y sensores, PF/DD por medir; C = veto 381 PF .62131 DD252.10R, rechazado. Para B exigir densidad, IDs ganadores originales preservados >=934, masa original >=415.7485R, PF bruto y —si existieran quotes/costes reales— neto, DD peak-to-trough en R, riesgo agregado, Sharpe/Sortino calculados sobre returns válidos, resultados por mercado/sesión/familia/fecha, y bootstrap/OOS multiera sin hindsight. Cero trades no se interpreta como DD exitoso.
+
+**Gate de integración:** usar GitHub Actions pinned SHA, logs y artifact 9/9 más 2876 decisiones, conciliar ante cualquier mismatch. No modificar simultáneamente target, stop, C3 y CISD; no seleccionar configuración por PF in-sample. V50-G de 94 trades está rechazado y la certificación estándar V2 sigue bloqueada por PF OOS neto, DD, muestras, robustez y broker físico. Fuentes 2023/2024 OOS no atestadas; año V49 se considera desarrollo ya consumido.
+
+**Cómo continuar desde GitHub:** leer este handoff → comprobar HEAD y CI de ambos PR → cargar artefactos V49 #38053946695, nativo #35548099334, M1 9mercados #38080367716, percepción #38092434895 y forensic CISD #38076268436 → cerrar fidelidad por source IDs y origen temporal → completar el World Model con evidencias realmente disponibles → ejecutar FULL Master PAPER no-lookahead con MAX3 portfolio y memoria settled-only → publicar matriz PF/DD y preservación por identidad o reporte BLOCKED con causas. Los PR continúan DRAFT, no hay autorización de merge, VPS, MT5 ni LIVE.
+
+**Estado final y sucesor esperado:** infraestructura sensorial/cognitiva funcional en pruebas; causa CISD route precedence y definición C3 pendientes; entradas PAPER Master FULL 2876 sin medir, no hay PF/DD cognitivo; certificación NO. Handoff definitivo entregado por GitHub; siguiente trabajo empieza exactamente en B #759 / A #758, jamás desde resultados V50-G rechazados.
