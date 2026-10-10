@@ -32,6 +32,8 @@ from qore.infrastructure.trader_lab.capitalizer_session_clock import (
 )
 from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     IDENTITY as V49_REPORT_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     V49EconomicTrade,
     _portfolio_select,
 )
@@ -449,12 +451,11 @@ def aggregate_excursion_reports(root: Path) -> dict[str, Any]:
                 item.terminal_same_bar_stop_target_ambiguity
             ),
         ))
-    key = lambda item: _trade_key(item)
-    picked = {key(item) for _, item in _portfolio_select(tuple(selected_input))}
-    if len(picked) != 2020 or len({key(item) for item in rows}) != len(rows):
+    picked = {_trade_key(item) for _, item in _portfolio_select(tuple(selected_input))}
+    if len(picked) != 2020 or len({_trade_key(item) for item in rows}) != len(rows):
         raise ValueError("frozen V49 MAX3 selection identity/denominator mismatch")
-    selected = tuple(item for item in rows if key(item) in picked)
-    excluded = tuple(item for item in rows if key(item) not in picked)
+    selected = tuple(item for item in rows if _trade_key(item) in picked)
+    excluded = tuple(item for item in rows if _trade_key(item) not in picked)
     if len(selected) != 2020 or len(excluded) != 856:
         raise ValueError("MFE/MAE audit MAX3 population mismatch")
     segments: dict[str, dict[str, list[ExcursionRow]]] = {
