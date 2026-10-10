@@ -605,6 +605,39 @@ class QDLE:
                 raise QDLEError("no account snapshot")
             acc = self._account(raw)
             self._fresh(acc.as_of, now)
+            # A PAPER portfolio with MTM attached must NEVER finance the next
+            # opportunity from a stale or fabricated NAV. Verify the last
+            # fully priced equity epoch IN THE SAME SQLite reservation TX.
+            # Without MTM attachment, legacy PAPER regression runs unchanged.
+            if self.research_paper_mode and db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='paper_cash_account'"
+            ).fetchone():
+                account_mtm=db.execute(
+                    "SELECT cash,last_snapshot_at FROM paper_cash_account WHERE id=1"
+                ).fetchone()
+                if account_mtm is None:
+                    raise QDLEError("PAPER MTM account has no initial cash")
+                has_financial_history=db.execute(
+                    "SELECT COUNT(*) FROM paper_mtm_event_log"
+                ).fetchone()[0]
+                if has_financial_history:
+                    mark=db.execute(
+                        "SELECT at,equity FROM paper_mtm_snapshots "
+                        "ORDER BY at DESC LIMIT 1"
+                    ).fetchone()
+                    last=db.execute(
+                        "SELECT instant,kind FROM paper_mtm_event_log "
+                        "ORDER BY instant DESC LIMIT 1"
+                    ).fetchone()
+                    if (mark is None or mark[0]!=acc.as_of.isoformat()
+                            or last is None or last[1]!="MARK"
+                            or last[0]!=mark[0]
+                            or Decimal(mark[1])!=acc.qore_trading_capital_usd):
+                        raise QDLEError(
+                            "PAPER QDLE financing requires matching complete MTM NAV epoch")
+                elif Decimal(account_mtm[0])!=acc.qore_trading_capital_usd:
+                    raise QDLEError("PAPER initial financing must equal cash account")
             if acc.sequence != intent.expected_account_sequence:
                 raise QDLEError("stale economic coordination epoch")
             rows = db.execute("SELECT payload FROM symbols").fetchall()
