@@ -11,6 +11,32 @@
 
 ---
 
+## 0.A. Owner priority update: density and source fidelity — 2026-10-10
+
+**This instruction overrides the earlier ORDER of work for Architect A (methodology) in Section 9, but does not remove the Cognitive P0 obligations of Architect B.**
+
+The Owner identifies the **severe lack of executable trade density as VT08's principal operational bottleneck**. Architect A must not stop after mapping structural opportunity shapes, nor after source-closing only one entry family. The mandatory mission is to **audit the whole trader against TTrades' original audio/video/framebook and subsequent official clarifications**, determine where narrow QORE containments, programming bugs, incorrect source interpretations, omitted entry families, missing C3 and independent M3/M5 profiles prevent otherwise legitimate setups, **correct evidence-backed gaps**, and then measure restored **actually executable** per-market trading density without destroying PF/DD/temporal robustness.
+
+**Dedicated binding handoff for Architect A:** [VT08 5M Architect A — Master source-fidelity, density and certification handoff](VT08_5M_ARCHITECT_A_METHODOLOGY_SOURCE_FIDELITY_DENSITY_MASTER_HANDOFF_2026-10-10.md).  
+**Work issue:** [#762](https://github.com/mezas3238-hue/qore-core/issues/762). **Companion cognition:** [#763](https://github.com/mezas3238-hue/qore-core/issues/763). **Original parent PR:** [#634](https://github.com/mezas3238-hue/qore-core/pull/634).
+
+### Binding order and quantitative baseline
+
+1. **P0-M0 Fidelity audit FIRST:** author source to R3.2 / R3.9 to implementation / test / replay matrix for *all* six source entry identities, five stop families, contextual targets and H4 lifecycle; evidence by timestamp/frame with classifications `SOURCE_EXPLICIT`, `SOURCE_INFERRED`, `QORE_CONTAINMENT`, `OWNER_POLICY`, `UNRESOLVED`. Performance must not adjudicate the source.
+2. **P0-M1 Density forensics:** reproduce 11,655 anchors → 488 mechanical candidates → 457 terminal trades (~3Y / 5 markets). Classify first failures (3,987 C2 close, 2,071 unresolved bias, 1,347 both-side sweep, 1,317 side/bias mismatch, 1,085 no sweep, 769 no PS, 145 multiple PS, other incomplete evidence). **These losses are not automatically valid trades.** Identify every source-vs-QORE narrowing and its incremental effect on *actual fills*.
+3. **P0-M2 Restore source-authorized executions:** assess all six entry families before prioritization; machine-complete each justifiable high-coverage bundle with causal entry time/type/price, POI, compatible stop, contextual target, expiration and ambiguity handling; cover C2/C3 where source evidence permits. Shape-only / later CISD retests remain non-executable until primary-source authority is established.
+4. **P0-M3 Measure density, not just structures:** M3 census 301–335 unique structural opportunity days/2Y per market is an **outcome-blind upper bound, not 301–335 trades**. Measure distinct source-authorized signals, orders, fills, terminal trades, per-year/by-market densities under one-fill-per-market-NY-date Owner policy; independently report M15/M5/M3, never outcome-selected unions.
+5. **P0 joint cognition binding:** provide frozen causal CandidateEvent V1 to Architect B; require cognitive reasoning/adversarial/memory/hypothesis/position consumption and per-trade provenance. The two tracks work **in parallel** after their shared schema contract, with methods/source owned by A and cognition/replay binding by B.
+6. **P1 certification program:** compare matched methodology-only, source-corrected, full-cognitive replays and stress/temporal WFO/MC results. The old 50 trades/2Y acceptance gate is **retired**; **Owner approval of a numeric replacement is still required** before final candidate/holdout results. Maintain existing historical PF>=1.80, DD<=6R and robustness gates unless explicit preregistered governance supersedes them. The sealed 7Y older outcome archive must not be used for tuning. Certification and subsequent DEMO/LIVE need separate authorization.
+
+**Important source-contract conflict to resolve:** R3.2 freeze describes trades not extending beyond current H4, while R3.9 labels filled-position H4 lifecycle fundamentally unresolved and the next-H4 close a QORE containment. Architect A must adjudicate this by the primary author with provenance before introducing changed exits.
+
+### Acceptance of this new mandate
+
+It is not enough to deliver another 150–180 trades/3Y candidate with better managed PF. Architect A is accountable for a completed **source-fidelity report**, corrected source-authorized candidate generator, fully reconciled density funnel, non-overlapping causal trade ledger, measured execution trade rate by market/year and joint certification-ready methodology handoff to Architect B. The exact final trade count and profitability must be **measured**, not promised. Unresolved source rules remain fail-closed; do not manufacture density or consume sealed holdout early.
+
+---
+
 ## 0. Executive instruction to the next architect
 
 Continue this exact trader identity until certification is genuinely earned from evidence.
