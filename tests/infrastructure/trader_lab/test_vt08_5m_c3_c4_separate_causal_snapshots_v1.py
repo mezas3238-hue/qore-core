@@ -52,7 +52,7 @@ def shape_for(bundle_data=None):
     )
 
 
-def test_C3_is_not_available_15m_before_close() -> None:
+def test_c3_is_not_available_15m_before_close() -> None:
     c1, c2, c3, m15 = bundle()
     with pytest.raises(ValueError, match="unknowable"):
         c3_closed_source_shape(
@@ -61,7 +61,7 @@ def test_C3_is_not_available_15m_before_close() -> None:
         )
 
 
-def test_C3_snapshot_is_C4_free_and_has_stable_identity() -> None:
+def test_c3_snapshot_is_C4_free_and_has_stable_identity() -> None:
     s = shape_for()
     assert s is not None
     o = s.payload()
@@ -78,7 +78,7 @@ def test_C3_snapshot_is_C4_free_and_has_stable_identity() -> None:
     )
 
 
-def test_C3_source_identity_does_not_depend_on_future_C4_prices() -> None:
+def test_c3_source_identity_does_not_depend_on_future_C4_prices() -> None:
     s = shape_for()
     assert s is not None
     t = s.c3_closed_at
@@ -94,7 +94,7 @@ def test_C3_source_identity_does_not_depend_on_future_C4_prices() -> None:
     assert a["eq_half_respected_at_closed_m15"] != b["eq_half_respected_at_closed_m15"]
 
 
-def test_C4_future_bar_cannot_be_consumed_at_open_or_preclose() -> None:
+def test_c4_future_bar_cannot_be_consumed_at_open_or_preclose() -> None:
     s = shape_for()
     assert s is not None
     t = s.c3_closed_at
@@ -107,7 +107,7 @@ def test_C4_future_bar_cannot_be_consumed_at_open_or_preclose() -> None:
         )
 
 
-def test_C4_must_start_at_C3_close_exactly() -> None:
+def test_c4_must_start_at_C3_close_exactly() -> None:
     s = shape_for()
     assert s is not None
     bad = candle(s.c3_closed_at + timedelta(minutes=15), "103", "105", "101", "104", 15)
@@ -115,7 +115,7 @@ def test_C4_must_start_at_C3_close_exactly() -> None:
         c4_first_m15_closed_observation(s, first_c4_m15=bad, observed_at=bad.closed_at)
 
 
-def test_C3_raw_m15_injection_and_ohlc_tamper_fail_closed() -> None:
+def test_c3_raw_m15_injection_and_ohlc_tamper_fail_closed() -> None:
     c1, c2, c3, bars = bundle()
     bad = replace(bars[0], high=Decimal("111"))
     with pytest.raises(ValueError, match="not authenticated"):
@@ -131,7 +131,7 @@ def test_C3_raw_m15_injection_and_ohlc_tamper_fail_closed() -> None:
         )
 
 
-def test_C3_already_completed_C2_reversal_partition_excludes_shape() -> None:
+def test_c3_already_completed_C2_reversal_partition_excludes_shape() -> None:
     c1, c2, c3, bars = bundle()
     # C2 sweeps C1 high 110 but closes inside C1 -> completed C2 closure.
     c1 = replace(c1, high=Decimal("104"))
@@ -139,7 +139,7 @@ def test_C3_already_completed_C2_reversal_partition_excludes_shape() -> None:
 
 
 @pytest.mark.parametrize(("month", "expected_utc_hour"), [(1, 14), (7, 13)])
-def test_owner_09NY_C4_after_05NY_C3_both_DST(month: int, expected_utc_hour: int) -> None:
+def test_owner_09ny_c4_after_05ny_c3_both_dst(month: int, expected_utc_hour: int) -> None:
     c1, c2, c3, bars = bundle()
     dt = datetime(2026, month, 15, 1, tzinfo=NY).astimezone(UTC)
     offset = dt - c2.opened_at
@@ -155,7 +155,7 @@ def test_owner_09NY_C4_after_05NY_C3_both_DST(month: int, expected_utc_hour: int
     assert s.c3_closed_at.astimezone(UTC).hour == expected_utc_hour
 
 
-def test_13NY_C4_remains_owner_forbidden_without_ignoring_shape() -> None:
+def test_13ny_c4_remains_owner_forbidden_without_ignoring_shape() -> None:
     s = shape_for(bundle(hour=5))
     assert s is not None
     assert s.c3_closed_at.astimezone(NY).hour == 13
