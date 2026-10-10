@@ -201,9 +201,9 @@ class Vt08CandidateEventV1:
             "source_family": self.source_family,
             "scenario": self.scenario,
             "side": self.side,
-            "h4_anchor_at": _aware(
-                self.h4_anchor_at, "h4_anchor_at"
-            ).isoformat(timespec="microseconds"),
+            "h4_anchor_at": _aware(self.h4_anchor_at, "h4_anchor_at").isoformat(
+                timespec="microseconds"
+            ),
             "opposing_series_opened_at": _aware(
                 self.opposing_series_opened_at, "opposing_series_opened_at"
             ).isoformat(timespec="microseconds"),
@@ -234,15 +234,15 @@ class Vt08CandidateEventV1:
                 self.candle2_closed_at, "candle2_closed_at"
             ).isoformat(timespec="microseconds"),
             "feature_close_cutoffs": {
-                "source_h4": _aware(
-                    self.candle2_closed_at, "candle2_closed_at"
-                ).isoformat(timespec="microseconds"),
-                "cisd": _aware(
-                    self.cisd_confirmed_at, "cisd_confirmed_at"
-                ).isoformat(timespec="microseconds"),
-                "protected_swing": _aware(
-                    self.ps_confirmed_at, "ps_confirmed_at"
-                ).isoformat(timespec="microseconds"),
+                "source_h4": _aware(self.candle2_closed_at, "candle2_closed_at").isoformat(
+                    timespec="microseconds"
+                ),
+                "cisd": _aware(self.cisd_confirmed_at, "cisd_confirmed_at").isoformat(
+                    timespec="microseconds"
+                ),
+                "protected_swing": _aware(self.ps_confirmed_at, "ps_confirmed_at").isoformat(
+                    timespec="microseconds"
+                ),
             },
             "bias_feature_cutoff": "UNATTESTED_IN_LEGACY_B01_CANDIDATE",
             **self.source_payload(),
