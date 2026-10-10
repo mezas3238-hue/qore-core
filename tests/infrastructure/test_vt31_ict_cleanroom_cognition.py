@@ -224,7 +224,11 @@ def test_real_cognitive_decision_is_consumed_by_ops_same_session_fvg() -> None:
     assert last_out.operational_phase is MethodologyDecision.RESEARCH_PENDING_CE
     state = trader.snapshot()
     assert state["registered_trader_count"] == 1
-    assert state["session_windows"][-1]["model"] == "LONDON"
+    windows = state["session_windows"]
+    assert isinstance(windows, tuple)
+    latest = windows[-1]
+    assert isinstance(latest, dict)
+    assert latest["model"] == "LONDON"
     assert state["live_authorized"] is False
 
 
