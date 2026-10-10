@@ -12,6 +12,8 @@ on:
       - src/qore/infrastructure/traders/vt31_ict_cleanroom/m1_execution.py
       - tests/infrastructure/test_vt31_ict_cleanroom_ops.py
       - tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/cognitive_telemetry.py
+      - tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py
       - .github/workflows/vt31-ict-cleanroom-joined-3y-fast-v1.yml
       - tests/infrastructure/test_vt31_ict_cleanroom_cognition.py
       - .github/workflows/vt31-ict-cleanroom-cog-real-3y-fast-v1.yml
@@ -49,7 +51,7 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/vt31_ict_cleanroom_cog_real_3y_fast_v1.py src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py
           ruff check scripts/vt31_ict_cleanroom_cog_real_3y_fast_v1.py src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py tests/infrastructure/test_vt31_ict_cleanroom_cognition.py
-          PYTHONPATH=src pytest -q -o addopts='' tests/infrastructure/test_vt31_ict_cleanroom_cognition.py tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py tests/infrastructure/test_vt31_ict_cleanroom_ops.py tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py tests/infrastructure/test_vt31_ict_cleanroom_order_lifecycle.py
+          PYTHONPATH=src pytest -q -o addopts='' tests/infrastructure/test_vt31_ict_cleanroom_cognition.py tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py tests/infrastructure/test_vt31_ict_cleanroom_ops.py tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py tests/infrastructure/test_vt31_ict_cleanroom_order_lifecycle.py tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py
           PYTHONPATH=src python scripts/vt31_ict_cleanroom_cog_real_3y_fast_v1.py --self-test
       - name: Download canonical owner-consumed 3Y NAS100 market M1
         run: |
@@ -71,6 +73,7 @@ jobs:
           set -euo pipefail
           PYTHONPATH=src python scripts/vt31_ict_cleanroom_cog_real_3y_fast_v1.py \
             --evidence input/NAS100/market-evidence.json \
+            --audit-components \
             --output output/cognitive-3y-cleanroom-result.json \
             | tee output/summary.json
       - name: Structural coverage, one-trader and no-capital guards
@@ -96,6 +99,16 @@ jobs:
           assert g["economic_replay_run"] is False
           assert g["live_authorized"] is False
           assert g["certified"] is False
+          a=d["cognitive_component_io_audit"]
+          assert isinstance(a,dict), "live causal sensors were NOT activated"
+          assert a["closed_m1_seen"]==1059784
+          assert a["cognition_calls"]==137160
+          assert a["ops_calls"]==137160
+          assert a["p0_pending_without_cog_unique_candidate_sources"] == {}, (
+              "P0 regression: COG lost but M1 research order still pending"
+          )
+          assert a["p0_pending_without_cog_m1_observations"]==0
+          assert a["components"]["H4_CONTEXT"]["reached_first_suitable_FVG"]==0
           assert sum(d["native_source_fvg_candidates_by_window"].values()) > 0
           assert d["source_window_count"] == 3
           assert d["governance"]["broker_or_paper_fill_proven"] is False
