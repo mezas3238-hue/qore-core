@@ -274,7 +274,7 @@ def test_position_refuses_unauthorized_side_change_and_old_candle() -> None:
     gate = Vt08FiveMarketCognitiveGate()
     gate.evaluate(_snapshot())
     _ack(gate)
-    with pytest.raises(ValueError, match="post-admission"):
+    with pytest.raises(ValueError, match="must follow recorded fill"):
         gate.evaluate_position(
             _snapshot(entry_state="FILLED", position_state="OPEN"),
             _position(T0),
