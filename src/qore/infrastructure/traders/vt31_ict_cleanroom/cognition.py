@@ -131,6 +131,13 @@ def _htf_context(
             state[label] = "NOT_EVALUABLE"
             continue
         now, prior = candles[-1], candles[-2]
+        latest_close = utc(closed[-1].closed_at)
+        # An H1 completed Friday cannot masquerade as current H1
+        # during Tuesday's market; no carrying stale HTF as "observed".
+        max_age = timedelta(minutes=interval * 2)
+        if latest_close - now[0] > max_age:
+            state[label] = "STALE"
+            continue
         # Transparent market-only two-close directional diagnostic, not
         # an invented categorical trade permission.
         direction = (
@@ -238,6 +245,8 @@ def _confirmed_break(
     candles = closed[-95:]
     current = candles[-1]
     previous = candles[-2]
+    if utc(previous.closed_at) != utc(current.opened_at):
+        return None
     reference = median(
         [abs(b.close - b.open) for b in candles[-7:-2]]
     )
@@ -314,9 +323,9 @@ class VT31CleanroomCognition:
         pools = _verified_pools(closed, at, session)
         shift = _confirmed_break(closed)
         missing: list[str] = []
-        if htf.get("H1") == "NOT_EVALUABLE":
+        if htf.get("H1") in {"NOT_EVALUABLE", "STALE"}:
             missing.append("H1_CLOSED_CONTEXT")
-        if htf.get("M15") == "NOT_EVALUABLE":
+        if htf.get("M15") in {"NOT_EVALUABLE", "STALE"}:
             missing.append("M15_CLOSED_CONTEXT")
         if not pools:
             missing.append("LIQUIDITY_POOL")
