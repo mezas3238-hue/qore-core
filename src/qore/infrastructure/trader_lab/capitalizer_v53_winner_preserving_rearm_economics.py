@@ -416,9 +416,9 @@ def _portfolio(rows: tuple[V53TradeRecord, ...]) -> tuple[V53TradeRecord, ...]:
         grouped[(item.session, item.operating_date)].append(item)
 
     selected: list[V53TradeRecord] = []
-    for key in sorted(grouped):
+    for session_key in sorted(grouped):
         candidates = sorted(
-            grouped[key],
+            grouped[session_key],
             key=lambda item: (
                 datetime.fromisoformat(item.entry_at),
                 item.symbol,
