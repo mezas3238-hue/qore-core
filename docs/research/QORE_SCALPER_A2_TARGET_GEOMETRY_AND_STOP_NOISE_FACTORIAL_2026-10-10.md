@@ -46,3 +46,34 @@ Workflow [GitHub #38059512447](https://github.com/mezas3238-hue/qore-core/action
 - Hacer comparación **target alternativo basado en objetivos H1 realmente confirmados / FVG / liquidez HTF** y rutas de continuación, con stop fijo en protected swing, prereg y OOS; no imponer un mínimo R arbitrario de TTrades ni elegirlo con el resultado histórico.
 - Auditar específicamente la confirmación Sweep+CISD contra el **cierre de las velas opuestas**, no simplemente el sweep.
 - Integrar cognitiva A1 plena, observaciones inter-mercado y memoria prequential settled-only SIN acceso a excursiones futuras, separando bajo rendimiento económico de falta de implementación cognitiva. NO certificar, NO merge, NO VPS/LIVE.
+
+## 5. RESULTADO REAL FINAL 2×2 — 9/9 mercados, sin modificar el target
+
+**Fuente:** [GitHub Actions #38059917709](https://github.com/mezas3238-hue/qore-core/actions/runs/38059917709), código/fuente experimento SHA `49cbb645fcc2845d6c9e7ddf6186f0bdba35b15b`; **11/11 jobs SUCCESS** (test contrato, 9 mercados, agregado). Los artefactos almacenan source gate por oportunidad, cuatro libros económicos por mercado, matriz de PF/DD y winner-ID retention. Igualdad estricta de **las 2,876 filas simuladas de B** con el V49 control original *dataclass por dataclass* comprobada dentro de cada job, incluyendo precios, stop, target y R. No son operaciones LIVE, ni costes físicos.
+
+| Brazo | Operaciones después MAX3 | Ganadoras del brazo | PF bruto | R acumulado | Max DD (R) | Ganadores de V49 aún positivos (de 1167) | R ganador V49 conservado |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **B M15_NOISE_OFF** | 2,020 | 1,167 | **0.664463** | **-233.269R** | **236.134R** | 1167 (100%) | 461.943R (100%) |
+| **C M15_NOISE_VETO** | 223 | 150 | **0.868955** | **-6.266R** | **12.687R** | 107 (9.17%) | 31.691R (6.86%) |
+| **D M1_NOISE_OFF** | 1,934 | 739 | **0.796112** | **-240.719R** | **263.124R** | 704 (60.33%) | 255.576R (55.33%) |
+| **A M1_NOISE_VETO** | 223 | 136 | **1.035084** | **+2.773R** | **13.027R** | 97 (8.31%) | 29.287R (6.34%) |
+
+**Veto 4–8× antes de MAX3:** 2,370 oportunidades `M1_EXECUTION_STOP_INSIDE_LOCAL_NOISE`, 272 sin pivote M1 confirmado, 10 por stop M1 >8× y **224** dentro de [4×,8×]; por MAX3, 223. Hay una discrepancia de **1** entre la clasificación factorial de ruido 2,370/224 y el rastro original V50-G 2,371/221 READY; versiones/contratos de entrada diferentes (también hay condiciones de ladder/target y snapshot) y NO se debe fingir identidad perfecta entre experimentos. Los módulos de geometría son el componente que aquí se aísla; el legado V50-G incluye además filtro ≥1R, H1 target ladder alternativo y puente cognitivo. Comparar sus salidas como si solo cambiara stop violaría la lógica del A/B.
+
+**Resultado causal estructural:**
+1. **Quitar el veto de ruido M1 del brazo M1** cambia A (223) → D (**1,934**): recupera **1,711 ejecuciones** en mismo dataset, pero PF bruto cae de 1.035 a **0.796** y DD sube de 13.03 a **263.12R**. **No arregla el edge negativo**, ni preserva suficientemente ganadores (704 / 1167 en vez de 934 mínimos).
+2. **Mantener stop M15 y añadir veto M1** cambia B (2,020) → C (**223**) sin alterar stop ni target, y preserva solo 107 ganadores V49 (6.86% winner mass). El veto es una barrera extrema de densidad incluso cuando el stop protegido M15 existe.
+3. **Cambiar M15 a M1 sin veto** B (2,020) → D (1,934): modifica la relación de recompensas objetivo a riesgo y acelera los stops; PF mejora *relativamente* de 0.664 a 0.796, pero el DD acumulado empeora (236.13R → 263.12R) y R neto se deteriora (-233.27R → -240.72R). **No es prueba de que M1 stop sea mejor**.
+4. Las ramas A/C con 223 operaciones, y D con sólo 704 ganadores V49 conservados, incumplen Owner retención ≥934 originales/≥415.75R. B preserva 100% por definición pero tiene PF0.664 y DD236R. **NINGÚN brazo es elegible para certificación**. Una variante de densidad alta con PF <1 tampoco se debe promocionar.
+
+### Lectura específica de targets: condicionamiento importa
+
+La distribución de los 2,020 planned targets está muy sesgada: **media planned 1.162R pero mediana 0.443R**. El subconjunto que logra target (N=1030) es el de objetivos más próximos: **mediana payout 0.2465R**, mientras el subconjunto que acaba en STOP (N=609) tenía **mediana planned target 0.8315R**. Esto indica que **los targets más distantes tienen menor tasa de impacto en este ensayo**, por lo que subir mecánicamente todos los targets a 1.5R no tiene respaldo y puede convertir ganadoras existentes en stops. El target autor-faithful debe nacer de un draw-on-liquidity confirmado y de una tesis de expansión H1, no de escoger retrospectivamente la posición que hubiera pagado más.
+
+### Lectura de certificación
+
+- **CORROBORADA** asimetría de pagos de H1 witness (típico target demasiado próximo al stop M15).
+- **CORROBORADO** veto M1 de QORE destruye la frecuencia al actuar como hard requirement.
+- **FALSADA** la esperanza simple de que desactivar ese veto o cambiar solo el stop restaure edge rentable: ambos brazos de densidad alta son PF bruto <1, DD gigantesco.
+- **NO DEMOSTRADA** calidad H1 bias separada, CISD Sweep metodológicamente correcto en cada trade, causalidad de todos los niveles de liquidez, ni que otra ubicación target eleve PF neto OOS.
+- **PENDIENTE** rerender independiente H1 target witness con RAW M1 y pivotes confirmados, análisis multiventana OOS, costes físicos bid/ask comisiones, integración completa Master Frame A1; no usar MFE/MAE del futuro para admisión.
