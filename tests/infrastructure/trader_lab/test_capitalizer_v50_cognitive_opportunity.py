@@ -22,6 +22,7 @@ from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_hf_bridge import (
     V50CognitiveDisposition,
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_opportunity import (
+    V50CognitiveOpportunitySnapshot,
     build_v50_cognitive_snapshot,
     refinement_path,
 )
@@ -161,7 +162,7 @@ def test_h1_terminal_future_is_not_visible_to_cognitive_snapshot() -> None:
     )
     h1 = (_h1(9, "101", "98"), _h1(10, "103", "99"), _h1(11, "102", "100"))
 
-    def snapshot_for(source: V49Opportunity):
+    def snapshot_for(source: V49Opportunity) -> V50CognitiveOpportunitySnapshot:
         return build_v50_cognitive_snapshot(
             source,
             m1_bars=bars,
