@@ -13,8 +13,8 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_entry_timing_sensors_shadow_v1 import (
     IDENTITY,
-    EntrySensorInput,
     EntrySensorFrame,
+    EntrySensorInput,
     SensorStatus,
     observe_entry_timing_sensors,
 )
