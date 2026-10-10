@@ -39,3 +39,19 @@ If both observers return identical candidate sets, identical time/family tie pri
 Owner's density/preservation limits: >=934 original winning IDs, >=415.74848565 original winning R, no promotion of a 94-trade V50-G subset, no new automatic CISD veto, no source claim without direct rule evidence.
 
 **Current explicit blockers:** Historical C3 nine-market paired A/B not executed; 381 discrepancy roots not yet adjudicated individually; full nine-market Master Frame economic PF/DD absent. V49 remains unchanged and certification blocked.
+
+
+## ACTUALIZACION — 9/9 native H1 paired geometry ejecutado y conciliado
+
+[GitHub Actions #38095270532](https://github.com/mezas3238-hue/qore-core/actions/runs/38095270532): **11/11 SUCCESS**, branch SHA `e31b8c27f48bd57aceca6d43fcb8dd904bd8cf35`. [Artifact agregado #11685698012](https://github.com/mezas3238-hue/qore-core/actions/runs/38095270532/artifacts/11685698012), nueve libros por mercado y por original source ID en el mismo run. Se descargaron fuentes V49 congeladas y M1 provider-native manifest-verificado; sólo H1 60/60 M1 cerradas y tripletas consecutivas exactas.
+
+- Tripletas H1 contextuales con cobertura: **45086** entre nueve mercados.
+- Variante geometrica DECEMBER_ONLY **2964**.
+- Variante geometrica JANUARY_ONLY **21445**.
+- NEITHER **20677**. BOTH **0** por la propia formalización de rangos excluyentes; no interpretar como dos edges competidores probados.
+- Conciliación V49 **2876/2876** por ID original; **238** oportunidades con H1 basis rotulado CANDLE3; **1460** oportunidades con tripleta H1 C3 nativa exacta asociada al inicio de estado (el resto UNKNOWN, no "invalida").
+- C2 reversal geometry (without attested POI) / 9market count está en artifact. Ninguna POI/CISD testigo independiente fue promocionada. Ningún trade se reejecutó; PF/DD quedan NULL.
+
+**Interpretración obligatoria:** el conteo January muy superior prueba sólo la tasa de cumplimiento de una geometría amplia y *no* prueba que sea la lectura del autor adecuada para el modelo genérico, que su cadena H1→M15→M1 esté completa, ni que genere entradas legales o ventaja monetaria. *No promover por tamaño* ni por muestra in-sample.
+
+A2 publicó además el reconstruidor por ID `capitalizer_scalper_a2_cisd_prefix_causality_v1.py` y el workflow `qore-scalper-a2-cisd-window-nine-market.yml`: compara observer de full-original M15→siguiente M15/H1 con observador de prefijo terminado en M1 original, registra testigos/boundaries, clasifica sólo divergencias efectivamente demostradas y deja no atestadas como tales. El test de contrato del nuevo workflow [#38095562104](https://github.com/mezas3238-hue/qore-core/actions/runs/38095562104) está GREEN. El histórico 9market completo aún debe cerrar para cuantificar causas 247+134; no atribuir cifras causales prematuramente. El código full-window se utiliza SOLO fuera de decisiones, porque puede conocer cierre del estado futuro; jamás feeding Master.
