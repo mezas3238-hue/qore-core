@@ -48,7 +48,7 @@ def _dt(raw: str) -> datetime:
     return value
 
 
-def _trade_key(t: V49EconomicTrade) -> tuple[str, ...]:
+def _trade_key(t: V49EconomicTrade | ExcursionRow) -> tuple[str, ...]:
     return (
         t.symbol, t.session, t.operating_date,
         t.entry_at, t.entry_price, t.trigger_family, t.h1_state_basis,
@@ -233,7 +233,8 @@ def observe_market_excursions(
             if (
                 bar.opened_at >= _dt(trade.entry_at)
                 and bar.closed_at <= _dt(trade.exit_at)
-                and capitalizer_session_at(bar.opened_at).value == trade.session
+                and (session := capitalizer_session_at(bar.opened_at)) is not None
+                and session.value == trade.session
             ):
                 current.absorb(bar)
             if current.finished:
