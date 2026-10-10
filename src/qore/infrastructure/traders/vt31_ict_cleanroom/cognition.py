@@ -10,7 +10,7 @@ not claims that ICT 2023 mandates these exact displacement/HTF thresholds.
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from statistics import median
@@ -488,6 +488,11 @@ class VT31CleanroomCognition:
         self._history: deque[M1Bar] = deque(maxlen=max_m1_history)
         self._index = _OnlineCausalIndex()
         self._observed_count = 0
+        # Single-trader M1 thesis by NY-date/ICT source-window, NOT another
+        # trader/memory. Subsequent FVG candles may follow the confirmed MSS.
+        self._active_m1_mss: dict[
+            tuple[object, SessionId], CognitiveDecision
+        ] = {}
         self.latest_assessment: CognitiveAssessment | None = None
 
     def observe_closed_m1(self, bar: M1Bar) -> None:
@@ -515,6 +520,34 @@ class VT31CleanroomCognition:
         verified, htf = self._index.context(at)
         pools = self._index.pools(at, session)
         shift = self._index.shift()
+        source_day_key = (_ny_day(at - timedelta(microseconds=1)), session)
+        active = self._active_m1_mss.get(source_day_key)
+        # Source month/day/window + confirmed DOL + pivot are immutable,
+        # but their continued validity is NOT: a later bar may consume the
+        # target or close back through the broken M1 pivot.
+        if active is not None:
+            same_dol_still_unswept = any(
+                pool.family == active.draw_family
+                and pool.level == active.draw_target
+                and pool.confirmed_at == active.draw_level_observed_at
+                for pool in pools
+            )
+            current_close = self._history[-1].close
+            pivot_survived = (
+                current_close > active.structure_level
+                if active.side is Side.LONG
+                else current_close < active.structure_level
+            )
+            new_opposite_shift = (
+                shift is not None and shift.side is not active.side
+            )
+            if (
+                not same_dol_still_unswept
+                or not pivot_survived
+                or new_opposite_shift
+            ):
+                del self._active_m1_mss[source_day_key]
+                active = None
         missing: list[str] = []
         if htf.get("H1") in {"NOT_EVALUABLE", "STALE"}:
             missing.append("H1_CLOSED_CONTEXT")
@@ -522,8 +555,11 @@ class VT31CleanroomCognition:
             missing.append("M15_CLOSED_CONTEXT")
         if not pools:
             missing.append("LIQUIDITY_POOL")
-        if shift is None:
+        if shift is None and active is None:
             missing.append("CONFIRMED_DISPLACEMENT_MSS")
+        # A current observed M1 MSS can refresh a thesis. A prior already
+        # confirmed M1 MSS can persist only under revalidated DOL/pivot,
+        # not as a stale no-longer-true duplicate break.
         decision: CognitiveDecision | None = None
         if not missing and shift is not None:
             last = self._history[-1]
@@ -564,8 +600,20 @@ class VT31CleanroomCognition:
                     ),
                     cognitive_version=VERSION,
                 )
+                self._active_m1_mss[source_day_key] = decision
             else:
                 missing.append("NO_CAUSAL_NEXT_DRAW_MIN10")
+        elif not missing and active is not None:
+            decision = replace(
+                active,
+                observed_at=at,
+                source_provenance=(
+                    active.source_provenance.split("|M1_MSS_REVALIDATED")[0]
+                    + "|M1_MSS_REVALIDATED_AT_EACH_CLOSED_M1"
+                ),
+            )
+        # An opposite shift or exhausted draw never resurrects yesterday's
+        # thesis; it remains absent until another current M1 MSS proves one.
         status = (
             "CAUSAL_DRAW_AND_SHIFT_PROVEN" if decision is not None
             else "NO_VALID_CAUSAL_COGNITION"
