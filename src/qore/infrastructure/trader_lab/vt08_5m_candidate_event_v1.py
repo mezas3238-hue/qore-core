@@ -94,9 +94,13 @@ class Vt08CandidateEventV1:
         if self.source_family not in FAMILIES:
             raise CandidateEventContractError("unrecognized source family")
         if self.source_family not in NARROW_MACHINE_COMPLETE:
-            raise CandidateEventContractError("source identity is not an executable bundle")
+            raise CandidateEventContractError(
+                "source identity is not an executable bundle"
+            )
         if self.ltf_profile != "M15_STANDARD":
-            raise CandidateEventContractError("B01 positional executable path is M15 only")
+            raise CandidateEventContractError(
+                "B01 positional executable path is M15 only"
+            )
         if self.side not in {"long", "short"} or self.scenario != "C2_COMPLETED":
             raise CandidateEventContractError("B01 positional side/scenario invalid")
         if not self.research_only:
@@ -123,17 +127,28 @@ class Vt08CandidateEventV1:
         ps = _aware(self.ps_confirmed_at, "ps_confirmed_at")
         expiry = _aware(self.pending_expiry_at, "pending_expiry_at")
         local = anchor.astimezone(NY)
-        if (local.hour not in OWNER_ANCHORS_NY or local.minute or local.second or local.microsecond):
+        if (
+            local.hour not in OWNER_ANCHORS_NY
+            or local.minute
+            or local.second
+            or local.microsecond
+        ):
             raise CandidateEventContractError("not an exact 01/05/09 NY H4 open")
         if anchor != decision or as_of != decision:
-            raise CandidateEventContractError("narrow positional entry must be causal at H4 open")
+            raise CandidateEventContractError(
+                "narrow positional entry must be causal at H4 open"
+            )
         if not (opposed < cisd == ps <= c2 == decision):
             raise CandidateEventContractError("CISD/PS/C2 not confirmed as-of entry")
         if expiry != anchor + timedelta(hours=4):
             raise CandidateEventContractError("pending H4 expiry containment mismatch")
-        if self.side == "long" and not (self.stop_price < self.entry_price < self.target_price):
+        if self.side == "long" and not (
+            self.stop_price < self.entry_price < self.target_price
+        ):
             raise CandidateEventContractError("long entry/SL/TP geometry invalid")
-        if self.side == "short" and not (self.target_price < self.entry_price < self.stop_price):
+        if self.side == "short" and not (
+            self.target_price < self.entry_price < self.stop_price
+        ):
             raise CandidateEventContractError("short entry/SL/TP geometry invalid")
         risk = abs(self.entry_price - self.stop_price)
         if self.target_price != (
@@ -170,22 +185,34 @@ class Vt08CandidateEventV1:
             "live_authorized": False,
         }
         for name in time_fields:
-            payload[name] = _aware(getattr(self, name), name).isoformat(timespec="microseconds")
+            payload[name] = _aware(getattr(self, name), name).isoformat(
+                timespec="microseconds"
+            )
         for name in ("entry_price", "stop_price", "target_price"):
             payload[name] = _canonical_price(getattr(self, name))
         return payload
 
     def fingerprint(self) -> str:
         canonical = json.dumps(
-            self.source_payload(), sort_keys=True, separators=(",", ":"), allow_nan=False
+            self.source_payload(),
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
         ).encode("utf-8")
         return hashlib.sha256(canonical).hexdigest()
 
     def envelope(self) -> dict[str, object]:
-        return {"event_id": f"vt08-5m:{self.fingerprint()}", "event_fingerprint": self.fingerprint(), **self.source_payload()}
+        fingerprint = self.fingerprint()
+        return {
+            "event_id": f"vt08-5m:{fingerprint}",
+            "event_fingerprint": fingerprint,
+            **self.source_payload(),
+        }
 
 
-def from_narrow_b01_candidate(candidate: object, *, evidence_sha256: str) -> Vt08CandidateEventV1:
+def from_narrow_b01_candidate(
+    candidate: object, *, evidence_sha256: str
+) -> Vt08CandidateEventV1:
     """Projection from the unchanged, validated A-side 5M B01 candidate only."""
     from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_evaluator_v1 import (
         Vt08ExpansionCandidate,
