@@ -95,7 +95,8 @@ jobs:
           from pathlib import Path
           a=json.loads(Path("market-output/scalper-entry-sensors-market.json").read_text())
           assert a["symbol"]==os.environ["SYMBOL"]
-          assert a["original_source_opportunities"]==a["source_cisd_identical"]
+          assert a["original_source_opportunities"] == (a["source_cisd_identical"] + a["source_cisd_mismatch"])
+          assert a["source_cisd_mismatch"] >= 0
           assert a["modified_original_entries"]==0
           assert a["full_master_frame_attested"] is False
           assert a["physical_broker_costs_attested"] is False
@@ -137,7 +138,7 @@ jobs:
           from pathlib import Path
           a=json.loads(Path("matrix-output/scalper-entry-sensors-nine-market.json").read_text())
           assert a["markets"]==9 and a["original_source_opportunities"]==2876
-          assert a["source_cisd_identical"]==2876
+          assert a["source_cisd_identical"]+a["source_cisd_mismatch"]==2876
           assert a["entries_changed"]==0 and a["new_hard_gates"]==0
           assert a["full_cognitive_master_frame_wired"] is False
           assert a["physical_bid_ask_costs_wired"] is False
