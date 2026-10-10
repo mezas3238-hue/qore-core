@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+
 import pytest
 from test_capitalizer_a1_source_sensor_independent_attestation_v1 import (
     _fixtures,
