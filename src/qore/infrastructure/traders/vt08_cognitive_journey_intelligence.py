@@ -12,6 +12,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
+from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
+    Vt08FiveMarketResearchSituation,
+    research_market_anchor_context,
+)
 from qore.infrastructure.traders.vt08_cognitive_memory import (
     cognitive_memory_fingerprint,
     market_anchor_context,
@@ -99,9 +103,10 @@ def assess_journey(
     situation: Vt08ForexSituationModel,
 ) -> Vt08JourneyAssessment:
     """Classify the live journey without importing another Trader's thresholds."""
-    context = market_anchor_context(
-        situation.market,
-        situation.anchor_hour_ny,
+    context = (
+        research_market_anchor_context(situation.market, situation.anchor_hour_ny)
+        if isinstance(situation, Vt08FiveMarketResearchSituation)
+        else market_anchor_context(situation.market, situation.anchor_hour_ny)
     )
     reasons: list[str] = []
     support = list(situation.supporting_evidence)
