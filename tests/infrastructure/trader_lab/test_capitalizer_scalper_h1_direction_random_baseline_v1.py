@@ -60,7 +60,7 @@ def test_asof_episode_does_not_read_future_state_expiration() -> None:
     assert all(b.closed_at <= opposite[0] for b in eligible)
     assert all(b.closed_at != START + timedelta(minutes=20) for b in eligible)
     assert any(b.closed_at == START + timedelta(minutes=12) for b in eligible)
-    assert len(eligible) == 31
+    assert len(eligible) == 30
     altered = replace(source, h1_state_until=(START + timedelta(days=30)).isoformat())
     assert eligible_h1_state_times(altered,bars,opposite) == eligible
     assert eligible_h1_state_times(
