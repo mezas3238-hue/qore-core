@@ -90,3 +90,62 @@ def test_observer_requires_chronological_input() -> None:
         assert "chronological" in str(exc)
     else:
         raise AssertionError("non-chronological M1 must fail closed")
+
+
+def test_sweep_bullish_requires_close_through_opposing_series_not_high_wick() -> None:
+    """A wick through series open is NOT a confirmed CISD; the CLOSE is required."""
+    bars = (
+        _bar(0, "1.1000", "1.1010", "1.0995", "1.1005"),
+        _bar(1, "1.1005", "1.1008", "1.0990", "1.0995"),
+        _bar(2, "1.0995", "1.1002", "1.0993", "1.1000"),
+        _bar(3, "1.1000", "1.1001", "1.0985", "1.0990"),
+        _bar(4, "1.0990", "1.0994", "1.0988", "1.0991"),
+        _bar(5, "1.0991", "1.1006", "1.0990", "1.0999"),
+        _bar(6, "1.0999", "1.1004", "1.0997", "1.1001"),
+    )
+    denied = observe_first_m1_cisd(
+        bars[:-1],
+        thesis_at=bars[0].opened_at,
+        deadline_at=bars[5].closed_at,
+        side=CapitalizerSide.LONG,
+    )
+    assert denied.status is V48M1CISDStatus.NO_CISD_CLOSE
+    confirmed = observe_first_m1_cisd(
+        bars,
+        thesis_at=bars[0].opened_at,
+        deadline_at=bars[6].closed_at,
+        side=CapitalizerSide.LONG,
+    )
+    assert confirmed.status is V48M1CISDStatus.CONFIRMED
+    assert confirmed.causal_series_open == Decimal("1.1000")
+    assert confirmed.confirmed_at == bars[6].closed_at
+    assert confirmed.confirmation_close == Decimal("1.1001")
+
+
+def test_sweep_bearish_requires_opposing_up_candle_series_close() -> None:
+    """The bearish CLOSE crosses prior bullish series, not the swept high."""
+    bars = (
+        _bar(0, "1.1000", "1.1010", "1.0990", "1.1005"),
+        _bar(1, "1.1005", "1.1020", "1.1000", "1.1010"),
+        _bar(2, "1.1010", "1.1015", "1.1002", "1.1008"),
+        _bar(3, "1.1008", "1.1025", "1.1007", "1.1020"),
+        _bar(4, "1.1020", "1.1024", "1.1012", "1.1015"),
+        _bar(5, "1.1015", "1.1017", "1.1000", "1.1006"),
+    )
+    not_yet = observe_first_m1_cisd(
+        bars[:-1],
+        thesis_at=bars[0].opened_at,
+        deadline_at=bars[4].closed_at,
+        side=CapitalizerSide.SHORT,
+    )
+    assert not_yet.status is V48M1CISDStatus.NO_CISD_CLOSE
+    accepted = observe_first_m1_cisd(
+        bars,
+        thesis_at=bars[0].opened_at,
+        deadline_at=bars[5].closed_at,
+        side=CapitalizerSide.SHORT,
+    )
+    assert accepted.status is V48M1CISDStatus.CONFIRMED
+    assert accepted.swept_level == Decimal("1.1020")
+    assert accepted.causal_series_open == Decimal("1.1008")
+    assert accepted.confirmed_at == bars[5].closed_at
