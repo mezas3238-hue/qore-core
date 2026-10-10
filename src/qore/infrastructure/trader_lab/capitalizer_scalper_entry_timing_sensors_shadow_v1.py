@@ -232,7 +232,7 @@ def observe_entry_timing_sensors(context: EntrySensorInput) -> EntrySensorFrame:
            "m15_protected_stop+last_closed_m1.close")
 
     gap_count = sum(
-        a.closed_at != b.opened_at for a, b in zip(bars, bars[1:])
+        a.closed_at != b.opened_at for a, b in zip(bars, bars[1:], strict=False)
     )
     record("NATIVE_M1_GAP_COUNT", SensorStatus.OBSERVED, str(gap_count),
            "Source bars may have missing native M1; prices are never interpolated",
