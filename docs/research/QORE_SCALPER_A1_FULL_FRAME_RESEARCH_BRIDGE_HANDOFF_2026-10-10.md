@@ -49,3 +49,15 @@ Author fidelity: A2 audit PENDING.
 Scalper certification / live permission: DENIED.
 
 Keep both PRs DRAFT and #623 UNMERGED.
+
+
+## 5. Verified quality checkpoint after the fixes
+
+At exact head `6fb52aa09ca05d34287a351ce8bfbae56e762812`:
+
+- [A1 causal research focused run #38047414620](https://github.com/mezas3238-hue/qore-core/actions/runs/38047414620): **SUCCESS**, Ruff PASS, Mypy adapter PASS, 15 focused tests PASS.
+- [QORE Scalper Cognition A1 Audit #38047414634](https://github.com/mezas3238-hue/qore-core/actions/runs/38047414634): **SUCCESS**, repository-wide Ruff PASS, Mypy `src tests` **1,624 files, PASS**, targeted causal cognition and multi-era regressions **34 PASS**.
+- The older official global QORE CI run #38043850123 remains **FAILURE at its old SHA** (7,823 passed and two now-corrected fixture/expectation failures). Do not project A1 focused GREEN to whole-suite global CI or corrected-core nine-market replays.
+- These results verify tests and typing, not nine-market real-data operation, author fidelity, economic preservation or certification.
+
+Next required evidence: rerun *global* CI and V50-R/V51/V53/V54-A/V54-B 9-market aggregate on the integrated frozen A+B candidate. The quality run IDs above belong to A1 head only.
