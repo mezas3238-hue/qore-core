@@ -19,13 +19,13 @@ from qore.infrastructure.trader_lab.capitalizer_v54_structural_partial_runner im
 )
 
 
-def _bar(minute: int, *, high: str, low: str, close: str = "100") -> CapitalizerM1Bar:
+def _bar(minute: int, *, high: str, low: str, close: str = "100", open_price: str = "100") -> CapitalizerM1Bar:
     opened = datetime(2026, 1, 5, 12, 0, tzinfo=UTC) + timedelta(minutes=minute)
     return CapitalizerM1Bar(
         symbol="EURUSD",
         opened_at=opened,
         closed_at=opened + timedelta(minutes=1),
-        open=Decimal("100"),
+        open=Decimal(open_price),
         high=Decimal(high),
         low=Decimal(low),
         close=Decimal(close),
@@ -87,7 +87,7 @@ def test_partial_runner_realizes_half_t1_plus_half_runner() -> None:
         opportunity=_opportunity(),
         bars=(
             _bar(0, high="102.1", low="99.5", close="102"),
-            _bar(1, high="104.1", low="100.1", close="104"),
+            _bar(1, high="104.1", low="100.1", close="104", open_price="102"),
         ),
         geometry=_geometry(),
     )
@@ -113,7 +113,7 @@ def test_post_t1_same_bar_be_and_runner_resolves_be_first() -> None:
         opportunity=_opportunity(),
         bars=(
             _bar(0, high="102.1", low="99.5", close="102"),
-            _bar(1, high="104.1", low="99.9", close="103"),
+            _bar(1, high="104.1", low="99.9", close="103", open_price="102"),
         ),
         geometry=_geometry(),
     )
