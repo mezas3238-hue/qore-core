@@ -116,7 +116,7 @@ class Vt08FiveMarketResearchSituation(Vt08ForexSituationModel):
 
     def payload(self) -> dict[str, object]:
         """Canonical JSON-safe event payload, including every feature timestamp."""
-        result = super().payload()
+        result = Vt08ForexSituationModel.payload(self)
         result["schema"] = RESEARCH_SITUATION_SCHEMA
         result["feature_cutoffs"] = tuple(
             (name, timestamp.isoformat()) for name, timestamp in self.feature_cutoffs
