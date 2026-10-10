@@ -121,7 +121,7 @@ def test_missing_real_pools_or_unconfirmed_mss_fails_closed() -> None:
         unavailable.observe_closed_m1(bar)
     output = unavailable.assess(session=SessionId.LONDON, as_of=at)
     assert output.decision is None
-    assert "NO_CAUSAL_NEXT_DRAW_MIN10" in output.missing
+    assert "LIQUIDITY_POOL" in output.missing
     assert not output.trade_authorized
     truncated = bars[:-1]
     assert _confirmed_break(truncated) is None
@@ -133,7 +133,9 @@ def test_timestamped_liquidity_has_no_future_source() -> None:
         bars, at, SessionId.LONDON,
     )
     assert any(p.family == "PRIOR_NY_CASH_SESSION_HIGH" for p in now)
-    assert any(p.family == "ASIA_NY_CLOCK_HIGH" for p in now)
+    assert not any(p.family == "ASIA_NY_CLOCK_HIGH" for p in now)
+    # The completed Asia high of 101 was swept by the later 03:02 high
+    # of 105. It cannot be re-offered as unswept draw-on-liquidity.
     assert all(p.confirmed_at <= at for p in now)
     after = _verified_pools(
         bars,
