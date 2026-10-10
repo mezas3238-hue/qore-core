@@ -17,7 +17,12 @@ from pathlib import Path
 from typing import Any
 
 IDENTITY = "QORE_SCALPER_ENTRY_CALLER_CENSUS_V1"
-TEMPORAL_FIELDS = ("h1_state_until", "h1_state_from", "m15_setup_confirmed_at", "m1_trigger_confirmed_at")
+TEMPORAL_FIELDS = (
+    "h1_state_until",
+    "h1_state_from",
+    "m15_setup_confirmed_at",
+    "m1_trigger_confirmed_at",
+)
 TARGETS = (
     "qore.infrastructure.trader_lab.capitalizer_dual_source_entry_acceptance_v1."
     "assess_dual_source_entry",
