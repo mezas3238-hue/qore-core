@@ -66,16 +66,16 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
 )
+from qore.infrastructure.trader_lab.capitalizer_global_world_model import (
+    CapitalizerGlobalWorldModel,
+    CapitalizerMarketWorldState,
+)
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     V49Opportunity,
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_trader_v49 import (
     select_master_frame_trade_intents,
     select_portfolio_trade_intents,
-)
-from qore.infrastructure.trader_lab.capitalizer_global_world_model import (
-    CapitalizerGlobalWorldModel,
-    CapitalizerMarketWorldState,
 )
 from qore.infrastructure.trader_lab.capitalizer_master_cognitive_contract import (
     CapitalizerAttentionState,
@@ -103,7 +103,6 @@ from qore.infrastructure.trader_lab.capitalizer_perception_integrity import (
 from qore.infrastructure.trader_lab.capitalizer_regime_intelligence import (
     CapitalizerRegimeHypothesis,
 )
-
 from qore.infrastructure.trader_lab.capitalizer_v50_g_causal_decision_trace import (
     source_opportunity_id,
 )
