@@ -19,10 +19,6 @@ from test_capitalizer_master_cognitive_frame import (
 from qore.infrastructure.trader_lab import (
     capitalizer_a1_native_source_session_clock_attestation_v1 as native_clock,
 )
-from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
-from qore.infrastructure.trader_lab.capitalizer_source_session_context_v2 import (
-    CapitalizerSourceSessionResolution,
-)
 from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
     A1M1ProtectedRouteReview,
     M1ProtectionClass,
@@ -47,8 +43,12 @@ from qore.infrastructure.trader_lab.capitalizer_a1_source_sensor_independent_att
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
 )
+from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_scalper_entry_timing_sensors_shadow_v1 import (
     EntrySensorInput,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_session_context_v2 import (
+    CapitalizerSourceSessionResolution,
 )
 
 T = datetime(2026, 1, 5, 1, tzinfo=UTC)
