@@ -36,7 +36,9 @@ def test_asian_source_group_reconfirmed_but_author_open_not_invented() -> None:
         operating_date="2026-01-04",
     )
     clock = native_clock.assess_v49_source_clock(src)
-    assert clock.qore_bucket_reconfirmed is native_clock.ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
+    assert clock.qore_bucket_reconfirmed is (
+        native_clock.ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
+    )
     assert clock.local_operating_day_reconfirmed
     assert clock.methodology_window_resolution is (
         CapitalizerSourceSessionResolution.REVIEW_REQUIRED
@@ -54,7 +56,9 @@ def test_london_and_ny_broad_source_window_are_independent() -> None:
         operating_date="2026-01-05",
     )
     clock = native_clock.assess_v49_source_clock(london)
-    assert clock.qore_bucket_reconfirmed is native_clock.ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
+    assert clock.qore_bucket_reconfirmed is (
+        native_clock.ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
+    )
     assert clock.local_operating_day_reconfirmed
     assert clock.methodology_window_resolution is (
         CapitalizerSourceSessionResolution.ELIGIBLE
@@ -67,7 +71,9 @@ def test_london_and_ny_broad_source_window_are_independent() -> None:
         operating_date="2026-01-05",
     )
     actual = native_clock.assess_v49_source_clock(ny)
-    assert actual.qore_bucket_reconfirmed is native_clock.ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
+    assert actual.qore_bucket_reconfirmed is (
+        native_clock.ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
+    )
     assert actual.methodology_window_resolution is (
         CapitalizerSourceSessionResolution.OUTSIDE
     )
@@ -98,7 +104,9 @@ def test_contradictory_source_does_not_silently_gain_clock_proof() -> None:
         operating_date="2026-01-05",
     )
     wrong = native_clock.assess_v49_source_clock(source)
-    assert wrong.qore_bucket_reconfirmed is native_clock.ClockAttestationStatus.QORE_BUCKET_CONTRADICTED
+    assert wrong.qore_bucket_reconfirmed is (
+        native_clock.ClockAttestationStatus.QORE_BUCKET_CONTRADICTED
+    )
     assert not wrong.local_operating_day_reconfirmed
     assert not wrong.within_qore_research_session
     assert wrong.remaining_session_seconds is None
