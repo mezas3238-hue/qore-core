@@ -13,7 +13,7 @@
 
 **Completed GitHub verification run:** [#38072382710](https://github.com/mezas3238-hue/qore-core/actions/runs/38072382710), SHA `0f1034fa0e3db7c54a887a47086bc438bd7b5bc3`. Ruff PASS, Mypy PASS (**14 selected source files**), Pytest primary suite **158 passed, 3 skipped** (cross-branch-only tests intentionally skipped in primary suite), **3 additional cross-branch tests PASSED** against the **actual Architect A CandidateEvent module** pinned to A commit `6e537cd8a8a01d9817802383c736baf5688f2a0f`. No failed tests in this verified run.
 
-**Subsequent hardening after this run:** remove caller-controlled `joint_contract_approved=True`; the researched A→B envelope now demands a versioned approved manifest SHA. There is **no approved manifest** yet, so no caller can make the current A contract `cognitive_ready=True`. New CI at following HEAD must be verified separately; do not transfer the prior green claim automatically.
+**Latest exact-code verification after that hardening:** [#38072492922](https://github.com/mezas3238-hue/qore-core/actions/runs/38072492922), code SHA `86a907d4a702e67f88af492c0efb20216bca69fe`, **SUCCESS**: Ruff PASS, Mypy PASS (14 source files), primary Pytest **158 passed and 3 cross-branch-only skips**, followed by **3 passed** against the actual pinned Architect A module. All verification stages passed; **161 executed passing tests** across the two stages, with three tests deliberately skipped in the first stage because the real A module is checked in the second. Documentation commits afterward do not modify tested source code. The A→B envelope requires an explicitly frozen manifest SHA; since there is no signed A/B manifest yet, a caller cannot turn the current contract cognitive-ready by passing a boolean or arbitrary claimed hash.
 
 Coverage percentages below are **statement coverage from the 158-test primary suite at the exact verified SHA**; they are not exhaustive real-market assurance.
 
@@ -34,7 +34,7 @@ Coverage percentages below are **statement coverage from the 158-test primary su
 | Stateful cognitive consumed gate | **98%** | Cross-market global clock, immutable event identity, WAIT→EXECUTE, ABSTAIN killed, one execution/event, per-position traces; DST-fold test and 5-market multievent fixture | Current gate processes synthetic situations, not source fills/price-path economics |
 | A→B CandidateEnvelope readiness layer | **94%** | Stable source_event_id vs mutable snapshot id, no unverified bias, no future source timestamp, no false LIVE or market authority | A V1 currently has `bias_feature_cutoff=UNATTESTED`; complete cognitive field evidence & signature missing |
 
-**Approximate combined statement coverage** for the first 13 cognitive modules (excluding A→B readiness) is **97%** (871/898 statements). Including A→B readiness at the verified SHA (81/86) yields approximately **96.7%** (952/984). Percentages are **coverage**, not a 100% functional guarantee.
+**Approximate combined statement coverage** for the first 13 cognitive modules (excluding A→B readiness) is **97%** (871/898 statements). Including A→B readiness in the last audited run (82/87 after manifest hardening) yields approximately **96.7%** (953/985). Percentages are **coverage**, not a 100% functional guarantee.
 
 ### Evidence of actual A code compatibility
 
