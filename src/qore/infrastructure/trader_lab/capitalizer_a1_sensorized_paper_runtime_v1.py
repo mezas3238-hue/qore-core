@@ -15,9 +15,9 @@ H1/M15 hypothesis witnesses.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from decimal import Decimal
-from collections.abc import Mapping
 
 from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
     A1PaperSource,
