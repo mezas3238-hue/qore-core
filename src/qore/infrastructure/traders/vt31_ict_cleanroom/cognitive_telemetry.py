@@ -109,7 +109,8 @@ class CognitiveTelemetry:
                 output_present=True,
             )
         for family in confirmed_pools:
-            component = SOURCE_TO_COMPONENT.get(family)
+            source = family.removesuffix("_HIGH").removesuffix("_LOW")
+            component = SOURCE_TO_COMPONENT.get(source)
             if component:
                 self.pulse(
                     component, input_kind="FULL_SOURCE_RANGE",
