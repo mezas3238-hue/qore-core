@@ -101,6 +101,7 @@ class A1MultiHypothesisEvidence:
     evaluated_alternatives: int
     barriers_evaluated: int
     source_ids: tuple[str, ...]
+    source_ancestry: tuple[A1SourceHypothesisAlternative, ...]
     pass_to_strategy: int
     wait: int
     abstain: int
@@ -113,6 +114,8 @@ class A1MultiHypothesisEvidence:
         ids = tuple(row.source_opportunity_id for row in self.decisions)
         if self.identity != IDENTITY or ids != self.source_ids:
             raise ValueError("multi-hypothesis source identity parity broken")
+        if ids != tuple(item.binding.source_opportunity_id for item in self.source_ancestry):
+            raise ValueError("H1/M15/M1 provenance lost during projection")
         if len(ids) != self.evaluated_alternatives or len(set(ids)) != len(ids):
             raise ValueError("source opportunities were duplicated or lost")
         if self.pass_to_strategy + self.wait + self.abstain != len(ids):
@@ -142,6 +145,7 @@ def replay_multi_hypothesis_evidence(
     last_at: datetime | None = None
     seen_ids: set[str] = set()
     decisions: list[A1FullFrameResearchDecision] = []
+    ancestry: list[A1SourceHypothesisAlternative] = []
     for barrier in barriers:
         at = _aware(barrier.observed_at)
         if last_at is not None and at <= last_at:
@@ -203,6 +207,7 @@ def replay_multi_hypothesis_evidence(
             if len(assessed) != 1:
                 raise ValueError("hypothesis projection did not yield exactly one WHY")
             decisions.extend(assessed)
+            ancestry.append(alt)
 
     return A1MultiHypothesisEvidence(
         identity=IDENTITY,
@@ -210,6 +215,7 @@ def replay_multi_hypothesis_evidence(
         evaluated_alternatives=len(decisions),
         barriers_evaluated=len(barriers),
         source_ids=tuple(item.source_opportunity_id for item in decisions),
+        source_ancestry=tuple(ancestry),
         pass_to_strategy=sum(d.cognitive_gate == "PASS_TO_STRATEGY" for d in decisions),
         wait=sum(d.cognitive_gate == "WAIT" for d in decisions),
         abstain=sum(d.cognitive_gate == "ABSTAIN" for d in decisions),
