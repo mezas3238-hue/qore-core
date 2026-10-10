@@ -49,7 +49,6 @@ jobs:
           mypy \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_winner_retention_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_v49_v50_g_waterfall_v1.py \
-            src/qore/infrastructure/trader_lab/capitalizer_scalper_winner_retention_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_caller_audit_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_author_route_audit_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_high_frequency_capacity_census_v49.py \
