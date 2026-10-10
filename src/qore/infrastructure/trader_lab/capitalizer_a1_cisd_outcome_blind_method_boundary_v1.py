@@ -15,10 +15,11 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     V49Opportunity,
