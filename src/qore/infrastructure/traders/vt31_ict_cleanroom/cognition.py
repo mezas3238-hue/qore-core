@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from statistics import median
-from zoneinfo import ZoneInfo
 
 from .contracts import (
     MIN_INDEX_POINTS,
