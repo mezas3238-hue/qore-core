@@ -15,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from statistics import median
 
+from .cognitive_telemetry import CognitiveTelemetry
 from .contracts import (
     MIN_INDEX_POINTS,
     NEW_YORK,
@@ -482,11 +483,15 @@ class _OnlineCausalIndex:
 class VT31CleanroomCognition:
     """Single persistent market memory shared by both VT31 session models."""
 
-    def __init__(self, *, max_m1_history: int = 22000) -> None:
+    def __init__(
+        self, *, max_m1_history: int = 22000,
+        telemetry: CognitiveTelemetry | None = None,
+    ) -> None:
         if max_m1_history < 1440:
             raise ValueError("require enough history for prior session context")
         self._history: deque[M1Bar] = deque(maxlen=max_m1_history)
         self._index = _OnlineCausalIndex()
+        self.telemetry = telemetry
         self._observed_count = 0
         # Single-trader M1 thesis by NY-date/ICT source-window, NOT another
         # trader/memory. Subsequent FVG candles may follow the confirmed MSS.
@@ -501,8 +506,39 @@ class VT31CleanroomCognition:
         if self._history and utc(bar.opened_at) < utc(self._history[-1].closed_at):
             raise ValueError("duplicate/overlapping/out-of-order M1")
         self._history.append(bar)
+        before_htf = {
+            label: (self._index._htf_completed[interval][-1][0]
+                    if self._index._htf_completed[interval] else None)
+            for interval, label in ((15, "M15"), (60, "H1"), (240, "H4"))
+        } if self.telemetry is not None else {}
+        before_pools = (
+            dict(self._index._available_pools)
+            if self.telemetry is not None else {}
+        )
         self._index.observe(bar)
         self._observed_count += 1
+        if self.telemetry is not None:
+            after_pools = self._index._available_pools
+            completed = tuple(
+                label for interval, label in (
+                    (15, "M15"), (60, "H1"), (240, "H4")
+                ) if self._index._htf_completed[interval]
+                and self._index._htf_completed[interval][-1][0] != before_htf[label]
+            )
+            new_families = tuple(
+                key for key, pool in after_pools.items()
+                if before_pools.get(key) != pool
+            )
+            swept = tuple(
+                key.removesuffix("_HIGH").removesuffix("_LOW")
+                for key in before_pools
+                if key not in after_pools
+            )
+            self.telemetry.on_market(
+                bar=bar, newly_closed_htf=completed,
+                confirmed_pools=new_families,
+                consumed_pools=swept,
+            )
 
     def assess(
         self, *, session: SessionId, as_of: datetime
@@ -522,6 +558,7 @@ class VT31CleanroomCognition:
         shift = self._index.shift()
         source_day_key = (_ny_day(at - timedelta(microseconds=1)), session)
         active = self._active_m1_mss.get(source_day_key)
+        active_was_present = active is not None
         # Source month/day/window + confirmed DOL + pivot are immutable,
         # but their continued validity is NOT: a later bar may consume the
         # target or close back through the broken M1 pivot.
@@ -628,4 +665,12 @@ class VT31CleanroomCognition:
             missing=tuple(missing),
         )
         self.latest_assessment = result
+        if self.telemetry is not None:
+            self.telemetry.on_assessment(
+                at=at, session=session, htf=htf, pools=pools,
+                shift=shift, active_was_present=active_was_present,
+                active_survived=active is not None,
+                missing=tuple(missing), decision=decision,
+                decision_is_new_shift=decision is not None and shift is not None,
+            )
         return result
