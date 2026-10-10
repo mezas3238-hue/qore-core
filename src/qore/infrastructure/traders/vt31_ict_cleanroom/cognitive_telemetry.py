@@ -11,9 +11,19 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .contracts import M1Bar, MethodologyDecision, SessionId, utc
+from .contracts import (
+    CognitiveDecision,
+    FvgCandidate,
+    M1Bar,
+    MethodologyDecision,
+    SessionId,
+    utc,
+)
+
+if TYPE_CHECKING:
+    from .cognition import CausalSwingBreak, LiquidityPool
 
 COMPONENT_ROLES: dict[str, str] = {
     "M1_MARKET_FEED": "OBSERVED_MARKET_INPUT",
@@ -138,10 +148,10 @@ class CognitiveTelemetry:
 
     def on_assessment(
         self, *, at: datetime, session: SessionId,
-        htf: dict[str, str], pools: tuple[object, ...],
-        shift: object | None, active_was_present: bool,
+        htf: dict[str, str], pools: tuple[LiquidityPool, ...],
+        shift: CausalSwingBreak | None, active_was_present: bool,
         active_survived: bool, missing: tuple[str, ...],
-        decision: object | None, decision_is_new_shift: bool,
+        decision: CognitiveDecision | None, decision_is_new_shift: bool,
     ) -> None:
         self.cognition_calls += 1
         names = set(missing)
@@ -232,8 +242,8 @@ class CognitiveTelemetry:
     def on_ops(
         self, *, at: datetime, session: SessionId,
         phase: MethodologyDecision, raw_fvg_new: bool,
-        candidate_new: bool, cognition: object | None,
-        candidate: object | None, missing: tuple[str, ...],
+        candidate_new: bool, cognition: CognitiveDecision | None,
+        candidate: FvgCandidate | None, missing: tuple[str, ...],
     ) -> None:
         self.ops_calls += 1
         self.pulse(
