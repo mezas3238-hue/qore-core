@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 
 import pytest
 from test_capitalizer_a1_source_sensor_independent_attestation_v1 import (
@@ -13,7 +12,6 @@ from test_capitalizer_a1_source_sensor_independent_attestation_v1 import (
 )
 
 from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
-    A1M1ProtectedRouteReview,
     M1ProtectionClass,
     SourceRouteClass,
     review_source_m1,
