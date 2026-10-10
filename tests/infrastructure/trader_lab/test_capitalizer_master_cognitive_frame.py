@@ -1329,7 +1329,10 @@ def _a1_cognitive_trader_source_fixture(
             m15_setup_confirmed_at=alternative.m15_confirmed_at.isoformat(),
             m15_protected_swing_price=str(90 + index),
             m1_trigger_confirmed_at=at.isoformat(),
-            m1_trigger_family="FVG_RETRACE_CISD",
+            m1_trigger_family=(
+                "FVG_RETRACE_CISD" if index == 0
+                else "LIQUIDITY_SWEEP_CISD"
+            ),
             decision_reference_price=str(100 + index),
             structural_target_witness_price=str(112 + index),
         )
