@@ -12,6 +12,9 @@ from test_capitalizer_a1_source_sensor_independent_attestation_v1 import (
 from qore.infrastructure.trader_lab import (
     capitalizer_a1_native_source_session_clock_attestation_v1 as native_clock,
 )
+from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
+    V49Opportunity,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_session_context_v2 import (
     CapitalizerSourceSessionResolution,
 )
@@ -20,7 +23,7 @@ from qore.infrastructure.trader_lab.capitalizer_source_session_context_v2 import
 def _clock_case(
     *, session: str, symbol: str, time: datetime,
     operating_date: str,
-):
+) -> V49Opportunity:
     return replace(
         _source(), session=session, symbol=symbol,
         m1_trigger_confirmed_at=time.isoformat(),
