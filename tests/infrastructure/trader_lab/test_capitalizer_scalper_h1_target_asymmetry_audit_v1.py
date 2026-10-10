@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -112,8 +112,10 @@ def test_economic_replay_cannot_silently_relabel_source(
     changes: dict[str, str], pattern: str
 ) -> None:
     s = _source("EURUSD", 0, "100.4")
+    altered = asdict(_trade(s, "TARGET", "0.4"))
+    altered.update(changes)
     with pytest.raises(ValueError, match=pattern):
-        _source_matches(s, replace(_trade(s, "TARGET", "0.4"), **changes))
+        _source_matches(s, V49EconomicTrade(**altered))
 
 
 def test_audit_rejects_missing_and_duplicate_trades() -> None:
