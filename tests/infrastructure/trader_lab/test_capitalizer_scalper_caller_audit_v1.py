@@ -99,3 +99,29 @@ def test_strict_gate_caller_outside_selected_entrypoint_not_marked_enforced(
 def test_absent_source_tree_is_fail_closed(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="no Python modules"):
         audit_callers(tmp_path)
+
+
+def test_h1_future_expiry_read_is_reported_not_assumed_causally_known(
+    tmp_path: Path,
+) -> None:
+    _source(
+        tmp_path,
+        "pkg/replay.py",
+        (
+            "def build_market(opportunity: object) -> object:\n"
+            "    return opportunity.h1_state_until\n"
+        ),
+    )
+    result = audit_callers(
+        tmp_path,
+        targets=("pkg.replay.build_market",),
+        roots=("pkg.replay.build_market",),
+    )
+    expiry_reads = tuple(
+        item for item in result.temporal_metadata_accesses
+        if item.field == "h1_state_until" and item.access_kind == "READ"
+    )
+    assert len(expiry_reads) == 1
+    assert expiry_reads[0].owner == "pkg.replay.build_market"
+    assert expiry_reads[0].line == 2
+    assert result.can_certify_source_fidelity is False
