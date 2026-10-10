@@ -43,6 +43,7 @@ class IctSilverBulletOperations:
         self.intrawindow_raw_fvg_count = 0
         self.suitable_candidates_skipped_after_first = 0
         self.event_at: datetime | None = None
+        self.source_invalidation_reason: str | None = None
         self._bars: deque[M1Bar] = deque(maxlen=3)
 
     def on_closed_m1(
@@ -58,21 +59,44 @@ class IctSilverBulletOperations:
         if cognition is not None:
             if cognition.session != self.session:
                 raise ValueError("cross-session cognitive leakage")
-            if utc(cognition.observed_at) > closed:
-                raise ValueError("unclosed future cognition")
+            if utc(cognition.observed_at) != closed:
+                raise ValueError(
+                    "cognition must be freshly assessed on EXACT current closed M1"
+                )
             if utc(cognition.structure_break_confirmed_at) > closed:
                 raise ValueError("future MSS")
             if utc(cognition.draw_level_observed_at) > closed:
                 raise ValueError("future liquidity")
-            if self.first_suitable is not None and (
+        self.last_closed = closed
+
+        # P0: source-qualified pending orders MUST retain a FRESH, still
+        # valid cognitive thesis. When DOL is swept, pivot is revoked,
+        # context disappears, or a different DOL/MSS is chosen, COG sends
+        # None or a changed decision. Absence is NEVER silent permission.
+        # This observation happens only at this bar's CLOSE; it does NOT
+        # imply any intrabar cancellation or predict historical tick order.
+        source_live = self.first_suitable is not None and self.decision in (
+            MethodologyDecision.RESEARCH_PENDING_CE,
+            MethodologyDecision.RESEARCH_TOUCH_NOT_FILL,
+        )
+        if source_live:
+            reason: str | None = None
+            if cognition is None:
+                reason = "COGNITIVE_THESIS_REVOKED_OR_UNAVAILABLE"
+            elif (
                 cognition.side != self.first_suitable.side
                 or cognition.draw_target != self.first_suitable.target_price
             ):
-                # Any thesis change after selection invalidates pending
-                # hypothesis; NEVER retrofit its original source.
+                reason = "CAUSAL_DOL_DIRECTION_OR_TARGET_CHANGED"
+            elif utc(cognition.structure_break_confirmed_at) > utc(
+                self.first_suitable.formed_at
+            ):
+                reason = "ORIGINAL_M1_MSS_THESIS_REPLACED"
+            if reason is not None:
                 self.decision = MethodologyDecision.SOURCE_INVALIDATED
+                self.source_invalidation_reason = reason
                 self.event_at = closed
-        self.last_closed = closed
+                return self.decision
 
         # Selected FVG is immutable. Current candle is used ONLY AFTER
         # close for a research-price-path observation, NEVER broker fill.
@@ -195,6 +219,8 @@ class IctSilverBulletOperations:
                 "cognitive_version": self.cognitive_version,
             },
             "outcome_event_at": None if self.event_at is None else self.event_at.isoformat(),
+            "source_invalidation_reason": self.source_invalidation_reason,
+            "cognitive_revocation_fail_closed_at_m1_close": True,
             "methodology_formalization_not_all_ict_explicit": True,
             "uses_old_vt31": False,
             "actual_mt5_fill_proven": False,
