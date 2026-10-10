@@ -20,6 +20,9 @@ from dataclasses import dataclass, replace
 from datetime import timedelta
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab import (
+    capitalizer_a1_native_source_session_clock_attestation_v1 as native_clock,
+)
 from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
     A1M1ProtectedRouteReview,
     M1ProtectionClass,
@@ -36,9 +39,6 @@ from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_int
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research import (
     A1MultiHypothesisBarrier,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_a1_native_source_session_clock_attestation_v1 as native_clock,
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_source_sensor_independent_attestation_v1 import (
     A1SourceSensorAttestation,
