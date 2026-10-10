@@ -58,6 +58,7 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_high_frequency_capacity_census_v49.py
       - name: Static caller census for QORE source gates
         run: |
+          mkdir -p artifacts
           python -m qore.infrastructure.trader_lab.capitalizer_scalper_caller_audit_v1 \
             --source-root src \
             --json-out artifacts/scalper-entry-caller-census.json \
