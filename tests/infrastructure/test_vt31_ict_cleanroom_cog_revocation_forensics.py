@@ -10,7 +10,6 @@ import pytest
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     M1Bar,
-    SessionId,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
 
@@ -67,7 +66,7 @@ def rows(bars: tuple[M1Bar, ...]):
         }
 
 
-def test_probe_preserves_real_cognition_and_OPS_source_candidate() -> None:
+def test_probe_preserves_real_cognition_and_ops_source_candidate() -> None:
     normal = VT31Trader()
     probed = VT31Trader(cognition=CausalForensicCognition())
     for item in source():
@@ -79,7 +78,7 @@ def test_probe_preserves_real_cognition_and_OPS_source_candidate() -> None:
     assert probed.trader_id == "VT31"
 
 
-def test_causal_swept_DOL_is_wick_cause_not_a_broker_fill() -> None:
+def test_causal_swept_dol_is_wick_cause_not_a_broker_fill() -> None:
     model = VT31Trader(cognition=CausalForensicCognition())
     baseline = source()
     for item in baseline:
@@ -96,7 +95,7 @@ def test_causal_swept_DOL_is_wick_cause_not_a_broker_fill() -> None:
     assert observation.order_authorized is False
 
 
-def test_prior_thesis_pivot_close_reversal_detected_with_as_of_M1() -> None:
+def test_prior_thesis_pivot_close_reversal_detected_with_as_of_m1() -> None:
     model = VT31Trader(cognition=CausalForensicCognition())
     baseline = source()
     for item in baseline:
@@ -148,7 +147,7 @@ def test_missing_and_partial_source_never_produce_fake_fvg() -> None:
     assert result["final_source_candidate_states"] == {}
 
 
-def test_forensics_rejects_duplicate_and_never_estimates_PF() -> None:
+def test_forensics_rejects_duplicate_and_never_estimates_pf() -> None:
     t = datetime(2025, 7, 7, 7, tzinfo=UTC)
     with pytest.raises(ValueError, match="duplicate"):
         scan(rows((bar(t, "100", "101", "99", "100"),) * 2))
