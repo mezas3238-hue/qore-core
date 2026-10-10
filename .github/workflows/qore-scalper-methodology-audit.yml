@@ -36,6 +36,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_scalper_v49_v50_g_waterfall_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_winner_retention_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_max3_counterfactual_audit_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_mfe_mae_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_high_frequency_capacity_census_v49.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_author_route_audit_v1.py \
@@ -43,12 +44,14 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_scalper_v49_v50_g_waterfall_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_winner_retention_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_max3_counterfactual_audit_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_mfe_mae_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_v49_h1_target_causality.py \
             tests/infrastructure/trader_lab/test_capitalizer_v49_source_alternative_contract.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py
       - name: Mypy methodology and certification
         run: |
           mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_mfe_mae_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_max3_counterfactual_audit_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_winner_retention_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_v49_v50_g_waterfall_v1.py \
