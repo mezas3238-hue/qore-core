@@ -179,8 +179,8 @@ def write_market(
         with (out / f"scalper-h1-liquidity-{arm}.jsonl").open(
             "w", encoding="utf-8"
         ) as f:
-            for row in trades:
-                f.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+            for trade in trades:
+                f.write(json.dumps(asdict(trade), sort_keys=True) + "\n")
 
 
 def aggregate(root: Path) -> dict[str, Any]:
