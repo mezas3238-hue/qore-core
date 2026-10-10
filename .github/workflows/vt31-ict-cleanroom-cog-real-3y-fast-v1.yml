@@ -97,7 +97,7 @@ jobs:
           s=d["cognitive_component_io_audit"]
           assert s["closed_m1_seen"]==1059784
           assert s["cognition_calls"]==s["ops_calls"]==137160
-          assert s["components"]["OPS_CANDIDATE"]["outputs_present"]==sum(
+          assert s["components"]["OPS_CANDIDATE"]["output_present"]==sum(
               d["native_source_fvg_candidates_by_window"].values())
           assert s["components"]["M15_CONTEXT"]["calls_observed"]>=137160
           assert s["components"]["H1_CONTEXT"]["calls_observed"]>=137160
