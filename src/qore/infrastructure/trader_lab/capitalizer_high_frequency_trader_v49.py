@@ -19,15 +19,15 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
+from qore.infrastructure.trader_lab.capitalizer_a1_full_frame_research_adapter import (
+    A1CausalSettledMemory,
+)
 from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research import (
     A1MultiHypothesisBarrier,
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_trader_cognition_port import (
     A1TraderCognitionPacket,
     prepare_trader_cognition_packet,
-)
-from qore.infrastructure.trader_lab.capitalizer_a1_full_frame_research_adapter import (
-    A1CausalSettledMemory,
 )
 from qore.infrastructure.trader_lab.capitalizer_contract import (
     MAX_EXECUTIONS_PER_SESSION,
