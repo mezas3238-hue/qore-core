@@ -110,7 +110,7 @@ The certification documentation was amended accordingly.
 
 ---
 
-# 3. AUTHOR / SOURCE PROVENANCE AND FIDELITY AUDIT
+# 2. AUTHOR / SOURCE PROVENANCE AND FIDELITY AUDIT
 
 This section is mandatory continuity context. The next architect must verify the Trader against the author's own material before claiming source fidelity.
 
@@ -1785,6 +1785,21 @@ Freeze:
 - chronology;
 - cost assumptions.
 
+## P2 — author/source fidelity audit
+
+Before the Trader can be described as source-faithful, complete the author-fidelity ledger defined in Section 2.
+
+Mandatory closure:
+- bind every executable methodology rule to a first-party TTrades or ICT source;
+- record exact article/video/PDF location and timestamp/page where applicable;
+- classify every rule as SOURCE_EXPLICIT / SOURCE_STRONGLY_IMPLIED / INTERPRETATION / QORE_ENGINEERING_RULE / UNRESOLVED;
+- distinguish mandatory source rules from alternative entry routes/techniques;
+- resolve the current Asia and London route conflicts;
+- resolve whether the universal H1 -> M15 -> M1 specialization is an Owner/QORE operating model or can legitimately be claimed as the author's exact route for each session;
+- no CONFLICT or UNRESOLVED row may remain if the final certification language says SOURCE_FAITHFUL.
+
+This audit is independent from economic performance. A profitable architecture is not automatically faithful to the author's methodology.
+
 ## P2 — anti-leakage audit
 
 Must verify:
@@ -1991,6 +2006,7 @@ The next architect must preserve these laws:
 18. All engineering/evidence work is GitHub-only.
 19. PR stays DRAFT / UNMERGED without Owner authorization.
 20. No LIVE/VPS/production/real-capital changes.
+21. No `SOURCE_FAITHFUL` claim until the rule-by-rule author-fidelity ledger is complete and all mandatory conflicts/unresolved provenance are closed.
 
 ---
 
