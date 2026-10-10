@@ -185,7 +185,36 @@ class Vt08CandidateEventV1:
             payload[name] = _canonical_price(getattr(self, name))
         return payload
 
+    def source_event_id(self) -> str:
+        """Stable originating source identity across causal WAIT observations.
+
+        Never derive this ID from later PS confirmation, mutable evidence
+        digest, position state, model decision or terminal trade outcome.
+        A genuinely new opposing-series origin naturally generates a new ID.
+        """
+        identity = {
+            "schema": SCHEMA,
+            "source_rule_ref": self.source_rule_ref,
+            "source_methodology_sha256": self.source_methodology_sha256,
+            "market": self.market,
+            "ltf_profile": self.ltf_profile,
+            "source_family": self.source_family,
+            "scenario": self.scenario,
+            "side": self.side,
+            "h4_anchor_at": _aware(
+                self.h4_anchor_at, "h4_anchor_at"
+            ).isoformat(timespec="microseconds"),
+            "opposing_series_opened_at": _aware(
+                self.opposing_series_opened_at, "opposing_series_opened_at"
+            ).isoformat(timespec="microseconds"),
+        }
+        canonical = json.dumps(
+            identity, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
+        return f"vt08-5m-source:{hashlib.sha256(canonical).hexdigest()}"
+
     def fingerprint(self) -> str:
+        """Snapshot/event version: unlike source_event_id, changes with evidence."""
         canonical = json.dumps(
             self.source_payload(),
             sort_keys=True,
@@ -197,8 +226,25 @@ class Vt08CandidateEventV1:
     def envelope(self) -> dict[str, object]:
         fingerprint = self.fingerprint()
         return {
+            "source_event_id": self.source_event_id(),
             "event_id": f"vt08-5m:{fingerprint}",
             "event_fingerprint": fingerprint,
+            "methodology_status": "SOURCE_COMPLETE_EXECUTABLE",
+            "latest_available_bar_close": _aware(
+                self.candle2_closed_at, "candle2_closed_at"
+            ).isoformat(timespec="microseconds"),
+            "feature_close_cutoffs": {
+                "source_h4": _aware(
+                    self.candle2_closed_at, "candle2_closed_at"
+                ).isoformat(timespec="microseconds"),
+                "cisd": _aware(
+                    self.cisd_confirmed_at, "cisd_confirmed_at"
+                ).isoformat(timespec="microseconds"),
+                "protected_swing": _aware(
+                    self.ps_confirmed_at, "ps_confirmed_at"
+                ).isoformat(timespec="microseconds"),
+            },
+            "bias_feature_cutoff": "UNATTESTED_IN_LEGACY_B01_CANDIDATE",
             **self.source_payload(),
         }
 
