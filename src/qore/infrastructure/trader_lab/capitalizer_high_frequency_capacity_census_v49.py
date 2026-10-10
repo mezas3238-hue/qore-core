@@ -144,7 +144,10 @@ def _untouched_h1_target_fast(
     direction: CapitalizerSourceDirection,
 ) -> Decimal | None:
     eligible = tuple(bar for bar in h1 if bar.closed_at <= decision_at)
-    right = bisect.bisect_right(m1_opened, decision_at)
+    # Only M1 bars completed at the decision instant can prove a prior touch.
+    # A bar opening exactly at decision_at is still in progress: its high/low
+    # would leak the next minute into the target-availability decision.
+    right = bisect.bisect_left(m1_opened, decision_at)
     for candidate in reversed(eligible[-24:]):
         target = (
             candidate.source.high
@@ -158,9 +161,12 @@ def _untouched_h1_target_fast(
         )
         if not ahead:
             continue
-        left = bisect.bisect_right(m1_opened, candidate.closed_at)
+        # A minute beginning when H1 closes is the FIRST possible post-H1
+        # touch and must not be excluded by bisect_right.
+        left = bisect.bisect_left(m1_opened, candidate.closed_at)
         touched = any(
-            (
+            bar.closed_at <= decision_at
+            and (
                 bar.high >= target
                 if direction is CapitalizerSourceDirection.BULLISH
                 else bar.low <= target
