@@ -167,7 +167,9 @@ class PortfolioMtm(unittest.TestCase):
     def test_unpriced_other_open_position_blocks_global_dd(self):
         self.open("one")
         t=T+timedelta(seconds=1)
-        snapshot(self.q,t,2,nav=self.nav.cash())
+        fully_marked=self.nav.mark(
+            at=t,quotes=(quote(t,"1.099","1.100"),))
+        snapshot(self.q,t,2,nav=D(fully_marked["equity_usd"]))
         symbol(self.q,t,"GBPUSD")
         second=self.q.reserve_for_trader(request("two",2,"GBPUSD"),now=t)
         self.assertEqual(second.lots,D(".01"))
@@ -184,6 +186,26 @@ class PortfolioMtm(unittest.TestCase):
             quote(when,"1.098","1.099","GBPUSD"),
         ))
         self.assertEqual(marks["mark_count"],2)
+
+    def test_new_QDLE_reserve_refuses_stale_or_mismatched_MTM_nav(self):
+        self.open("one")
+        later=T+timedelta(seconds=1)
+        # No post-open MTM mark: merely publishing raw cash is not enough
+        # for a new QDLE risk reservation.
+        snapshot(self.q,later,2,nav=self.nav.cash())
+        symbol(self.q,later)
+        with self.assertRaisesRegex(QDLEError,"complete MTM NAV epoch"):
+            self.q.reserve_for_trader(request("second",2),now=later)
+        full=self.nav.mark(
+            at=later,quotes=(quote(later,"1.099","1.100"),))
+        self.assertEqual(D(full["equity_usd"]),D("58.93"))
+        snapshot(self.q,later,3,nav=D("60"))  # deliberately falsified
+        with self.assertRaisesRegex(QDLEError,"complete MTM NAV epoch"):
+            self.q.reserve_for_trader(request("third",3),now=later)
+        # Correct, fully marked as-of NAV from identical PAPER SQLite works.
+        snapshot(self.q,later,4,nav=D(full["equity_usd"]))
+        approved=self.q.reserve_for_trader(request("fourth",4),now=later)
+        self.assertEqual(approved.lots,D(".01"))
 
     def test_non_UTC_event_dates_rejected_not_lexicographic(self):
         from datetime import timezone as tz
