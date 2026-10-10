@@ -12,6 +12,7 @@ from qore.infrastructure.traders.vt08_cognitive_orchestrator import (
 )
 from qore.infrastructure.traders.vt08_cognitive_position_intelligence import (
     RESEARCH_UNCALIBRATED_POSITION_POLICY,
+    Vt08PositionDecision,
     Vt08PositionPolicy,
     Vt08PositionSnapshot,
     improves_stop,
@@ -188,4 +189,111 @@ def test_in_trade_side_mismatch_fails_closed() -> None:
         evaluate_in_trade_cognition(
             situation=_situation(side="long"),
             position=_position(side="short"),
+        )
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected"),
+    (
+        ({"position_state": "FLAT"}, Vt08JourneyState.PRE_ENTRY),
+        ({"h4_lifecycle_valid": False}, Vt08JourneyState.INVALIDATED),
+        (
+            {"material_contradictions": ("SOURCE:INVALIDATED",)},
+            Vt08JourneyState.INVALIDATED,
+        ),
+        (
+            {"structural_destination_state": "REACHED"},
+            Vt08JourneyState.DESTINATION_REACHED,
+        ),
+        ({"exhaustion_state": "CONFIRMED"}, Vt08JourneyState.EXHAUSTION_RISK),
+        ({"journey_stage": "STALLED"}, Vt08JourneyState.STALLED),
+        ({"displacement_state": "WEAKENING"}, Vt08JourneyState.STALLED),
+        (
+            {
+                "displacement_state": "UNKNOWN",
+                "structural_destination_state": "UNKNOWN",
+            },
+            Vt08JourneyState.UNKNOWN,
+        ),
+        ({}, Vt08JourneyState.ADVANCING),
+    ),
+)
+def test_journey_every_defined_state_and_causal_priority(
+    overrides: dict[str, object], expected: Vt08JourneyState
+) -> None:
+    output = assess_journey(_situation(**overrides))
+    assert output.journey_state is expected
+    assert output.execution_authorized is False
+    assert len(output.fingerprint()) == 64
+
+
+def test_position_policy_holds_when_optional_exit_rules_explicitly_disabled() -> None:
+    from qore.infrastructure.traders.vt08_cognitive_position_intelligence import (
+        decide_position,
+    )
+
+    policy = Vt08PositionPolicy(
+        allow_confirmed_structural_protection=False,
+        allow_reduce_on_causal_exhaustion=False,
+        exit_on_h4_lifecycle_end=False,
+        exit_on_material_thesis_invalidation=False,
+        exit_on_bound_destination_reached=False,
+    )
+    journey = assess_journey(_situation(h4_lifecycle_valid=False))
+    advice = decide_position(position=_position(), journey=journey, policy=policy)
+    assert advice.action is Vt08PositionAction.HOLD
+    assert advice.execution_authorized is False
+
+
+def test_position_snapshot_rejects_invalid_stop_and_price_semantics() -> None:
+    with pytest.raises(ValueError, match="timezone-aware"):
+        _position(as_of=datetime(2026, 9, 23, 13, 15))
+    with pytest.raises(ValueError, match="positive finite"):
+        _position(current_price=Decimal("NaN"))
+    with pytest.raises(ValueError, match="positive finite"):
+        _position(protection_candidate=Decimal("Infinity"))
+    with pytest.raises(ValueError, match="short initial geometry invalid"):
+        _position(bound_destination=Decimal("1.3500"))
+    with pytest.raises(ValueError, match="above current price"):
+        _position(current_stop=Decimal("1.3310"))
+    with pytest.raises(ValueError, match="short current stop widened"):
+        _position(current_stop=Decimal("1.3480"))
+
+
+def test_position_decision_cannot_be_promoted_to_broker_or_capital_authority() -> None:
+    for change in (
+        {"execution_authorized": True},
+        {"quantity_change_authorized": True},
+        {"capital_authority": True},
+    ):
+        with pytest.raises(ValueError, match="research/shadow only"):
+            Vt08PositionDecision(
+                action=Vt08PositionAction.HOLD,
+                next_stop=None,
+                reason_codes=("POSITION:SAFE_HOLD",),
+                policy_calibrated=False,
+                journey_fingerprint="synthetic",
+                **change,
+            )
+
+
+def test_long_and_short_protection_candidates_must_improve_not_widen_stops() -> None:
+    assert improves_stop(
+        side="long",
+        current_stop=Decimal("1.320"),
+        current_price=Decimal("1.350"),
+        candidate_stop=Decimal("1.330"),
+    )
+    assert not improves_stop(
+        side="long",
+        current_stop=Decimal("1.320"),
+        current_price=Decimal("1.350"),
+        candidate_stop=Decimal("1.315"),
+    )
+    with pytest.raises(ValueError, match="side must be"):
+        improves_stop(
+            side="neither",
+            current_stop=Decimal("1.320"),
+            current_price=Decimal("1.350"),
+            candidate_stop=Decimal("1.330"),
         )
