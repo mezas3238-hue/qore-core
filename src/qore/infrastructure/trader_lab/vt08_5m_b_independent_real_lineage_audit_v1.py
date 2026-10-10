@@ -72,6 +72,8 @@ def _window(
     """Reconstruct an exact continuously covered M15 interval, no bar interpolation."""
     if not start < end:
         raise ValueError("M15 source window invalid")
+    if (end - start).total_seconds() % 900 != 0:
+        raise ValueError("M15 source window not aligned with 15m close")
     cursor = start
     rows: list[Vt08B01Bar] = []
     while cursor < end:
