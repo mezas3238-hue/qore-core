@@ -285,7 +285,10 @@ def run_all(root: Path) -> dict[str, object]:
         )
         for market in MARKETS
     ]
-    total = sum(int(row["candidate_events_raw_source_verified"]) for row in reports)
+    counts = [row["candidate_events_raw_source_verified"] for row in reports]
+    if not all(type(value) is int for value in counts):
+        raise ValueError("independent source counts are not integers")
+    total = sum(value for value in counts if isinstance(value, int))
     if total != 488:
         raise ValueError("488-candidate research ledger not fully reproduced")
     return {
