@@ -46,3 +46,15 @@ Antes de cualquier PF/DD de una alternativa: construir evento ONLINE emitido en 
 ## 4. Transferencias entre arquitectos
 
 A2 #757: source-ledger C2/C3, POI/HTF, 381 per-ID e implementación streaming sólo tras verificar autor. A1 #756: mantener nuevo World Model congelado, conservar puerto Master cognitivo existente, proteger paso de indicadores outcome-blind y NO ingresar ventana completa / resultados futuros a Master. Los dos tracks conservan PRs DRAFT y V49 inmutable. No publicar PF/DD full Master mientras falte replay económico real.
+
+
+## 5. RESULTADO EMPÍRICO P0 — 381 CISD no son 381 eventos ausentes del prefijo M1
+
+[GitHub Actions #38096548896 — 11/11 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38096548896) y [artifact agregado #11686545003](https://github.com/mezas3238-hue/qore-core/actions/runs/38096548896/artifacts/11686545003), 9/9 mercados, ledger por 2876 IDs reales. Resultado:
+- **2495/2876** fuente V49 = *primer candidato seleccionado globalmente* en el prefijo online.
+- **381/2876** fuente V49 ≠ primer candidato globalmente seleccionado online. Un replay del policy V49 full-window NO es prefix-invariant en estos 381 IDs.
+- **2876/2876** el **observador original de la misma ruta** (Sweep o FVG) devuelve la **misma CISD al close original** en el M1 PREFIX, incluidos los 381; 0 no atestados por el observador de su propia ruta.
+
+**Adjudicación de la petición de la undécima auditoría:** ninguna de las 381 discrepancias constituye evidencia de que la CISD original fuera físicamente indetectable al close bajo el observador QORE de su propia ruta. El defecto encontrado reside en la **primera selección global / prioridad efectiva de dos observadores no prefix-stable**, y no en la existencia del evento original QORE. El cierre es reproducible por ruta, pero aún falta comprobar que el swing y la serie están ligados al POI HTF de TTrades y que la política de selección online autor-fiel produce ordenes cronológicas correctas.
+
+**No inferir:** que 381 no causales deban vetarse, ni que 2876 son íntegramente fieles al autor por la sola coincidencia de detector de QORE. Continúa NO CERTIFICABLE; el PF/DD V49 bruto histórico NO se convierte en replay live-causal certificado. Cualquier etiqueta de event-lookahead independiente de la fuente requiere más prueba. El siguiente test debe recorrer los candidatos *en cada close M1*, mantener primera selección fijada, y comprobar densidad/PF/DD con economía real y MAX3 global.
