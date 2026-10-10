@@ -61,7 +61,7 @@ def test_c3_is_not_available_15m_before_close() -> None:
         )
 
 
-def test_c3_snapshot_is_C4_free_and_has_stable_identity() -> None:
+def test_c3_snapshot_is_c4_free_and_has_stable_identity() -> None:
     s = shape_for()
     assert s is not None
     o = s.payload()
@@ -78,7 +78,7 @@ def test_c3_snapshot_is_C4_free_and_has_stable_identity() -> None:
     )
 
 
-def test_c3_source_identity_does_not_depend_on_future_C4_prices() -> None:
+def test_c3_source_identity_does_not_depend_on_future_c4_prices() -> None:
     s = shape_for()
     assert s is not None
     t = s.c3_closed_at
@@ -107,7 +107,7 @@ def test_c4_future_bar_cannot_be_consumed_at_open_or_preclose() -> None:
         )
 
 
-def test_c4_must_start_at_C3_close_exactly() -> None:
+def test_c4_must_start_at_c3_close_exactly() -> None:
     s = shape_for()
     assert s is not None
     bad = candle(s.c3_closed_at + timedelta(minutes=15), "103", "105", "101", "104", 15)
@@ -131,7 +131,7 @@ def test_c3_raw_m15_injection_and_ohlc_tamper_fail_closed() -> None:
         )
 
 
-def test_c3_already_completed_C2_reversal_partition_excludes_shape() -> None:
+def test_c3_already_completed_c2_reversal_partition_excludes_shape() -> None:
     c1, c2, c3, bars = bundle()
     # C2 sweeps C1 high 110 but closes inside C1 -> completed C2 closure.
     c1 = replace(c1, high=Decimal("104"))
