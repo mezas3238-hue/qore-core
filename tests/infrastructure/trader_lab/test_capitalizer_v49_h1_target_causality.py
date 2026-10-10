@@ -25,7 +25,6 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
     CapitalizerSourceDirection,
 )
 
-
 H1_CLOSED = datetime(2026, 9, 10, 10, tzinfo=UTC)
 DECISION = H1_CLOSED + timedelta(minutes=2)
 H1_HIGH = Decimal("105")
