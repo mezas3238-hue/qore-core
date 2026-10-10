@@ -10,6 +10,7 @@ import pytest
 
 from qore.infrastructure.trader_lab.vt08_cognitive_5m_consumed_gate_v1 import (
     Vt08FiveMarketCognitiveGate,
+    Vt08ResearchFillEvidence,
 )
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     CAUSAL_FIELDS,
@@ -83,6 +84,30 @@ def _position(when: datetime) -> Vt08PositionSnapshot:
     )
 
 
+def _ack(
+    gate: Vt08FiveMarketCognitiveGate,
+    *,
+    source: str = "synthetic-source-01",
+    market: str = "EURJPY",
+    when: datetime = T0,
+) -> None:
+    """Synthetic OHLC research fill: never a real order or fill proof."""
+    trace = gate.record_fill(
+        Vt08ResearchFillEvidence(
+            source_event_id=source,
+            market=market,
+            side="long",
+            source_cycle_id="synthetic-h4-cycle-09",
+            fill_id=f"fixture-fill-{source}",
+            filled_at=when,
+            entry_price=Decimal("100"),
+            evidence_sha256="a" * 64,
+        )
+    )
+    assert trace.source_event_id == source
+    assert trace.research_only and not trace.broker_order_authorized
+
+
 def test_wait_remains_alive_and_can_advance_to_execution() -> None:
     gate = Vt08FiveMarketCognitiveGate()
     first = gate.evaluate(_snapshot(cisd_state="PENDING"))
@@ -135,6 +160,9 @@ def test_position_cognition_requires_admitted_source_and_causal_timestamps() -> 
     with pytest.raises(ValueError, match="unadmitted"):
         gate.evaluate_position(filled, pos)
     gate.evaluate(_snapshot())
+    with pytest.raises(ValueError, match="without recorded fill"):
+        gate.evaluate_position(filled, pos)
+    _ack(gate)
     with pytest.raises(ValueError, match="as_of must match"):
         gate.evaluate_position(filled, _position(T0))
     actual = gate.evaluate_position(filled, pos)
@@ -152,6 +180,7 @@ def test_deterministic_immutable_decision_ledger() -> None:
     right = Vt08FiveMarketCognitiveGate()
     for gate in (left, right):
         gate.evaluate(_snapshot(market="USDCAD"))
+        _ack(gate, market="USDCAD")
         gate.evaluate_position(
             _snapshot(
                 market="USDCAD",
@@ -162,6 +191,7 @@ def test_deterministic_immutable_decision_ledger() -> None:
             _position(T0 + timedelta(minutes=3)),
         )
     assert left.decisions == right.decisions
+    assert left.fills == right.fills
     assert left.positions == right.positions
 
 
@@ -227,6 +257,7 @@ def test_position_requires_actual_open_filled_source_state(
 ) -> None:
     gate = Vt08FiveMarketCognitiveGate()
     gate.evaluate(_snapshot())
+    _ack(gate)
     later = T0 + timedelta(minutes=3)
     with pytest.raises(ValueError, match=expected):
         gate.evaluate_position(
@@ -242,6 +273,7 @@ def test_position_requires_actual_open_filled_source_state(
 def test_position_refuses_unauthorized_side_change_and_old_candle() -> None:
     gate = Vt08FiveMarketCognitiveGate()
     gate.evaluate(_snapshot())
+    _ack(gate)
     with pytest.raises(ValueError, match="post-admission"):
         gate.evaluate_position(
             _snapshot(entry_state="FILLED", position_state="OPEN"),
@@ -306,6 +338,7 @@ def test_no_cross_market_event_clock_regression() -> None:
 def test_position_trace_exposes_journey_destination_and_management_provenance() -> None:
     gate = Vt08FiveMarketCognitiveGate()
     gate.evaluate(_snapshot())
+    _ack(gate)
     later = T0 + timedelta(minutes=3)
     state = gate.evaluate_position(
         _snapshot(
@@ -328,6 +361,7 @@ def test_position_trace_exposes_journey_destination_and_management_provenance() 
 def test_h4_expiry_position_has_an_explicit_cognitive_exit_proposal() -> None:
     gate = Vt08FiveMarketCognitiveGate()
     gate.evaluate(_snapshot())
+    _ack(gate)
     at_expiry = T0 + timedelta(hours=4)
     outcome = gate.evaluate_position(
         _snapshot(
@@ -376,6 +410,13 @@ def test_full_five_market_stream_every_admission_gets_cognition() -> None:
         )
         assert assessed.action is Vt08CognitiveAction.EXECUTE
 
+    for market in ("EURJPY", "NZDUSD", "CADJPY", "USDCAD"):
+        _ack(
+            gate,
+            source=f"synthetic-{market}",
+            market=market,
+            when=confirmed_at,
+        )
     assessed_at = T0 + timedelta(minutes=6)
     for market in ("EURJPY", "NZDUSD", "CADJPY", "USDCAD"):
         outcome = gate.evaluate_position(
@@ -393,6 +434,7 @@ def test_full_five_market_stream_every_admission_gets_cognition() -> None:
         assert outcome.research_only and not outcome.broker_order_authorized
 
     assert len(gate.decisions) == 7
+    assert len(gate.fills) == 4
     assert len(gate.positions) == 4
     assert sum(x.action is Vt08CognitiveAction.EXECUTE for x in gate.decisions) == 4
     assert sum(x.action is Vt08CognitiveAction.WAIT for x in gate.decisions) == 2
@@ -445,3 +487,104 @@ def test_dst_fallback_repeated_new_york_hour_uses_distinct_absolute_clock() -> N
     assert wait.action is Vt08CognitiveAction.WAIT
     assert execute.action is Vt08CognitiveAction.EXECUTE
     assert len(gate.decisions) == 2
+
+
+def test_fill_is_not_implicitly_created_by_execute_and_does_not_multiply() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    assert gate.fills == ()
+    _ack(gate)
+    with pytest.raises(ValueError, match="duplicate fill"):
+        _ack(gate)
+    assert len(gate.fills) == 1
+    assert len(gate.positions) == 0
+
+
+@pytest.mark.parametrize(
+    ("changed", "expected"),
+    (
+        ({"market": "CADJPY"}, "contradicts source identity"),
+        ({"side": "short"}, "contradicts source identity"),
+        ({"source_cycle_id": "later-cycle"}, "contradicts source identity"),
+        ({"filled_at": T0 - timedelta(minutes=1)}, "cannot precede"),
+        ({"filled_at": T0 + timedelta(hours=4)}, "after H4 expiry"),
+    ),
+)
+def test_fill_cannot_migrate_source_identity_or_time(
+    changed: dict[str, object], expected: str
+) -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    inputs: dict[str, object] = {
+        "source_event_id": "synthetic-source-01",
+        "market": "EURJPY",
+        "side": "long",
+        "source_cycle_id": "synthetic-h4-cycle-09",
+        "fill_id": "bad-fixture-fill",
+        "filled_at": T0,
+        "entry_price": Decimal("100"),
+        "evidence_sha256": "b" * 64,
+    }
+    inputs.update(changed)
+    with pytest.raises(ValueError, match=expected):
+        gate.record_fill(Vt08ResearchFillEvidence(**inputs))  # type: ignore[arg-type]
+    assert gate.fills == ()
+
+
+def test_fill_without_execute_and_fill_with_wrong_price_are_rejected() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    not_admitted = Vt08ResearchFillEvidence(
+        source_event_id="synthetic-source-01",
+        market="EURJPY",
+        side="long",
+        source_cycle_id="synthetic-h4-cycle-09",
+        fill_id="sample",
+        filled_at=T0,
+        entry_price=Decimal("100"),
+        evidence_sha256="e" * 64,
+    )
+    with pytest.raises(ValueError, match="without cognitive EXECUTE"):
+        gate.record_fill(not_admitted)
+    gate.evaluate(_snapshot())
+    _ack(gate)
+    later = T0 + timedelta(minutes=3)
+    with pytest.raises(ValueError, match="differs from recorded fill"):
+        gate.evaluate_position(
+            _snapshot(
+                when=later,
+                entry_state="FILLED",
+                position_state="OPEN",
+            ),
+            Vt08PositionSnapshot(
+                as_of=later,
+                side="long",
+                entry_price=Decimal("101"),
+                current_price=Decimal("102"),
+                initial_stop=Decimal("99"),
+                current_stop=Decimal("99"),
+                bound_destination=Decimal("103"),
+            ),
+        )
+
+
+def test_fill_evidence_never_confers_broker_authority_or_weak_digest() -> None:
+    e = {
+        "source_event_id": "x",
+        "market": "EURJPY",
+        "side": "long",
+        "source_cycle_id": "cycle",
+        "fill_id": "fill",
+        "filled_at": T0,
+        "entry_price": Decimal("100"),
+        "evidence_sha256": "a" * 64,
+    }
+    with pytest.raises(ValueError, match="research-only"):
+        Vt08ResearchFillEvidence(**e, broker_order_authorized=True)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="SHA256"):
+        Vt08ResearchFillEvidence(
+            **{**e, "evidence_sha256": "false"}
+        )
+    with pytest.raises(ValueError, match="positive finite"):
+        Vt08ResearchFillEvidence(
+            **{**e, "entry_price": Decimal("NaN")}
+        )
