@@ -63,9 +63,16 @@ SOURCES: tuple[AuthorSourceRoute, ...] = (
         session="GENERIC",
         author="TTrades",
         primary_url=SOURCE_BASE + "ttrades-scalping-model-simple-day-trading-strategy/",
-        source_section="The Core Concept; Establishing Hourly Bias; Finding the Fifteen Minute Swing Point; Entry",
-        source_timeframe_roles=("DAILY_CONTEXT", "H1_BIAS", "M15_SWING", "M1_EXECUTION"),
-        mandatory_source_concepts=("HOURLY_BIAS", "M15_SWING", "M1_EXECUTION", "STRUCTURAL_STOP_HTF_TARGET"),
+        source_section=(
+            "The Core Concept; Establishing Hourly Bias; "
+            "Finding the Fifteen Minute Swing Point; Entry"
+        ),
+        source_timeframe_roles=(
+            "DAILY_CONTEXT", "H1_BIAS", "M15_SWING", "M1_EXECUTION"
+        ),
+        mandatory_source_concepts=(
+            "HOURLY_BIAS", "M15_SWING", "M1_EXECUTION", "STRUCTURAL_STOP_HTF_TARGET"
+        ),
         # The generic article lists examples of continuation behavior; it does
         # not declare each item a standalone, sufficient entry-model alternative.
         illustrative_behaviors=("FVG_INTERACTION", "CISD", "PROTECTED_SWING_FORMATION"),
@@ -76,7 +83,9 @@ SOURCES: tuple[AuthorSourceRoute, ...] = (
         author="TTrades",
         primary_url=SOURCE_BASE + "how-to-trade-asia-using-the-ttrades-fractal-model/",
         source_section="Option One: Positional Entries in Asia",
-        source_timeframe_roles=("DAILY_HTF_BIAS", "PREEXISTING_HTF_PROTECTED_SWING", "POSITIONAL_ENTRY"),
+        source_timeframe_roles=(
+            "DAILY_HTF_BIAS", "PREEXISTING_HTF_PROTECTED_SWING", "POSITIONAL_ENTRY"
+        ),
         mandatory_source_concepts=("HTF_BIAS", "PREEXISTING_PROTECTED_SWING"),
     ),
     AuthorSourceRoute(
@@ -93,7 +102,10 @@ SOURCES: tuple[AuthorSourceRoute, ...] = (
         session="LONDON",
         author="TTrades",
         primary_url=SOURCE_BASE + "how-to-trade-london-using-ttrades-fractal-model/",
-        source_section="Start With A Daily Bias; Use The 4 Hour Candle; Confirm The Swing On The 15 Minute",
+        source_section=(
+            "Start With A Daily Bias; Use The 4 Hour Candle; "
+            "Confirm The Swing On The 15 Minute"
+        ),
         source_timeframe_roles=("DAILY_BIAS_WICK", "H4_WICK_SWING", "M15_CISD_PROTECTED_SWING"),
         mandatory_source_concepts=("DAILY_BIAS", "H4_WICK_FORMATION", "M15_PROTECTED_SWING"),
     ),
@@ -112,7 +124,10 @@ SOURCES: tuple[AuthorSourceRoute, ...] = (
         session="CONTEXTUAL",
         author="TTrades",
         primary_url=SOURCE_BASE + "how-to-trade-breakouts-failure-to-manipulate/",
-        source_section="The Reversal Has To Actually Form; Trade The Continuation; Pair It With Higher Time Frame Bias",
+        source_section=(
+            "The Reversal Has To Actually Form; Trade The Continuation; "
+            "Pair It With Higher Time Frame Bias"
+        ),
         source_timeframe_roles=("HTF_BIAS", "FAILED_REVERSAL", "LTF_CONTINUATION"),
         mandatory_source_concepts=("HIGH_LOW_TAKEN", "REVERSAL_NOT_CONFIRMED", "HTF_ALIGNED_CONTINUATION"),
     ),
