@@ -4,6 +4,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import cast
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
@@ -93,7 +94,9 @@ class TestOriginalIctM1Execution(unittest.TestCase):
         with self.assertRaises(TypeError):
             confirmed_m1_fvg(
                 session=SessionId.NY_AM,
-                first=self.a, middle={"timeframe": "M15"}, third=self.c,
+                first=self.a,
+                middle=cast(M1Bar, {"timeframe": "M15"}),
+                third=self.c,
             )
 
     def test_missing_m1_rejected_not_synthesized(self) -> None:
@@ -135,7 +138,9 @@ class TestOriginalIctM1Execution(unittest.TestCase):
         self.assertEqual(snap["structure_execution_timeframe"], "M1")
         self.assertEqual(snap["fvg_timeframe"], "M1")
         self.assertEqual(snap["higher_timeframes_role"], "CONTEXT_ONLY")
-        self.assertTrue(snap["fvg"]["formed_by_closed_m1"])
+        fvg_evidence = snap["fvg"]
+        assert isinstance(fvg_evidence, dict)
+        self.assertTrue(fvg_evidence["formed_by_closed_m1"])
         self.assertFalse(snap["actual_mt5_fill_proven"])
         self.assertFalse(snap["trading_authorized"])
 
