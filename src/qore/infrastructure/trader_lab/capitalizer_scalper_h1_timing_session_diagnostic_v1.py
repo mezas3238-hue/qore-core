@@ -239,9 +239,8 @@ def diagnostic_one(
     if h1_from > m15_from or m15_from > at:
         raise ValueError("H1 M15 M1 confirmations not causally ordered")
     end = session_end_at(at, source.session)
-    if capitalizer_session_at(at) is None or (
-        capitalizer_session_at(at).value != source.session
-    ):
+    observed_session = capitalizer_session_at(at)
+    if observed_session is None or observed_session.value != source.session:
         raise ValueError("trade outside its source session")
     if aware(trade.exit_at) > end:
         raise ValueError("trade exits after known session policy boundary")
