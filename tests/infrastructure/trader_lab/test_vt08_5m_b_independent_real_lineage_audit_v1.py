@@ -79,7 +79,7 @@ def test_tampered_historical_candle_fails_sha_and_ohlc_attestation() -> None:
     )
     with pytest.raises(ValueError, match="source day M15 hash"):
         independent._verify_ohlc(tuple(altered), proof)
-    with pytest.raises(ValueError, match="source day M15 count"):
+    with pytest.raises(ValueError, match="source day raw M15 count"):
         independent._verify_ohlc(source[:-1], proof)
     with pytest.raises(ValueError, match="source day open OHLC"):
         independent._verify_ohlc(
