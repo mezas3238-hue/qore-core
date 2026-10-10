@@ -316,8 +316,9 @@ def advance_trader_cognition(
         A1SettledChosenTrade(
             execution_id=row.execution_id,
             entry_at=row.entry_at,
-            exit_at=row.settlement_known_at,
+            exit_at=row.exit_at,
             loss_cause=row.loss_cause,
+            confirmed_at=row.settlement_known_at,
         )
         for row in all_receipts
     ))
