@@ -19,7 +19,14 @@ from qore.infrastructure.trader_lab.capitalizer_v54_structural_partial_runner im
 )
 
 
-def _bar(minute: int, *, high: str, low: str, close: str = "100", open_price: str = "100") -> CapitalizerM1Bar:
+def _bar(
+    minute: int,
+    *,
+    high: str,
+    low: str,
+    close: str = "100",
+    open_price: str = "100",
+) -> CapitalizerM1Bar:
     opened = datetime(2026, 1, 5, 12, 0, tzinfo=UTC) + timedelta(minutes=minute)
     return CapitalizerM1Bar(
         symbol="EURUSD",
