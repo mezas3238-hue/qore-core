@@ -174,6 +174,7 @@ def audit_frozen_v49_route_claims() -> tuple[SourceRouteDifferential, ...]:
         raise ValueError("V49 source-route audit cannot secretly change timeframes")
 
     rows: list[SourceRouteDifferential] = []
+    reasons: tuple[str, ...]
     for source in SOURCES:
         if source.route is AuthorRoute.GENERIC_SCALPING:
             verdict = FidelityVerdict.PARTIAL_GENERIC_ALIGNMENT
