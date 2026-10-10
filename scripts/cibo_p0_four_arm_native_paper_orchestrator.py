@@ -69,6 +69,14 @@ class ArmBook:
             raise OrchestrationError("refusing to overwrite or combine a prior PAPER run")
         path.parent.mkdir(parents=True,exist_ok=True)
         qdle=PaperQDLE(path,NoNativeBrokerCalculator())
+        # Bind the single SQLite authority to EXACTLY ONE scenario. Even if
+        # all 3368 source receipts happen to be identical before market data,
+        # the books must remain independently attributable and distinguishable.
+        with qdle._tx() as db:
+            db.execute("INSERT INTO meta(key,value) VALUES(?,?)",
+                       ("canonical_paper_scenario_arm",json.dumps(arm)))
+            qdle._audit(db,"PAPER_SCENARIO_ARM_BOUND",None,
+                        {"arm":arm,"paper_only":True})
         mtm=CanonicalPaperPortfolioMtm(qdle,starting_nav_usd=D("60"))
         return cls(arm,path,qdle,mtm)
 
@@ -222,6 +230,10 @@ def orchestrate(*,manifest:dict,config:dict,output:Path,
         snapshot["sqlite_archive"]=_backup(books[arm])
         snapshot["receipts_sha256"]=_sha_file(receipts_file)
         arms[arm]=snapshot
+    if len({a["sqlite_archive"]["sha256"] for a in arms.values()})!=4:
+        raise OrchestrationError("four scenarios must have distinct arm-bound SQLite archives")
+    if len({a["journal_digest"]["audit_sha256"] for a in arms.values()})!=4:
+        raise OrchestrationError("four PAPER audit digests must bind their scenario identity")
     summary=dict(
         schema="qore.cibo.p0.four-arm-canonical-paper-orchestration.v1",
         original_signal_count=len(expected_source),
