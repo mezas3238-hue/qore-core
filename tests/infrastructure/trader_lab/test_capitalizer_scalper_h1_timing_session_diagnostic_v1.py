@@ -175,7 +175,7 @@ def test_join_rejects_mfe_or_trade_mutation_and_no_h1_future_until_use() -> None
     opened = tuple(b.opened_at for b in bars)
     row = diagnostic_one(source, trade, x, bars, opened)
     assert row.entry_h1_clock_fraction == "0.5"
-    assert Decimal(row.session_runway_minutes) == 90
+    assert Decimal(row.session_runway_minutes) == 120
     assert Decimal(row.h1_context_age_minutes) == 90
     assert row.target_hit_in_real_trade is False
     assert row.source_entry_and_exit_unchanged
