@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from statistics import median
 
@@ -83,7 +83,7 @@ class CognitiveAssessment:
     trade_authorized: bool = False
 
 
-def _ny_day(value: datetime):
+def _ny_day(value: datetime) -> date:
     return utc(value).astimezone(NEW_YORK).date()
 
 
