@@ -16,6 +16,7 @@ H1/M15 hypothesis witnesses.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from decimal import Decimal
 from typing import Mapping
 
 from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
@@ -98,12 +99,9 @@ def run_sensorized_master_frame_paper(
             ):
                 raise ValueError("sensor does not match exact H1/M15/M1 decision frontier")
             historical = source_table[sid].trade
-            if (
-                value.m15_protected_stop != historical.stop_price
-                and str(value.m15_protected_stop) != historical.stop_price
-            ):
+            if value.m15_protected_stop != Decimal(historical.stop_price):
                 raise ValueError("M15 stop from sensor differs from original V49")
-            if value.m1_bars[-1].close != historical.entry_price:
+            if value.m1_bars[-1].close != Decimal(historical.entry_price):
                 raise ValueError("M1 decision close differs from original V49 fill")
             if (value.h1_direction == "BULLISH") != (historical.direction == "LONG"):
                 raise ValueError("sensor H1 bias conflicts with original trade direction")
