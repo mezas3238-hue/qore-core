@@ -40,3 +40,39 @@ Controles de admisión/economía: **misma población source 2,876**, mismas **2,
 **Pendiente**: fidelidad M1 Sweep+CISD sobre velas opuestas, fuente H1 maturity/as-of y rangos de sesiones como alternativas explícitas, no priorizar por HARKing; test de retención y MFE/MAE por target se discutirán después del resultado, siempre con separación OOS.
 
 **Ramas:** PR #759 DRAFT, PR #758 DRAFT, parent PR #623 DRAFT, sin merge. TODO se ejecuta en GitHub, no VPS ni LIVE.
+
+## 4. RESULTADO NUEVO — 9/9 REAL, TARGET SOLO, V49 RECONCILIADO
+
+**Workflow:** [GitHub Actions #38061448754](https://github.com/mezas3238-hue/qore-core/actions/runs/38061448754), SHA analítico `0e9ac5a82f9e415a966871de3173b6fd5b579853` **11/11 SUCCESS** (contract, 9 markets, aggregate) con M1 nativos antiguos y V49 económico congelado. Artifact de nueve mercados en el workflow; las filas por `source_opportunity_id` guardan target antiguo/nuevo, ambos resultados posteriores y fecha de confirmación del pivot. En cada mercado se comparó la fila de replay V49 completa con el control original y se abortaría ante desajuste. **Ninguna operación de fuente fue descartada por esta política**.
+
+| Medida 9 mercados, solo GROSS | V49 target vela H1 | H1 external swing first |
+|---|---:|---:|
+| SOURCE oportunidades | 2,876 | 2,876 |
+| MAX3 trades seleccionados | 2,020 | 2,020 |
+| Ganadores / pérdidas / flat | 1,167 / 852 / 1 | **942 / 1,075 / 3** |
+| Profit factor | 0.6644630742 | **0.6721435889** |
+| Resultado neto R bruto | -233.269327R | **-277.605024R** |
+| Max drawdown secuencial R | 236.134284R | **279.560516R** |
+| Target exits | 1,030 | **627** |
+| Stop exits | 609 | **725** |
+| Session exits | 381 | **668** |
+| Mediana planned reward R | 0.44262295R | **1.02471906R** |
+| R bruto favorable | +461.9427618R | **+569.1224295R** |
+| R bruto desfavorable | -695.2120889R | **-846.7274537R** |
+
+**Target as-of por las 2,876 SOURCE:** 2,829 obtuvieron un swing H1 externo confirmado y aún no barrido, 47 usaron como fallback H1 vela extrema V49. El target cambió en **2,112 SOURCE**; 764 mantuvieron precio igual (p.ej. el swing H1 y la vela alta/baja coinciden). **La asimetría monetizada EMPEORÓ aunque se duplicó la mediana target planeada**: 403 targets originales dejaron de realizarse (1030→627), hubo 116 stops adicionales (609→725) y 287 session exits adicionales (381→668). Ningún ingreso supuesto de un MFE posterior; todos los resultados fueron simulados por el mismo `_replay_one` STOP-FIRST y M1 cerrado.
+
+### Preservación exacta de los GANADORES ORIGINALES (no de los nuevos)
+
+| Criterio | Medido H1 external first | Exigido Owner | Veredicto |
+|---|---:|---:|---|
+| Source IDs con R positivo en ambos brazos | **942 de 1167** (80.7198%) | ≥934 (80%) | **PASS count únicamente** |
+| R POSITIVO del V49 correspondiente a esos 942 source IDs | **387.57702285R** (83.9015% de 461.94276R) | ≥415.74848565R (90%) | **FAIL MASS** |
+| PF bruto | 0.6721436 | >1 bruto y ≥1.5 OOS ideal según Owner | **FAIL** |
+| MaxDD secuencial R | 279.56R | ≤6R investigación Owner | **FAIL** |
+| Costes bid/ask/commission | No modelados | Obligatorios certificación | **NOT EVALUATED** |
+| Master Frame A1 cognitiva | No invocada | Obligatoria en replay maestro | **NOT EVALUATED** |
+
+**Diagnóstico H9/H10:** H9 confirmado por código (V49 elige último HIGH/LOW H1 no tocado entre 24 cerradas). H10 matizado: la variante de reemplazo por **swings H1 confirmados** sí produce targets típicamente más largos; **no produce edge bruto, empeora netR/DD y pierde más ganadoras**. No aplicar el target nuevo en Trader activo, ni mezclarlas con la cognitiva; no forzar thresholds R inventados. La causa económica no puede atribuirse solo a «target previo demasiado cercano»; hay dependencia conjunta entre identidad de oportunidad, movimiento durante la sesión, stop M15 y calidad/tiempo del sesgo. Requiere experimentos multicomponentes preregistrados y OOS sin HARKing.
+
+**Cierre V4:** El rediseño H1 fue implementado, medido y **RECHAZADO para promoción**. Los dos algoritmos son opciones de investigación auditable, ninguno certificado. El motor funciona como lector de evidencia y no como filtro de entrada. No reordenar jerarquía después de observar este resultado sin un nuevo preregistro con periodo independiente.
