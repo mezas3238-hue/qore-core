@@ -70,6 +70,9 @@ def count_source_events(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
     first_fvg: dict[str, dict[str, dict[str, str]]] = {
         model: {} for model in SLOTS
     }
+    strict_full_three_days: dict[str, set[str]] = {
+        model: set() for model in SLOTS
+    }
     samples: dict[str, list[dict[str, str]]] = {model: [] for model in SLOTS}
     previous_open: datetime | None = None
     prev_two_contiguous = 0
@@ -120,11 +123,22 @@ def count_source_events(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
                         day = ny_open.date().isoformat()
                         per_model_events[model]["raw_three_bar_fvg_count"] += 1
                         per_model_events[model][f"{side.lower()}_fvg_count"] += 1
+                        first_ny = first["opened_at"].astimezone(NY)
+                        all_three_inside = (
+                            first_ny.date() == ny_open.date()
+                            and first_ny.hour == hour
+                        )
+                        if all_three_inside:
+                            per_model_events[model]["three_full_m1_inside_hour"] += 1
+                            strict_full_three_days[model].add(day)
+                        else:
+                            per_model_events[model]["fvg_straddles_window_start"] += 1
                         event = {
                             "closed_at_utc": closed.isoformat(),
                             "formed_at_ny": ny_close.isoformat(),
                             "side": side,
                             "gap_points": format(gap, "f"),
+                            "all_three_m1_inside_hour_research_policy": all_three_inside,
                             "prior_candles_may_precede_window": str(
                                 first["opened_at"].astimezone(NY).hour != hour
                             ).lower(),
@@ -168,6 +182,11 @@ def count_source_events(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
             "days_with_complete_window_no_raw_fvg": (
                 len(eligible_days) - len(completed_fvg_days)
             ),
+            "complete_days_with_full_three_inside_raw_fvg": len(
+                set(eligible_days) & strict_full_three_days[model]
+            ),
+            "full_three_inside_window_is_qore_conservative_research_policy": True,
+            "full_three_requirement_not_verified_as_universal_2023_ict": True,
             "raw_fvg_event_counts": dict(per_model_events[model]),
             "first_raw_fvg_side_by_day": dict(first_side),
             "london_wall_clock_first_fvg_hour": dict(sorted(london_hours.items())),
@@ -265,7 +284,20 @@ def self_test() -> None:
     report = count_source_events(rows)
     m = report["models"]["VT31_NY_AM"]
     assert m["raw_fvg_event_counts"]["short_fvg_count"] == 1
+    assert m["raw_fvg_event_counts"]["three_full_m1_inside_hour"] == 1
     assert m["m1_days_with_complete_60_minute_source_window"] == 0
+    # Gap formed at 10:01 from candle 09:59 -> 10:01: source hour
+    # raw FVG observation, but cross-hour strict research policy rejects.
+    early = base - timedelta(minutes=1)
+    cross = (
+        _mkbar(early, high="110", low="100", opened="105", closed="106"),
+        _mkbar(base, high="108", low="99", opened="106", closed="100"),
+        _mkbar(base + timedelta(minutes=1), high="97", low="94", opened="96", closed="95"),
+    )
+    cross_report = count_source_events(cross)["models"]["VT31_NY_AM"]
+    assert cross_report["raw_fvg_event_counts"]["raw_three_bar_fvg_count"] == 1
+    assert cross_report["raw_fvg_event_counts"]["fvg_straddles_window_start"] == 1
+    assert cross_report["raw_fvg_event_counts"].get("three_full_m1_inside_hour", 0) == 0
     assert m["days_with_raw_fvg_in_complete_source_window"] == 0
     assert report["governance"]["raw_fvg_does_not_authorize_trade"] is True
     # FVG from first 2 bars & future third inside window must not use future.
@@ -310,6 +342,9 @@ def main() -> None:
                 "complete_days": data["m1_days_with_complete_60_minute_source_window"],
                 "days_with_fvg": data["days_with_raw_fvg_in_complete_source_window"],
                 "raw_fvg_events": data["raw_fvg_event_counts"],
+                "complete_days_with_full_three_inside_fvg": data[
+                    "complete_days_with_full_three_inside_raw_fvg"
+                ],
             }
             for model, data in payload["models"].items()
         },
