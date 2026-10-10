@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -52,6 +53,7 @@ from qore.infrastructure.trader_lab.capitalizer_master_cognitive_frame import (
 )
 from qore.infrastructure.trader_lab.capitalizer_memory import (
     CapitalizerDailyJourney,
+    CapitalizerLossCause,
     CapitalizerLossMemory,
     CapitalizerSessionLedger,
 )
@@ -372,4 +374,108 @@ def test_a1_research_memory_reads_only_strictly_prior_settlements() -> None:
     with pytest.raises(ValueError, match="duplicate settled execution"):
         A1CausalSettledMemory(
             (memory.chosen_settlements[0], memory.chosen_settlements[0])
+        )
+
+
+def test_a1_settled_loss_changes_real_adversarial_gate_only_after_settlement() -> None:
+    """Ablation: identical context, only causally visible chosen loss changes gate."""
+    entered = datetime(2026, 1, 5, 0, 30, tzinfo=UTC)
+    exit_at = entered + timedelta(minutes=31)
+    loss = CapitalizerLossCause(
+        loss_id="EXEC-1",
+        symbol="AUDJPY",
+        session=CapitalizerSession.ASIA,
+        hypothesis_id="H-AUDJPY",
+        failure_state_fingerprint="FAMILY-AUDJPY",
+        realized_r=Decimal("-1"),
+        causes=("INVALIDATED_PRIOR_THESIS",),
+    )
+    memory = A1CausalSettledMemory(
+        (A1SettledChosenTrade("EXEC-1", entered, exit_at, loss),)
+    )
+
+    def evaluate(at: datetime, chosen: A1CausalSettledMemory):
+        contexts = _candidate_contexts(at)
+        contexts = (
+            replace(
+                contexts[0],
+                failure_state_fingerprint="FAMILY-AUDJPY",
+                genuinely_new_causal_event=False,
+            ),
+            contexts[1],
+        )
+        decisions = _a1_research_run(at, contexts=contexts, memory=chosen)
+        return {item.symbol: item for item in decisions}
+
+    prior = evaluate(exit_at - timedelta(seconds=1), memory)
+    tie = evaluate(exit_at, memory)
+    after = evaluate(exit_at + timedelta(seconds=1), memory)
+    ablated = evaluate(exit_at + timedelta(seconds=1), A1CausalSettledMemory())
+
+    assert prior["AUDJPY"].cognitive_gate == "PASS_TO_STRATEGY"
+    assert tie["AUDJPY"].cognitive_gate == "PASS_TO_STRATEGY"
+    assert after["AUDJPY"].cognitive_gate == "ABSTAIN"
+    assert ablated["AUDJPY"].cognitive_gate == "PASS_TO_STRATEGY"
+    assert "UNRESOLVED_FAILURE_REPEAT_WITHOUT_NEW_CAUSE" in after["AUDJPY"].why_tokens
+    assert after["AUDJPY"].closed_chosen_history_count == 1
+    assert after["AUDJPY"].closed_chosen_failure_count == 1
+    assert prior["AUDJPY"].closed_chosen_failure_count == 0
+    assert tie["AUDJPY"].closed_chosen_failure_count == 0
+    assert after["USDJPY"].cognitive_gate == "PASS_TO_STRATEGY"
+
+    # A genuinely new independent event may be assessed without a blanket ban.
+    fresh_contexts = _candidate_contexts(exit_at + timedelta(seconds=1))
+    fresh = evaluate_full_frame_research_batch(
+        world=_world(exit_at + timedelta(seconds=1)),
+        perceptions=_perceptions(exit_at + timedelta(seconds=1)),
+        regime_hypotheses=_regimes(exit_at + timedelta(seconds=1)),
+        cross_market_graph=CapitalizerCrossMarketCausalGraph(
+            observed_at=exit_at + timedelta(seconds=1), edges=()
+        ),
+        pressure_facts=CapitalizerCognitivePressureFacts(),
+        contexts=(
+            replace(
+                fresh_contexts[0],
+                failure_state_fingerprint="FAMILY-AUDJPY",
+                genuinely_new_causal_event=True,
+            ),
+            fresh_contexts[1],
+        ),
+        source_bindings=(
+            A1SourceBinding("SRC:AUDJPY", "AUDJPY", exit_at + timedelta(seconds=1)),
+            A1SourceBinding("SRC:USDJPY", "USDJPY", exit_at + timedelta(seconds=1)),
+        ),
+        settled_memory=memory,
+    )
+    assert next(item for item in fresh if item.symbol == "AUDJPY").cognitive_gate == (
+        "PASS_TO_STRATEGY"
+    )
+
+
+def test_a1_rejects_unproven_world_loss_history_and_mismatched_chosen_loss() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    loss = CapitalizerLossCause(
+        loss_id="LOSS-1",
+        symbol="AUDJPY",
+        session=CapitalizerSession.ASIA,
+        hypothesis_id="H-AUDJPY",
+        failure_state_fingerprint="FAMILY-AUDJPY",
+        realized_r=Decimal("-1"),
+        causes=("SOURCE_INVALIDATION",),
+    )
+    with pytest.raises(ValueError, match="settled loss must match"):
+        A1SettledChosenTrade("DIFFERENT-ID", at - timedelta(minutes=2), at, loss)
+    with pytest.raises(ValueError, match="unproven or future world loss memory"):
+        evaluate_full_frame_research_batch(
+            world=replace(_world(at), loss_memory=CapitalizerLossMemory((loss,))),
+            perceptions=_perceptions(at),
+            regime_hypotheses=_regimes(at),
+            cross_market_graph=CapitalizerCrossMarketCausalGraph(observed_at=at, edges=()),
+            pressure_facts=CapitalizerCognitivePressureFacts(),
+            contexts=_candidate_contexts(at),
+            source_bindings=(
+                A1SourceBinding("SRC:AUDJPY", "AUDJPY", at),
+                A1SourceBinding("SRC:USDJPY", "USDJPY", at),
+            ),
+            settled_memory=A1CausalSettledMemory(),
         )
