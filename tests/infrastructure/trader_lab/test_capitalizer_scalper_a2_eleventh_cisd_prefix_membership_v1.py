@@ -38,7 +38,10 @@ def test_sweep_earlier_does_not_prove_later_fvg_unavailable() -> None:
         "full_matches_original": True,
         "prefix_matches_sensor": True,
         "full_window_witness": _witness("FVG_RETRACE_CISD", T),
-        "closed_prefix_witness": _witness("LIQUIDITY_SWEEP_CISD", EARLY),
+        "closed_prefix_witness": {
+            **_witness("LIQUIDITY_SWEEP_CISD", EARLY),
+            "fvg_cisd_confirmed_at": T,
+        },
     }
     got = classify_row(row)
     assert not got["original_is_first_online_candidate"]
