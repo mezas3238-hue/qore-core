@@ -76,6 +76,9 @@ def run_sensorized_master_frame_paper(
         or set(source_evidence) != expected
     ):
         raise ValueError("A2 sensors must have exactly the original source IDs")
+    source_table = {
+        row.source_opportunity_id: row for row in source_originals
+    }
     observed = 0
     conflicts = 0
     wrapped_barriers: list[A1MultiHypothesisBarrier] = []
@@ -94,14 +97,25 @@ def run_sensorized_master_frame_paper(
                 or alt.context.observed_at != barrier.observed_at
             ):
                 raise ValueError("sensor does not match exact H1/M15/M1 decision frontier")
+            historical = source_table[sid].trade
+            if (
+                value.m15_protected_stop != historical.stop_price
+                and str(value.m15_protected_stop) != historical.stop_price
+            ):
+                raise ValueError("M15 stop from sensor differs from original V49")
+            if value.m1_bars[-1].close != historical.entry_price:
+                raise ValueError("M1 decision close differs from original V49 fill")
+            if (value.h1_direction == "BULLISH") != (historical.direction == "LONG"):
+                raise ValueError("sensor H1 bias conflicts with original trade direction")
             frame = observe_entry_timing_sensors(value)
             binding = bind_scalper_sensors_into_master_context(frame)
             if binding.grants_entry_authority:
                 raise ValueError("read-only A2 sensor grant is illegal")
-            had_cisd = (
+            match = (
                 frame.first_source_cisd_confirmed_at == barrier.observed_at.isoformat()
+                and frame.first_source_cisd_family == historical.trigger_family
             )
-            conflict = not had_cisd
+            conflict = not match
             conflicts += int(conflict)
             observed += 1
             # Never alter A1's independently proven H1/M15/HTF target truths:
