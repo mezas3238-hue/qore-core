@@ -110,3 +110,41 @@ Veredicto: **UNRESOLVED**. No usar FTM como gate universal sin fuente.
 - Publicar reporte firmado en #757 y #623; aprobación metodológica no significa aprobación estadística.
 
 **Estado: DIFERENCIAL INICIAL REPRODUCIBLE / LEDGER INCOMPLETO / FIDELITY NOT CERTIFIED / NO LIVE.**
+
+
+## 6. Ampliación A2: auditoría ejecutable + frontera temporal de target H1 (10-10-2026)
+
+**Fuente revisada (primer autor TTrades):**
+- `ttrades-scalping-model-simple-day-trading-strategy/`, **The Core Concept / Establishing Hourly Bias / Finding the Fifteen Minute Swing Point / Entry**: H1 sesgo, M15 swing, M1 ejecución, protected stop y HTF draw; los tres ejemplos M1 (FVG, CISD, protected swing) **NO demuestran** que cada uno, por separado, sea una ruta de entrada suficiente.
+- `how-to-trade-asia-using-the-ttrades-fractal-model/`, **Option One / Option Two**: ruta posicional vs 4H Candle2 -> M15 alternativa.
+- `how-to-trade-london-using-ttrades-fractal-model/`, **Start With A Daily Bias / Use The 4 Hour Candle / Confirm The Swing On The 15 Minute**: Daily -> H4 -> M15.
+- `daily-profile-understanding-the-new-york-manipulation/`, **How to Recognize It on Charts (Entry Models)**: FVG, OB u otro modelo de refinamiento son alternativas dentro de esa ruta, no una intersección obligatoria.
+- `how-to-trade-breakouts-failure-to-manipulate/`, **The Reversal Has To Actually Form / Trade The Continuation / Pair It With Higher Time Frame Bias**: no equivale a breakout sin confirmación estructural.
+
+### Filas adicionales y control de causalidad
+
+| ID | Código revisado | Fuente exacta/clase | Riesgo/estado | Prueba de corrección |
+|---|---|---|---|---|
+| SRC-022 | `capitalizer_high_frequency_capacity_census_v49.py::_untouched_h1_target_fast`: `bisect_right(opened_at, decision_at)` | TTrades Generic Entry = HTF objective (SOURCE_EXPLICIT para concepto); selección de H1 intacto = QORE_ENGINEERING_RULE | **AUD-M07 CONFIRMADO POR INSPECCIÓN DE CÓDIGO:** incluye M1 que abre en decision, por lo tanto high/low aún no conocidos; puede bloquear entradas causalmente válidas | Cambio a límite superior `bisect_left`, guard `bar.closed_at <= decision_at`, tests LONG/SHORT |
+| SRC-023 | misma función: `bisect_right(opened_at, candidate.closed_at)` | QORE_ENGINEERING_RULE | **AUD-M07:** omite la M1 abierta exactamente al cierre de H1, aun cuando esa M1 ya cerró antes de la decisión; puede conservar un target que fue tocado | Cambiar a límite inferior `bisect_left`; tests en ambos sentidos |
+| SRC-024 | `capitalizer_h1_context_state_v49.py::build_h1_context_states` y `V49Opportunity.h1_state_until` | QORE_ENGINEERING_RULE, no regla universal TTrades | **RIESGO AÚN NO DEMOSTRADO:** metadata expiry de H1 puede contener timestamp de señal contraria futura; A1 debe demostrar que sólo se emplea en segmentación offline, no llega a cognición predecisión | Trace por consumidor y test contra cambios de H1 futuro; issue #756 |
+| SRC-025 | `capitalizer_scalper_author_route_audit_v1.py` | Contrato de clasificación TTrades/ICT separados, QORE_ENGINEERING_RULE | **AUDITORÍA, SIN AUTORIDAD:** clasifica 6 rutas, ninguna recibe SOURCE_FAITHFUL automática; no cambia señales ni decisiones | `test_capitalizer_scalper_author_route_audit_v1.py`; futuros source-callers requieren revisión manual |
+
+### Modelo de discrepancias ejecutable
+
+`capitalizer_scalper_author_route_audit_v1.py::audit_frozen_v49_route_claims()` devuelve:
+- `GENERIC_SCALPING` => `PARTIAL_GENERIC_ALIGNMENT` (sesgo H1 / estructura M15 / ejecución M1 alineados; Daily contextual omitido por diseño Owner);
+- `ASIA_POSITIONAL`, `ASIA_H4_M15_FRACTAL`, `LONDON_DAILY_H4_M15` => `CONFLICT_LITERAL_SESSION_ROUTE` si se comercializa como implementación de esas rutas exactas;
+- `NEW_YORK_MANIPULATION`, `FAILURE_TO_MANIPULATE` => `UNRESOLVED_ROUTE_EXECUTION`: no se demostró cadena exacta de llamadas de esas rutas.
+
+No confundir una etiqueta de sesión con la identidad de metodología específica de esa sesión. El detector de `LIQUIDITY_SWEEP_CISD` en una entrada genérica no prueba que cumple todo New York manipulation. No afirmar fidelidad total sin verificar call chain y ledger por cada guard. El modelo de auditoría no proporciona acceso a sizing, órdenes o ejecución.
+
+### Preregistro causal (antes de métricas)
+
+Issue #757 comentario `6096372844` documenta la hipótesis de frontera temporal de `_untouched_h1_target_fast` y tests exactos antes de recompilar matrices. Implementación: `capitalizer_high_frequency_capacity_census_v49.py`; tests: `test_capitalizer_v49_h1_target_causality.py`. **No se han ejecutado replays 9/9 ni observado nuevas métricas PF/DD.** El defecto puede producir tanto falsos rechazos como falsos aceptados: no adjudicar dirección de efecto ni densidad sin reprocesar toda la población histórica consumida.
+
+### A1 + A2: dependencia cruzada
+
+Arquitecto B debe entregar exactamente los `source_route/source_rule_ids/H1-M15-M1/target` de cada oportunidad. Arquitecto A debe probar que ningún `h1_state_until` prospectivo ni dato M1 incompleto llega a su cognitiva, y que la metacognición/memoria real actúa sobre fuentes verificables. Revisiones solicitadas en #756. Requerir SHA, Actions, artifact y cross-review. El gate `author_fidelity_audit_passed` en Standard V2 permanece **sin evidencia final**; no es certificación por simple booleano.
+
+**Estado: cambios en research branch; Actions oficiales pendientes; NO CERTIFICADO.**
