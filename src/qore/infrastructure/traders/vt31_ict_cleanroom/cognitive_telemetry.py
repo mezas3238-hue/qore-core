@@ -264,6 +264,19 @@ class CognitiveTelemetry:
                 "DOL_ARBITRATION", "COGNITIVE_DECISION",
             ):
                 self.counts[name].reached_source_candidate += 1
+            persisted_m1_mss = (
+                "M1_MSS_REVALIDATED" in cognition.source_provenance
+            )
+            if persisted_m1_mss:
+                self.counts[
+                    "M1_THESIS_REVALIDATION"
+                ].reached_source_candidate += 1
+            self.by_session[
+                session.value + "|CANDIDATE_MSS_ORIGIN|" + (
+                    "PRIOR_M1_REVALIDATED" if persisted_m1_mss
+                    else "CURRENT_M1_NEW"
+                )
+            ] += 1
             for name, prefix in (
                 ("NY_CASH_LIQUIDITY", "PRIOR_NY_CASH_SESSION"),
                 ("ASIA_LIQUIDITY", "ASIA_NY_CLOCK"),
@@ -286,6 +299,10 @@ class CognitiveTelemetry:
                     ).isoformat(),
                     "draw_target": str(cognition.draw_target),
                     "side": str(cognition.side),
+                    "M1_MSS_source": (
+                        "PRIOR_M1_REVALIDATED" if persisted_m1_mss
+                        else "CURRENT_M1_NEW"
+                    ),
                     "cognitive_source": str(cognition.source_provenance),
                     "causal_source_candidates_only": True,
                     "broker_filled": False,
