@@ -65,7 +65,9 @@ def test_single_trader_shares_one_cognition_across_london_and_new_york() -> None
     assert state["session_models"] == ("LONDON", "NEW_YORK")
     assert state["ny_windows"] == ("VT31_NY_AM", "VT31_NY_PM")
     assert state["source_windows_seen"] == 3
-    assert len(state["session_windows"]) == 3
+    windows = state["session_windows"]
+    assert isinstance(windows, tuple)
+    assert len(windows) == 3
     assert state["single_cognitive_memory"] is True
     assert state["certified"] is False
     assert state["live_authorized"] is False
