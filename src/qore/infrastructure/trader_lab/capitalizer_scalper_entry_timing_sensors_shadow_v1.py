@@ -23,7 +23,7 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
 )
-from qore.infrastructure.trader_lab.capitalizer_scalper_h1_timing_session_diagnostic_v1 import (
+from qore.infrastructure.trader_lab.capitalizer_a1_entry_timing_clock_v1 import (
     h1_observed_position,
     session_end_at,
 )
