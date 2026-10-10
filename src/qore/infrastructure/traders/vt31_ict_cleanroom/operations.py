@@ -75,21 +75,21 @@ class IctSilverBulletOperations:
         # None or a changed decision. Absence is NEVER silent permission.
         # This observation happens only at this bar's CLOSE; it does NOT
         # imply any intrabar cancellation or predict historical tick order.
-        source_live = self.first_suitable is not None and self.decision in (
+        selected = self.first_suitable
+        if selected is not None and self.decision in (
             MethodologyDecision.RESEARCH_PENDING_CE,
             MethodologyDecision.RESEARCH_TOUCH_NOT_FILL,
-        )
-        if source_live:
+        ):
             reason: str | None = None
             if cognition is None:
                 reason = "COGNITIVE_THESIS_REVOKED_OR_UNAVAILABLE"
             elif (
-                cognition.side != self.first_suitable.side
-                or cognition.draw_target != self.first_suitable.target_price
+                cognition.side != selected.side
+                or cognition.draw_target != selected.target_price
             ):
                 reason = "CAUSAL_DOL_DIRECTION_OR_TARGET_CHANGED"
             elif utc(cognition.structure_break_confirmed_at) > utc(
-                self.first_suitable.formed_at
+                selected.formed_at
             ):
                 reason = "ORIGINAL_M1_MSS_THESIS_REPLACED"
             if reason is not None:
