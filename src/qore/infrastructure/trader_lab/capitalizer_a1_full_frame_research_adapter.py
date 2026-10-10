@@ -22,13 +22,13 @@ from qore.infrastructure.trader_lab.capitalizer_cross_market_causality import (
 from qore.infrastructure.trader_lab.capitalizer_global_world_model import (
     CapitalizerGlobalWorldModel,
 )
-from qore.infrastructure.trader_lab.capitalizer_memory import (
-    CapitalizerLossCause,
-    CapitalizerLossMemory,
-)
 from qore.infrastructure.trader_lab.capitalizer_master_cognitive_frame import (
     CapitalizerCandidateCognitiveContext,
     build_master_cognitive_frame,
+)
+from qore.infrastructure.trader_lab.capitalizer_memory import (
+    CapitalizerLossCause,
+    CapitalizerLossMemory,
 )
 from qore.infrastructure.trader_lab.capitalizer_perception_integrity import (
     CapitalizerMarketPerceptionSnapshot,
