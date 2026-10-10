@@ -58,8 +58,7 @@ class Vt08ForexSituationModel:
     def __post_init__(self) -> None:
         if self.as_of.tzinfo is None or self.as_of.utcoffset() is None:
             raise ValueError("VT08 situation as_of must be timezone-aware")
-        if self.market not in AUTHORIZED_MARKETS:
-            raise ValueError("VT08 situation market outside Forex authority")
+        self._validate_market()
         if self.anchor_hour_ny not in OWNER_FOREX_ANCHORS:
             raise ValueError("VT08 situation anchor outside Owner 01/05/09 scope")
         if self.side not in {"long", "short"}:
@@ -109,6 +108,12 @@ class Vt08ForexSituationModel:
                 raise ValueError("VT08 situation Decimal values must be finite")
         if self.terminal_pnl is not None or self.post_outcome_label is not None:
             raise ValueError("VT08 situation cannot contain post-outcome information")
+
+    def _validate_market(self) -> None:
+        """Production Forex authority. Research subclass may only narrow/extend
+        in a separately identified, research-only Situation Model type."""
+        if self.market not in AUTHORIZED_MARKETS:
+            raise ValueError("VT08 situation market outside Forex authority")
 
     def payload(self) -> dict[str, object]:
         raw = asdict(self)
