@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from datetime import timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
@@ -35,6 +36,9 @@ from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_int
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research import (
     A1MultiHypothesisBarrier,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_a1_native_source_session_clock_attestation_v1 as native_clock,
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_source_sensor_independent_attestation_v1 import (
     A1SourceSensorAttestation,
@@ -64,6 +68,8 @@ class A1SensorizedPaperBridgeResult:
     prior_intact_m1_context_count: int = 0
     secondary_m1_route_reviews_received: int = 0
     newly_intact_second_m1_context_count: int = 0
+    independently_attested_source_clocks: int = 0
+    source_methodology_windows_unresolved: int = 0
     automatically_vetoed_cisd_conflicts: bool = False
     synthetic_nine_market_world_created: bool = False
     virtual_broker_quotes_created: bool = False
@@ -88,6 +94,9 @@ def run_sensorized_master_frame_paper(
     independent_source_witnesses: Mapping[str, A1SourceSensorAttestation] | None = None,
     m1_route_reviews: Mapping[str, A1M1ProtectedRouteReview] | None = None,
     m1_secondary_reviews: Mapping[str, A1SecondPivotReview] | None = None,
+    source_clock_witnesses: Mapping[
+        str, native_clock.A1V49SourceClockEvidence
+    ] | None = None,
 ) -> A1SensorizedPaperBridgeResult:
     """Run 9-market A1 cognition with genuine A2 sensor observations per source."""
 
@@ -112,6 +121,8 @@ def run_sensorized_master_frame_paper(
         m1_route_reviews is None or set(m1_secondary_reviews) != expected
     ):
         raise ValueError("all second-pivot native M1 witnesses need original V2 lineage")
+    if source_clock_witnesses is not None and set(source_clock_witnesses) != expected:
+        raise ValueError("all original source IDs need clock provenance")
     source_table = {
         row.source_opportunity_id: row for row in source_originals
     }
@@ -123,6 +134,8 @@ def run_sensorized_master_frame_paper(
     prior_intact_count = 0
     second_route_review_count = 0
     second_intact_count = 0
+    clock_provenance_count = 0
+    source_clock_methodology_unresolved = 0
     wrapped_barriers: list[A1MultiHypothesisBarrier] = []
     for barrier in barriers:
         alternatives = []
@@ -248,11 +261,39 @@ def run_sensorized_master_frame_paper(
                 )
                 second_route_review_count += 1
                 second_intact_count += int(second.later_intact)
+            clock_tokens: tuple[str, ...] = ()
+            if source_clock_witnesses is not None:
+                clock = source_clock_witnesses[sid]
+                if (
+                    clock.source_opportunity_id != sid
+                    or clock.symbol != historical.symbol
+                    or clock.source_session.value != historical.session
+                    or clock.source_operating_date != historical.operating_date
+                    or clock.observed_at != frame.decision_at
+                    or clock.m1_opened_at != (
+                        barrier.observed_at - timedelta(minutes=1)
+                    ).isoformat()
+                ):
+                    raise ValueError("source clock witness cannot cross V49 ancestry")
+                clock_tokens = (
+                    "SCALPER_A1_QORE_OPERATIONAL_BUCKET="
+                    + clock.qore_bucket_reconfirmed.value,
+                    "SCALPER_A1_SOURCE_CLOCK_NY_UTC_OFFSET_MINUTES="
+                    + str(clock.new_york_utc_offset_minutes),
+                    "SCALPER_A1_SOURCE_METHOD_WINDOW="
+                    + clock.methodology_window_resolution.value,
+                    "SCALPER_A1_SOURCE_CLOCK_NOT_TTRADE_AUTHOR_GATE=YES",
+                )
+                clock_provenance_count += 1
+                source_clock_methodology_unresolved += int(
+                    clock.methodology_window_resolution.value == "REVIEW_REQUIRED"
+                )
             tokens = (
                 *alt.context.observation_tokens,
                 *binding.context.observation_tokens,
                 *route_tokens,
                 *second_tokens,
+                *clock_tokens,
                 f"SCALPER_SENSOR_SOURCE_CISD_MATCH={not conflict}",
                 "SCALPER_SENSOR_DIFFERENCE_NOT_A_GATE=YES",
             )
@@ -287,4 +328,6 @@ def run_sensorized_master_frame_paper(
         prior_intact_m1_context_count=prior_intact_count,
         secondary_m1_route_reviews_received=second_route_review_count,
         newly_intact_second_m1_context_count=second_intact_count,
+        independently_attested_source_clocks=clock_provenance_count,
+        source_methodology_windows_unresolved=source_clock_methodology_unresolved,
     )
