@@ -17,6 +17,11 @@ from qore.infrastructure.trader_lab.capitalizer_a1_full_frame_research_adapter i
     A1SourceBinding,
     evaluate_full_frame_research_batch,
 )
+from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research import (
+    A1MultiHypothesisBarrier,
+    A1SourceHypothesisAlternative,
+    replay_multi_hypothesis_evidence,
+)
 from qore.infrastructure.trader_lab.capitalizer_cognitive_explanation import (
     explain_all_candidates,
 )
@@ -580,5 +585,139 @@ def test_a1_chronological_replay_rejects_ties_reused_source_and_missing_market()
     with pytest.raises(ValueError, match="nine markets|perception snapshot"):
         replay_observed_cognitive_barriers(
             barriers=(replace(earlier, perceptions=earlier.perceptions[:-1]),),
+            chosen_settlements=A1CausalSettledMemory(),
+        )
+
+
+def _a1_multi_hypothesis_fixture(
+    at: datetime,
+    *,
+    source_ids: tuple[str, ...] = ("SRC:AUDJPY:A", "SRC:AUDJPY:B", "SRC:USDJPY:C"),
+) -> A1MultiHypothesisBarrier:
+    contexts = _candidate_contexts(at)
+    candidates = (
+        ("AUDJPY", "H-A1", "EVENT-A", "STATE-A", contexts[0]),
+        ("AUDJPY", "H-A2", "EVENT-B", "STATE-B", contexts[0]),
+        ("USDJPY", "H-U1", "EVENT-C", "STATE-U", contexts[1]),
+    )
+    alternatives = tuple(
+        A1SourceHypothesisAlternative(
+            binding=A1SourceBinding(source_ids[index], symbol, at),
+            context=replace(
+                context,
+                failure_state_fingerprint=fingerprint,
+                genuinely_new_causal_event=False,
+            ),
+            hypothesis_id=hypothesis,
+            source_event_id=event,
+            source_rule_id="TTRADES_REVIEW_PENDING",
+            h1_confirmed_at=at - timedelta(hours=1),
+            m15_confirmed_at=at - timedelta(minutes=15),
+            m1_confirmed_at=at,
+        )
+        for index, (symbol, hypothesis, event, fingerprint, context) in enumerate(
+            candidates
+        )
+    )
+    return A1MultiHypothesisBarrier(
+        world=_world(at),
+        perceptions=_perceptions(at),
+        regime_hypotheses=_regimes(at),
+        cross_market_graph=CapitalizerCrossMarketCausalGraph(observed_at=at, edges=()),
+        pressure_facts=CapitalizerCognitivePressureFacts(),
+        alternatives=alternatives,
+        expected_source_ids=source_ids,
+    )
+
+
+def test_a1_multi_hypothesis_census_keeps_every_same_market_candidate() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    barrier = _a1_multi_hypothesis_fixture(at)
+    evidence = replay_multi_hypothesis_evidence(
+        barriers=(barrier,), chosen_settlements=A1CausalSettledMemory()
+    )
+    assert evidence.barriers_evaluated == 1
+    assert evidence.evaluated_alternatives == len(evidence.decisions) == 3
+    assert set(evidence.source_ids) == set(barrier.expected_source_ids)
+    assert sum(alt.binding.symbol == "AUDJPY" for alt in evidence.source_ancestry) == 2
+    assert {item.source_rule_id for item in evidence.source_ancestry} == {
+        "TTRADES_REVIEW_PENDING"
+    }
+    assert evidence.pass_to_strategy == 3
+    assert evidence.wait == evidence.abstain == 0
+    assert evidence.global_opportunity_arbitration_resolved is False
+    assert evidence.trade_selected is False
+    assert evidence.economic_admission_changed is False
+    assert evidence.actual_historical_replay_completed is False
+    assert all(item.nine_market_frame_invoked for item in evidence.decisions)
+
+
+def test_a1_multi_hypothesis_loss_memory_distinguishes_same_market_states() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    barrier = _a1_multi_hypothesis_fixture(at)
+    loss = CapitalizerLossCause(
+        loss_id="SETTLED-A",
+        symbol="AUDJPY",
+        session=CapitalizerSession.ASIA,
+        hypothesis_id="OLDER-A",
+        failure_state_fingerprint="STATE-A",
+        realized_r=Decimal("-1"),
+        causes=("HISTORIC_CAUSAL_INVALIDATION",),
+    )
+    chosen = A1CausalSettledMemory(
+        (A1SettledChosenTrade(
+            "SETTLED-A", at - timedelta(hours=1), at - timedelta(seconds=1), loss
+        ),)
+    )
+    observed = replay_multi_hypothesis_evidence(
+        barriers=(barrier,), chosen_settlements=chosen
+    )
+    ablated = replay_multi_hypothesis_evidence(
+        barriers=(barrier,), chosen_settlements=A1CausalSettledMemory()
+    )
+    decisions = {
+        row.source_opportunity_id: row.cognitive_gate for row in observed.decisions
+    }
+    assert decisions == {
+        "SRC:AUDJPY:A": "ABSTAIN",
+        "SRC:AUDJPY:B": "PASS_TO_STRATEGY",
+        "SRC:USDJPY:C": "PASS_TO_STRATEGY",
+    }
+    assert observed.abstain == 1
+    assert ablated.pass_to_strategy == 3
+
+
+def test_a1_multi_hypothesis_rejects_missing_duplicates_and_future_source() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    barrier = _a1_multi_hypothesis_fixture(at)
+    with pytest.raises(ValueError, match="source census mismatch"):
+        replay_multi_hypothesis_evidence(
+            barriers=(replace(barrier, alternatives=barrier.alternatives[:-1]),),
+            chosen_settlements=A1CausalSettledMemory(),
+        )
+    with pytest.raises(ValueError, match="source census mismatch"):
+        replay_multi_hypothesis_evidence(
+            barriers=(replace(
+                barrier,
+                alternatives=(barrier.alternatives[0], barrier.alternatives[0],
+                              barrier.alternatives[2]),
+            ),),
+            chosen_settlements=A1CausalSettledMemory(),
+        )
+    with pytest.raises(ValueError, match="H1/M15/M1 ancestry"):
+        replace(barrier.alternatives[0], h1_confirmed_at=at + timedelta(minutes=1))
+    with pytest.raises(ValueError, match="H1/M15/M1 ancestry"):
+        replace(barrier.alternatives[0], m1_confirmed_at=at + timedelta(minutes=1))
+    with pytest.raises(ValueError, match="time reversal or ungrouped"):
+        replay_multi_hypothesis_evidence(
+            barriers=(barrier, barrier), chosen_settlements=A1CausalSettledMemory()
+        )
+    future_perceptions = (
+        replace(barrier.perceptions[0], observed_at=at + timedelta(seconds=1)),
+        *barrier.perceptions[1:],
+    )
+    with pytest.raises(ValueError, match="future perception"):
+        replay_multi_hypothesis_evidence(
+            barriers=(replace(barrier, perceptions=future_perceptions),),
             chosen_settlements=A1CausalSettledMemory(),
         )
