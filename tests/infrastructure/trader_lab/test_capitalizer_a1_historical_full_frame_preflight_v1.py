@@ -46,7 +46,8 @@ def _fixture(tmp_path):
             sensor_book = sensor / symbol
             original_book.mkdir(parents=True)
             sensor_book.mkdir(parents=True)
-            (original_book / f"capitalizer-{symbol.lower()}-v49-hf-capacity-opportunities.jsonl").write_text(
+            filename = f"capitalizer-{symbol.lower()}-v49-hf-capacity-opportunities.jsonl"
+            (original_book / filename).write_text(
                 json.dumps(asdict(candidate)) + "\n"
             )
             row = {
