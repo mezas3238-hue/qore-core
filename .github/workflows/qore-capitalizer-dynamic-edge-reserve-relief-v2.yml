@@ -1,0 +1,220 @@
+name: QORE Capitalizer Dynamic Edge Reserve Relief V2
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-dynamic-edge-reserve-relief-v2.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_dynamic_episode_edge_reserve_relief_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_dynamic_episode_edge_reserve_relief_v2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-dynamic-edge-reserve-relief-v2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  SIM_RUN_ID: '36332714846'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_dynamic_episode_edge_reserve_relief_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_dynamic_episode_edge_reserve_relief_v2.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_dynamic_episode_edge_reserve_relief_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_dynamic_episode_edge_reserve_relief_v2.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_dynamic_episode_edge_reserve_relief_v2.py
+
+  shard:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - period: DEVELOPMENT_2024_2026
+            slug: development
+          - period: CONSUMED_VALIDATION_2022_2024
+            slug: validation
+          - period: CONSUMED_RESERVED_2020_2022
+            slug: reserved
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download authoritative simulator transitions
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-counterfactual-portfolio-episode-simulator-v1-sharded-*
+          path: simulator-evidence
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SIM_RUN_ID }}
+      - name: Run edge-reserve / DD-relief shard
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_dynamic_episode_edge_reserve_relief_v2 \
+            --period "${{ matrix.period }}" \
+            --development-root reconstructed/development-input \
+            --validation-root reconstructed/validation-input \
+            --reserved-root reconstructed/reserved-input \
+            --development-validation-context-root reconstructed/development-validation-context \
+            --reserved-context-root reconstructed/reserved-context \
+            --transition-path simulator-evidence/capitalizer-counterfactual-portfolio-episode-simulator-v1-transitions.jsonl \
+            --output "experiment-output/${{ matrix.slug }}"
+      - name: Enforce shard contract
+        run: |
+          PERIOD="${{ matrix.period }}" SLUG="${{ matrix.slug }}" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("experiment-output") / os.environ["SLUG"] / (
+              "capitalizer-dynamic-episode-edge-reserve-relief-v2.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_DYNAMIC_EPISODE_EDGE_RESERVE_RELIEF_V2"
+          )
+          assert report["period"] == os.environ["PERIOD"]
+          assert report["outcome_aware_diagnostic"] is True
+          assert report["runtime_policy_candidate"] is False
+          assert report["reserve_is_pareto_monotone"] is True
+          assert report["relief_requires_final_edge_gate"] is True
+          assert report["arbitrary_step_limit"] is False
+          assert report["admission_changed"] is False
+          assert report["sizing_changed"] is False
+          assert report["new_protection_geometry_created"] is False
+          assert report["candidate_count"] == 0
+          assert report["trader_certified"] is False
+
+          result = report["result"]
+          assert result["density_retention"] == "1"
+          assert result["same_entrant_identities"] is True
+          assert result["reserve_seed_count"] > 0
+          assert result["relief_seed_count"] > 0
+          assert result["replay_evaluations"] > 0
+          assert result["committed_intervention_count"] == (
+              result["reserve_step_count"] + result["relief_step_count"]
+          )
+          if result["committed_intervention_count"] > 0:
+              baseline = result["surface"]
+              final = result["final_metrics"]
+              assert float(final["max_drawdown_r"]) <= float(
+                  baseline["max_drawdown_r"]
+              )
+              assert int(final["max_losing_streak"]) <= int(
+                  baseline["max_losing_streak"]
+              )
+
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload V2 shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-dynamic-edge-reserve-relief-v2-${{ matrix.slug }}-${{ github.sha }}
+          path: experiment-output/${{ matrix.slug }}
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: shard
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-dynamic-edge-reserve-relief-v2-*
+          path: shards
+          merge-multiple: false
+      - name: Aggregate and enforce three-period contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = [
+              json.loads(path.read_text())
+              for path in sorted(
+                  Path("shards").rglob(
+                      "capitalizer-dynamic-episode-edge-reserve-relief-v2.json"
+                  )
+              )
+          ]
+          assert len(rows) == 3
+          assert {row["period"] for row in rows} == {
+              "DEVELOPMENT_2024_2026",
+              "CONSUMED_VALIDATION_2022_2024",
+              "CONSUMED_RESERVED_2020_2022",
+          }
+          all_pass = all(
+              row["result"]["full_gate_passed"]
+              for row in rows
+          )
+          report = {
+              "identity": (
+                  "QORE_CAPITALIZER_DYNAMIC_EPISODE_EDGE_RESERVE_RELIEF_V2"
+              ),
+              "evaluation": (
+                  "DYNAMIC_EDGE_RESERVE_THEN_DD_RELIEF_FEASIBILITY"
+              ),
+              "results": [
+                  row["result"]
+                  for row in sorted(rows, key=lambda x: x["period"])
+              ],
+              "all_period_full_gate": all_pass,
+              "candidate_count": 0,
+              "trader_certified": False,
+              "next_phase": (
+                  "BUILD_CAUSAL_EPISODE_WORLD_MODEL_FROM_RESERVE_RELIEF_PATHS"
+                  if all_pass
+                  else "RICHER_EPISODE_SEARCH_WORLD_MODEL_REQUIRED"
+              ),
+          }
+          Path("aggregate").mkdir()
+          out = Path("aggregate") / (
+              "capitalizer-dynamic-edge-reserve-relief-v2-aggregate.json"
+          )
+          out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload V2 aggregate
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-dynamic-edge-reserve-relief-v2-aggregate-${{ github.sha }}
+          path: aggregate
+          if-no-files-found: error
+          retention-days: 90

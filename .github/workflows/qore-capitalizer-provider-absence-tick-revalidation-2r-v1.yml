@@ -1,0 +1,146 @@
+name: QORE Capitalizer Provider Absence Tick Revalidation 2R V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-provider-absence-tick-revalidation-2r-v1.yml'
+      - 'src/qore/infrastructure/ctrader_open_api_client.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cognitive_provider_absence_tick_revalidation_2r_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_provider_absence_tick_revalidation_2r_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-provider-absence-tick-revalidation-2r-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  BAR_RUN_ID: '36174145194'
+  BAR_SHA: '0595c3b9e22c381aba04a5c69ea9eb97065b6aa8'
+  M1_RUN_ID: '35548099334'
+  M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/ctrader_open_api_client.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cognitive_provider_absence_tick_revalidation_2r_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cognitive_provider_absence_tick_revalidation_2r_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/ctrader_open_api_client.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cognitive_provider_absence_tick_revalidation_2r_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_cognitive_provider_absence_tick_revalidation_2r_v1.py
+
+  revalidate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Verify read-only cTrader inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required read-only DEMO input: $name" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Download AUDJPY historical bar audit
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-historical-bar-completeness-audit-2r-v1-AUDJPY-${{ env.BAR_SHA }}
+          path: bar-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BAR_RUN_ID }}
+      - name: Download immutable AUDJPY native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-AUDJPY-${{ env.M1_SHA }}
+          path: m1-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.M1_RUN_ID }}
+      - name: Revalidate absent M1 minutes against BID and ASK ticks
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_provider_absence_tick_revalidation_2r_v1 \
+            bar-input m1-input output
+      - name: Enforce causal invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "output/"
+                  "capitalizer-cognitive-provider-absence-tick-revalidation-2r-v1.json"
+              ).read_text()
+          )
+          assert report["symbol"] == "AUDJPY"
+          assert report["unbound_trade_spans"] == 2
+          assert report["missing_calendar_minutes"] == 5
+          assert (
+              report["provider_no_tick_minutes"]
+              + report["contradiction_ticks_without_trendbar_minutes"]
+              == 5
+          )
+          assert report["provider_tick_history_queried"] is True
+          assert report["bid_and_ask_queried"] is True
+          assert report["current_trade_outcome_visible_to_audit"] is False
+          assert report["strategy_rules_changed"] is False
+          assert report["cognitive_rules_changed"] is False
+          assert report["entry_changed"] is False
+          assert report["stop_changed"] is False
+          assert report["target_changed"] is False
+          assert report["max3_changed"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-provider-absence-tick-revalidation-2r-v1-${{ github.sha }}
+          path: output
+          if-no-files-found: error
+          retention-days: 90

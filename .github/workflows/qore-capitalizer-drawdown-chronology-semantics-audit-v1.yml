@@ -1,0 +1,131 @@
+name: QORE Capitalizer Drawdown Chronology Semantics Audit V1
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-drawdown-chronology-semantics-audit-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_drawdown_chronology_semantics_audit_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_drawdown_chronology_semantics_audit_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-drawdown-chronology-semantics-v1-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_drawdown_chronology_semantics_audit_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_drawdown_chronology_semantics_audit_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_drawdown_chronology_semantics_audit_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_drawdown_chronology_semantics_audit_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_drawdown_chronology_semantics_audit_v1.py
+
+  aggregate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run chronology semantics audit
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_drawdown_chronology_semantics_audit_v1 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            experiment-output
+      - name: Enforce diagnostic contract
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal, ROUND_HALF_UP
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-drawdown-chronology-semantics-audit-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_DRAWDOWN_CHRONOLOGY_SEMANTICS_AUDIT_V1"
+          )
+          assert report["evaluation"] == (
+              "LEGACY_ENTRY_ORDER_VS_REALIZED_EXIT_BATCH_DD"
+          )
+          assert report["legacy_acceptance_gate_changed"] is False
+          assert report["mark_to_market_equity_modeled"] is False
+          assert report["outcome_oracle_future_information_used"] is True
+          assert report["outcome_oracle_candidate"] is False
+          assert report["policy_economics_run"] is False
+          assert len(report["results"]) == 6
+
+          expected = {
+              ("DEVELOPMENT_2024_2026", "SURFACE"): Decimal("6.2146"),
+              ("CONSUMED_VALIDATION_2022_2024", "SURFACE"): Decimal("6.7701"),
+              ("CONSUMED_RESERVED_2020_2022", "SURFACE"): Decimal("8.7480"),
+              ("DEVELOPMENT_2024_2026", "OUTCOME_ORACLE_DIAGNOSTIC"): Decimal("3.1636"),
+              ("CONSUMED_VALIDATION_2022_2024", "OUTCOME_ORACLE_DIAGNOSTIC"): Decimal("5.6305"),
+              ("CONSUMED_RESERVED_2020_2022", "OUTCOME_ORACLE_DIAGNOSTIC"): Decimal("4.8689"),
+          }
+          for row in report["results"]:
+              key = (row["period"], row["path"])
+              legacy = Decimal(row["legacy_entry_order_dd_r"]).quantize(
+                  Decimal("0.0001"), rounding=ROUND_HALF_UP
+              )
+              assert legacy == expected[key]
+              assert Decimal(row["total_r"]) == Decimal(row["total_r"])
+              assert Decimal(row["realized_exit_batch_dd_r"]) >= 0
+              assert row["exit_batches"] > 0
+              assert row["max_concurrent_positions"] >= 1
+              assert row["trades_with_exit_rank_different_from_entry_rank"] >= 0
+
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload chronology semantics evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-drawdown-chronology-semantics-audit-v1-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90

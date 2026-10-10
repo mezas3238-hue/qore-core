@@ -1,0 +1,189 @@
+name: QORE Capitalizer 9-Market Microstructure Matrix V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-microstructure-matrix-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_atlas_m5_reader.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_session_clock.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_microstructure_discovery.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_microstructure_matrix.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_research_lineage.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_microstructure_discovery.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-microstructure-matrix-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_GIT_SHA: 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check --ignore E501 \
+            src/qore/infrastructure/trader_lab/capitalizer_atlas_m5_reader.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_clock.py \
+            src/qore/infrastructure/trader_lab/capitalizer_microstructure_discovery.py \
+            src/qore/infrastructure/trader_lab/capitalizer_microstructure_matrix.py \
+            tests/infrastructure/trader_lab/test_capitalizer_microstructure_discovery.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_atlas_m5_reader.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_clock.py \
+            src/qore/infrastructure/trader_lab/capitalizer_microstructure_discovery.py \
+            src/qore/infrastructure/trader_lab/capitalizer_microstructure_matrix.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_microstructure_discovery.py
+
+  scan:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - symbol: USDJPY
+            session: ASIA
+            artifact: qore-cibo-market-atlas-10y-windowed-USDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: AUDJPY
+            session: ASIA
+            artifact: qore-cibo-market-atlas-10y-windowed-AUDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: AUDUSD
+            session: ASIA
+            artifact: qore-cibo-market-atlas-10y-windowed-AUDUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: GBPJPY
+            session: ASIA
+            artifact: qore-cibo-market-atlas-10y-windowed-GBPJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: EURUSD
+            session: LONDON
+            artifact: qore-cibo-market-atlas-10y-windowed-EURUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: GBPUSD
+            session: LONDON
+            artifact: qore-cibo-market-atlas-10y-windowed-GBPUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: XAUUSD
+            session: NEW_YORK
+            artifact: qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: USDCAD
+            session: NEW_YORK
+            artifact: qore-cibo-market-atlas-10y-windowed-USDCAD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: NAS100
+            session: NEW_YORK
+            artifact: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable consumed M5 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: market-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Scan frozen session-market cell
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_microstructure_discovery \
+            market-source \
+            cell-output
+      - name: Enforce exact cell identity
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ['EXPECTED_SYMBOL']
+          session = os.environ['EXPECTED_SESSION']
+          path = Path('cell-output') / f"capitalizer-{symbol.lower()}-microstructure-v1.json"
+          result = json.loads(path.read_text())
+          assert result['symbol'] == symbol
+          assert result['session'] == session
+          assert result['observations'] > 0
+          assert result['research_only'] is True
+          assert result['rule_promotion_allowed'] is False
+          PY
+      - name: Upload immutable cell evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-microstructure-cell-${{ matrix.symbol }}-${{ github.sha }}
+          path: cell-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download all nine cell artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-microstructure-cell-*-${{ github.sha }}
+          path: matrix-input
+          merge-multiple: false
+      - name: Build nine-cell matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_microstructure_matrix \
+            matrix-input \
+            matrix-output
+      - name: Enforce matrix governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(
+              Path('matrix-output/capitalizer-microstructure-matrix-v1.json').read_text()
+          )
+          assert result['identity'] == 'QORE_CAPITALIZER_MICROSTRUCTURE_MATRIX_V1'
+          assert len(result['cells']) == 9
+          assert result['complete_frozen_universe'] is True
+          assert result['total_observations'] > 0
+          assert result['session_observations']['ASIA'] > 0
+          assert result['session_observations']['LONDON'] > 0
+          assert result['session_observations']['NEW_YORK'] > 0
+          assert result['research_only'] is True
+          assert result['rule_promotion_allowed'] is False
+          PY
+      - name: Upload immutable nine-cell matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-microstructure-matrix-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

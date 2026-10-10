@@ -1,0 +1,348 @@
+name: QORE Capitalizer UTC-001 Per-Year Audit
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-utc001-certification-001
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - 'docs/research/QORE-UNIVERSAL-TRADER-CERTIFICATION-STANDARD-001.md'
+      - 'src/qore/infrastructure/trader_lab/universal_trader_certification_standard_001.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_utc001_consumed_audit_v1.py'
+      - 'tests/infrastructure/trader_lab/test_universal_trader_certification_standard_001.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_utc001_consumed_audit_v1.py'
+      - '.github/workflows/qore-capitalizer-utc001-per-year-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '36419550146'
+  SOURCE_SHA: 'a2231a543aacce63b6e834e04d59f66b81f11363'
+  FRESH_HOLDOUT_SEAL_RUN_ID: '36367221571'
+  FRESH_HOLDOUT_SEAL_SHA: '660881acc008593eb04b7be2c4e2e60f06950a4d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/universal_trader_certification_standard_001.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_utc001_consumed_audit_v1.py \
+            tests/infrastructure/trader_lab/test_universal_trader_certification_standard_001.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_utc001_consumed_audit_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/universal_trader_certification_standard_001.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_utc001_consumed_audit_v1.py \
+            tests/infrastructure/trader_lab/test_universal_trader_certification_standard_001.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_utc001_consumed_audit_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_universal_trader_certification_standard_001.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_utc001_consumed_audit_v1.py
+
+  audit:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - period: DEVELOPMENT_2024_2026
+            slug: development
+            artifact: qore-capitalizer-consumed-certification-audit-v2-development-a2231a543aacce63b6e834e04d59f66b81f11363
+            window_start: '2024-09-17'
+            window_end: '2026-09-17'
+            development_only: 'true'
+          - period: CONSUMED_VALIDATION_2022_2024
+            slug: validation
+            artifact: qore-capitalizer-consumed-certification-audit-v2-validation-a2231a543aacce63b6e834e04d59f66b81f11363
+            window_start: '2022-09-17'
+            window_end: '2024-09-17'
+            development_only: 'false'
+          - period: CONSUMED_RESERVED_2020_2022
+            slug: reserved
+            artifact: qore-capitalizer-consumed-certification-audit-v2-reserved-a2231a543aacce63b6e834e04d59f66b81f11363
+            window_start: '2020-09-17'
+            window_end: '2022-09-17'
+            development_only: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download exact consumed ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Run UTC-001 per-year audit
+        env:
+          DEVELOPMENT_ONLY: ${{ matrix.development_only }}
+        run: |
+          FLAGS="--consumed-for-engineering"
+          if [ "$DEVELOPMENT_ONLY" = "true" ]; then
+            FLAGS="$FLAGS --development-only"
+          fi
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_utc001_consumed_audit_v1 \
+            --ledger source/capitalizer-scalper-consumed-certification-audit-v2-ledger.jsonl \
+            --population-role "${{ matrix.period }}" \
+            --window-start "${{ matrix.window_start }}" \
+            --window-end-exclusive "${{ matrix.window_end }}" \
+            $FLAGS \
+            --output "utc-output/${{ matrix.slug }}"
+      - name: Enforce UTC-001 audit contract
+        env:
+          SLUG: ${{ matrix.slug }}
+          PERIOD: ${{ matrix.period }}
+          DEVELOPMENT_ONLY: ${{ matrix.development_only }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path=(
+              Path("utc-output")
+              / os.environ["SLUG"]
+              / "capitalizer-scalper-utc001-consumed-audit-v1.json"
+          )
+          report=json.loads(path.read_text())
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_SCALPER_UTC001_CONSUMED_AUDIT_V1"
+          )
+          assert report["utc_identity"] == (
+              "QORE_UNIVERSAL_TRADER_CERTIFICATION_STANDARD_001"
+          )
+          assert report["population_role"] == os.environ["PERIOD"]
+          assert len(report["exam_years"]) == 2
+          assert report["fresh_certification_authority"] is False
+          assert report["cost_certification_blocked"] is True
+          assert (
+              report["loss_cluster_certification_adjudication_available"]
+              is False
+          )
+          assert report["sample_sufficiency_rule_predeclared"] is False
+          assert report["global_metrics_have_certification_authority"] is False
+          assert report["temporal_compensation_allowed"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["trader_certified"] is False
+          development = os.environ["DEVELOPMENT_ONLY"] == "true"
+          assert report["development_only"] is development
+          for year in report["exam_years"]:
+              evidence=year["utc_evidence"]
+              assert evidence["development_only"] is development
+              assert evidence["certification_required"] is (not development)
+              assert evidence["consumed_for_engineering"] is True
+              assert evidence["cost_certification_blocked"] is True
+              assert year["monte_carlo"]["replicates_per_scenario"] == 5000
+              assert year["monte_carlo"]["block_lengths"] == [5,20]
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-utc001-audit-${{ matrix.slug }}-${{ github.sha }}
+          path: utc-output/${{ matrix.slug }}
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    if: always()
+    needs: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-utc001-audit-*
+          path: results
+          merge-multiple: false
+      - name: Build UTC-001 current classification
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab import (
+              universal_trader_certification_standard_001 as utc,
+          )
+
+          paths=sorted(
+              Path("results").rglob(
+                  "capitalizer-scalper-utc001-consumed-audit-v1.json"
+              )
+          )
+          reports=[json.loads(path.read_text()) for path in paths]
+          assert len(reports)==3, len(reports)
+          by_role={row["population_role"]:row for row in reports}
+
+          required=[]
+          development=[]
+          for report in reports:
+              for year in report["exam_years"]:
+                  raw=year["utc_evidence"]
+                  evidence=utc.TemporalPeriodEvidence(
+                      period_id=raw["period_id"],
+                      kind=utc.PeriodKind(raw["kind"]),
+                      window_start=raw["window_start"],
+                      window_end_exclusive=raw["window_end_exclusive"],
+                      certification_required=raw["certification_required"],
+                      trades=raw["trades"],
+                      wins=raw["wins"],
+                      losses=raw["losses"],
+                      breakeven=raw["breakeven"],
+                      win_rate=Decimal(raw["win_rate"]),
+                      profit_factor=(
+                          None
+                          if raw["profit_factor"] is None
+                          else Decimal(raw["profit_factor"])
+                      ),
+                      expectancy_r_per_trade=Decimal(
+                          raw["expectancy_r_per_trade"]
+                      ),
+                      sharpe_annualized=(
+                          None
+                          if raw["sharpe_annualized"] is None
+                          else Decimal(raw["sharpe_annualized"])
+                      ),
+                      sortino_annualized=(
+                          None
+                          if raw["sortino_annualized"] is None
+                          else Decimal(raw["sortino_annualized"])
+                      ),
+                      observed_max_drawdown_r=Decimal(
+                          raw["observed_max_drawdown_r"]
+                      ),
+                      average_winner_r=(
+                          None
+                          if raw["average_winner_r"] is None
+                          else Decimal(raw["average_winner_r"])
+                      ),
+                      average_loser_r_abs=(
+                          None
+                          if raw["average_loser_r_abs"] is None
+                          else Decimal(raw["average_loser_r_abs"])
+                      ),
+                      payoff_ratio=(
+                          None
+                          if raw["payoff_ratio"] is None
+                          else Decimal(raw["payoff_ratio"])
+                      ),
+                      longest_losing_streak=raw["longest_losing_streak"],
+                      monte_carlo_positive_probability=Decimal(
+                          raw["monte_carlo_positive_probability"]
+                      ),
+                      monte_carlo_p95_drawdown_r=Decimal(
+                          raw["monte_carlo_p95_drawdown_r"]
+                      ),
+                      post_cost_profit_factor=None,
+                      post_cost_expectancy_r_per_trade=None,
+                      loss_cluster_gate_passed=None,
+                      sample_sufficiency_passed=None,
+                      cost_evidence_bound=False,
+                      cost_certification_blocked=True,
+                      development_only=raw["development_only"],
+                      consumed_for_engineering=True,
+                      fresh_holdout=False,
+                  )
+                  (required if evidence.certification_required else development).append(
+                      evidence
+                  )
+
+          evidence=utc.CandidateEvidence(
+              periods=tuple(development+required),
+              fresh_holdout_integrity_passed=True,
+              fresh_holdout_opened_once=None,
+              fresh_holdout_passed=None,
+              anti_leakage_audit_passed=None,
+              prohibited_outcome_aware_logic_detected=False,
+              holdout_mining_detected=False,
+              winner_preservation_required=True,
+              winner_count_preservation=None,
+              winner_r_preservation=None,
+              temporal_stability_review_passed=None,
+              mae_mfe_audit_complete=None,
+              loser_anatomy_audit_complete=None,
+              density_sufficient_after_quality=None,
+              risk_review_passed=None,
+              cibo_review_passed=None,
+              independent_validation_passed=None,
+              fatal_falsification=False,
+          )
+          decision=utc.evaluate_certification(evidence)
+          payload={
+              "identity":"QORE_CAPITALIZER_SCALPER_UTC001_CURRENT_CLASSIFICATION_V1",
+              "utc_identity":utc.IDENTITY,
+              "classification":decision.classification.value,
+              "accepted":decision.accepted,
+              "required_period_count":decision.required_period_count,
+              "passed_period_count":decision.passed_period_count,
+              "failed_period_count":decision.failed_period_count,
+              "missing_period_count":decision.missing_period_count,
+              "failed_gate_count":decision.failed_gate_count,
+              "missing_gate_count":decision.missing_gate_count,
+              "gates":[
+                  {
+                      "period_id":gate.period_id,
+                      "gate":gate.gate,
+                      "status":gate.status.value,
+                      "detail":gate.detail,
+                  }
+                  for gate in decision.gates
+              ],
+              "development_has_certification_authority":False,
+              "validation_consumed_for_engineering":True,
+              "reserved_burned":True,
+              "fresh_holdout":{
+                  "sealed":True,
+                  "seal_run_id":36367221571,
+                  "seal_sha":"660881acc008593eb04b7be2c4e2e60f06950a4d",
+                  "window":"2014-09-17/2016-09-17",
+                  "economics_opened":False,
+              },
+              "global_compensation_allowed":False,
+              "temporal_compensation_allowed":False,
+              "gate_compensation_allowed":False,
+              "validation_exact_resume_pending":True,
+              "current_validation_checkpoint_is_provisional":True,
+              "trader_certified":False,
+          }
+          assert payload["classification"] == (
+              "INTERVENTION — CONTINUE ENGINEERING"
+          )
+          assert payload["accepted"] is False
+          assert payload["reserved_burned"] is True
+          Path("aggregate").mkdir()
+          out=Path("aggregate")/"capitalizer-scalper-utc001-current-classification-v1.json"
+          out.write_text(json.dumps(payload,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-utc001-current-classification-${{ github.sha }}
+          path: aggregate
+          if-no-files-found: error
+          retention-days: 90

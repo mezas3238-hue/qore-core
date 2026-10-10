@@ -1,0 +1,100 @@
+name: QORE Capitalizer Native M1 Entry Contract V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-native-m1-entry-contract-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py'
+      - 'src/qore/infrastructure/ctrader_demo_market_data.py'
+      - 'src/qore/infrastructure/ctrader_open_api_market_data_client.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py'
+      - 'tests/infrastructure/test_ctrader_demo_market_data.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py             src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py             src/qore/infrastructure/ctrader_demo_market_data.py             src/qore/infrastructure/ctrader_open_api_market_data_client.py             tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py             tests/infrastructure/test_ctrader_demo_market_data.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py             src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py             src/qore/infrastructure/ctrader_demo_market_data.py             src/qore/infrastructure/ctrader_open_api_market_data_client.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py             tests/infrastructure/test_ctrader_demo_market_data.py
+      - name: Enforce M1 execution triad
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
+              CapitalizerCognitiveGateDecision,
+          )
+          from qore.infrastructure.trader_lab.capitalizer_dual_source_entry_acceptance_v1 import (
+              CapitalizerDualSourceEntryFacts,
+              CapitalizerEntryAcceptanceState,
+              CapitalizerM1EntryStructureFacts,
+              assess_dual_source_entry,
+          )
+
+          common = dict(
+              cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
+              source_session_resolved=True,
+              source_session_eligible=True,
+              higher_timeframe_bias_confirmed_aligned=True,
+              structural_target_intact=True,
+              structural_stop_geometry_valid=True,
+              ict_liquidity_reference_defined=True,
+              ict_liquidity_raid_observed=True,
+              ict_market_structure_shift_confirmed=True,
+              ict_displacement_significant=True,
+              ict_fvg_present_in_displacement=True,
+              ict_entry_retrace_into_valid_pd_array=True,
+              ict_entry_not_chasing=True,
+              ttrades_htf_closure_at_poi_confirmed=True,
+              ttrades_ltf_cisd_confirmed=True,
+              ttrades_protected_swing_confirmed=True,
+              ttrades_continuation_confirmed=True,
+              ttrades_wick_formation_confirmed=True,
+          )
+
+          complete = dict(common)
+          complete['m1_entry_structure'] = CapitalizerM1EntryStructureFacts(
+              market_structure_shift_confirmed=True,
+              fair_value_gap_confirmed=True,
+              order_block_confirmed=True,
+          )
+          result = assess_dual_source_entry(CapitalizerDualSourceEntryFacts(**complete))
+          assert result.state is CapitalizerEntryAcceptanceState.ACCEPTABLE_FOR_QORE_RISK
+
+          for field in (
+              'market_structure_shift_confirmed',
+              'fair_value_gap_confirmed',
+              'order_block_confirmed',
+          ):
+              values = {
+                  'market_structure_shift_confirmed': True,
+                  'fair_value_gap_confirmed': True,
+                  'order_block_confirmed': True,
+              }
+              values[field] = False
+              failed = dict(common)
+              failed['m1_entry_structure'] = CapitalizerM1EntryStructureFacts(**values)
+              rejected = assess_dual_source_entry(
+                  CapitalizerDualSourceEntryFacts(**failed)
+              )
+              assert rejected.passes_to_qore_risk is False, field
+          PY

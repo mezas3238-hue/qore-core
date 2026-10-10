@@ -1,0 +1,168 @@
+name: QORE Capitalizer Market Stop Cognitive Engine V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-market-stop-cognitive-engine-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_market_stop_cognitive_engine_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_market_stop_cognitive_engine_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-market-stop-cognitive-engine-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_FORENSIC_RUN_ID: '35583377247'
+  SOURCE_FORENSIC_SHA: 'e69998808dbbb0f57a51622c096b0a4f30006af1'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_market_stop_cognitive_engine_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_market_stop_cognitive_engine_v1.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/capitalizer_market_stop_cognitive_engine_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_market_stop_cognitive_engine_v1.py
+
+  market_memory:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol:
+          - AUDJPY
+          - AUDUSD
+          - EURUSD
+          - GBPJPY
+          - GBPUSD
+          - NAS100
+          - USDCAD
+          - USDJPY
+          - XAUUSD
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install runtime
+        run: python -m pip install -e .
+      - name: Download consumed native-M1 forensic dossier
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-m1-loss-causal-forensics-${{ matrix.symbol }}-${{ env.SOURCE_FORENSIC_SHA }}
+          path: forensic-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_FORENSIC_RUN_ID }}
+      - name: Build non-executable market stop memory
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_market_stop_cognitive_engine_v1 \
+            memory forensic-input memory-output
+      - name: Enforce market-memory governance
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          path = Path("memory-output") / (
+              f"capitalizer-{symbol.lower()}-market-stop-memory-v1.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == "QORE_CAPITALIZER_MARKET_STOP_MEMORY_V1"
+          assert report["symbol"] == symbol
+          assert report["source_trade_count"] > 0
+          assert report["stop_count"] > 0
+          assert report["evidence_status"] == "CONSUMED_FORENSIC_EVIDENCE"
+          assert report["exact_state_family_profiles_present"] is False
+          assert report["executable_buffer_frozen"] is False
+          assert report["holdout_fresh_after_memory_build"] is False
+          assert report["runtime_mutation_allowed"] is False
+          PY
+      - name: Upload market stop memory
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-market-stop-memory-${{ matrix.symbol }}-${{ github.sha }}
+          path: memory-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market_memory
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install runtime
+        run: python -m pip install -e .
+      - name: Download nine stop memories
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-market-stop-memory-*-${{ github.sha }}
+          path: memory-input
+          merge-multiple: false
+      - name: Build nine-market stop-memory matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_market_stop_cognitive_engine_v1 \
+            matrix memory-input matrix-output
+      - name: Enforce frozen nine-market boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("matrix-output/capitalizer-nine-market-stop-memory-v1.json").read_text()
+          )
+          assert report["identity"] == "QORE_CAPITALIZER_NINE_MARKET_STOP_MEMORY_MATRIX_V1"
+          assert report["market_count"] == 9
+          assert report["total_consumed_trades"] == 10991
+          assert report["total_stops"] > 0
+          assert report["exact_state_family_profiles_present"] is False
+          assert report["executable_buffer_frozen"] is False
+          assert report["runtime_mutation_allowed"] is False
+          assert report["methodology_changed"] is False
+          assert report["qore_risk_sovereign"] is True
+          assert report["post_entry_widening_allowed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - name: Upload nine-market stop-memory matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-stop-memory-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

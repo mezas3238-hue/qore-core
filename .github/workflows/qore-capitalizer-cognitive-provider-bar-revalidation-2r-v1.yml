@@ -1,0 +1,196 @@
+name: QORE Capitalizer Cognitive Provider Bar Revalidation 2R V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-cognitive-provider-bar-revalidation-2r-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cognitive_provider_bar_revalidation_2r_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_provider_bar_revalidation_2r_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-cognitive-provider-bar-revalidation-2r-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  REBASE_RUN_ID: '36078677895'
+  REBASE_SHA: 'cfc04849c8bbfd6565310d89456f5e367ea880f7'
+  M1_RUN_ID: '35548099334'
+  M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_cognitive_provider_bar_revalidation_2r_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cognitive_provider_bar_revalidation_2r_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_cognitive_provider_bar_revalidation_2r_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_cognitive_provider_bar_revalidation_2r_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol:
+          - USDJPY
+          - AUDJPY
+          - AUDUSD
+          - GBPJPY
+          - EURUSD
+          - GBPUSD
+          - XAUUSD
+          - USDCAD
+          - NAS100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Verify read-only provider credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || exit 2
+          done
+      - name: Discover DEMO account
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || exit 3
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Download true-2R cognitive rebase
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-economic-rebase-2r-v1-${{ env.REBASE_SHA }}
+          path: rebase-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.REBASE_RUN_ID }}
+      - name: Download immutable provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.M1_SHA }}
+          path: m1-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.M1_RUN_ID }}
+      - name: Revalidate causal M1 windows against cTrader
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_provider_bar_revalidation_2r_v1 \
+            market rebase-input m1-input provider-output --symbol "${{ matrix.symbol }}"
+      - name: Enforce market controls
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          report = json.loads(
+              (
+                  Path("provider-output")
+                  / f"capitalizer-{symbol.lower()}-cognitive-provider-bar-revalidation-2r-v1.json"
+              ).read_text()
+          )
+          assert report["symbol"] == symbol
+          assert report["target_r"] == "2.00"
+          assert report["control_trades"] > 0
+          assert sum(report["state_counts"].values()) == report["control_trades"]
+          assert report["provider_has_more_trades"] == 0
+          assert report["fresh_provider_query_used"] is True
+          assert report["provider_count_exceeds_calendar_capacity"] is True
+          assert report["current_trade_outcome_visible_to_binding"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-provider-bar-revalidation-2r-v1-${{ matrix.symbol }}-${{ github.sha }}
+          path: provider-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-cognitive-provider-bar-revalidation-2r-v1-*-${{ github.sha }}
+          path: provider-input
+          merge-multiple: false
+      - name: Build provider revalidation matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_provider_bar_revalidation_2r_v1 \
+            matrix provider-input matrix-output
+      - name: Enforce aggregate controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "matrix-output/"
+                  "capitalizer-nine-market-cognitive-provider-bar-revalidation-2r-v1.json"
+              ).read_text()
+          )
+          assert report["market_count"] == 9
+          assert report["control_trades"] == 948
+          assert sum(report["state_counts"].values()) == 948
+          assert report["provider_has_more_trades"] == 0
+          assert report["fresh_provider_query_used"] is True
+          assert report["current_trade_outcome_visible_to_binding"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-cognitive-provider-bar-revalidation-2r-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

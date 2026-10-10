@@ -1,0 +1,149 @@
+name: QORE Capitalizer Counterfactual Portfolio Episode Simulator V1
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-counterfactual-portfolio-episode-simulator-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_counterfactual_portfolio_episode_simulator_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_counterfactual_portfolio_episode_simulator_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-counterfactual-episode-simulator-v1-optimized-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_counterfactual_portfolio_episode_simulator_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_counterfactual_portfolio_episode_simulator_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_counterfactual_portfolio_episode_simulator_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_counterfactual_portfolio_episode_simulator_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_counterfactual_portfolio_episode_simulator_v1.py
+
+  aggregate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run dynamic counterfactual episode simulator
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_counterfactual_portfolio_episode_simulator_v1 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            experiment-output
+      - name: Enforce simulator contract
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal, ROUND_HALF_UP
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-counterfactual-portfolio-episode-simulator-v1.json"
+              ).read_text()
+          )
+
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_COUNTERFACTUAL_PORTFOLIO_EPISODE_SIMULATOR_V1"
+          )
+          assert report["evaluation"] == (
+              "SINGLE_DO_ACTION_DYNAMIC_SURFACE_ROLLOUT"
+          )
+          assert report["empty_intervention_reproduces_surface_required"] is True
+          assert report["same_entrant_identities"] is True
+          assert report["density_retention"] == "1"
+          assert report["max3_entrant_set_changed"] is False
+          assert report["new_protection_geometry_created"] is False
+          assert report["downstream_surface_mode_recomputed"] is True
+          assert report["downstream_surface_multiplier_recomputed"] is True
+          assert report["closed_outcomes_only_visible_to_memory"] is True
+          assert report["legacy_certification_dd_preserved"] is True
+          assert report["realized_exit_batch_dd_reported"] is True
+          assert report["outcomes_used_for_runtime_decision"] is False
+          assert report["counterfactual_outcomes_used_for_diagnostic_scoring"] is True
+          assert report["policy_economics_run"] is False
+          assert report["candidate_count"] == 0
+          assert report["trader_certified"] is False
+
+          expected_trades = {
+              "DEVELOPMENT_2024_2026": 948,
+              "CONSUMED_VALIDATION_2022_2024": 1034,
+              "CONSUMED_RESERVED_2020_2022": 1088,
+          }
+          expected_dd = {
+              "DEVELOPMENT_2024_2026": Decimal("6.2146"),
+              "CONSUMED_VALIDATION_2022_2024": Decimal("6.7701"),
+              "CONSUMED_RESERVED_2020_2022": Decimal("8.7480"),
+          }
+
+          assert len(report["results"]) == 3
+          for row in report["results"]:
+              period = row["period"]
+              assert row["surface"]["trades"] == expected_trades[period]
+              dd = Decimal(row["surface"]["max_drawdown_r"]).quantize(
+                  Decimal("0.0001"), rounding=ROUND_HALF_UP
+              )
+              assert dd == expected_dd[period]
+              exit_dd = Decimal(
+                  row["surface_realized_exit_batch_dd_r"]
+              ).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+              assert exit_dd == expected_dd[period]
+              assert row["surface_trigger_state_count"] > 0
+              assert row["transition_count"] > 0
+              assert row["max_dd_descent_transition_count"] > 0
+              assert row["best_single_intervention_legacy_dd_r"] is not None
+
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload dynamic episode evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-counterfactual-portfolio-episode-simulator-v1-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90

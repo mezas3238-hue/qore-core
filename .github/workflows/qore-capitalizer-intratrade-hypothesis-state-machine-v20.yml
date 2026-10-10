@@ -1,0 +1,380 @@
+name: QORE Capitalizer Intratrade Hypothesis State Machine V20
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-intratrade-hypothesis-state-machine-v20-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+env:
+  M1_SOURCE_RUN_ID: '35548099334'
+  M1_SOURCE_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+  M1_CANONICAL_START: '2016-09-17T00:00:00+00:00'
+  M1_CANONICAL_END: '2026-09-17T00:00:00+00:00'
+  REQUIRED_LOOKBACK_START: '2020-08-27T00:00:00+00:00'
+  DEV_START: '2024-09-17T00:00:00+00:00'
+  DEV_END: '2026-09-17T00:00:00+00:00'
+  VAL_START: '2022-09-17T00:00:00+00:00'
+  VAL_END: '2024-09-17T00:00:00+00:00'
+  RESERVED_START: '2020-09-17T00:00:00+00:00'
+  RESERVED_END: '2022-09-17T00:00:00+00:00'
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_intratrade_hypothesis_state_machine_v20.py \
+            tests/infrastructure/trader_lab/test_capitalizer_intratrade_hypothesis_state_machine_v20.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_intratrade_hypothesis_state_machine_v20.py \
+            tests/infrastructure/trader_lab/test_capitalizer_intratrade_hypothesis_state_machine_v20.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_intratrade_hypothesis_state_machine_v20.py
+
+  market_rebuild:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 9
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE research runtime
+        run: python -m pip install -e .
+      - name: Download immutable canonical 10Y provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.M1_SOURCE_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.M1_SOURCE_RUN_ID }}
+      - name: Enforce immutable M1 manifest and causal coverage
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime
+          from pathlib import Path
+
+          manifest = json.loads(
+              Path("m1-source/m1-clone-manifest.json").read_text()
+          )
+          assert manifest["identity"] == "QORE_CAPITALIZER_CIBO_10Y_NATIVE_M1_CLONE_V1"
+          assert manifest["canonical_symbol"] == os.environ["EXPECTED_SYMBOL"]
+          assert manifest["target_start"] == os.environ["M1_CANONICAL_START"]
+          assert manifest["target_end_exclusive"] == os.environ["M1_CANONICAL_END"]
+          assert manifest["provider_native_m1"] is True
+          assert manifest["synthetic_m1"] is False
+          assert manifest["interpolated_m1"] is False
+          assert int(manifest["contradictory_m1"]) == 0
+          assert datetime.fromisoformat(manifest["target_start"]) <= datetime.fromisoformat(
+              os.environ["REQUIRED_LOOKBACK_START"]
+          )
+          assert int(manifest["retained_m1"]) > 0
+          print(json.dumps({
+              "symbol": manifest["canonical_symbol"],
+              "target_start": manifest["target_start"],
+              "target_end_exclusive": manifest["target_end_exclusive"],
+              "retained_m1": manifest["retained_m1"],
+              "provider_native_m1": manifest["provider_native_m1"],
+          }, sort_keys=True))
+          PY
+      - name: Rebuild one market from immutable provider-native M1
+        shell: bash
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+          SESSION: ${{ matrix.session }}
+        run: |
+          set -euo pipefail
+          m1="m1-source"
+          root="shard-output"
+          dev="$root/development-input/$SYMBOL"
+          val="$root/validation-input/$SYMBOL"
+          res="$root/reserved-input/$SYMBOL"
+          devctx="$root/development-validation-context/dev-$SYMBOL"
+          valctx="$root/development-validation-context/holdout-$SYMBOL"
+          resctx="$root/reserved-context/reserved-$SYMBOL"
+          events="$root/event-input/$SYMBOL"
+
+          mkdir -p "$dev" "$val" "$res" "$devctx" "$valctx" "$resctx" "$events"
+
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            market "$m1" "$dev" --session "$SESSION" \
+            --start "$DEV_START" --end-exclusive "$DEV_END"
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            market "$m1" "$val" --session "$SESSION" \
+            --start "$VAL_START" --end-exclusive "$VAL_END"
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            market "$m1" "$res" --session "$SESSION" \
+            --start "$RESERVED_START" --end-exclusive "$RESERVED_END"
+
+          python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
+            "$dev" "$m1" "$devctx" --role dev
+          python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
+            "$val" "$m1" "$valctx" --role holdout
+          python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
+            "$res" "$m1" "$resctx" --role reserved
+
+          python -m qore.infrastructure.trader_lab.capitalizer_intratrade_hypothesis_state_machine_v20 \
+            market "$dev" "$val" "$res" "$m1" "$events" --symbol "$SYMBOL"
+      - name: Enforce per-market causal contract
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          report = json.loads(
+              (
+                  Path("shard-output")
+                  / "event-input"
+                  / symbol
+                  / f"capitalizer-{symbol.lower()}-intratrade-hypothesis-state-machine-v20.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_INTRATRADE_HYPOTHESIS_STATE_MACHINE_V20"
+          )
+          assert report["symbol"] == symbol
+          assert set(report["source_trade_counts"]) == {
+              "DEVELOPMENT_2024_2026",
+              "CONSUMED_VALIDATION_2022_2024",
+              "CONSUMED_RESERVED_2020_2022",
+          }
+          assert all(int(value) > 0 for value in report["source_trade_counts"].values())
+          assert report["current_outcome_visible_to_transition"] is False
+          assert report["future_bars_visible_to_transition"] is False
+          assert report["original_exit_bar_excluded"] is True
+          assert report["same_bar_stop_target_ambiguity_can_trigger"] is False
+          assert report["recovery_transition_supported"] is True
+          assert report["terminal_state"] == "DEAD"
+          assert set(report["state_specs"]) == {
+              "HSM_FAST",
+              "HSM_BASE",
+              "HSM_STRICT",
+          }
+          assert report["market_session_specific_thresholds_used"] is False
+          assert report["strategy_rules_changed"] is False
+          assert report["trader_certified"] is False
+          PY
+      - name: Upload reconstructed market shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v20-reconstructed-${{ matrix.symbol }}-${{ github.sha }}
+          path: shard-output
+          if-no-files-found: error
+          retention-days: 7
+
+  aggregate:
+    needs: market_rebuild
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download same-run reconstructed market shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v20-reconstructed-*-${{ github.sha }}
+          path: reconstructed
+          merge-multiple: true
+      - name: Enforce reconstructed consumed-population identity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.trader_lab import (
+              capitalizer_contextual_stability_router_2r_v1 as router,
+          )
+          from qore.infrastructure.trader_lab import (
+              capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+          )
+          from qore.infrastructure.trader_lab import (
+              capitalizer_max_recovery_direct_m1_replay_v1 as direct,
+          )
+
+          base = Path("reconstructed")
+          windows = {
+              "development-input": (
+                  948,
+                  base / "development-validation-context",
+                  "dev",
+              ),
+              "validation-input": (
+                  1034,
+                  base / "development-validation-context",
+                  "holdout",
+              ),
+              "reserved-input": (
+                  1088,
+                  base / "reserved-context",
+                  "reserved",
+              ),
+          }
+          audit = {}
+          for root_name, (count, context_root, role) in windows.items():
+              root = base / root_name
+              selected = {
+                  mode.value: direct._max3_milestone(
+                      direct._load_mode(root, mode=mode)
+                  )
+                  for mode in milestone.ProtectionMode
+              }
+              selected_counts = {
+                  mode: len(rows) for mode, rows in selected.items()
+              }
+              assert set(selected_counts.values()) == {count}, (
+                  root_name,
+                  selected_counts,
+              )
+
+              original = direct._load_mode(
+                  root,
+                  mode=milestone.ProtectionMode.ORIGINAL,
+              )
+              raw_keys = {(row.symbol, row.entry_at) for row in original}
+              selected_keys = {
+                  (row.symbol, row.entry_at)
+                  for row in selected[milestone.ProtectionMode.ORIGINAL.value]
+              }
+              contexts = router._load_contexts(context_root, role=role)
+              context_keys = set(contexts)
+
+              assert context_keys == raw_keys, (
+                  root_name,
+                  role,
+                  len(context_keys),
+                  len(raw_keys),
+                  len(context_keys ^ raw_keys),
+              )
+              assert selected_keys <= context_keys, (
+                  root_name,
+                  role,
+                  len(selected_keys - context_keys),
+              )
+              assert len(selected_keys) == count
+
+              audit[root_name] = {
+                  "role": role,
+                  "raw_original": len(raw_keys),
+                  "contexts": len(context_keys),
+                  "selected_max3": len(selected_keys),
+              }
+
+          print(json.dumps(audit, sort_keys=True))
+          PY
+      - name: Run V20 portfolio replay from reconstructed shards
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_intratrade_hypothesis_state_machine_v20 \
+            aggregate \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            reconstructed/event-input \
+            experiment-output
+      - name: Enforce V20 causal and economic contract
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-intratrade-hypothesis-state-machine-v20.json"
+              ).read_text()
+          )
+          assert report["evaluation"] == (
+              "CAUSAL_INTRATRADE_HYPOTHESIS_LIFECYCLE_STATE_MACHINE"
+          )
+          assert report["all_entries_preserved"] is True
+          assert Decimal(report["density_retention"]) == Decimal("1")
+          assert report["surface_multiplier_preserved"] is True
+          assert report["fixed_target_r"] == "2.00"
+          assert report["original_stop_geometry_preserved"] is True
+          assert report["max3_preserved"] is True
+          assert report["current_outcome_visible_to_transition"] is False
+          assert report["future_bars_visible_to_transition"] is False
+          assert report["original_exit_bar_excluded"] is True
+          assert report["recovery_transition_supported"] is True
+          assert report["phases"] == [
+              "ALIVE",
+              "WEAKENING",
+              "INVALIDATING",
+              "RECOVERED",
+              "DEAD",
+          ]
+          assert report["market_session_specific_thresholds_used"] is False
+          assert report["current_outcome_visible_to_decision"] is False
+          assert report["unchosen_counterfactual_visible_to_decision"] is False
+          assert report["full_source_recompetition_required_before_freeze"] is True
+          assert report["fresh_holdout_reserved"] == "2018-09-17_TO_2020-09-17"
+
+          control = next(
+              row for row in report["results"]
+              if row["policy"] == "SURFACE_CONTROL"
+          )
+          expected = {
+              "DEVELOPMENT_2024_2026": ("948", "6.214605199866807668753081488"),
+              "CONSUMED_VALIDATION_2022_2024": ("1034", "6.770051846347247537620893924"),
+              "CONSUMED_RESERVED_2020_2022": ("1088", "8.74798816650617431130479348"),
+          }
+          for period, (trades, dd) in expected.items():
+              row = control["heldouts"][period]
+              assert str(row["trades"]) == trades
+              assert str(row["metrics"]["max_drawdown_r"]) == dd
+
+          assert report["automatic_policy_promotion"] is False
+          assert report["trader_certified"] is False
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload final V20 evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-intratrade-hypothesis-state-machine-v20-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,132 @@
+name: QORE Capitalizer Cognitive Evidence Binding Audit 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-cognitive-evidence-binding-audit-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cognitive_evidence_binding_audit_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_evidence_binding_audit_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-cognitive-evidence-binding-audit-2y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  TARGET_RUN_ID: '36055792484'
+  TARGET_SHA: 'a66ab11c22efbefb61756db3f0062c3c51a2a825'
+  ARBITRATION_RUN_ID: '35929691710'
+  ARBITRATION_SHA: '93fcd53cca8b56ab9a3de596881435a5573b65ac'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_cognitive_evidence_binding_audit_2y_v1.py             tests/infrastructure/trader_lab/test_capitalizer_cognitive_evidence_binding_audit_2y_v1.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_cognitive_evidence_binding_audit_2y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_cognitive_evidence_binding_audit_2y_v1.py
+
+  audit:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download frozen 1R target ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-target1-stability-2y-v1-${{ env.TARGET_SHA }}
+          path: target-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Download frozen causal arbitration ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-source-first-no-rearm-closeback-arbitration-2y-v1-*-${{ env.ARBITRATION_SHA }}
+          path: arbitration-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ARBITRATION_RUN_ID }}
+      - name: Build cognitive evidence-binding audit
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_evidence_binding_audit_2y_v1             target-input arbitration-input binding-output
+      - name: Enforce frozen binding controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "binding-output/"
+                  "capitalizer-cognitive-evidence-binding-audit-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_COGNITIVE_EVIDENCE_BINDING_AUDIT_2Y_V1"
+          )
+          assert report["source_target_run_id"] == 36055792484
+          assert report["source_arbitration_run_id"] == 35929691710
+          assert report["control_trades"] == 948
+          assert report["control_stops"] == 223
+          assert report["source_provenance_counts"] == {
+              "CAUSAL_ARBITRATION_BASE": 840,
+              "PROTECTED_SWING_GEOMETRY_RESCUE": 105,
+              "WAIT_REJECTED_PARALLEL_REARM": 3,
+          }
+          coverage = report["binding_coverage"]
+          assert coverage["source_microstructure"] == 840
+          assert coverage["evidence_provenance_complete"] == 840
+          assert coverage["baseline_portfolio_exposure"] == 948
+          assert coverage["day_session_journey"] == 948
+          assert coverage["baseline_slot_state"] == 948
+          assert coverage["failure_state_fingerprint"] == 0
+          assert coverage["destination_intelligence"] == 0
+          assert coverage["regime_intelligence"] == 0
+          assert coverage["execution_quality"] == 0
+          assert coverage["perception_integrity"] == 0
+          assert coverage["full_opportunity_competition"] == 0
+          assert coverage["full_master_cognitive_frame_ready"] == 0
+          assert report["minimum_causal_context_bound_trades"] == 840
+          assert report["future_evidence_violations"] == 0
+          assert report["current_trade_outcome_used_for_binding"] is False
+          assert report["missing_evidence_fabricated"] is False
+          assert report["strategy_rules_changed"] is False
+          assert report["cognitive_rules_changed"] is False
+          assert report["entry_changed"] is False
+          assert report["stop_changed"] is False
+          assert report["target_changed"] is False
+          assert report["max3_changed"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-evidence-binding-audit-2y-v1-${{ github.sha }}
+          path: binding-output
+          if-no-files-found: error
+          retention-days: 90

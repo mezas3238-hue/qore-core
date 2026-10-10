@@ -1,0 +1,201 @@
+name: QORE Capitalizer V3 M5 Directional State Census 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-v3-m5-directional-state-census-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v3_m5_directional_state_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v3_m5_directional_state_census_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v3_m5_directional_state_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v3_m5_directional_state_census_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-v3-m5-directional-state-census-2y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  MICRO_RUN_ID: '35805397236'
+  MICRO_SHA: 'e3be1ed5dda60ab3a53257287c9471ce247d2554'
+  CISD_RUN_ID: '35807624359'
+  CISD_SHA: 'ce23e2adc87fd3ec683cc4c023951b9487352495'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_m5_directional_state_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_m5_directional_state_census_2y_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_m5_directional_state_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_m5_directional_state_census_2y_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_m5_directional_state_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_m5_directional_state_census_2y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_m5_directional_state_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_m5_directional_state_census_2y_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 9
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download frozen microstructure context
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v3-m3-microstructure-context-2y-v1-${{ matrix.symbol }}-${{ env.MICRO_SHA }}
+          path: micro-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.MICRO_RUN_ID }}
+      - name: Download frozen CISD census
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v3-cisd-counterfactual-census-2y-v1-${{ matrix.symbol }}-${{ env.CISD_SHA }}
+          path: cisd-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CISD_RUN_ID }}
+      - name: Run frozen M5 directional-state census
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_m5_directional_state_census_2y_v1 \
+            market micro-source cisd-source state-output
+      - name: Enforce market invariants
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          path = Path("state-output") / (
+              f"capitalizer-{symbol.lower()}-v3-m5-directional-state-census-2y-v1.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_V3_M5_DIRECTIONAL_STATE_CENSUS_2Y_V1"
+          )
+          assert report["state_identity"] == "QORE_CAPITALIZER_V3_M5_DIRECTIONAL_STATE_V1"
+          assert report["symbol"] == symbol
+          assert report["session"] == os.environ["EXPECTED_SESSION"]
+          assert sum(report["all_closebacks_by_state"].values()) == report["closebacks"]
+          assert sum(report["valid_mss_by_state"].values()) == report["valid_mss"]
+          assert sum(report["cisd_first_blockers_by_state"].values()) == report["cisd_first_blockers"]
+          assert sum(report["same_bar_cisd_only_by_state"].values()) == report["same_bar_cisd_only"]
+          assert report["same_bar_cisd_only"] == (
+              report["same_bar_cisd_only_aligned"]
+              + report["same_bar_cisd_only_opposed"]
+              + report["same_bar_cisd_only_neutral"]
+          )
+          assert report["m5_state_mapping_frozen"] is True
+          assert report["neutral_is_fail_closed"] is True
+          assert report["uses_closeback_time_information_only"] is True
+          assert report["v3_liquidity_level_reaction_claimed"] is False
+          assert report["strategy_mutated"] is False
+          assert report["outcome_used_for_admission"] is False
+          assert report["diagnostic_only"] is True
+          assert report["economic_candidate"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v3-m5-directional-state-census-2y-v1-${{ matrix.symbol }}-${{ github.sha }}
+          path: state-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-m5-directional-state-census-2y-v1-*-${{ github.sha }}
+          path: state-input
+          merge-multiple: false
+      - name: Build nine-market state census
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_m5_directional_state_census_2y_v1 \
+            matrix state-input matrix-output
+      - name: Enforce aggregate controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "matrix-output/"
+                  "capitalizer-nine-market-v3-m5-directional-state-census-2y-v1.json"
+              ).read_text()
+          )
+          assert report["market_count"] == 9
+          assert report["closeback_control_reproduced"] is True
+          assert report["valid_mss_control_reproduced"] is True
+          assert report["cisd_control_reproduced"] is True
+          assert report["same_bar_control_reproduced"] is True
+          assert report["closebacks"] == 8099
+          assert report["valid_mss"] == 1254
+          assert report["cisd_first_blockers"] == 3007
+          assert report["same_bar_cisd_only"] == 1298
+          assert sum(report["all_closebacks_by_state"].values()) == 8099
+          assert sum(report["valid_mss_by_state"].values()) == 1254
+          assert sum(report["cisd_first_blockers_by_state"].values()) == 3007
+          assert sum(report["same_bar_cisd_only_by_state"].values()) == 1298
+          assert report["m5_state_mapping_frozen"] is True
+          assert report["neutral_is_fail_closed"] is True
+          assert report["strategy_mutated"] is False
+          assert report["outcome_used_for_admission"] is False
+          assert report["diagnostic_only"] is True
+          assert report["economic_candidate"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-v3-m5-directional-state-census-2y-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

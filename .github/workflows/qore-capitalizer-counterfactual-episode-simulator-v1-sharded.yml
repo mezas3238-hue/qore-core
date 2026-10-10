@@ -1,0 +1,235 @@
+name: QORE Capitalizer Counterfactual Episode Simulator V1 Sharded
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-counterfactual-episode-simulator-v1-sharded.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-counterfactual-episode-simulator-v1-sharded-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - period: DEVELOPMENT_2024_2026
+            slug: development
+          - period: CONSUMED_VALIDATION_2022_2024
+            slug: validation
+          - period: CONSUMED_RESERVED_2020_2022
+            slug: reserved
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run one causal rollout shard
+        env:
+          PERIOD: ${{ matrix.period }}
+          SLUG: ${{ matrix.slug }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from dataclasses import asdict
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab import (
+              capitalizer_counterfactual_portfolio_episode_simulator_v1 as simulator,
+          )
+          from qore.infrastructure.trader_lab import (
+              capitalizer_factor_journey_probe_ranker_v11 as v11,
+          )
+          from qore.infrastructure.trader_lab import (
+              capitalizer_sequence_failure_memory_abstention_v13 as v13,
+          )
+
+          period = os.environ["PERIOD"]
+          slug = os.environ["SLUG"]
+          windows, contextual_model = v13._load_windows(
+              Path("reconstructed/development-input"),
+              Path("reconstructed/validation-input"),
+              Path("reconstructed/reserved-input"),
+              Path("reconstructed/development-validation-context"),
+              Path("reconstructed/reserved-context"),
+          )
+          if period not in windows:
+              raise ValueError(f"unknown simulator shard period: {period}")
+          ledgers, contexts = windows[period]
+
+          previous = dict(v11._SIMULTANEOUS)
+          v11._SIMULTANEOUS.clear()
+          v11._SIMULTANEOUS.update(
+              v11._simultaneous_map(period=period, ledgers=ledgers)
+          )
+          try:
+              result, audits = simulator._period_report(
+                  period=period,
+                  ledgers=ledgers,
+                  contexts=contexts,
+                  contextual_model=contextual_model,
+              )
+          finally:
+              v11._SIMULTANEOUS.clear()
+              v11._SIMULTANEOUS.update(previous)
+
+          out = Path("shard-output")
+          out.mkdir(parents=True, exist_ok=True)
+          (out / f"simulator-{slug}.json").write_text(
+              json.dumps(result, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          with (out / f"simulator-{slug}-transitions.jsonl").open(
+              "w", encoding="utf-8"
+          ) as handle:
+              for row in audits:
+                  handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+          print(json.dumps(result, sort_keys=True))
+          PY
+      - name: Upload shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-episode-simulator-v1-shard-${{ matrix.slug }}-${{ github.sha }}
+          path: shard-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: shard
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download three simulator shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-episode-simulator-v1-shard-*-${{ github.sha }}
+          path: shards
+          merge-multiple: true
+      - name: Aggregate and enforce simulator contract
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal, ROUND_HALF_UP
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab import (
+              capitalizer_counterfactual_portfolio_episode_simulator_v1 as simulator,
+          )
+
+          expected_periods = (
+              "DEVELOPMENT_2024_2026",
+              "CONSUMED_VALIDATION_2022_2024",
+              "CONSUMED_RESERVED_2020_2022",
+          )
+          expected_trades = {
+              "DEVELOPMENT_2024_2026": 948,
+              "CONSUMED_VALIDATION_2022_2024": 1034,
+              "CONSUMED_RESERVED_2020_2022": 1088,
+          }
+          expected_dd = {
+              "DEVELOPMENT_2024_2026": Decimal("6.2146"),
+              "CONSUMED_VALIDATION_2022_2024": Decimal("6.7701"),
+              "CONSUMED_RESERVED_2020_2022": Decimal("8.7480"),
+          }
+
+          rows = []
+          for path in Path("shards").glob("simulator-*.json"):
+              if path.name.endswith("-transitions.json"):
+                  continue
+              rows.append(json.loads(path.read_text()))
+          by_period = {row["period"]: row for row in rows}
+          assert set(by_period) == set(expected_periods)
+          results = [by_period[period] for period in expected_periods]
+
+          for row in results:
+              period = row["period"]
+              assert row["surface"]["trades"] == expected_trades[period]
+              dd = Decimal(row["surface"]["max_drawdown_r"]).quantize(
+                  Decimal("0.0001"), rounding=ROUND_HALF_UP
+              )
+              assert dd == expected_dd[period]
+              exit_dd = Decimal(
+                  row["surface_realized_exit_batch_dd_r"]
+              ).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+              assert exit_dd == expected_dd[period]
+              assert row["surface_trigger_state_count"] > 0
+              assert row["transition_count"] > 0
+              assert row["max_dd_descent_transition_count"] > 0
+              assert row["best_single_intervention_legacy_dd_r"] is not None
+
+          report = {
+              "identity": simulator.IDENTITY,
+              "evaluation": "SINGLE_DO_ACTION_DYNAMIC_SURFACE_ROLLOUT",
+              "execution_topology": "THREE_PERIOD_SHARDS_SAME_PERIOD_REPORT_FUNCTION",
+              "empty_intervention_reproduces_surface_required": True,
+              "same_entrant_identities": True,
+              "density_retention": "1",
+              "max3_entrant_set_changed": False,
+              "new_protection_geometry_created": False,
+              "downstream_surface_mode_recomputed": True,
+              "downstream_surface_multiplier_recomputed": True,
+              "closed_outcomes_only_visible_to_memory": True,
+              "legacy_certification_dd_preserved": True,
+              "realized_exit_batch_dd_reported": True,
+              "outcomes_used_for_runtime_decision": False,
+              "counterfactual_outcomes_used_for_diagnostic_scoring": True,
+              "results": results,
+              "policy_economics_run": False,
+              "automatic_policy_promotion": False,
+              "candidate_count": 0,
+              "trader_certified": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+              "next_phase": "BUILD_EPISODE_TRANSITION_WORLD_MODEL_FROM_DYNAMIC_ROLLOUTS",
+          }
+
+          out = Path("experiment-output")
+          out.mkdir(parents=True, exist_ok=True)
+          (out / "capitalizer-counterfactual-portfolio-episode-simulator-v1.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          with (out / "capitalizer-counterfactual-portfolio-episode-simulator-v1-transitions.jsonl").open(
+              "w", encoding="utf-8"
+          ) as handle:
+              for path in sorted(Path("shards").glob("simulator-*-transitions.jsonl")):
+                  handle.write(path.read_text())
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload authoritative sharded simulator evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-counterfactual-portfolio-episode-simulator-v1-sharded-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90

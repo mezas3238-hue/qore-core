@@ -1,0 +1,163 @@
+name: QORE Capitalizer Cognitive Evidence Binding Audit 2Y V2
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-cognitive-evidence-binding-audit-2y-v2.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cognitive_evidence_binding_audit_2y_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_evidence_binding_audit_2y_v2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-cognitive-evidence-binding-audit-2y-v2-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  BINDING_V1_RUN_ID: '36065178049'
+  BINDING_V1_SHA: 'a36f2401b395ae1c80d9307b197e01e01343c5be'
+  TARGET_RUN_ID: '36055792484'
+  TARGET_SHA: 'a66ab11c22efbefb61756db3f0062c3c51a2a825'
+  STOP_RUN_ID: '35863455539'
+  STOP_SHA: 'd55b380fe9be21cee59023c2d6ed4cb3ebc84052'
+  REARM_RUN_ID: '35934425045'
+  REARM_SHA: '3fca2555ca6161817809f58c07c9606d8f187cbe'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_cognitive_evidence_binding_audit_2y_v2.py             tests/infrastructure/trader_lab/test_capitalizer_cognitive_evidence_binding_audit_2y_v2.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_cognitive_evidence_binding_audit_2y_v2.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_cognitive_evidence_binding_audit_2y_v2.py
+
+  audit:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download frozen V1 binding artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-evidence-binding-audit-2y-v1-${{ env.BINDING_V1_SHA }}
+          path: binding-v1-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BINDING_V1_RUN_ID }}
+      - name: Download frozen 1R target ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-target1-stability-2y-v1-${{ env.TARGET_SHA }}
+          path: target-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Download protected-swing causal sources
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-source-first-wait5-stop-invalid-geometry-atlas-2y-v1-*-${{ env.STOP_SHA }}
+          path: protected-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.STOP_RUN_ID }}
+      - name: Download parallel-rearm causal sources
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-source-first-wait-rejected-parallel-rearm-atlas-2y-v1-*-${{ env.REARM_SHA }}
+          path: rearm-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.REARM_RUN_ID }}
+      - name: Build V2 cognitive evidence-binding audit
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_evidence_binding_audit_2y_v2             binding-v1-input target-input protected-input rearm-input binding-v2-output
+      - name: Enforce V2 binding controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "binding-v2-output/"
+                  "capitalizer-cognitive-evidence-binding-audit-2y-v2.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_COGNITIVE_EVIDENCE_BINDING_AUDIT_2Y_V2"
+          )
+          assert report["source_binding_v1_run_id"] == 36065178049
+          assert report["source_stop_atlas_run_id"] == 35863455539
+          assert report["source_rearm_run_id"] == 35934425045
+          assert report["control_trades"] == 948
+          assert report["control_stops"] == 223
+          assert report["source_provenance_counts"] == {
+              "CAUSAL_ARBITRATION_BASE": 840,
+              "PROTECTED_SWING_GEOMETRY_RESCUE": 105,
+              "WAIT_REJECTED_PARALLEL_REARM": 3,
+          }
+          assert report["source_microstructure_family_counts"] == {
+              "CAUSAL_ARBITRATION_BASE": 840,
+              "PROTECTED_SWING_GEOMETRY_RESCUE": 105,
+              "WAIT_REJECTED_PARALLEL_REARM": 3,
+          }
+          coverage = report["binding_coverage"]
+          assert coverage["source_microstructure"] == 948
+          assert coverage["evidence_provenance_complete"] == 948
+          assert coverage["baseline_portfolio_exposure"] == 948
+          assert coverage["day_session_journey"] == 948
+          assert coverage["baseline_slot_state"] == 948
+          assert coverage["failure_state_fingerprint"] == 0
+          assert coverage["destination_intelligence"] == 0
+          assert coverage["regime_intelligence"] == 0
+          assert coverage["execution_quality"] == 0
+          assert coverage["perception_integrity"] == 0
+          assert coverage["full_opportunity_competition"] == 0
+          assert coverage["full_master_cognitive_frame_ready"] == 0
+          assert report["delta_vs_v1"]["source_microstructure"] == 108
+          assert report["delta_vs_v1"]["evidence_provenance_complete"] == 108
+          assert report["stop_label_coverage"] == {
+              "stops": 223,
+              "source_microstructure_bound": 223,
+              "source_microstructure_unbound": 0,
+          }
+          assert report["future_evidence_violations"] == 0
+          assert report["current_trade_outcome_used_for_binding"] is False
+          assert report["missing_evidence_fabricated"] is False
+          assert report["strategy_rules_changed"] is False
+          assert report["cognitive_rules_changed"] is False
+          assert report["entry_changed"] is False
+          assert report["stop_changed"] is False
+          assert report["target_changed"] is False
+          assert report["max3_changed"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-evidence-binding-audit-2y-v2-${{ github.sha }}
+          path: binding-v2-output
+          if-no-files-found: error
+          retention-days: 90

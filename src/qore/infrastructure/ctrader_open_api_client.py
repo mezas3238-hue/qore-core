@@ -155,6 +155,8 @@ class _SdkBindings:
             "ProtoOAOrderDetailsReq",
             "ProtoOAReconcileReq",
             "ProtoOAGetTrendbarsReq",
+            "ProtoOAGetTickDataReq",
+            "ProtoOAGetTickDataRes",
             "ProtoOASubscribeSpotsReq",
             "ProtoOASpotEvent",
             "ProtoOAExecutionEvent",

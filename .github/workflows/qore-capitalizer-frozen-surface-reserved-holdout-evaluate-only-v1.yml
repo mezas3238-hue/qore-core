@@ -1,0 +1,100 @@
+name: QORE Capitalizer Frozen Surface Reserved Holdout Evaluate Only V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-frozen-surface-reserved-holdout-evaluate-only-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_surface_selective_frozen_holdout_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-frozen-surface-reserved-holdout-evaluate-only-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  DEV_DIRECT_RUN_ID: '36196002610'
+  DEV_DIRECT_SHA: 'ddd00209e50d5ec16c8cb94f34e9e5e95f401839'
+  DEV_CONTEXT_RUN_ID: '36211415438'
+  DEV_CONTEXT_SHA: 'c652b1e5a5181ba95ac6f10ea5c95bf808a0c8a7'
+  RESERVED_SOURCE_RUN_ID: '36215082659'
+  RESERVED_SOURCE_SHA: '9132b8b74938b8f142d946ab8717bf66840a18d2'
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - name: Download frozen-model development direct ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-dev-*-${{ env.DEV_DIRECT_SHA }}
+          path: development-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
+      - name: Download frozen-model development contexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-dev-*-${{ env.DEV_CONTEXT_SHA }}
+          path: development-context
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_CONTEXT_RUN_ID }}
+      - name: Download already-rebuilt reserved direct ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
+          path: reserved-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
+      - name: Download already-bound reserved contexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
+          path: reserved-context
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
+      - name: Evaluate unchanged frozen candidate with corrected MAX3/context join
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_surface_selective_frozen_holdout_v1 \
+            development-input development-context reserved-input reserved-context holdout-output
+      - name: Enforce frozen holdout contract
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(
+              Path("holdout-output/capitalizer-surface-selective-frozen-holdout-v1.json").read_text()
+          )
+          assert report["reserved_window_start"] == "2020-09-17T00:00:00+00:00"
+          assert report["reserved_window_end_exclusive"] == "2022-09-17T00:00:00+00:00"
+          assert report["reserved_window_role"] == "FIRST_USE_NONOVERLAPPING_HOLDOUT"
+          assert report["reserved_outcomes_visible_to_candidate_selection"] is False
+          assert report["reserved_outcomes_visible_to_contextual_model"] is False
+          assert report["candidate_architecture_changed_after_holdout_opened"] is False
+          assert report["all_entries_preserved"] is True
+          assert Decimal(report["density_retention"]) == Decimal("1")
+          assert report["target_r"] == "2.00"
+          assert report["max3_preserved"] is True
+          assert report["runtime_rule_selected"] is False
+          assert report["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-surface-selective-frozen-holdout-eval-only-v1-${{ github.sha }}
+          path: holdout-output
+          retention-days: 90

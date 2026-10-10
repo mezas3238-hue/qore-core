@@ -1,0 +1,240 @@
+name: QORE Capitalizer Frozen Surface Reserved Holdout V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-frozen-surface-reserved-holdout-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_surface_selective_frozen_holdout_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_surface_selective_frozen_holdout_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-frozen-surface-reserved-holdout-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  M1_RUN_ID: '35548099334'
+  M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+  DEV_DIRECT_RUN_ID: '36196002610'
+  DEV_DIRECT_SHA: 'ddd00209e50d5ec16c8cb94f34e9e5e95f401839'
+  DEV_CONTEXT_RUN_ID: '36211415438'
+  DEV_CONTEXT_SHA: 'c652b1e5a5181ba95ac6f10ea5c95bf808a0c8a7'
+  RESERVED_START: '2020-09-17T00:00:00+00:00'
+  RESERVED_END: '2022-09-17T00:00:00+00:00'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check src/qore/infrastructure/trader_lab/capitalizer_surface_selective_frozen_holdout_v1.py tests/infrastructure/trader_lab/test_capitalizer_surface_selective_frozen_holdout_v1.py
+      - run: mypy src/qore/infrastructure/trader_lab/capitalizer_surface_selective_frozen_holdout_v1.py
+      - run: pytest -q --no-cov tests/infrastructure/trader_lab/test_capitalizer_surface_selective_frozen_holdout_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - name: Download provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.M1_SHA }}
+          path: m1-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.M1_RUN_ID }}
+      - name: Rebuild reserved MAX_RECOVERY directly from M1
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            market m1-input direct-output \
+            --session "${{ matrix.session }}" \
+            --start "${{ env.RESERVED_START }}" \
+            --end-exclusive "${{ env.RESERVED_END }}"
+      - name: Enforce direct replay causality
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          paths = list(Path("direct-output").glob("capitalizer-*-max-recovery-direct-m1-replay-v1.json"))
+          assert len(paths) == 1
+          report = json.loads(paths[0].read_text())
+          assert report["symbol"] == os.environ["EXPECTED_SYMBOL"]
+          assert report["window_start"] == "2020-09-17T00:00:00+00:00"
+          assert report["window_end_exclusive"] == "2022-09-17T00:00:00+00:00"
+          assert report["provider_native_m1"] is True
+          assert report["three_recovery_families_rebuilt_from_m1"] is True
+          assert report["outcome_used_for_admission"] is False
+          assert report["original_milestone_reproduction_mismatches"] == 0
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-direct-m1-reserved-${{ matrix.symbol }}-${{ github.sha }}
+          path: direct-output
+          retention-days: 90
+
+  context:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol:
+          - USDJPY
+          - AUDJPY
+          - AUDUSD
+          - GBPJPY
+          - EURUSD
+          - GBPUSD
+          - XAUUSD
+          - USDCAD
+          - NAS100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - name: Download reserved direct ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-direct-m1-reserved-${{ matrix.symbol }}-${{ github.sha }}
+          path: direct-input
+      - name: Download provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.M1_SHA }}
+          path: m1-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.M1_RUN_ID }}
+      - name: Bind reserved causal context
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
+            direct-input m1-input context-output --role reserved
+      - name: Enforce reserved context causality
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          paths = list(Path("context-output").glob("*.json"))
+          assert len(paths) == 1
+          report = json.loads(paths[0].read_text())
+          assert report["symbol"] == os.environ["EXPECTED_SYMBOL"]
+          assert report["role"] == "reserved"
+          assert report["trades"] > 0
+          assert report["bars_after_entry_used"] is False
+          assert report["unconfirmed_pivots_used"] is False
+          assert report["outcome_visible_to_context"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-native-market-context-v1-reserved-${{ matrix.symbol }}-${{ github.sha }}
+          path: context-output
+          retention-days: 90
+
+  evaluate:
+    needs: context
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - name: Download frozen-model development direct ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-dev-*-${{ env.DEV_DIRECT_SHA }}
+          path: development-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
+      - name: Download frozen-model development contexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-dev-*-${{ env.DEV_CONTEXT_SHA }}
+          path: development-context
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_CONTEXT_RUN_ID }}
+      - name: Download reserved direct ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-reserved-*-${{ github.sha }}
+          path: reserved-input
+          merge-multiple: false
+      - name: Download reserved contexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-reserved-*-${{ github.sha }}
+          path: reserved-context
+          merge-multiple: false
+      - name: Evaluate frozen candidate without retuning
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_surface_selective_frozen_holdout_v1 \
+            development-input development-context reserved-input reserved-context holdout-output
+      - name: Enforce frozen holdout contract
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(
+              Path("holdout-output/capitalizer-surface-selective-frozen-holdout-v1.json").read_text()
+          )
+          assert report["reserved_window_start"] == "2020-09-17T00:00:00+00:00"
+          assert report["reserved_window_end_exclusive"] == "2022-09-17T00:00:00+00:00"
+          assert report["reserved_window_role"] == "FIRST_USE_NONOVERLAPPING_HOLDOUT"
+          assert report["reserved_outcomes_visible_to_candidate_selection"] is False
+          assert report["reserved_outcomes_visible_to_contextual_model"] is False
+          assert report["candidate_architecture_changed_after_holdout_opened"] is False
+          assert report["all_entries_preserved"] is True
+          assert Decimal(report["density_retention"]) == Decimal("1")
+          assert report["target_r"] == "2.00"
+          assert report["max3_preserved"] is True
+          assert report["runtime_rule_selected"] is False
+          assert report["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-surface-selective-frozen-holdout-v1-${{ github.sha }}
+          path: holdout-output
+          retention-days: 90

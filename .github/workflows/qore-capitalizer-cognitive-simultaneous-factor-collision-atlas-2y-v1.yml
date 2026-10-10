@@ -1,0 +1,150 @@
+name: QORE Capitalizer Cognitive Simultaneous Factor Collision Atlas 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-cognitive-simultaneous-factor-collision-atlas-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cognitive_simultaneous_factor_collision_atlas_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_simultaneous_factor_collision_atlas_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-cognitive-simultaneous-factor-collision-atlas-2y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  BINDING_RUN_ID: '36065651404'
+  BINDING_SHA: '1d910f5c3550ac481c28390671a86ceb011597e3'
+  TARGET_RUN_ID: '36055792484'
+  TARGET_SHA: 'a66ab11c22efbefb61756db3f0062c3c51a2a825'
+  CROSS_RUN_ID: '36075482217'
+  CROSS_SHA: 'fce6f4e1dea05c4f3e36902c3baf9b3c434080d7'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_cognitive_simultaneous_factor_collision_atlas_2y_v1.py             tests/infrastructure/trader_lab/test_capitalizer_cognitive_simultaneous_factor_collision_atlas_2y_v1.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_cognitive_simultaneous_factor_collision_atlas_2y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_cognitive_simultaneous_factor_collision_atlas_2y_v1.py
+
+  atlas:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download fully source-bound cognitive ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-evidence-binding-audit-2y-v2-${{ env.BINDING_SHA }}
+          path: binding-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BINDING_RUN_ID }}
+      - name: Download frozen 1R target ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-target1-stability-2y-v1-${{ env.TARGET_SHA }}
+          path: target-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Download frozen Cross-Feature report
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-third-slot-cross-feature-atlas-2y-v1-${{ env.CROSS_SHA }}
+          path: cross-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CROSS_RUN_ID }}
+      - name: Build simultaneous factor-collision atlas
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_simultaneous_factor_collision_atlas_2y_v1             binding-input target-input cross-input collision-output
+      - name: Enforce collision-atlas controls
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "collision-output/"
+                  "capitalizer-cognitive-simultaneous-factor-collision-atlas-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_COGNITIVE_SIMULTANEOUS_FACTOR_COLLISION_ATLAS_2Y_V1"
+          )
+          assert report["source_binding_run_id"] == 36065651404
+          assert report["source_target_run_id"] == 36055792484
+          assert report["source_cross_run_id"] == 36075482217
+          assert report["control_trades"] == 948
+          assert report["control_metrics"]["max_drawdown_r"] == (
+              "8.671360188479779752380440576"
+          )
+          assert report["third_slot_reference"]["trades"] == 9
+          assert report["third_slot_reference"]["development_hypothesis_only"] is True
+          assert report["third_slot_reference"]["runtime_rule_selected"] is False
+          assert report["collision_cluster_count"] == 11
+          assert report["collision_candidate_count"] == 22
+          assert report["collision_factor_counts"] == {"JPY": 7, "USD": 4}
+          assert report["all_collision_evidence_known_by_entry"] is True
+          assert (
+              report["same_timestamp_candidates_compete_before_active_exposure_exists"]
+              is True
+          )
+          assert report["policy_count"] == 6
+          assert report["all_policies_outcome_blind"] is True
+          assert report["outcomes_used_only_for_post_audit_metrics"] is True
+          assert report["collision_policy_selected"] is False
+          assert report["combined_rule_selected"] is False
+          assert report["automatic_promotion_allowed"] is False
+
+          for row in report["policies"]:
+              assert row["collision_dropped_trades"] == 11
+              assert row["combined_dropped_trades"] == 20
+              metrics = row["combined_metrics"]
+              assert metrics["trades"] == 928
+              assert Decimal(metrics["max_drawdown_r"]) == Decimal(
+                  "5.58963930955636680812120412"
+              )
+              assert Decimal(metrics["profit_factor"]) > Decimal("2.63")
+              assert Decimal(row["combined_density_retention"]) > Decimal("0.97")
+
+          assert report["strategy_rules_changed"] is False
+          assert report["cognitive_rules_changed"] is False
+          assert report["entry_changed"] is False
+          assert report["stop_changed"] is False
+          assert report["target_changed"] is False
+          assert report["max3_changed"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-simultaneous-factor-collision-atlas-2y-v1-${{ github.sha }}
+          path: collision-output
+          if-no-files-found: error
+          retention-days: 90

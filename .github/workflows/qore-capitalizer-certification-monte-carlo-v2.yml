@@ -1,0 +1,270 @@
+name: QORE Capitalizer Certification Monte Carlo V2
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_monte_carlo_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_monte_carlo_v2.py'
+      - '.github/workflows/qore-capitalizer-certification-monte-carlo-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  AUDIT_RUN_ID: '36419550146'
+  AUDIT_SHA: 'a2231a543aacce63b6e834e04d59f66b81f11363'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_monte_carlo_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_monte_carlo_v2.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_monte_carlo_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_monte_carlo_v2.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_monte_carlo_v2.py
+
+  monte_carlo:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - slug: development
+            role: DEVELOPMENT_REFERENCE
+            artifact: qore-capitalizer-consumed-certification-audit-v2-development-a2231a543aacce63b6e834e04d59f66b81f11363
+            expected_trades: '948'
+            expected_total: '258.6758664923347730643824142'
+            expected_dd: '5.998927544189151991097403831'
+          - slug: validation
+            role: CONSUMED_VALIDATION_2022_2024
+            artifact: qore-capitalizer-consumed-certification-audit-v2-validation-a2231a543aacce63b6e834e04d59f66b81f11363
+            expected_trades: '1034'
+            expected_total: '112.8803815218467423179417818'
+            expected_dd: '6.63559674707663196688102741'
+          - slug: reserved
+            role: CONSUMED_RESERVED_2020_2022
+            artifact: qore-capitalizer-consumed-certification-audit-v2-reserved-a2231a543aacce63b6e834e04d59f66b81f11363
+            expected_trades: '1088'
+            expected_total: '56.62336571948709587930965013'
+            expected_dd: '7.262834994708248872962269456'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download exact consumed ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.AUDIT_RUN_ID }}
+      - name: Run deterministic Monte Carlo
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_monte_carlo_v2 \
+            --ledger source/capitalizer-scalper-consumed-certification-audit-v2-ledger.jsonl \
+            --population-role "${{ matrix.role }}" \
+            --replicates 5000 \
+            --block-length 5 \
+            --block-length 20 \
+            --seed 240917 \
+            --output "mc-output/${{ matrix.slug }}"
+      - name: Enforce source identity and MC contract
+        env:
+          SLUG: ${{ matrix.slug }}
+          EXPECTED_TRADES: ${{ matrix.expected_trades }}
+          EXPECTED_TOTAL: ${{ matrix.expected_total }}
+          EXPECTED_DD: ${{ matrix.expected_dd }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal
+          from pathlib import Path
+
+          report=json.loads(
+              (
+                  Path("mc-output")
+                  / os.environ["SLUG"]
+                  / "capitalizer-scalper-monte-carlo-v2.json"
+              ).read_text()
+          )
+          assert report["identity"] == "QORE_CAPITALIZER_SCALPER_MONTE_CARLO_V2"
+          assert report["trades"] == int(os.environ["EXPECTED_TRADES"])
+          assert Decimal(report["source_total_r"]) == Decimal(os.environ["EXPECTED_TOTAL"])
+          assert Decimal(report["source_max_drawdown_r"]) == Decimal(os.environ["EXPECTED_DD"])
+          assert report["replicates_per_scenario"] == 5000
+          assert report["block_lengths"] == [5, 20]
+          assert report["provider_cost_evidence_bound"] is False
+          assert report["cost_stress_status"] == "NOT_RUN_NO_BOUND_PROVIDER_COST_EVIDENCE"
+          assert report["runtime_policy_candidate"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["trader_certified"] is False
+          assert len(report["scenarios"]) == 4
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-certification-monte-carlo-v2-${{ matrix.slug }}-${{ github.sha }}
+          path: mc-output/${{ matrix.slug }}
+          if-no-files-found: error
+          retention-days: 90
+
+  combined_oos:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download Validation ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-consumed-certification-audit-v2-validation-a2231a543aacce63b6e834e04d59f66b81f11363
+          path: validation
+          github-token: ${{ github.token }}
+          run-id: ${{ env.AUDIT_RUN_ID }}
+      - name: Download Reserved ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-consumed-certification-audit-v2-reserved-a2231a543aacce63b6e834e04d59f66b81f11363
+          path: reserved
+          github-token: ${{ github.token }}
+          run-id: ${{ env.AUDIT_RUN_ID }}
+      - name: Build chronological combined consumed OOS ledger
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows=[]
+          for root in ("reserved","validation"):
+              path=Path(root)/"capitalizer-scalper-consumed-certification-audit-v2-ledger.jsonl"
+              for line in path.read_text().splitlines():
+                  if line.strip():
+                      rows.append(json.loads(line))
+          rows.sort(key=lambda row:(row["entry_at"],row["symbol"]))
+          keys=[(row["symbol"],row["entry_at"]) for row in rows]
+          assert len(rows)==2122
+          assert len(set(keys))==len(keys)
+          out=Path("combined")
+          out.mkdir()
+          ledger=out/"combined-consumed-oos-ledger.jsonl"
+          ledger.write_text(
+              "".join(json.dumps(row,sort_keys=True)+"\n" for row in rows)
+          )
+          PY
+      - name: Run combined consumed OOS Monte Carlo
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_monte_carlo_v2 \
+            --ledger combined/combined-consumed-oos-ledger.jsonl \
+            --population-role COMBINED_CONSUMED_OOS_2020_2024 \
+            --replicates 5000 \
+            --block-length 5 \
+            --block-length 20 \
+            --seed 240917 \
+            --output mc-output/combined-oos
+      - name: Enforce combined identity
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+          report=json.loads(
+              Path("mc-output/combined-oos/capitalizer-scalper-monte-carlo-v2.json").read_text()
+          )
+          assert report["trades"] == 2122
+          assert abs(
+              Decimal(report["source_total_r"])
+              - Decimal("169.5037472413338381972514319")
+          ) <= Decimal("1e-18")
+          assert report["provider_cost_evidence_bound"] is False
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-certification-monte-carlo-v2-combined-oos-${{ github.sha }}
+          path: mc-output/combined-oos
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    if: always()
+    needs:
+      - monte_carlo
+      - combined_oos
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-certification-monte-carlo-v2-*
+          path: results
+          merge-multiple: false
+      - name: Aggregate MC gate evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths=sorted(
+              Path("results").rglob("capitalizer-scalper-monte-carlo-v2.json")
+          )
+          rows=[json.loads(path.read_text()) for path in paths]
+          assert len(rows)==4, len(rows)
+          by_role={row["population_role"]:row for row in rows}
+          payload={
+              "identity":"QORE_CAPITALIZER_SCALPER_MONTE_CARLO_V2_AGGREGATE",
+              "results":rows,
+              "validation_gate_passed":by_role[
+                  "CONSUMED_VALIDATION_2022_2024"
+              ]["mc_gate_passed"],
+              "reserved_gate_passed":by_role[
+                  "CONSUMED_RESERVED_2020_2022"
+              ]["mc_gate_passed"],
+              "combined_oos_gate_passed":by_role[
+                  "COMBINED_CONSUMED_OOS_2020_2024"
+              ]["mc_gate_passed"],
+              "cost_stress_executed":False,
+              "cost_stress_reason":"NO_BOUND_PROVIDER_COST_EVIDENCE",
+              "fresh_holdout_opened":False,
+              "runtime_policy_candidate":False,
+              "trader_certified":False,
+          }
+          Path("aggregate").mkdir()
+          out=Path("aggregate")/"capitalizer-scalper-monte-carlo-v2-aggregate.json"
+          out.write_text(json.dumps(payload,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-certification-monte-carlo-v2-aggregate-${{ github.sha }}
+          path: aggregate
+          if-no-files-found: error
+          retention-days: 90

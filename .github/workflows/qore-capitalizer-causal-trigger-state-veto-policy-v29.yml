@@ -1,0 +1,253 @@
+name: QORE Capitalizer Causal Trigger-State Veto Policy V29
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-causal-trigger-state-veto-policy-v29-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  M1_RUN_ID: '35548099334'
+  M1_SOURCE_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_causal_trigger_state_veto_policy_v29.py \
+            tests/infrastructure/trader_lab/test_capitalizer_causal_trigger_state_veto_policy_v29.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_causal_trigger_state_veto_policy_v29.py \
+            tests/infrastructure/trader_lab/test_capitalizer_causal_trigger_state_veto_policy_v29.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_causal_trigger_state_veto_policy_v29.py
+
+  trigger-state:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol:
+          - USDJPY
+          - AUDJPY
+          - AUDUSD
+          - GBPJPY
+          - EURUSD
+          - GBPUSD
+          - XAUUSD
+          - USDCAD
+          - NAS100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-${{ matrix.symbol }}-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download immutable provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.M1_SOURCE_SHA }}
+          path: native-m1
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.M1_RUN_ID }}
+      - name: Extract strictly causal trigger state
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_causal_trigger_state_veto_policy_v29 \
+            market \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            native-m1 \
+            trigger-state-output \
+            --symbol "${{ matrix.symbol }}"
+      - name: Enforce trigger-state causality
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          reports = list(Path("trigger-state-output").glob("*.json"))
+          assert len(reports) == 1
+          report = json.loads(reports[0].read_text())
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_CAUSAL_TRIGGER_STATE_VETO_POLICY_V29"
+          )
+          assert report["evaluation"] == (
+              "NATIVE_M1_CAUSAL_TRIGGER_STATE_EXTRACTION"
+          )
+          assert report["source_m1_run_id"] == 35548099334
+          assert report["source_m1_sha"] == (
+              "18c338aedd5013ce65a6cb6408ffbc2e904a6217"
+          )
+          assert report["trigger_state_count"] > 0
+          assert report["trajectory_feature_dimension"] == 19
+          assert report["bars_must_be_fully_completed_before_activation"] is True
+          assert report["activation_bar_ohlc_visible"] is False
+          assert report["current_outcome_visible"] is False
+          assert report["future_bar_visible"] is False
+          PY
+      - name: Upload compact V29 trigger state
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v29-trigger-state-${{ matrix.symbol }}-${{ github.sha }}
+          path: trigger-state-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs:
+      - quality
+      - trigger-state
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download compact V29 trigger states
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v29-trigger-state-*-${{ github.sha }}
+          path: trigger-states
+          merge-multiple: true
+      - name: Run V29 causal trigger-state veto policy
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_causal_trigger_state_veto_policy_v29 \
+            aggregate \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            trigger-states \
+            experiment-output
+      - name: Enforce V29 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-causal-trigger-state-veto-policy-v29.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_CAUSAL_TRIGGER_STATE_VETO_POLICY_V29"
+          )
+          assert report["evaluation"] == (
+              "NATIVE_M1_TRIGGER_STATE_WITH_SURFACE_INTERVENTION_VETO"
+          )
+          assert report["policy"] == (
+              "TRIGGER_STATE_ROBUST_POSDELTA_NONDOWNSIDE_WITH_VETO"
+          )
+          assert report["veto_action"] == "VETO_TO_ORIGINAL"
+          assert report["veto_semantics"] == (
+              "SELECT_EXISTING_ORIGINAL_FOR_REMAINDER_OF_TRADE"
+          )
+          assert report["defer_and_reevaluate_enabled"] is False
+          assert report["l2_prior_strength_effective_trades"] == "12.0"
+          assert report["source_m1_run_id"] == 35548099334
+          assert report["trajectory_feature_dimension"] == 19
+          assert report["native_m1_trigger_state_used"] is True
+          assert report["v21_post_025_state_reused"] is False
+          assert report["trigger_time_portfolio_state_used"] is False
+          assert report["trigger_time_cross_market_state_used"] is False
+          assert report["all_entries_preserved"] is True
+          assert report["density_retention"] == "1"
+          assert report["same_entrant_identities"] is True
+          assert report["fixed_target_r"] == "2.00"
+          assert report["original_stop_geometry_preserved_at_entry"] is True
+          assert report["new_protection_geometry_created"] is False
+          assert report["max3_preserved"] is True
+          assert report["max3_slot_recycling"] is False
+          assert report["chosen_prior_outcomes_recompute_future_state"] is True
+          assert report["current_outcome_visible_to_decision"] is False
+          assert report["heldout_counterfactual_visible_to_decision"] is False
+          assert report["future_after_trigger_visible_to_decision"] is False
+          assert report["activation_bar_ohlc_visible_to_decision"] is False
+          assert report[
+              "symbol_session_side_time_identity_features_used"
+          ] is False
+          assert report["historical_fresh_oos_available"] is False
+          assert report["2018_2020_status"] == "CONSUMED_NOT_FRESH"
+          assert report["trader_certified"] is False
+
+          expected = {
+              "DEVELOPMENT_2024_2026": 948,
+              "CONSUMED_VALIDATION_2022_2024": 1034,
+              "CONSUMED_RESERVED_2020_2022": 1088,
+          }
+          for row in report["results"]:
+              assert row["trades"] == expected[row["period"]]
+              assert row["density_retention"] == "1"
+
+          feature_dimensions = []
+          veto_models = 0
+          for period_rows in report["model_diagnostics"].values():
+              assert len(period_rows) == 3
+              for family_rows in period_rows.values():
+                  for action_name, action in family_rows.items():
+                      if not action["available"]:
+                          continue
+                      assert action["training_trades"] > 0
+                      assert action["feature_dimension"] > 60
+                      feature_dimensions.append(action["feature_dimension"])
+                      if action_name == "VETO_TO_ORIGINAL":
+                          veto_models += 1
+          assert feature_dimensions
+          assert len(set(feature_dimensions)) == 1
+          assert veto_models > 0
+
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload V29 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-causal-trigger-state-veto-policy-v29-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90

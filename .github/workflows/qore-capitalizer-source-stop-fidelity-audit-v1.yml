@@ -1,0 +1,49 @@
+name: QORE Capitalizer Source Stop Fidelity Audit V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-source-stop-fidelity-audit-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_stop_fidelity_audit_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_source_stop_fidelity_audit_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_source_stop_fidelity_audit_v1.py             tests/infrastructure/trader_lab/test_capitalizer_source_stop_fidelity_audit_v1.py
+      - name: Mypy
+        run: mypy src/qore/infrastructure/trader_lab/capitalizer_source_stop_fidelity_audit_v1.py
+      - name: Focused test
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_source_stop_fidelity_audit_v1.py
+      - name: Print audit
+        run: |
+          python - <<'PY'
+          import json
+          from qore.infrastructure.trader_lab.capitalizer_source_stop_fidelity_audit_v1 import payload
+
+          result = payload()
+          assert result['source_stop_relation'] == 'PROTECTED_SWING_ANCHOR_DEFAULT_AT_SWING_WITH_BEYOND_VARIANTS'
+          assert result['current_trade_plan_source_faithful'] is True
+          assert result['current_m5_replay_source_faithful_stop'] is False
+          assert result['source_strategy_status'] == 'REPLAY_STOP_PROXY_REQUIRES_CORRECTION'
+          assert result['stop_widening_authorized'] is False
+          assert result['trader_certified'] is False
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY

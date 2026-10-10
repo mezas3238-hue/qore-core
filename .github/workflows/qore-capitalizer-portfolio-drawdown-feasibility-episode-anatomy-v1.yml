@@ -1,0 +1,159 @@
+name: QORE Capitalizer Portfolio Drawdown Feasibility Episode Anatomy V1
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-portfolio-drawdown-feasibility-episode-anatomy-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_drawdown_feasibility_episode_anatomy_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_drawdown_feasibility_episode_anatomy_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-portfolio-drawdown-feasibility-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_drawdown_feasibility_episode_anatomy_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_drawdown_feasibility_episode_anatomy_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_drawdown_feasibility_episode_anatomy_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_drawdown_feasibility_episode_anatomy_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_drawdown_feasibility_episode_anatomy_v1.py
+
+  aggregate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run portfolio feasibility and episode anatomy
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_portfolio_drawdown_feasibility_episode_anatomy_v1 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            experiment-output
+      - name: Enforce diagnostic contract
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal, ROUND_HALF_UP
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-portfolio-drawdown-feasibility-episode-anatomy-v1.json"
+              ).read_text()
+          )
+
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_PORTFOLIO_DRAWDOWN_FEASIBILITY_EPISODE_ANATOMY_V1"
+          )
+          assert report["evaluation"] == (
+              "PHYSICAL_FEASIBILITY_PLUS_SURFACE_EPISODE_ANATOMY"
+          )
+          assert report["existing_action_count"] == 9
+          assert report["first_protection_milestone_r"] == "0.50"
+          assert report["surface_chronology_rebuilt_causally"] is True
+          assert report["surface_multiplier_path_preserved_for_oracle"] is True
+          assert report["outcome_oracle_future_information_used"] is True
+          assert report["outcome_oracle_policy_candidate"] is False
+          assert report["all_entries_preserved"] is True
+          assert report["density_retention"] == "1"
+          assert report["same_entrant_identities"] is True
+          assert report["admission_changed"] is False
+          assert report["sizing_changed"] is False
+          assert report["new_protection_geometry_created"] is False
+          assert report["trader_certified"] is False
+
+          expected_trades = {
+              "DEVELOPMENT_2024_2026": 948,
+              "CONSUMED_VALIDATION_2022_2024": 1034,
+              "CONSUMED_RESERVED_2020_2022": 1088,
+          }
+          expected_surface_dd = {
+              "DEVELOPMENT_2024_2026": Decimal("6.2146"),
+              "CONSUMED_VALIDATION_2022_2024": Decimal("6.7701"),
+              "CONSUMED_RESERVED_2020_2022": Decimal("8.7480"),
+          }
+          expected_oracle_dd = {
+              "DEVELOPMENT_2024_2026": Decimal("3.1636"),
+              "CONSUMED_VALIDATION_2022_2024": Decimal("5.6305"),
+              "CONSUMED_RESERVED_2020_2022": Decimal("4.8689"),
+          }
+
+          assert len(report["results"]) == 3
+          for row in report["results"]:
+              period = row["period"]
+              assert row["surface"]["trades"] == expected_trades[period]
+              assert row["outcome_oracle"]["trades"] == expected_trades[period]
+              surface_dd = Decimal(row["surface"]["max_drawdown_r"]).quantize(
+                  Decimal("0.0001"), rounding=ROUND_HALF_UP
+              )
+              oracle_dd = Decimal(
+                  row["outcome_oracle"]["max_drawdown_r"]
+              ).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+              assert surface_dd == expected_surface_dd[period]
+              assert oracle_dd == expected_oracle_dd[period]
+              assert Decimal(row["outcome_oracle"]["total_r"]) >= Decimal(
+                  row["surface"]["total_r"]
+              )
+              assert row["outcome_oracle_dd_at_or_below_6r"] is True
+              assert row["episode_count"] > 0
+              assert row["max_episode_anatomy"]["negative_trades"] > 0
+
+          assert report["physical_position_management_capacity_confirmed"] is True
+          assert report["next_phase"] == (
+              "MEASURE_CAUSAL_INFORMATION_FRONTIER_ON_ACTION_RELEVANT_EPISODE_STATES"
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload feasibility evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-portfolio-drawdown-feasibility-episode-anatomy-v1-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90

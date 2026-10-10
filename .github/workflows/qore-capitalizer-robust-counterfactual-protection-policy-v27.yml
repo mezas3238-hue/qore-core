@@ -1,0 +1,137 @@
+name: QORE Capitalizer Robust Counterfactual Protection Policy V27
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-robust-counterfactual-protection-policy-v27-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_robust_counterfactual_protection_policy_v27.py \
+            tests/infrastructure/trader_lab/test_capitalizer_robust_counterfactual_protection_policy_v27.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_robust_counterfactual_protection_policy_v27.py \
+            tests/infrastructure/trader_lab/test_capitalizer_robust_counterfactual_protection_policy_v27.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_robust_counterfactual_protection_policy_v27.py
+
+  aggregate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative V21 reconstructed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run V27 robust protection policy
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_robust_counterfactual_protection_policy_v27 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            experiment-output
+      - name: Enforce V27 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-robust-counterfactual-protection-policy-v27.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_ROBUST_COUNTERFACTUAL_PROTECTION_POLICY_V27"
+          )
+          assert report["evaluation"] == (
+              "ROBUST_COUNTERFACTUAL_EXISTING_MODE_POLICY"
+          )
+          assert report["policy"] == "ROBUST_POSDELTA_NONDOWNSIDE"
+          assert report["action_count"] == 9
+          assert report["l2_prior_strength_effective_trades"] == "12.0"
+          assert report["state_source"] == (
+              "FULL_V10_V11_CAUSAL_PRETRADE_VECTOR"
+          )
+          assert report["simultaneous_competition_bound"] is True
+          assert report["all_entries_preserved"] is True
+          assert report["density_retention"] == "1"
+          assert report["same_entrant_identities"] is True
+          assert report["fixed_target_r"] == "2.00"
+          assert report["original_stop_geometry_preserved_at_entry"] is True
+          assert report["new_protection_geometry_created"] is False
+          assert report["max3_preserved"] is True
+          assert report["max3_slot_recycling"] is False
+          assert report["chosen_prior_outcomes_recompute_future_state"] is True
+          assert report["current_outcome_visible_to_decision"] is False
+          assert report["heldout_counterfactual_visible_to_decision"] is False
+          assert report["future_outcome_visible_to_decision"] is False
+          assert report[
+              "symbol_session_side_time_identity_features_used"
+          ] is False
+          assert report["historical_fresh_oos_available"] is False
+          assert report["2018_2020_status"] == "CONSUMED_NOT_FRESH"
+          assert report["trader_certified"] is False
+
+          expected = {
+              "DEVELOPMENT_2024_2026": 948,
+              "CONSUMED_VALIDATION_2022_2024": 1034,
+              "CONSUMED_RESERVED_2020_2022": 1088,
+          }
+          for row in report["results"]:
+              assert row["trades"] == expected[row["period"]]
+              assert row["density_retention"] == "1"
+
+          for period_rows in report["model_diagnostics"].values():
+              assert len(period_rows) == 9
+              for action in period_rows.values():
+                  assert action["training_trades"] > 0
+                  assert action["feature_dimension"] > 30
+
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload V27 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-robust-counterfactual-protection-policy-v27-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90

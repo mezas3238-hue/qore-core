@@ -1,0 +1,177 @@
+name: QORE Capitalizer Sequential Protect-or-Defer V32
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-sequential-protect-or-defer-v32-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  V29_RUN_ID: '36283499014'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_sequential_protect_or_defer_v32.py \
+            tests/infrastructure/trader_lab/test_capitalizer_sequential_protect_or_defer_v32.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_sequential_protect_or_defer_v32.py \
+            tests/infrastructure/trader_lab/test_capitalizer_sequential_protect_or_defer_v32.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_sequential_protect_or_defer_v32.py
+
+  aggregate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download authoritative V29 native-M1 trigger states
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v29-trigger-state-*
+          path: trigger-states
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V29_RUN_ID }}
+      - name: Run V32 sequential protect-or-defer policy
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_sequential_protect_or_defer_v32 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            trigger-states \
+            experiment-output
+      - name: Enforce V32 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-sequential-protect-or-defer-v32.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_SEQUENTIAL_PROTECT_OR_DEFER_V32"
+          )
+          assert report["evaluation"] == (
+              "SEQUENTIAL_CURRENT_FAMILY_COMMIT_OR_CAUSAL_DEFER"
+          )
+          assert report["policy"] == (
+              "ROBUST_STAGEWISE_CURRENT_FAMILY_OR_DEFER"
+          )
+          assert report["reference_protection_mode"] == "ORIGINAL"
+          assert report["source_trigger_state_run_id"] == 36283499014
+          assert report["v31_feature_representation_preserved"] is True
+          assert report["expected_full_feature_dimension"] == 95
+          assert len(report["current_family_actions"]["TRIGGER_050"]) == 2
+          assert len(report["current_family_actions"]["TRIGGER_075"]) == 3
+          assert len(report["current_family_actions"]["TRIGGER_100"]) == 3
+          assert report["sequential_reevaluation_enabled"] is True
+          assert report["future_family_action_selected_early"] is False
+          assert report["defer_is_implicit_original_continuation"] is True
+          assert report["future_labelled_defer_model_used"] is False
+          assert report["bellman_target_used"] is False
+          assert report["commit_freezes_existing_mode"] is True
+          assert report["globally_chronological_entry_trigger_replay"] is True
+          assert report["same_timestamp_pre_batch_state"] is True
+          assert report["same_timestamp_peer_action_visible"] is False
+          assert report["same_timestamp_peer_outcome_visible"] is False
+          assert report[
+              "closed_outcome_requires_exit_strictly_before_trigger"
+          ] is True
+          assert report["active_trade_outcomes_visible"] is False
+          assert report["l2_prior_strength_effective_trades"] == "12.0"
+          assert report["native_m1_trigger_state_reused_from_v29"] is True
+          assert report["new_market_data_opened"] is False
+          assert report["all_entries_preserved"] is True
+          assert report["density_retention"] == "1"
+          assert report["same_entrant_identities"] is True
+          assert report["fixed_target_r"] == "2.00"
+          assert report["original_stop_geometry_preserved_at_entry"] is True
+          assert report["new_protection_geometry_created"] is False
+          assert report["max3_preserved"] is True
+          assert report["max3_slot_recycling"] is False
+          assert report["chosen_prior_outcomes_recompute_future_state"] is True
+          assert report["current_outcome_visible_to_decision"] is False
+          assert report["heldout_counterfactual_visible_to_decision"] is False
+          assert report["future_after_trigger_visible_to_decision"] is False
+          assert report["activation_bar_ohlc_visible_to_decision"] is False
+          assert report[
+              "symbol_session_side_time_identity_features_used"
+          ] is False
+          assert report["historical_fresh_oos_available"] is False
+          assert report["2018_2020_status"] == "CONSUMED_NOT_FRESH"
+          assert report["trader_certified"] is False
+
+          expected = {
+              "DEVELOPMENT_2024_2026": 948,
+              "CONSUMED_VALIDATION_2022_2024": 1034,
+              "CONSUMED_RESERVED_2020_2022": 1088,
+          }
+          for row in report["results"]:
+              assert row["trades"] == expected[row["period"]]
+              assert row["density_retention"] == "1"
+
+          available_models = 0
+          dimensions = []
+          for period_rows in report["model_diagnostics"].values():
+              assert len(period_rows) == 3
+              for family_rows in period_rows.values():
+                  for action in family_rows.values():
+                      if not action["available"]:
+                          continue
+                      assert action["training_trades"] > 0
+                      assert action["feature_dimension"] == 95
+                      dimensions.append(action["feature_dimension"])
+                      available_models += 1
+          assert available_models > 0
+          assert len(set(dimensions)) == 1
+
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload V32 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-sequential-protect-or-defer-v32-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
