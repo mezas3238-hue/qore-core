@@ -138,7 +138,11 @@ def test_future_m1_or_missing_original_sensor_fails_before_cognition() -> None:
                 key: value for key, value in snapshots.items() if key != ids[0]
             }, source_originals=originals, baseline_selected_source_ids=ids,
         )
-    future = replace(_bars("AUDJPY")[-1], closed_at=T+timedelta(minutes=1))
+    future = replace(
+        _bars("AUDJPY")[-1],
+        opened_at=T,
+        closed_at=T+timedelta(minutes=1),
+    )
     with pytest.raises(ValueError, match="future/inflight"):
         run_sensorized_master_frame_paper(
             barriers=(barrier,), source_evidence={
