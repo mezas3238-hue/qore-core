@@ -48,7 +48,7 @@ Las nueve salidas JSONL por mercado y los 2.822 timestamps están archivados com
 
 **A2 (metodología):** producir un ledger **atestado sin hindsight y uno-a-uno por source ID** para origen/confirma H1, protected M15 pivot y stop, target room H1 con timestamp causal, primera ruta M1 CISD y criterio de simultáneos; adjudicar 381 divergencias sin imponer rechazo global. Clarificar ingeniería QORE vs TTrades/ICT. No adivinar ni rellenar fuente H1 expiración futura.
 
-**Integración/paper:** solamente una vez que ambos ledgers causales coexistan, ejecutar `run_sensorized_master_frame_paper` / Trader selecciones bajo los mismos 2.876 IDs, memoria *chosen-and-settled-only*, risk QORE y diez millones...? NO: nueve mercados nativos, con 2.020 trades control. Preregistrar A/B y ablations, contar `PASS`/WAIT/ABSTAIN y selección MAX3 por fuente; computar verdadero PF/DD/Sharpe/Sortino y retención (>=934 ganadores originales y >=415.748485649R de masa de ganadoras originales). Separar gross de BID/ASK+commission physical net.
+**Integración/paper:** solamente una vez que ambos ledgers causales coexistan, ejecutar `run_sensorized_master_frame_paper` / Trader selecciones bajo los mismos 2.876 IDs, memoria *chosen-and-settled-only*, risk QORE y los nueve mercados nativos, frente a las 2.020 ejecuciones del control. Preregistrar A/B y ablations, contar `PASS`/WAIT/ABSTAIN y selección MAX3 por fuente; computar verdadero PF/DD/Sharpe/Sortino y retención (>=934 ganadores originales y >=415.748485649R de masa de ganadoras originales). Separar gross de BID/ASK+commission physical net.
 
 ### Prohibiciones y certificación
 
