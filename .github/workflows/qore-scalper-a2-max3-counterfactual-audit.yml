@@ -75,6 +75,12 @@ jobs:
           assert r["trader_certified"] is False and r["live_authorized"] is False
           print("SELECTED: ", r["selected"])
           print("EXCLUDED COUNTERFACTUAL:", r["excluded_counterfactual"])
+          for dimension in ("session", "market", "trigger_family", "session_and_trigger"):
+              for key in sorted(set(r["selected_by"][dimension]) | set(r["excluded_counterfactual_by"][dimension])):
+                  chosen = r["selected_by"][dimension].get(key, {})
+                  censored = r["excluded_counterfactual_by"][dimension].get(key, {})
+                  print("SEGMENT", dimension, key, "SELECTED", chosen)
+                  print("SEGMENT", dimension, key, "EXCLUDED", censored)
           PY
       - name: Archive post-hoc MAX3 evidence
         uses: actions/upload-artifact@v4
