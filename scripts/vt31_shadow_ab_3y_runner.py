@@ -9,13 +9,14 @@ from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    MethodologyDecision, utc,
-)
-from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
 from vt31_ict_cleanroom_cog_real_3y_fast_v1 import (
-    BASE, FROZEN_SOURCE_SHA256, NY, WINDOW_HOURS, _bar,
-    _completed_hour, _stream,
+    BASE,
+    FROZEN_SOURCE_SHA256,
+    NY,
+    WINDOW_HOURS,
+    _bar,
+    _completed_hour,
+    _stream,
 )
 from vt31_shadow_opposite_pivot_ab_v1 import (
     Protected,
@@ -24,6 +25,12 @@ from vt31_shadow_opposite_pivot_ab_v1 import (
     first_opposing_mss_then_fvg,
     opposing_pivot,
 )
+
+from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
+    MethodologyDecision,
+    utc,
+)
+from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
 
 SCHEMA = "qore.vt31.one_trader.source_AB_protected_pivot.v2"
 THRESHOLD_PRIMARY_SOURCE_PP = 5.0
@@ -343,10 +350,12 @@ def self_test():
     from datetime import UTC
     from decimal import Decimal
     from types import SimpleNamespace
+
+    from vt31_shadow_opposite_pivot_ab_v1 import Shadow
+
     from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
         M1Bar, SessionId, Side
     )
-    from vt31_shadow_opposite_pivot_ab_v1 import Shadow
     t = datetime(2025, 7, 7, 7, 20, tzinfo=UTC)
     def bar(i, o, high, low, close):
         at = t + timedelta(minutes=i)
@@ -389,7 +398,6 @@ def self_test():
     assert is_ready is True and unchanged == latched
     # Strictly no acceptance of FVG confirmed AFTER the source hour.
     assert opposing_pivot((a, b), Side.LONG, c.closed_at) is None
-    x = bar(37, "109", "112", "108", "110")
     y = bar(38, "110", "120", "113", "119")
     z = bar(39, "119", "119", "105", "106")
     after = bar(40, "106", "107", "100", "104")
