@@ -193,7 +193,8 @@ class JointDiagnosticRow:
     forward_60m_signed_price: str | None
     target_hit_in_real_trade: bool
     target_hit_after_exit_hypothetical: bool
-    target_first_touch_delay_minutes_hypothetical: int | None
+    target_first_observed_touch_delay_minutes_hypothetical: int | None
+    target_observed_touch_follows_native_m1_gap: bool
     source_entry_and_exit_unchanged: bool = True
     decision_uses_forward_prices: bool = False
     outcome_data_used_for_admission: bool = False
@@ -256,24 +257,35 @@ def diagnostic_one(
     target = Decimal(trade.target_price)
     side = 1 if trade.direction == "LONG" else -1
     first_touch: int | None = None
+    first_touch_at: datetime | None = None
     hypothetical_after_exit = False
-    for minute, bar in enumerate(bars[index:], start=1):
+    prior_m1_gap = False
+    touch_after_gap = False
+    expected_opened_at = at
+    # Native M1 may have missing minutes. V49 simulator processes present
+    # bars and records m1_bars_held as BAR COUNT, not elapsed wall minutes.
+    # Therefore, do NOT abort target witness at a missing minute and do NOT
+    # equate observed bar ordinal with minutes elapsed from entry.
+    for pos in range(index, len(bars)):
+        bar = bars[pos]
         if bar.opened_at >= end or bar.closed_at > end:
             break
-        # Require contiguous M1; gaps are not a license to assume price paths.
-        if bar.opened_at != at + timedelta(minutes=minute - 1):
-            break
+        if bar.opened_at != expected_opened_at:
+            prior_m1_gap = True
+        expected_opened_at = bar.closed_at
         touched = bar.high >= target if side == 1 else bar.low <= target
         if touched:
-            first_touch = minute
+            first_touch_at = bar.closed_at
+            first_touch = int((bar.closed_at - at).total_seconds() / 60)
+            touch_after_gap = prior_m1_gap
             hypothetical_after_exit = (
                 bar.opened_at >= aware(trade.exit_at)
             )
             break
     if trade.exit_reason == "TARGET" and (
-        first_touch is None or first_touch > trade.m1_bars_held
+        first_touch_at is None or first_touch_at > aware(trade.exit_at)
     ):
-        raise ValueError("V49 TARGET lacks its causal M1 OHLC touch")
+        raise ValueError("V49 TARGET lacks its observed native-M1 OHLC touch")
     horizons = dict(fixed_horizon_direction(
         bars, opened, entry_at=at, entry=entry, side=side, end_at=end
     ))
@@ -308,7 +320,8 @@ def diagnostic_one(
         forward_60m_signed_price=horizons["60"],
         target_hit_in_real_trade=trade.exit_reason == "TARGET",
         target_hit_after_exit_hypothetical=hypothetical_after_exit,
-        target_first_touch_delay_minutes_hypothetical=first_touch,
+        target_first_observed_touch_delay_minutes_hypothetical=first_touch,
+        target_observed_touch_follows_native_m1_gap=touch_after_gap,
     )
 
 
@@ -414,6 +427,9 @@ def _group_summary(rows: tuple[JointDiagnosticRow, ...]) -> dict[str, Any]:
         "target_hit_within_actual_trade": sum(x.target_hit_in_real_trade for x in rows),
         "target_first_touched_after_exit_hypothetical": sum(
             x.target_hit_after_exit_hypothetical for x in rows
+        ),
+        "first_observed_target_touch_follows_m1_gap": sum(
+            x.target_observed_touch_follows_native_m1_gap for x in rows
         ),
         "forward_directional": signed,
     }
