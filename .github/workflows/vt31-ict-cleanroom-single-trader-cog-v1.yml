@@ -1,0 +1,70 @@
+name: VT31 ICT Cleanroom ONE Trader COG / London + New York
+
+on:
+  push:
+    branches:
+      - agent/vt31-ict-cleanroom-cognition-single-trader-20261009
+    paths:
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py
+      - tests/infrastructure/test_vt31_ict_cleanroom_cognition.py
+      - tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py
+      - .github/workflows/vt31-ict-cleanroom-single-trader-cog-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vt31-cleanroom-cog-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cognitive-source-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install development runtime
+        run: pip install -e ".[dev]"
+      - name: Static / clean-room / no-legacy checks
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py \
+            src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py
+          ruff check \
+            src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py \
+            src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py
+      - name: Cognitive timestamp provenance and one-trader contract
+        run: |
+          PYTHONPATH=src pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py
+      - name: Strict zero-legacy and single-identity gate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import ast
+          root=Path('src/qore/infrastructure/traders/vt31_ict_cleanroom')
+          assert all((root/x).is_file() for x in ('contracts.py','operations.py','cognition.py','trader.py'))
+          for name in ('cognition.py','trader.py'):
+              tree=ast.parse((root/name).read_text())
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.ImportFrom):
+                      assert not any(s in (node.module or '').lower() for s in ('vt31_nas100_', 'vt31_silver_bullet', 'ttrades','comp00'))
+          from qore.infrastructure.traders.vt31_ict_cleanroom.trader import TRADER_ID,SESSION_MODEL,VT31Trader
+          assert TRADER_ID == 'VT31'
+          assert len(set(SESSION_MODEL.values())) == 2
+          assert VT31Trader().snapshot()['registered_trader_count'] == 1
+          assert VT31Trader().snapshot()['live_authorized'] is False
+          PY
