@@ -14,7 +14,9 @@ from typing import Final
 
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     Vt08FiveMarketResearchSituation,
+    research_cognitive_memory_fingerprint,
     research_market_anchor_context,
+    research_strategy_identity_fingerprint,
 )
 from qore.infrastructure.traders.vt08_cognitive_memory import (
     cognitive_memory_fingerprint,
@@ -193,7 +195,15 @@ def reason(
         adversarial=adversarial,
         metacognition=meta,
         situation_fingerprint=situation.fingerprint(),
-        strategy_identity_fingerprint=strategy_identity_fingerprint(),
-        cognitive_memory_fingerprint=cognitive_memory_fingerprint(),
+        strategy_identity_fingerprint=(
+            research_strategy_identity_fingerprint()
+            if isinstance(situation, Vt08FiveMarketResearchSituation)
+            else strategy_identity_fingerprint()
+        ),
+        cognitive_memory_fingerprint=(
+            research_cognitive_memory_fingerprint()
+            if isinstance(situation, Vt08FiveMarketResearchSituation)
+            else cognitive_memory_fingerprint()
+        ),
         market_anchor_context_fingerprint=context_fingerprint,
     )
