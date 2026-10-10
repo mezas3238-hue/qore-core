@@ -1,11 +1,11 @@
 # QORE Scalper — Arquitecto 1: auditoría cognitiva y reparación P0
 
 **Fecha:** 2026-10-10  
-**Rama:** `agent/scalper-architect-1-cognitive-cert-20261010`  
+**Rama:** `agent/scalper-architect-a-cognition-20261010`  
 **Base congelada para separación de arquitectos:** `535a2054d43c259e09b9a7e8eb3d54d21a503b4c`  
 **PR matriz:** #623 (DRAFT; NO MERGE)  
-**Issue propietario:** #754 — Arquitecto Cognitivo  
-**Issue revisión cruzada:** #755 — Arquitecto Metodológico  
+**Issue propietario:** #756 — Arquitecto Cognitivo  
+**Issue revisión cruzada:** #757 — Arquitecto Metodológico  
 **Gobernanza:** SOLO GITHUB; NO VPS / LIVE / capital / producción / merge.
 
 ## 1. Alcance de auditoría y estado real
@@ -21,7 +21,7 @@ El commit de entrada contiene documentación de continuidad, no aprobación de m
 | V54-B partial runner | [36788519463](https://github.com/mezas3238-hue/qore-core/actions/runs/36788519463) | Ruff I001: importar `_session_bars` separado de `_replay` alias |
 | Global QORE CI | [36788524350](https://github.com/mezas3238-hue/qore-core/actions/runs/36788524350) | Ruff I001 en V53 y V54-B |
 
-### Correcciones realizadas en rama A1 — sin rediseño económico
+### Correcciones integradas en ramas A y B — sin rediseño económico
 
 - `capitalizer_v50_m1_rearm_capacity.py`: `session_key` diferencia llave de sesión (tuple2) y `_setup_key` (tuple5). MAX3 intacto.
 - `capitalizer_v51_multi_era_repair.py`: JSON debe representar objeto con claves string (validación fail-closed); `geometry_item` evita reuso tipado de `item`. Comparadores económicos y datos no modificados.
@@ -29,7 +29,7 @@ El commit de entrada contiene documentación de continuidad, no aprobación de m
 - `capitalizer_v54_causal_m1_stop_ladder_rescue.py`: `session_key` evita colisión de tipos; prioridad cronológica y MAX3 intactos.
 - `capitalizer_v54_structural_partial_runner.py`: isort/Ruff agrupa alias `_replay` aparte.
 
-**Validación pendiente:** GitHub Actions sobre nueva rama/PR; documentar runs y conclusiones antes de declarar Quality GREEN.
+**Validación nueva:** QORE CI run [38042441033](https://github.com/mezas3238-hue/qore-core/actions/runs/38042441033) expuso otro Mypy V53 (L419/L421) después de resolver Ruff; reparado en B commit `434f05a7d48cff643d5c5951c815df5e02bf227d`. Cert Standard run [38042441069](https://github.com/mezas3238-hue/qore-core/actions/runs/38042441069) SUCCESS, **no certifica**. Falta rerun CI y corrected-core matrices en heads finales. A posee V50-R/V51; B posee V53/V54-A/V54-B.
 
 ## 2. Cognitiva auditada: inventario operacional
 
@@ -77,7 +77,7 @@ La revisión de código **no** reemplaza tests causales, conjuntos independiente
 
 - V50-G corrected-core run `36788519476`: 90 operaciones, PF 1.53458998595, +26.12311835R, expectancy +0.29025687R, DD 9R. **RECHAZADO por el Owner como arquitectura final por densidad insuficiente**.
 - No etiquetar como mejora si PF resulta de eliminar la mayor parte de las operaciones ganadoras.
-- Gating numérico final: PF >=1.50 por era OOS; >=1.70 combinado; Sharpe >=1.50, Sortino >=2.00, DD <=10R, payoff >=1.20 (salvo excepción justificada), MC positive >=90%, p95 DD <=15R, postcost positive, winner count >=80%, winner-R >=90%.
+- **Owner acceptance DD <=6R** distinto del **V2 OOS observed DD <=10R**; exigir ambos para aceptación final. Gating numérico: PF >=1.50 por era OOS; >=1.70 combinado; Sharpe >=1.50, Sortino >=2.00, DD <=10R, payoff >=1.20 (salvo excepción justificada), MC positive >=90%, p95 DD <=15R, postcost positive, winner count >=80%, winner-R >=90%.
 - El recuento original de 1,332/año no es gate rígido; tampoco es aceptable el survivor de 90 trades.
 - Falta medir payoffs/Sharpe/Sortino correctos, clustering, MAE/MFE, riesgo de costes, Monte Carlo, estabilidad, leakage y validación independiente/prospectiva.
 
