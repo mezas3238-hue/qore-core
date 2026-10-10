@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 IDENTITY = "QORE_SCALPER_ENTRY_CALLER_CENSUS_V1"
+TEMPORAL_FIELDS = ("h1_state_until", "h1_state_from", "m15_setup_confirmed_at", "m1_trigger_confirmed_at")
 TARGETS = (
     "qore.infrastructure.trader_lab.capitalizer_dual_source_entry_acceptance_v1."
     "assess_dual_source_entry",
@@ -48,6 +49,15 @@ class CallerSite:
 
 
 @dataclass(frozen=True, slots=True)
+class TemporalAccess:
+    owner: str
+    field: str
+    path: str
+    line: int
+    access_kind: str
+
+
+@dataclass(frozen=True, slots=True)
 class TargetAudit:
     target: str
     static_call_sites: tuple[CallerSite, ...]
@@ -62,6 +72,7 @@ class CallerCensus:
     call_sites_scanned: int
     known_direct_edges: int
     dynamic_call_sites: tuple[str, ...]
+    temporal_metadata_accesses: tuple[TemporalAccess, ...]
     targets: tuple[TargetAudit, ...]
     static_analysis_complete: bool = False
     can_certify_source_fidelity: bool = False
@@ -100,6 +111,7 @@ class _Scanner(ast.NodeVisitor):
         self.scopes: list[str] = []
         self.calls: list[CallerSite] = []
         self.dynamic: list[str] = []
+        self.temporal: list[TemporalAccess] = []
         self.count = 0
 
     def visit_Import(self, node: ast.Import) -> None:
@@ -138,6 +150,23 @@ class _Scanner(ast.NodeVisitor):
             prefix = self._resolve(expression.value)
             return f"{prefix}.{expression.attr}" if prefix else None
         return None
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        if node.attr in TEMPORAL_FIELDS:
+            owner = (
+                ".".join((self.module, *self.scopes))
+                if self.scopes else self.module
+            )
+            self.temporal.append(
+                TemporalAccess(
+                    owner=owner,
+                    field=node.attr,
+                    path=self.path,
+                    line=node.lineno,
+                    access_kind=("READ" if isinstance(node.ctx, ast.Load) else "WRITE"),
+                )
+            )
+        self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
         self.count += 1
@@ -188,6 +217,7 @@ def audit_callers(
         raise ValueError("no Python modules found")
     sites: list[CallerSite] = []
     dynamic: list[str] = []
+    temporal: list[TemporalAccess] = []
     count = 0
     edges: dict[str, set[str]] = defaultdict(set)
 
@@ -199,6 +229,7 @@ def audit_callers(
         count += scanner.count
         sites.extend(scanner.calls)
         dynamic.extend(scanner.dynamic)
+        temporal.extend(scanner.temporal)
         for item in scanner.calls:
             edges[item.caller].add(item.callee)
 
@@ -238,6 +269,9 @@ def audit_callers(
         call_sites_scanned=count,
         known_direct_edges=len(sites),
         dynamic_call_sites=tuple(sorted(dynamic)),
+        temporal_metadata_accesses=tuple(sorted(
+            temporal, key=lambda item: (item.field, item.path, item.line)
+        )),
         targets=tuple(rows),
     )
 
@@ -268,6 +302,12 @@ def main() -> None:
         )
         for site in item.static_call_sites[:15]:
             print(f"  {site.path}:{site.line} <- {site.caller}")
+    sensitive = (
+        item for item in report.temporal_metadata_accesses
+        if item.field == "h1_state_until" and item.access_kind == "READ"
+    )
+    for item in sensitive:
+        print(f"H1_FUTURE_EXPIRY_READ {item.path}:{item.line} <- {item.owner}")
     print("DISCLAIMER: no static caller does not prove unused runtime code.")
 
 
