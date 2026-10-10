@@ -311,8 +311,11 @@ def main() -> None:
         item for item in report.temporal_metadata_accesses
         if item.field == "h1_state_until" and item.access_kind == "READ"
     )
-    for item in sensitive:
-        print(f"H1_FUTURE_EXPIRY_READ {item.path}:{item.line} <- {item.owner}")
+    for temporal_site in sensitive:
+        print(
+            f"H1_FUTURE_EXPIRY_READ {temporal_site.path}:"
+            f"{temporal_site.line} <- {temporal_site.owner}"
+        )
     print("DISCLAIMER: no static caller does not prove unused runtime code.")
 
 
