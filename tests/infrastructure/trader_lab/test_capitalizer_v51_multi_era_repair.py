@@ -70,7 +70,8 @@ def test_preservation_reports_winner_mass_and_loss_recall() -> None:
     )
     result = _preservation(baseline, candidate)
     assert Decimal(result["winner_count_preservation"]) == Decimal("1")
-    # Candidate keeps both original winners and earns 5R versus 3R baseline.\n    # Winner-R preservation is a mass ratio, not a percentage capped at 1.\n    assert Decimal(result["winner_r_preservation"]) == Decimal("5") / Decimal("3")
+    # Candidate earns 5R versus 3R baseline (mass ratio may exceed 100%).
+    assert Decimal(result["winner_r_preservation"]) == Decimal("5") / Decimal("3")
     assert Decimal(result["loss_recall"]) == Decimal("1")
 
 
