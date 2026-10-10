@@ -139,6 +139,7 @@ def audit(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
             if (
                 gross_ce_overlap
                 and phase is MethodologyDecision.SOURCE_INVALIDATED
+                and ops.event_at == m1.closed_at
                 and first_revocation_bar_overlap is None
             ):
                 # No intrabar tick ordering exists: a CE-touch and COG
