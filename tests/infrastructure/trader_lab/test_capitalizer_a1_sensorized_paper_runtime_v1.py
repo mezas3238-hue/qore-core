@@ -22,6 +22,11 @@ from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_int
 from qore.infrastructure.trader_lab.capitalizer_a1_sensorized_paper_runtime_v1 import (
     run_sensorized_master_frame_paper,
 )
+from qore.infrastructure.trader_lab.capitalizer_a1_source_sensor_independent_attestation_v1 import (
+    A1SourceSensorAttestation,
+    A1SourceSensorEvidence,
+    ProofStatus,
+)
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
 )
@@ -150,4 +155,82 @@ def test_future_m1_or_missing_original_sensor_fails_before_cognition() -> None:
                     snapshots[ids[0]], m1_bars=(*_bars("AUDJPY")[:-1], future),
                 ),
             }, source_originals=originals, baseline_selected_source_ids=ids,
+        )
+
+
+def test_independent_sensor_witnesses_are_actually_consumed_by_paper_master() -> None:
+    originals, snapshots = _inputs()
+    ids = tuple(x.source_opportunity_id for x in originals)
+    proof: dict[str, A1SourceSensorAttestation] = {}
+    for item in originals:
+        sid = item.source_opportunity_id
+        at = T.isoformat()
+        proof[sid] = A1SourceSensorAttestation(
+            source_opportunity_id=sid,
+            symbol=item.trade.symbol,
+            decision_at=at,
+            evidence=(
+                A1SourceSensorEvidence(
+                    sensor="ACTUAL_M15_STRUCTURE_REVALIDATION",
+                    status=ProofStatus.OBSERVED,
+                    reason="COMPLETE_M15_SOURCE_WITNESS",
+                    observed_at=at,
+                    source_witness=(
+                        f"confirmed={(T-timedelta(minutes=15)).isoformat()};stop=98"
+                    ),
+                    independent_witness=(
+                        f"confirmed={(T-timedelta(minutes=15)).isoformat()};"
+                        "swing=98;swing_at=2026-01-05T00:30:00+00:00"
+                    ),
+                    provenance="independently_verified_native_m1_fixture",
+                ),
+                A1SourceSensorEvidence(
+                    sensor="M1_PROTECTED_SWING_ATTESTATION",
+                    status=ProofStatus.OBSERVED,
+                    reason="EXACT_SOURCE_M1_PROTECTED",
+                    observed_at=at,
+                    source_witness=f"family={item.trade.trigger_family};at={at}",
+                    independent_witness=f"confirmed={at};swing=98.5",
+                    provenance="independently_verified_native_m1_fixture",
+                ),
+                A1SourceSensorEvidence(
+                    sensor="H1_TARGET_ROOM_R",
+                    status=ProofStatus.OBSERVED,
+                    reason="CLOSED_H1_TARGET_UNTOUCHED",
+                    observed_at=at,
+                    source_witness="target=102;room_r=0.67",
+                    independent_witness=(
+                        f"target=102;confirmed={(T-timedelta(hours=1)).isoformat()}"
+                    ),
+                    provenance="independently_verified_native_m1_fixture",
+                ),
+                A1SourceSensorEvidence(
+                    sensor="FULL_COGNITIVE_MASTER_FRAME",
+                    status=ProofStatus.NOT_AVAILABLE,
+                    reason="REQUIRES_NINE_MARKET_EVALUATION",
+                    observed_at=at,
+                    source_witness=None, independent_witness=None,
+                    provenance="separately_evaluated_master_frame",
+                ),
+            ),
+        )
+    bridged = run_sensorized_master_frame_paper(
+        barriers=(_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+        source_evidence=snapshots, source_originals=originals,
+        baseline_selected_source_ids=ids,
+        independent_source_witnesses=proof,
+    )
+    assert bridged.observed_sensor_frames == 3
+    assert bridged.independently_validated_source_rows == 3
+    assert bridged.independently_observed_market_sensors == 9
+    assert bridged.full_master_frame_invoked
+    assert bridged.report.paper_selected == 3
+    assert not bridged.report.trader_certified
+    assert not bridged.live_authorized
+    with pytest.raises(ValueError, match="all original source IDs"):
+        run_sensorized_master_frame_paper(
+            barriers=(_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+            source_evidence=snapshots, source_originals=originals,
+            baseline_selected_source_ids=ids,
+            independent_source_witnesses={ids[0]: proof[ids[0]]},
         )
