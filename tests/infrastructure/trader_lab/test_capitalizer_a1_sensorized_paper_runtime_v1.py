@@ -21,6 +21,15 @@ from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_
     M1ProtectionClass,
     SourceRouteClass,
 )
+from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
+    A1M1ProtectedRouteReview,
+    M1ProtectionClass,
+    SourceRouteClass,
+)
+from qore.infrastructure.trader_lab.capitalizer_a1_m1_second_pivot_forensics_v3 import (
+    A1SecondPivotReview,
+    SecondaryPivotClass,
+)
 from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
     A1PaperSource,
 )
@@ -313,4 +322,73 @@ def test_prior_intact_m1_review_reaches_master_context_but_never_grants_source_v
             source_originals=originals,
             baseline_selected_source_ids=ids,
             m1_route_reviews=false_time,
+        )
+
+
+def test_second_confirmed_m1_pivot_reaches_true_master_context_not_trade_veto() -> None:
+    originals, snapshots = _inputs()
+    ids = tuple(x.source_opportunity_id for x in originals)
+    first: dict[str, A1M1ProtectedRouteReview] = {}
+    second: dict[str, A1SecondPivotReview] = {}
+    for original in originals:
+        sid = original.source_opportunity_id
+        first[sid] = A1M1ProtectedRouteReview(
+            source_opportunity_id=sid, symbol=original.trade.symbol,
+            source_family=original.trade.trigger_family,
+            decision_at=T.isoformat(),
+            strict_previous_attestation=ProofStatus.NOT_AVAILABLE,
+            protection_class=M1ProtectionClass.PRIOR_CONFIRMED_BREACHED,
+            structurally_protected_at_entry=False,
+            protected_price="98.5",
+            protection_confirmed_at=(T-timedelta(minutes=3)).isoformat(),
+            route_class=SourceRouteClass.SOURCE_ROUTE_CONFIRMED_AT_ENTRY,
+            own_route_first_confirmed_at=T.isoformat(),
+            other_route_first_confirmed_at=None,
+        )
+        second[sid] = A1SecondPivotReview(
+            source_opportunity_id=sid, symbol=original.trade.symbol,
+            source_family=original.trade.trigger_family,
+            decision_at=T.isoformat(),
+            previous_class=M1ProtectionClass.PRIOR_CONFIRMED_BREACHED,
+            finding=SecondaryPivotClass.LATER_CONFIRMED_INTACT,
+            distinct_pivots=2,
+            later_intact=True,
+            protected_price="98.8",
+            swing_at=(T-timedelta(minutes=2)).isoformat(),
+            confirmed_at=(T-timedelta(minutes=1)).isoformat(),
+        )
+    kwargs = {
+        "barriers": (_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+        "source_evidence": snapshots,
+        "source_originals": originals,
+        "baseline_selected_source_ids": ids,
+    }
+    result = run_sensorized_master_frame_paper(
+        **kwargs, m1_route_reviews=first, m1_secondary_reviews=second,
+    )
+    assert result.full_master_frame_invoked
+    assert result.causal_m1_route_reviews_received == 3
+    assert result.secondary_m1_route_reviews_received == 3
+    assert result.newly_intact_second_m1_context_count == 3
+    assert result.report.paper_selected == 3
+    assert not result.automatically_vetoed_cisd_conflicts
+    assert not result.live_authorized
+    with pytest.raises(ValueError, match="need original V2 lineage"):
+        run_sensorized_master_frame_paper(
+            **kwargs, m1_secondary_reviews=second,
+        )
+    with pytest.raises(ValueError, match="false source/V2 ancestry"):
+        run_sensorized_master_frame_paper(
+            **kwargs, m1_route_reviews=first,
+            m1_secondary_reviews={
+                **second,
+                ids[0]: replace(second[ids[0]], previous_class=(
+                    M1ProtectionClass.NO_CONFIRMED_STRUCTURAL_PIVOT
+                )),
+            },
+        )
+    with pytest.raises(ValueError, match="need original V2 lineage"):
+        run_sensorized_master_frame_paper(
+            **kwargs, m1_route_reviews=first,
+            m1_secondary_reviews={ids[0]: second[ids[0]]},
         )
