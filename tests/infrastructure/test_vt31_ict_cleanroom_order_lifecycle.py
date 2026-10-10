@@ -51,6 +51,7 @@ class TestOrderLifecycle(unittest.TestCase):
 
     def q(self, minute: int, bid: str, ask: str) -> TwoSidedQuote:
         return TwoSidedQuote(
+            symbol="NAS100",
             observed_at=self.t0 + timedelta(minutes=minute),
             bid=Decimal(bid),
             ask=Decimal(ask),
@@ -64,6 +65,7 @@ class TestOrderLifecycle(unittest.TestCase):
         received = executed if received_at is None else received_at
         return ExternalExecutionAck(
             client_order_id="VT31-NAS100-20250707-NYAM-0001",
+            symbol="NAS100",
             broker_execution_id="MT5-ACK-EXPLICIT-EVIDENCE",
             executed_at=executed,
             received_at=received,
@@ -199,6 +201,25 @@ class TestOrderLifecycle(unittest.TestCase):
             ))
         with self.assertRaises(ValueError):
             self.ack(received_at=self.t0)
+
+    def test_reject_cross_asset_market_quote_and_broker_fill(self) -> None:
+        order = self.order()
+        with self.assertRaises(ValueError):
+            order.observe_quote(replace(
+                self.q(1, "104", "105"), symbol="GBPUSD"
+            ))
+        with self.assertRaises(ValueError):
+            order.reconcile_broker_ack(replace(
+                self.ack(), symbol="XAUUSD"
+            ))
+        self.assertIsNone(order.snapshot()["ack_id"])
+
+    def test_reject_invalidated_event_backdated_behind_quote(self) -> None:
+        order = self.order()
+        order.observe_quote(self.q(2, "104", "105"))
+        with self.assertRaises(ValueError):
+            order.invalidate_source(self.t0 + timedelta(minutes=1))
+        self.assertEqual(order.state, OrderResearchState.PENDING_UNROUTED)
 
     def test_genuinely_identical_single_trader_for_any_window(self) -> None:
         order = self.order()
