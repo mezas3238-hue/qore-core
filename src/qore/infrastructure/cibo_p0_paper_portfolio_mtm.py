@@ -35,6 +35,10 @@ def _number(raw,name,positive=False):
 def _timestamp(t):
     if not isinstance(t,datetime) or t.tzinfo is None or t.utcoffset() is None:
         raise PaperMtmError("timezone-aware event instant required")
+    # SQLite MAX(instant) is lexicographic: normalize all financial events
+    # to +00:00, never compare mixed timezone offsets as chronology.
+    if t.utcoffset()!=timedelta(0):
+        raise PaperMtmError("canonical UTC event instant required")
     return t
 
 
@@ -111,7 +115,7 @@ class CanonicalPaperPortfolioMtm:
     def book_open(self,*,request_id:str,at:datetime,side:str,symbol:str,
                   entry:D,lots:D,contract_usd_per_price_unit_lot:D,
                   commission_open_usd:D) -> None:
-        _timestamp(at)
+        at=_timestamp(at)
         if side not in ("BUY","SELL") or not symbol:
             raise PaperMtmError("physical symbol/side required")
         for n,v in (("entry",entry),("lots",lots),("contract",contract_usd_per_price_unit_lot)):
@@ -136,6 +140,17 @@ class CanonicalPaperPortfolioMtm:
             if (row is None or row[0]!="PAPER_FILLED"
                     or D(row[1])!=lots or row[2]!=at.isoformat()):
                 raise PaperMtmError("only canonical PAPER_FILLED reservation may debit cash")
+            # Historical broker tariff is published to the same QDLE
+            # instrument at this epoch. The cash book MUST use identical
+            # opening fee dollars; otherwise the 5% risk cap was computed
+            # against a different source than the actual cash debit.
+            spec=db.execute("SELECT payload FROM symbols WHERE symbol=?",
+                            (symbol,)).fetchone()
+            if spec is None:
+                raise PaperMtmError("PAPER physical broker symbol fee missing")
+            observed=D(json.loads(spec[0])["fee_usd_per_lot"])*lots
+            if observed!=commission_open_usd:
+                raise PaperMtmError("opening fee diverges from canonical QDLE broker economics")
             cash=D(db.execute("SELECT cash FROM paper_cash_account WHERE id=1").fetchone()[0])
             if commission_open_usd>cash:
                 raise PaperMtmError("paper opening commission exceeds cash")
@@ -151,7 +166,7 @@ class CanonicalPaperPortfolioMtm:
 
     def book_close(self,*,request_id:str,at:datetime,gross_pnl_usd:D,
                    commission_close_usd:D=ZERO)->None:
-        _timestamp(at)
+        at=_timestamp(at)
         if not isinstance(gross_pnl_usd,D) or not gross_pnl_usd.is_finite():
             raise PaperMtmError("gross close PnL must be finite Decimal")
         _number(commission_close_usd,"close fee")
@@ -189,7 +204,7 @@ class CanonicalPaperPortfolioMtm:
 
     def mark(self,*,at:datetime,quotes:tuple[HistoricalBidAsk,...],
              max_age_seconds:int=60)->dict:
-        _timestamp(at)
+        at=_timestamp(at)
         if not isinstance(quotes,tuple):
             raise PaperMtmError("historical quote tuple required")
         with self.qdle._tx() as db:
