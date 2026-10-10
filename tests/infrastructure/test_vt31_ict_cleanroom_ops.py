@@ -82,7 +82,9 @@ class TestCleanroom(unittest.TestCase):
                 cognition=decision(t3, self.session)
             ), MethodologyDecision.RESEARCH_PENDING_CE
         )
-        self.assertEqual(ops.first_suitable.consequent_encroachment, Decimal("104.5"))
+        selected = ops.first_suitable
+        assert selected is not None
+        self.assertEqual(selected.consequent_encroachment, Decimal("104.5"))
         self.assertFalse(ops.snapshot()["actual_mt5_fill_proven"])
         self.assertFalse(ops.snapshot()["trading_authorized"])
         return ops
