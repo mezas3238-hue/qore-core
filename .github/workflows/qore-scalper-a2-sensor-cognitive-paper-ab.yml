@@ -21,6 +21,7 @@ concurrency:
 env:
   V49_RUN: '38053946695'
   V49_SHA: 'e356e7a52541e99533b25ecfef0ab9c4e9ce03c0'
+  # Complete native 9-market 2876-source census, 11/11 GREEN.
   SENSOR_RUN: '38071138991'
   SENSOR_SHA: '74f4d9c89cdaaefd220a9a45ba98c2a0376be3d7'
 
