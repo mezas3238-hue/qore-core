@@ -26,6 +26,8 @@ from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import 
 )
 from qore.infrastructure.trader_lab.capitalizer_h1_context_state_v49 import (
     IDENTITY as H1_STATE_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_h1_context_state_v49 import (
     V49H1ContextState,
     V49H1StateEndReason,
 )
