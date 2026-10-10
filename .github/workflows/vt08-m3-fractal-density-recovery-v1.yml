@@ -1,0 +1,112 @@
+name: QORE VT08 M3 Fractal Density Recovery V1
+# Native M3 adapter v2 preserves the shared Lab DTO unchanged.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-expansion-5m-v1-001
+    paths:
+      - .github/workflows/vt08-m3-fractal-density-recovery-v1.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  m3-profile:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader,dev]"
+      - name: Download immutable M15/H4 base evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.symbol }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: evidence/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - name: Bind exact base evidence boundaries
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          symbol = os.environ["SYMBOL"]
+          payload = json.loads(
+              Path(f"evidence/{symbol}/market-evidence-1095d.json").read_text()
+          )
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+              handle.write(f"QORE_M3_REQUESTED_OPENED_AT={payload['requested_opened_at']}\n")
+              handle.write(f"QORE_M3_CHECKED_AT={payload['checked_at']}\n")
+          PY
+      - name: Discover authorized DEMO account
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+          if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+            echo "invalid cTrader DEMO account discovery" >&2
+            exit 3
+          fi
+          echo "::add-mask::$account_id"
+          printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+      - name: Collect exact-window M3 evidence
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+          QORE_SOFTWARE_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p m3/${{ matrix.symbol }}
+          python -m qore.infrastructure.trader_lab.vt08_cognitive_m3_evidence_probe_v1             > m3/${{ matrix.symbol }}/m3-evidence.json
+      - name: Run independent M3 fractal profile
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_cognitive_m3_fractal_density_recovery_v1 import (
+              evaluate,
+          )
+          symbol = os.environ["SYMBOL"]
+          report = evaluate(
+              Path(f"evidence/{symbol}/market-evidence-1095d.json"),
+              Path(f"m3/{symbol}/m3-evidence.json"),
+          )
+          Path(f"artifacts/{symbol}-m3-fractal.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.symbol }}-${{ github.sha }}
+          path: |
+            artifacts/${{ matrix.symbol }}-m3-fractal.json
+            m3/${{ matrix.symbol }}/m3-evidence.json
+          if-no-files-found: error
+          retention-days: 30

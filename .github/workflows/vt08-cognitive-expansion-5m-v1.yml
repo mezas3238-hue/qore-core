@@ -1,0 +1,50 @@
+name: QORE VT08 Cognitive Expansion 5M V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-expansion-5m-v1-001
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_cognitive_*
+      - tests/infrastructure/trader_lab/test_vt08_cognitive_*
+      - docs/research/VT08_COGNITIVE_*.md
+      - docs/research/VT08_EURJPY_*.md
+      - .github/workflows/vt08-cognitive-expansion-5m-v1.yml
+
+permissions:
+  contents: read
+
+jobs:
+  research-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/vt08_cognitive_*.py             tests/infrastructure/trader_lab/test_vt08_cognitive_*.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/vt08_cognitive_*.py
+      - name: Focused tests
+        run: |
+          pytest -q tests/infrastructure/trader_lab/test_vt08_cognitive_*.py
+      - name: Freeze fingerprints
+        run: |
+          python - <<'PY'
+          import json
+          from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_evaluator_v1 import (
+              expansion_evaluator_fingerprint,
+          )
+          from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_v1 import (
+              program_fingerprint,
+          )
+          print(json.dumps({
+              "program": program_fingerprint(),
+              "evaluator": expansion_evaluator_fingerprint(),
+          }, sort_keys=True))
+          PY

@@ -1,0 +1,73 @@
+name: QORE VT08 M3 Intracycle C2 Density Census V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-expansion-5m-v1-001
+    paths:
+      - .github/workflows/vt08-m3-intracycle-c2-density-census-v1.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  census:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_cognitive_m3_intracycle_c2_density_census_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.symbol }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: base/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.symbol }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: m3-artifact/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Count intracycle source opportunities
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_m3_intracycle_c2_density_census_v1 import evaluate
+
+          symbol = os.environ["SYMBOL"]
+          m3 = list(Path(f"m3-artifact/{symbol}").rglob("m3-evidence.json"))
+          if len(m3) != 1:
+              raise SystemExit("expected exactly one M3 evidence file")
+          report = evaluate(
+              Path(f"base/{symbol}/market-evidence-1095d.json"),
+              m3_path=m3[0],
+          )
+          out = Path(f"artifacts/{symbol}-m3-intracycle-c2-density-census.json")
+          out.write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-m3-intracycle-c2-density-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/${{ matrix.symbol }}-m3-intracycle-c2-density-census.json
+          if-no-files-found: error
+          retention-days: 30
