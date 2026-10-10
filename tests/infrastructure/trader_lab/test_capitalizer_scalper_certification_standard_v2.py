@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from decimal import Decimal
 
+import pytest
+
 from qore.infrastructure.trader_lab import (
     capitalizer_scalper_certification_standard_v2 as standard,
 )
@@ -322,7 +324,5 @@ def test_owner_six_r_acceptance_requires_explicit_evidence() -> None:
 
 
 def test_negative_owner_dd_evidence_rejected() -> None:
-    import pytest
-
     with pytest.raises(ValueError, match="Owner observed drawdown"):
         replace(_passing_evidence(), owner_observed_max_drawdown_r=Decimal("-0.1"))
