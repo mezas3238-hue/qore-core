@@ -180,7 +180,9 @@ class PortfolioMtm(unittest.TestCase):
         when=t+timedelta(seconds=1)
         with self.assertRaisesRegex(PaperMtmError,"MISSING_CAUSAL_MTM_MARK two"):
             self.nav.mark(at=when,quotes=(quote(when,"1.099","1.100"),))
-        self.assertEqual(self.nav.summary()["fully_marked_epochs"],0)
+        # One prior complete T+1 mark remains valid; failed T+2 attempt
+        # must not insert a bogus zero-PnL portfolio epoch.
+        self.assertEqual(self.nav.summary()["fully_marked_epochs"],1)
         marks=self.nav.mark(at=when,quotes=(
             quote(when,"1.099","1.100"),
             quote(when,"1.098","1.099","GBPUSD"),
