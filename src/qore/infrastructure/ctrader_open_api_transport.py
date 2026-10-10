@@ -61,9 +61,14 @@ def _timestamp(value: object, fallback: datetime) -> datetime:
     return fallback
 
 
-def _json_response(payload: dict[str, object], received_at: datetime) -> ExternalTransportResponse:
+def _json_response(
+    payload: dict[str, object],
+    received_at: datetime,
+    *,
+    status_code: int = 200,
+) -> ExternalTransportResponse:
     return ExternalTransportResponse(
-        status_code=200,
+        status_code=status_code,
         received_at=received_at,
         payload=json.dumps(
             payload,
@@ -88,6 +93,42 @@ def _configured_account_id(configuration: CTraderDemoRuntimeConfiguration) -> in
             "cTrader DEMO account_ref must be numeric"
         ) from error
     return _required_int(account_id, field_name="configured account id")
+
+
+def _aware(value: datetime, *, field_name: str) -> None:
+    if not isinstance(value, datetime):
+        raise CTraderOpenApiTransportValidationError(f"{field_name} must be a datetime")
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise CTraderOpenApiTransportValidationError(f"{field_name} must be timezone-aware")
+
+
+def _price_matches(native: object, expected: str | None) -> bool:
+    if expected is None:
+        return True
+    if not isinstance(native, float) or native <= 0.0:
+        return False
+    return Decimal(str(native)) == Decimal(expected)
+
+
+def _order_matches_plan(order: object, plan: CTraderOrderCreatePlan) -> bool:
+    trade_data = getattr(order, "tradeData", None)
+    if trade_data is None:
+        return False
+    if getattr(order, "clientOrderId", None) != plan.client_msg_id:
+        return False
+    if getattr(order, "orderType", None) != _ORDER_TYPES[plan.order_type.value]:
+        return False
+    if getattr(trade_data, "symbolId", None) != plan.symbol_id:
+        return False
+    if getattr(trade_data, "tradeSide", None) != _TRADE_SIDES[plan.side.value]:
+        return False
+    if getattr(trade_data, "volume", None) != plan.volume_units:
+        return False
+    if not _price_matches(getattr(order, "limitPrice", None), plan.limit_price):
+        return False
+    if not _price_matches(getattr(order, "stopLoss", None), plan.stop_loss):
+        return False
+    return _price_matches(getattr(order, "takeProfit", None), plan.take_profit)
 
 
 class CTraderOpenApiExecutionTransport:
@@ -241,6 +282,7 @@ class CTraderOpenApiExecutionTransport:
         if isinstance(ready, Failure):
             return ready
         fields: dict[str, object] = {
+            "clientOrderId": plan.client_msg_id,
             "ctidTraderAccountId": self._client.account_id,
             "orderType": _ORDER_TYPES[plan.order_type.value],
             "symbolId": plan.symbol_id,
@@ -249,6 +291,10 @@ class CTraderOpenApiExecutionTransport:
         }
         if plan.limit_price is not None:
             fields["limitPrice"] = float(plan.limit_price)
+        if plan.stop_loss is not None:
+            fields["stopLoss"] = float(plan.stop_loss)
+        if plan.take_profit is not None:
+            fields["takeProfit"] = float(plan.take_profit)
         response = self._client.request(
             "ProtoOANewOrderReq",
             fields,
@@ -269,6 +315,110 @@ class CTraderOpenApiExecutionTransport:
             return Success(_json_response(payload, received_at))
         except (CTraderOpenApiTransportError, ValueError) as error:
             return Failure(CTraderOpenApiTransportError(str(error)))
+
+    def discover_order(
+        self,
+        plan: CTraderOrderCreatePlan,
+        *,
+        from_timestamp: datetime,
+        to_timestamp: datetime,
+        metadata: ExternalRequestMetadata,
+    ) -> Result[ExternalTransportResponse, ExecutionBoundaryError]:
+        """Search historical orders for one exact persisted clientOrderId binding."""
+        del metadata
+        try:
+            _aware(from_timestamp, field_name="discovery from_timestamp")
+            _aware(to_timestamp, field_name="discovery to_timestamp")
+        except CTraderOpenApiTransportValidationError as error:
+            return Failure(error)
+        if from_timestamp >= to_timestamp:
+            return Failure(
+                CTraderOpenApiTransportValidationError(
+                    "discovery from_timestamp must predate to_timestamp"
+                )
+            )
+        if plan.account != self._configuration.account:
+            return Failure(
+                CTraderOpenApiTransportValidationError(
+                    "discovery plan account must match configured DEMO account"
+                )
+            )
+        ready = self._ready()
+        if isinstance(ready, Failure):
+            return ready
+        response = self._client.request(
+            "ProtoOAOrderListReq",
+            {
+                "ctidTraderAccountId": self._client.account_id,
+                "fromTimestamp": int(from_timestamp.timestamp() * 1000),
+                "toTimestamp": int(to_timestamp.timestamp() * 1000),
+            },
+            client_msg_id=f"discover:{plan.client_msg_id}",
+            timeout_seconds=self._configuration.rest_timeout.milliseconds / 1000,
+        )
+        if isinstance(response, Failure):
+            return Failure(CTraderOpenApiTransportError(str(response.error)))
+        received_at = self._clock()
+        orders = getattr(response.value, "order", ())
+        has_more = getattr(response.value, "hasMore", None)
+        if type(has_more) is not bool:
+            return Failure(CTraderOpenApiTransportError("invalid historical order search scope"))
+        try:
+            correlated = [
+                order
+                for order in orders
+                if getattr(order, "clientOrderId", None) == plan.client_msg_id
+            ]
+        except TypeError:
+            return Failure(CTraderOpenApiTransportError("invalid historical order collection"))
+        if has_more or len(correlated) > 1:
+            return Success(
+                _json_response(
+                    {"reason": "historical order search is ambiguous or incomplete"},
+                    received_at,
+                    status_code=409,
+                )
+            )
+        if not correlated:
+            return Success(
+                _json_response(
+                    {"reason": "complete historical search found no matching clientOrderId"},
+                    received_at,
+                    status_code=404,
+                )
+            )
+        order = correlated[0]
+        if not _order_matches_plan(order, plan):
+            return Success(
+                _json_response(
+                    {"reason": "clientOrderId matched contradictory order identity"},
+                    received_at,
+                    status_code=409,
+                )
+            )
+        try:
+            order_id = _required_int(getattr(order, "orderId", None), field_name="orderId")
+        except CTraderOpenApiTransportValidationError as error:
+            return Failure(error)
+        order_status = getattr(order, "orderStatus", None)
+        status = _ORDER_STATUSES.get(order_status) if type(order_status) is int else None
+        if status is None:
+            return Failure(CTraderOpenApiTransportError("invalid discovered order status"))
+        trade_data = getattr(order, "tradeData", None)
+        created_at = _timestamp(
+            getattr(trade_data, "openTimestamp", None),
+            _timestamp(getattr(order, "utcLastUpdateTimestamp", None), received_at),
+        )
+        return Success(
+            _json_response(
+                {
+                    "createdAt": created_at.isoformat(),
+                    "orderId": str(order_id),
+                    "status": status,
+                },
+                received_at,
+            )
+        )
 
     def cancel_order(
         self,

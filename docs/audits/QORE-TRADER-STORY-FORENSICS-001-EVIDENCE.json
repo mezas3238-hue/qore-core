@@ -1,0 +1,513 @@
+{
+  "account_fingerprint": "d9a5f41beca4584a2dc7eccc17015f40a707b99c72f74790b01ccddd7a5e8999",
+  "baseline": {
+    "head": "18dc5736a28369ffb7bc1cfd0fccabb2334b208b",
+    "tree": "4a897527d3d3250ddaaddf89009f04d18decae88"
+  },
+  "dossier_set_fingerprint": "ae5d64052a27185ad236938e1e892a06a90654f82a1a0b475cd640bdb611b19a",
+  "markets": {
+    "AUDJPY": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10126760296,
+          "content": "stage1",
+          "run": 34408479696,
+          "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+          "zip_sha256": "811cd5b4925d5fd1426ae6366fd8a9c1e1db2280fcdfb4b0b0ce27653c46bf29"
+        },
+        {
+          "artifact_id": 10128086239,
+          "content": "stage2",
+          "run": 34408479696,
+          "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+          "zip_sha256": "18246a2d62a7ac7a2ecaecc5e395b388deae7741f8712c6d11688f845e96cfbd"
+        },
+        {
+          "artifact_id": 10131351447,
+          "content": "stage3",
+          "run": 34408479696,
+          "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+          "zip_sha256": "bb04fd2d727f773636ba7d63b035a0ed4a6dd2aeb8c05c1ac90faf6a0633276e"
+        },
+        {
+          "artifact_id": 10135443014,
+          "content": "stage4",
+          "run": 34408479696,
+          "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+          "zip_sha256": "67c669c26db7c352f7c97c7243524574224075afc492ab50452b48d121956ad3"
+        },
+        {
+          "artifact_id": 10131359014,
+          "content": "stage5",
+          "run": 34408479696,
+          "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+          "zip_sha256": "7e78a3944b99581f5477ab4dd6c320f169ef1c827dc6ed4db0e5143808c5e0d6"
+        }
+      ],
+      "economic_market": "AUDJPY",
+      "identity_binding": {
+        "binding_basis": "direct-market-symbol",
+        "economic_target": "AUDJPY",
+        "provider_symbol": "AUDJPY"
+      },
+      "market_thesis_fingerprint": "197b6a6a193d7962e0a87645163e896042cde174a7df0a297cf002d6c4440f21",
+      "provider_symbol": "AUDJPY",
+      "source_digests": {
+        "backtest_sha256": "ea46a0a700ed6c94d1cff44bfa4086d9c4eec810fb574ebd1dc0bff5054f567d",
+        "characterization_payload_sha256": "13f63189e451880dc00432d2050929e7bce7e6506bddac16f93669920e69b259",
+        "characterization_sha256": "3a79e25c956e2ebf81dc5c6d757e6ce2618c26243a4c17d6daea1a49f28edabe",
+        "failure_analysis_sha256": "939e4c2e4f6f773d4b65125f16073c30ba827be8a7712a50349848df68f5c7c2",
+        "market_evidence_sha256": "a53a11192dccdf913cdc6c971cc3823fc71052f2ca739d03c34b8cc4a40dc813",
+        "walk_forward_sha256": "1780a514e48874fc43754bc5d46240e0d6862abc8a49710a7ab359de1b216fb9"
+      },
+      "story_fingerprint": "b7dd04844f89e286b7788958ff0c120d736afd15cab91e207009d825a0dcd29a",
+      "story_payload_digest": "8da47af6af39c813aec101b3122410ad7e14312093ea9f59f561476fb03fe2ae",
+      "trader_evidence_digests": {
+        "vt-01": "7d076a5ac768e382b9377727dad8c910853ffa340b42f22217182993ae1c33e9",
+        "vt-08": "259e2e88b936947f28a0935733871eae3075c824964193a470386f64da0f2abd",
+        "vt-09": "3d07c9a867ecb3d089944331629ada3694517878e18040e4eedb209e0e951dc4",
+        "vt-17": "f0f3301e05603a8096051b531b0bd9f55cb2671c9517594ff8e1b14116f75759",
+        "vt-31": "def9596f6c2914c3ddf700ec26dc49699b375a184ffefaf0fb0b25e2be7a62ce"
+      }
+    },
+    "AUDUSD": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10128986108,
+          "content": "retained-full",
+          "run": 34410292913,
+          "software_sha": "6a76ba9097e882c0e204e4eb9f61693b6a496aa5",
+          "zip_sha256": "8f7d6ab484aa318b7e1a4201f67ec4298d57e8702d3a8ea365a5a4f9f0ec2d9f"
+        }
+      ],
+      "economic_market": "AUDUSD",
+      "identity_binding": {
+        "binding_basis": "direct-market-symbol",
+        "economic_target": "AUDUSD",
+        "provider_symbol": "AUDUSD"
+      },
+      "market_thesis_fingerprint": "a64e7d7347fb2c99f21a3e08de9a05a1132064a50a7e809364ee338f1bb1056b",
+      "provider_symbol": "AUDUSD",
+      "source_digests": {
+        "backtest_sha256": "a0380352e477b916bc56fac3d4867c3439cf2de1cb187a6f1a42423cc1378a72",
+        "characterization_payload_sha256": "38873b6a79f4a80d3424faa87c5df7ba9166fed7bdfd8f5634bbc173a5463c18",
+        "characterization_sha256": "6593df297fef21415804f86d72438041d28ab4900d009ddb4085e7efa0c180e9",
+        "failure_analysis_sha256": "e9d6488e7f50f1c515f7e8882e8ad719d6fd01dab77e2f97fd0917047a9587ae",
+        "market_evidence_sha256": "ca7c1f9a2b9cfea8ecbe13a6d128b87e055e56c6925f24370be0634e43eaee2c",
+        "walk_forward_sha256": "a3b12795734ab6a02d3edc1d11ab2173fafe4b2938be68d0c8038640399ba282"
+      },
+      "story_fingerprint": "bfac6e1af4432ce48bf60c8e83de346690225f11ab3dac22ceb9664b6641a5bd",
+      "story_payload_digest": "d2900ef64a9acefcb541d487ee89eb8d5a11b39647e16315f65a15e90ad5d50c",
+      "trader_evidence_digests": {
+        "vt-01": "0051a0623f0ba6226e21f2c887636bdadb3dffff1fc308b36425dc4c453bbf26",
+        "vt-08": "3416f587844abf4fdd6fc1c07c10902cb31b3ac8ae8ab0957c26bcf265884934",
+        "vt-09": "a89e03e0539e3f4db0626a349d6f7304e1b0fb9ad5ae048f6f5712badeb6d892",
+        "vt-17": "8e6073ace5ac00ab5d2a46ce1c781271eb21b134ffdde56367469994e6a0897e",
+        "vt-31": "b5a13148f1238f4d593b8809d6d4272da1f0a6a3caad581cf612a74583bd9264"
+      }
+    },
+    "EURUSD": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10128482613,
+          "content": "retained-full",
+          "run": 34410292913,
+          "software_sha": "6a76ba9097e882c0e204e4eb9f61693b6a496aa5",
+          "zip_sha256": "4b795851940dcbffc824c6b46a12e690f03acdaa8f434b2b747d2f253c57e4ba"
+        }
+      ],
+      "economic_market": "EURUSD",
+      "identity_binding": {
+        "binding_basis": "direct-market-symbol",
+        "economic_target": "EURUSD",
+        "provider_symbol": "EURUSD"
+      },
+      "market_thesis_fingerprint": "2ca70cfe787492c6781a092c8744db0d5434fb379ed1393ef1e65e2b167e0f33",
+      "provider_symbol": "EURUSD",
+      "source_digests": {
+        "backtest_sha256": "0cd994a736d8689de0e9364eee09e4e9057242795cc0c9663fc32a26aee53652",
+        "characterization_payload_sha256": "93016f1df69eec8119a4fa8926c41ac45b1cabc70d0db8341d3eac4555bc8447",
+        "characterization_sha256": "96f97689b985ed1fd0caac61dcccb04b23b36c0e0ab039dac5fdd63fd82125d3",
+        "failure_analysis_sha256": "517c71aecbafe55d74fa2a7197e607dc2a9318dad1c62603d541db1d66df4015",
+        "market_evidence_sha256": "5aef9233716140b25cba913dcd65a2a58ee36a4b610c0782d6bbdc20c75e58ee",
+        "walk_forward_sha256": "2ca3b1a38d8813bf9d5fda01fbcee320552bacbecd3703997f2873fe2d9ae1bb"
+      },
+      "story_fingerprint": "a753c22cebd714769c8a43ab1e591d1edc68c1e2fe0d6fd1695ab302d67dd960",
+      "story_payload_digest": "5b0f6fa8d7d44f202ef179add79e2252a268ffbea59e5856741908def16b144c",
+      "trader_evidence_digests": {
+        "vt-01": "aa0e50bdb7db3db8965d349de72ddd5499dd3d9e098a6617022912e272e88941",
+        "vt-08": "18d0866736bfafaa974f01332129ceeb99aaa71ebdd6944571f2006bbc8b980c",
+        "vt-09": "65f5f0629d1699ede6decbc40385da300c3a57652eceef2b594ddfd1d8c46a22",
+        "vt-17": "b8b98f60a8110954ae6142e20feecc0cbbfe9195ee20dd3ea9a89fd14a48b423",
+        "vt-31": "343bcbe1d23247d0caaf8f729e6e088fd296226c748ddfbde5f820f9c3249bfe"
+      }
+    },
+    "GBPJPY": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10126766969,
+          "content": "stage1",
+          "run": 34408479696,
+          "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+          "zip_sha256": "b99bafb3427d2ae0cca5930681f81cf405a13b76fd948fc433a91735d6abd802"
+        },
+        {
+          "artifact_id": 10127952856,
+          "content": "stage2",
+          "run": 34408479696,
+          "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+          "zip_sha256": "501cf3762829b954ea07e23caca57ec503b89a0bc091a2506d4f516757e29aac"
+        },
+        {
+          "artifact_id": 10131315152,
+          "content": "stage3",
+          "run": 34408479696,
+          "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+          "zip_sha256": "07fca21a7cc72b485868d2c551ad8e5f0398dabdfee576908f5a392f16a8fdea"
+        },
+        {
+          "artifact_id": 10133737547,
+          "content": "stage4",
+          "run": 34408479696,
+          "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+          "zip_sha256": "cadc8fe701141c8cc62cf6371ab72fe0e8a69086d9e08e9b2d8b8c2f900bae46"
+        },
+        {
+          "artifact_id": 10131359215,
+          "content": "stage5",
+          "run": 34408479696,
+          "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+          "zip_sha256": "12dc5b3bd466e18cab3e2a28571f88ed0204d49898bdf556ae714c8ee9630df5"
+        }
+      ],
+      "economic_market": "GBPJPY",
+      "identity_binding": {
+        "binding_basis": "direct-market-symbol",
+        "economic_target": "GBPJPY",
+        "provider_symbol": "GBPJPY"
+      },
+      "market_thesis_fingerprint": "68bbf195387fc02ad7a7869d604fecd42c90ca20f8a295a04fcea498a3e8f378",
+      "provider_symbol": "GBPJPY",
+      "source_digests": {
+        "backtest_sha256": "531f74816b7cfe260225e2659268f0143ed1f58623ddda1ca6b935eb5063494a",
+        "characterization_payload_sha256": "b7daf8465b6b9abb14608ab7d40dff329683d719d0978b98819736a81348a2b0",
+        "characterization_sha256": "3f7b86d88ede3028c31150995a53de009eb0742a181d71077dbca6a3ecd5bb00",
+        "failure_analysis_sha256": "04e28a8277d317eca246fd08e6f5823694e4cac9caf218d856c20178b9a0a0b1",
+        "market_evidence_sha256": "82b3801622e56da5f4ea1670cdb4604a74a34d8132b40f4c7517a7e7ac2efce1",
+        "walk_forward_sha256": "a9007aa419f520ebfefd1d264b3bc7320fb8bdab713cf2da06a449164df4b02c"
+      },
+      "story_fingerprint": "d6dea819e87a9a7196cd943b797cf2d3aa1a6c673b463f8b849e168bcc5c69f9",
+      "story_payload_digest": "f485338ad421c9ad85924c66dfc2ea877818132515b0df89ef1b1dcce8140373",
+      "trader_evidence_digests": {
+        "vt-01": "1501a3ccec8b21c2a0729217a4c4f446c7cc49872b8944388c57e0037f029464",
+        "vt-08": "d4cc9816caa7ff5e9844445c9c51376e7b8adbaf0a5a7cdc003658fcd18123d8",
+        "vt-09": "100de5f06b3c0144094a51d51cc1b1096be3726184fbeaa293d89fddbf200dfa",
+        "vt-17": "9717705aff97490fd796ece6e56016c03d5928f771a6a9dc60095cc29834249a",
+        "vt-31": "74ad08b9c3313b859778cb5923e724e5269e61d5cfb244355b8bd5ed60ff9ed2"
+      }
+    },
+    "GBPUSD": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10128945460,
+          "content": "retained-full",
+          "run": 34410292913,
+          "software_sha": "6a76ba9097e882c0e204e4eb9f61693b6a496aa5",
+          "zip_sha256": "f1bbff5a7f1ffe4790b366f24696efeceb1552cdf92a1fc64c9dfa46686beb97"
+        }
+      ],
+      "economic_market": "GBPUSD",
+      "identity_binding": {
+        "binding_basis": "direct-market-symbol",
+        "economic_target": "GBPUSD",
+        "provider_symbol": "GBPUSD"
+      },
+      "market_thesis_fingerprint": "7d316e9975eb223a822db2ce82721d7123acd3ff59cca0e65dfd8e5c8c193c44",
+      "provider_symbol": "GBPUSD",
+      "source_digests": {
+        "backtest_sha256": "240a6faf0c7eae50247a2788c902899a1a3fd8c425d026bbe524d09f28069e53",
+        "characterization_payload_sha256": "f5d90512a379df34997435c0ddc9dfc6fa482e2c81db8edd5f93e4cd7ab47ae6",
+        "characterization_sha256": "1fe86fb3cdaba57476cf1694ded48b272b7767ab08881c281c848506ea0052af",
+        "failure_analysis_sha256": "093ef9cfa308134e5cae8252777e338b5d6f91253dfef57abcf5e1d5988fc185",
+        "market_evidence_sha256": "8a220dd9e13f2eb654c080b1867cbf92108204ceba7a6b2813281e8aadfc397b",
+        "walk_forward_sha256": "0b837cedd47c520859b76886bcebe7b856eceee58eff9832abbe389b253e3267"
+      },
+      "story_fingerprint": "bc52de09204e26962874954599f0a193e2e1e2de9212e469c24f7b9646590153",
+      "story_payload_digest": "752d6b30adda8b685ae1e66e4aa530361a60ae5ad1d916938f2ee66835015e33",
+      "trader_evidence_digests": {
+        "vt-01": "f9bbe109d9f45643965608e4cbf3214c61eccbdc0d6562e49793cbff7bd9fe30",
+        "vt-08": "a8a00095af2953942e226277be2d6c7481e5d34380a4f56b858a7bdb1589f10a",
+        "vt-09": "48bec811c32de8fbbcda49e89a575f769be668e44daaf2ad6ba3eb5dbdfac577",
+        "vt-17": "c64e1ece4bc3d7cbfde0b7b64e5bdc6cb696078615db5908075b0068137968fa",
+        "vt-31": "417e11c4e31aad8849bb5293af7b3a7e54b2c73eee11809051d11580ad81c269"
+      }
+    },
+    "NAS100": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10128644190,
+          "content": "source-except-stage4",
+          "run": 34410292913,
+          "software_sha": "6a76ba9097e882c0e204e4eb9f61693b6a496aa5",
+          "zip_sha256": "8c0a2add474190088131e4fcedfe1148848291d437d3fddcab178a423d5cab8d"
+        },
+        {
+          "artifact_id": 10133837821,
+          "content": "stage4",
+          "run": 34376439792,
+          "software_sha": "8f60ca5d1eb732cf5a3caab5b2b1403e15c1e797",
+          "zip_sha256": "57ff07fc5e558400fa222ca4398efa455685b41371e99d1269d5a7d2a61f56e4"
+        }
+      ],
+      "economic_market": "NAS100",
+      "identity_binding": {
+        "binding_basis": "enabled-alias+provider-target-description+exact-symbol-details-v1",
+        "economic_target": "NAS100",
+        "provider_identity_sha256": "41e4fc948e53e0a9fd621444d642650ca724ef934e56eb946747d6e10cc17569",
+        "provider_symbol": "USTEC",
+        "stage1_status_sha256": "d119eb0a1ed89bd2ef0762c3bf2f2b9497952c96a8e816171c9c3b24142a1e2d"
+      },
+      "market_thesis_fingerprint": "beea0beb70638139df827e07f03263a31aab62596518cd45537b391940211543",
+      "provider_symbol": "USTEC",
+      "source_digests": {
+        "backtest_sha256": "bacfc36830470175a4d4ed3f8d9705dbe25d67a5ae6f002e989db90befd2e2fc",
+        "characterization_payload_sha256": "803048eeee6b5d6b16345e43724bf9c5135268c81f69be505917e382e9f6a9c9",
+        "characterization_sha256": "03558844dc0ed17b3a05f3bf4f5ac9c968de12ed7d5942563efcae8d0af68b1e",
+        "failure_analysis_sha256": "3022e2dbd8a5a38f7c7e35cefe3be7d8f9f307583de5d5e7e1afbede4ce6d32d",
+        "market_evidence_sha256": "9035657a20560e8e279d631a67f085d4b187e3244a4550b1ff3a00ea539fe72f",
+        "walk_forward_sha256": "319f673a8c5cd8700770544c06a67d33771e8268e815c2b11a861a32f58363d1"
+      },
+      "story_fingerprint": "489270aa41f7110234b1ca22bdf002a9edc037462c4a7ce60ecd50ce7d7a3d40",
+      "story_payload_digest": "adb8a56ab2087c7455101ca2636ae41a3289b7f7bda61ace4fb7bf448c271fb0",
+      "trader_evidence_digests": {
+        "vt-01": "840f18344a1e08ae0ef8dc5cc144d65214c15f4d5674bcd39b741502d4b65f7e",
+        "vt-08": "b7e6ea1baea9201d04d585457dbd768f70943b3d03e8185333d8111532afb361",
+        "vt-09": "aec6b9dd9646e2fa3d3dc8afebcacbd81886cc8e84bd37c83b64a2d2321e5813",
+        "vt-17": "015bfb7d0b1ab80de413175bde78a4190a70de3aea85661989efe98439835360",
+        "vt-31": "eeeb8a34ba3ce27211e24089c6f9092c7476967bd694ef11ea33f73bb5127af8"
+      }
+    },
+    "SP500": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10128611130,
+          "content": "source-except-stage4",
+          "run": 34410292913,
+          "software_sha": "6a76ba9097e882c0e204e4eb9f61693b6a496aa5",
+          "zip_sha256": "c9bb3f7b4f15fe5fac602bd621617d3739384ca71eb6328bfff20b34fd4e5641"
+        },
+        {
+          "artifact_id": 10135078991,
+          "content": "stage4",
+          "run": 34376439792,
+          "software_sha": "8f60ca5d1eb732cf5a3caab5b2b1403e15c1e797",
+          "zip_sha256": "416acb2a9e2626961d1b635f0879f5ab765b9e3e78bedbda8b8e429c88c4e0e5"
+        }
+      ],
+      "economic_market": "SP500",
+      "identity_binding": {
+        "binding_basis": "enabled-alias+provider-target-description+exact-symbol-details-v1",
+        "economic_target": "SP500",
+        "provider_identity_sha256": "83442dc7fa32aa043ddd0e61a87e007e66e59a12f537b3b162bc8ce35a77c092",
+        "provider_symbol": "US500",
+        "stage1_status_sha256": "eb1f05ac751f2314cd4a31a654d00828478f304ab66406970b84f62b1d9f08e4"
+      },
+      "market_thesis_fingerprint": "ff125fcc59de76d374f7c59e93e34146bb99db06db6c6d64bc41ac1d449d86f3",
+      "provider_symbol": "US500",
+      "source_digests": {
+        "backtest_sha256": "94c07ec2f129ac86fe6e99e4c00e64b8fdd715ea1613e270ab9e425573f5a133",
+        "characterization_payload_sha256": "22919846a7526633330cf37f0ebc836ee7dd31117183e1bda3c400b829e4b2fa",
+        "characterization_sha256": "e394ea29c4d8fcbea9af4c5bd31514687e13f3a668b492a705ed053423bb351f",
+        "failure_analysis_sha256": "c33f33792e197db39041ed62acb466ededaac7f7f5594635ea438b349fd65a24",
+        "market_evidence_sha256": "2b1dc4eeba4050c363ed4f58bae10c4fe5204f09fb43ea3197bcd209b2c6b43f",
+        "walk_forward_sha256": "c0cc126d7aaf2cd80d59fd9e55adaf4d047f938413ab03aa4f1fdec1b461b6b0"
+      },
+      "story_fingerprint": "ef9270b6738e306fd5d2941ad5d0dacc87e97103e9bf77309ac1582d38b8da8c",
+      "story_payload_digest": "2e741abe1e51f654b3901c599afbd90893da0655237ed64d17d5b857ef27a354",
+      "trader_evidence_digests": {
+        "vt-01": "2418917f843205e74287eabdb1443a0606a89641e9f4adb858fcda0952227212",
+        "vt-08": "8de29dd86e8986cd33d81db4786e93dd39e68128399147a0ac67ff49d9770122",
+        "vt-09": "3855eda2c08ca4911d2d101c890d7a2de93cf9c0fc8584c37e8ac2580558d6fc",
+        "vt-17": "805af6cb81977b7f7e45712ad00d3c191173dd94cdd067d1bdea96b25f751b9a",
+        "vt-31": "bc7e4e8370c7d8f882f4a78e71028f547b51cc87d1d77a6da086fc6ba1da1e02"
+      }
+    },
+    "US30": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10135672548,
+          "content": "stage1",
+          "run": 34433561975,
+          "software_sha": "c8fb10334f0af37cc2dc73e36afee35ce7aa9bd7",
+          "zip_sha256": "6ea16ace4ffa89bc51edb20713e0f9be08f14e1a80e8b7048b36a5faa11dc045"
+        },
+        {
+          "artifact_id": 10136366351,
+          "content": "stage2",
+          "run": 34433561975,
+          "software_sha": "c8fb10334f0af37cc2dc73e36afee35ce7aa9bd7",
+          "zip_sha256": "c4d915b2bbce8164b12723fd08e624fe1c4e7f2918ac82274080eed1c0e3d31a"
+        },
+        {
+          "artifact_id": 10138842023,
+          "content": "stage3",
+          "run": 34433561975,
+          "software_sha": "c8fb10334f0af37cc2dc73e36afee35ce7aa9bd7",
+          "zip_sha256": "5435098de6e403f60e9df1faf039fd36762b330b84f743cd9b8702e12c4fa87a"
+        },
+        {
+          "artifact_id": 10142855889,
+          "content": "stage4",
+          "run": 34433561975,
+          "software_sha": "c8fb10334f0af37cc2dc73e36afee35ce7aa9bd7",
+          "zip_sha256": "d9f51ac0c3e91e5cb994f11ee17cab2af48677f8aa709ef59ca4d33fa2153fd1"
+        },
+        {
+          "artifact_id": 10138848594,
+          "content": "stage5",
+          "run": 34433561975,
+          "software_sha": "c8fb10334f0af37cc2dc73e36afee35ce7aa9bd7",
+          "zip_sha256": "35a1e99975cba14873947ff099b4e4458f94633541eaf4b9f285183891449077"
+        }
+      ],
+      "economic_market": "US30",
+      "identity_binding": {
+        "binding_basis": "direct-market-symbol",
+        "economic_target": "US30",
+        "provider_symbol": "US30"
+      },
+      "market_thesis_fingerprint": "74c7d61f8c2bc5517feab8758b48d254fdf02071f1801e0c97498ed2ab64cbe9",
+      "provider_symbol": "US30",
+      "source_digests": {
+        "backtest_sha256": "28bcacf67d7d8cfef6f0859894c4991a40999e5bc1e82d8644af042ac10f7411",
+        "characterization_payload_sha256": "ef3db495ffffcc0b02115f76a15fdcb8c8554bf6c9b44e084475145800606f73",
+        "characterization_sha256": "8b3278cf8f33b89255a61eef105488bf49b9d8352df1bb790930e6cfa5ec4c69",
+        "failure_analysis_sha256": "b0cf81230d30f40f67a2fbe9c21d1fa58b41a1fe0289948f766e9ed1ff705699",
+        "market_evidence_sha256": "2552449228746afee52cae12b0f85e211b4210ec88c8d1dad2fd6781f73ba9a1",
+        "walk_forward_sha256": "70fb24ff5cd7c474e4fb1b1958c8fb0bf0ec1aabb1ad830bb891cb147dd520b6"
+      },
+      "story_fingerprint": "d14ce2bfcebc389b1e3391674008542ce59793a17ab1c163384a91b6124ec6fe",
+      "story_payload_digest": "248de328b1abe7317f1ee8539a2c161e5c9c84851e614fbeb1f6855507ed6dad",
+      "trader_evidence_digests": {
+        "vt-01": "c6a0f8c2c12d68d8260b9af44b8c301e8cc26ed5eb5cea766d0ef2cb68675fb8",
+        "vt-08": "e6721c982f983d21c491f0b6914d094786a789cfbf64862bb8dcdad6fccbdaa3",
+        "vt-09": "23170429731cae55af39e175affdda3980057efc707a952743bce4b3f9f40ed4",
+        "vt-17": "f5cf68b35b9de172cdf46a1d80ff38b8ac7fdec5584cefdde8990b9e50f35d74",
+        "vt-31": "7e8e9b6332786ab4bf334672528d1ebd6798dd88aaa6fe2ca835917b50cbcb6b"
+      }
+    },
+    "USDCAD": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10128813867,
+          "content": "retained-full",
+          "run": 34410292913,
+          "software_sha": "6a76ba9097e882c0e204e4eb9f61693b6a496aa5",
+          "zip_sha256": "baddc7b0a15067395925746f3854742f6246f2931430412a8ecf4d09163a548e"
+        }
+      ],
+      "economic_market": "USDCAD",
+      "identity_binding": {
+        "binding_basis": "direct-market-symbol",
+        "economic_target": "USDCAD",
+        "provider_symbol": "USDCAD"
+      },
+      "market_thesis_fingerprint": "0e99a1f2b8ea20aae3450a3c9875a0cf75ea9c14be655ea488cbc37f0462760e",
+      "provider_symbol": "USDCAD",
+      "source_digests": {
+        "backtest_sha256": "bd48dce7e5b12c9ca2c96e5da9b0e75282367d4de5f4826478a62a6fe666cef7",
+        "characterization_payload_sha256": "f2ef2eb8709953dd70f54a220fef3656d7db0e1eb89a2245f7ec8a3996768b45",
+        "characterization_sha256": "d12be4dfe99d36669d570101f1610a5db07131c80bcacca710c9b67536f5fe32",
+        "failure_analysis_sha256": "6b0100b61a02e518efbfa18d95f31ed31815dafb08d4031562bfec4fd5a694fb",
+        "market_evidence_sha256": "7b72411216098a9bcfe250b95eb4c8346c8c2d8e0e9752be7cc845a3f2297ff1",
+        "walk_forward_sha256": "c787c82df0a74b434bf04b801768ea72ce4c9bfea4451f41e640bfa655e1fa27"
+      },
+      "story_fingerprint": "ef0206768bb3f57c87a3962cf238991d56e1fc47839868da10e0c428fe0f0880",
+      "story_payload_digest": "6883f7578c8147a2f4f3ea4088d9bdd6fda3a9834180fd6058191ab14e4e9db9",
+      "trader_evidence_digests": {
+        "vt-01": "b89524b4f87d71e49a5ef9f7269dd93a665880c376cd565f41495e457bffe86e",
+        "vt-08": "68f83d7558696cb51664177b20ffcd68d3c50ded201e170d769bdadd21c0f378",
+        "vt-09": "76a2ab4101a1b617abccb72e1db3811f4ae19623cb0126a65aae3b02cb0b87bd",
+        "vt-17": "6854af2abea8252364653e8c5456d07ed28af7185f136d664a549afe9b73cb89",
+        "vt-31": "368a74fb4fb6a610a7daf522d2313b3df251ae83fc6de9872931f2aa72fc9b75"
+      }
+    },
+    "USDJPY": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10128928165,
+          "content": "retained-full",
+          "run": 34410292913,
+          "software_sha": "6a76ba9097e882c0e204e4eb9f61693b6a496aa5",
+          "zip_sha256": "584b6ef99f42121b006cd300ef33b59d4e3dd0966a44c2df6210350e9e1d3117"
+        }
+      ],
+      "economic_market": "USDJPY",
+      "identity_binding": {
+        "binding_basis": "direct-market-symbol",
+        "economic_target": "USDJPY",
+        "provider_symbol": "USDJPY"
+      },
+      "market_thesis_fingerprint": "a960eb9b5d27892949c3e7c01e376aff0b4492e7b60848a7e3b4f2d36496b1b7",
+      "provider_symbol": "USDJPY",
+      "source_digests": {
+        "backtest_sha256": "fc3a476371448a4f9ad28995645a2a293d3abe5ade0ebbe956463c501440c882",
+        "characterization_payload_sha256": "fa67fc6ec7be85c98c62ef41a9146306996c010d32c4d128eea045508d5dbd7f",
+        "characterization_sha256": "1708a5aaf35d5bca50e4f69aef7457748f5bd047c74b4cd04bca73480ffc742b",
+        "failure_analysis_sha256": "409afca08067586764d308cf4d9ae37517fd4112198c8b37df9e049d25d0b914",
+        "market_evidence_sha256": "7f12cd3e3325d4e2f54cf285bc0984eb33560a2c2a6d618d76ab30cca650f759",
+        "walk_forward_sha256": "bd61135501dea8d5ff1622a173d025082e637740f9bb499aaef21d6cfc1ed09f"
+      },
+      "story_fingerprint": "f3162ad877dd71ddcc076a657f2f0deb93252bda93cbcb03e408347b88564112",
+      "story_payload_digest": "89f1941f020497b534c683be8c6775d1b5770d3536c97ac5190767408c7d7ebf",
+      "trader_evidence_digests": {
+        "vt-01": "9fe1ec19c6491a4f9c3ca6cf8655b86c119613f199119d39ed5fa8dd25104c3f",
+        "vt-08": "a15841a7760375075be5e292aad35379333f61f6fc05317fd822977120b88c11",
+        "vt-09": "0f6f6cfc0688d9fc30c0859bcd9d10f013895fadb17c2eaa027bf10c254feb21",
+        "vt-17": "81b70c5d3a4d4a90ce42423c314281bc57e8757e347a0f776881ebea89218071",
+        "vt-31": "e95a1d89445e91bd97aae99ff0a3a37560d8f3b3e1d0ff2aed6fcb4db209f047"
+      }
+    },
+    "XAUUSD": {
+      "artifact_bindings": [
+        {
+          "artifact_id": 10128461139,
+          "content": "retained-full",
+          "run": 34410292913,
+          "software_sha": "6a76ba9097e882c0e204e4eb9f61693b6a496aa5",
+          "zip_sha256": "8cd9ea7beb9f043c1187ae3502b148d57a9097968f1f5bb4b74fcfe77b8efd0d"
+        }
+      ],
+      "economic_market": "XAUUSD",
+      "identity_binding": {
+        "binding_basis": "direct-market-symbol",
+        "economic_target": "XAUUSD",
+        "provider_symbol": "XAUUSD"
+      },
+      "market_thesis_fingerprint": "9cf3b29922dbcfbd4e30c6be3e6aab2a1a7a1b3fa26161ebf5947d83dccd6a05",
+      "provider_symbol": "XAUUSD",
+      "source_digests": {
+        "backtest_sha256": "80cd8623933adf5bdadc121082d295b38d62fc682fa585ce200ea5898b0e3952",
+        "characterization_payload_sha256": "adfa8259f876200bb8f731d884caf9a23593c96b88f05878b8da5a02144db00d",
+        "characterization_sha256": "b2572fca9ad5164a22a507e3c9cde6670188385a586a30b33ad0db7f61053f92",
+        "failure_analysis_sha256": "a5d736dfb14eb8cfac765ae1719de6a861715ea1820a0e8049e3ed09cf446fec",
+        "market_evidence_sha256": "b9987b641b9c6dbc446b76dbaba969bdf0e0426fb495dc1696257a8879039d76",
+        "walk_forward_sha256": "cfdabccae1c3e4f0e58bbca8bab1dd149bcee6f88874bc96dafff2d22fe5d93c"
+      },
+      "story_fingerprint": "1511ac396bd22ee6366fe9d0c3b9879e5b496180832ec1b9d921fd066bd614b2",
+      "story_payload_digest": "05031d6f5af02390d9fd73e7c23409841bf8516b780a45443f321ab193fc9240",
+      "trader_evidence_digests": {
+        "vt-01": "36e08c2bbfaf585300e242da91442aae14b09a2cbd0e5e6ad555c00bee28c06f",
+        "vt-08": "7c8e8d73c278d8d633c1d54146253e2a90418cb7e99019e199d3144f1531d725",
+        "vt-09": "e63a0bc1479aa4c89cb238f40008bdcc24a73886ee8ba27a0a95aa96640396cf",
+        "vt-17": "e7cfd95eddb30c771beb91f1f6d78d3f2144197171c1126bfbc506a778f185f7",
+        "vt-31": "33e06ac0f40970c2a9d425d7476073bd85c8fbaf8fa0020d884bc7cf052b21cb"
+      }
+    }
+  },
+  "retained_index": {
+    "artifact_id": 10128994479,
+    "run": 34410292913
+  },
+  "schema": "qore.audit.trader_story_forensics_independent_evidence.v1"
+}

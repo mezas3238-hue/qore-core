@@ -1,0 +1,99 @@
+name: QORE cTrader DEMO Lab Market Evidence
+
+on:
+  push:
+    branches:
+      - agent/qore-demo-first-execution-vertical-cert-001
+    paths:
+      - .github/workflows/ctrader-demo-lab-market-evidence.yml
+      - src/qore/infrastructure/ctrader_demo_account_discovery.py
+      - src/qore/infrastructure/ctrader_demo_lab_probe.py
+      - src/qore/infrastructure/ctrader_open_api_client.py
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_DEMO_LAB_SYMBOL: ${{ vars.QORE_DEMO_LAB_SYMBOL || 'EURUSD' }}
+  QORE_DEMO_LAB_LOOKBACK_DAYS: "30"
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify required DEMO secrets are present without printing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN \
+            QORE_DEMO_LAB_SYMBOL
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO runtime input: ${name}" >&2
+              exit 2
+            fi
+          done
+      - name: Discover the single authorized DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect native M1 M5 M15 H4 read-only evidence
+        run: |
+          mkdir -p artifacts/ctrader-demo-lab-market
+          python -m qore.infrastructure.ctrader_demo_lab_probe \
+            > artifacts/ctrader-demo-lab-market/market-evidence.json
+          printf '%s\n' "$GITHUB_SHA" \
+            > artifacts/ctrader-demo-lab-market/git-sha.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(
+                  "artifacts/ctrader-demo-lab-market/market-evidence.json"
+              ).read_text()
+          )
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["account_discovered"] is True
+          assert payload["account_is_live"] is False
+          assert payload["trading_permission_verified"] is True
+          assert set(payload["periods"]) == {"M1", "M5", "M15", "H4"}
+          assert all(payload["periods"][period] for period in payload["periods"])
+          assert len(payload["account_fingerprint"]) == 64
+          PY
+      - name: Upload sanitized cTrader DEMO Lab evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-ctrader-demo-lab-market-${{ github.sha }}
+          path: artifacts/ctrader-demo-lab-market
+          if-no-files-found: error
+          retention-days: 30

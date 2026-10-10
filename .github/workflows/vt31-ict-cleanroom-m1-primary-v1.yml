@@ -1,0 +1,54 @@
+name: VT31 ICT Cleanroom M1 Primary Entry Gate V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-ict-cleanroom-rebuild-20261009
+    paths:
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/m1_execution.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py
+      - tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py
+      - .github/workflows/vt31-ict-cleanroom-m1-primary-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  original-ict-m1-only-structure-fvg-entry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Primary M1 rules / no HTF entry / no fake fill
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            src/qore/infrastructure/traders/vt31_ict_cleanroom/m1_execution.py \
+            src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py
+          PYTHONPATH=src python -m unittest discover \
+            -s tests/infrastructure \
+            -p test_vt31_ict_cleanroom_m1_execution.py -v
+          PYTHONPATH=src python -m unittest discover \
+            -s tests/infrastructure \
+            -p test_vt31_ict_cleanroom_ops.py -v
+      - name: Machine-check one VT31, M1 entry, HTF context only
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src python - <<'PY'
+          from qore.infrastructure.traders.vt31_ict_cleanroom.m1_execution import (
+              required_timeframe_contract,
+          )
+          x=required_timeframe_contract()
+          assert x["trader_id"]=="VT31"
+          assert x["primary_execution_timeframe"]=="M1"
+          assert x["mss_and_displacement_execution_timeframe"]=="M1"
+          assert x["fvg_creation_timeframe"]=="M1"
+          assert x["source_candle_size_seconds"]==60
+          assert x["htf_context_only"]==("M15","H1","H4")
+          assert x["m15_h1_h4_are_entry_triggers"] is False
+          assert x["live_authorized"] is False
+          PY

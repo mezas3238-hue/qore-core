@@ -196,11 +196,11 @@ def test_ctrader_relative_prices_honor_symbol_digits() -> None:
     assert snapshot.close == 1.1
 
 
-def test_ctrader_rejects_non_m5_request_before_client_call() -> None:
+def test_ctrader_rejects_unadmitted_native_request_before_client_call() -> None:
     client = StubCTraderClient(Success(_result()))
     adapter = CTraderDemoMarketDataPayloadAdapter(client=client)
 
-    result = adapter.read_external_ohlc(_request(timeframe_seconds=900), metadata=_metadata())
+    result = adapter.read_external_ohlc(_request(timeframe_seconds=120), metadata=_metadata())
 
     assert isinstance(result, Failure)
     assert isinstance(result.error, CTraderDemoMarketDataUnsupportedError)

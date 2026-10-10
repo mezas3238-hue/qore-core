@@ -1,0 +1,78 @@
+name: VT31 ICT Cleanroom Actual 3Y NAS100 Source Fast V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-ict-cleanroom-rebuild-20261009
+    paths:
+      - scripts/vt31_ict_cleanroom_source_stream_fast_v1.py
+      - .github/workflows/vt31-ict-cleanroom-3y-source-fast-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  FROZEN_M1_ID: "11459859004"
+
+jobs:
+  original-ict-3y-zero-cognition-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate new cleanroom source runner
+        run: |
+          set -euo pipefail
+          python -m pip install "ijson>=3.3,<4"
+          python -m py_compile scripts/vt31_ict_cleanroom_source_stream_fast_v1.py
+          PYTHONPATH=src python scripts/vt31_ict_cleanroom_source_stream_fast_v1.py --self-test
+      - name: Restore frozen true 3Y M1 market facts, NOT old VT31 outcomes
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FROZEN_M1_ID}/zip" > frozen.zip
+          unzip -q frozen.zip -d input
+          test -s input/NAS100/market-evidence.json
+      - name: Run new Silver Bullet source for all 3Y windows; fail closed without COG
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src python scripts/vt31_ict_cleanroom_source_stream_fast_v1.py \
+            --evidence input/NAS100/market-evidence.json \
+            --output result/cleanroom-3y-zero-cog-source.json \
+            | tee result/cleanroom-3y-source-summary.json
+      - name: Strict governance and denominator checks
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('result/cleanroom-3y-zero-cog-source.json').read_text())
+          assert x['trader_id']=='VT31'
+          assert x['source_m1']==1059784
+          assert x['session_model_count']==2
+          assert x['source_window_count']==3
+          assert x['full_source_window_days']=={
+              'VT31_LONDON':774,'VT31_NY_AM':771,'VT31_NY_PM':741
+          }
+          assert x['cognitive_decisions']==0
+          assert x['paper_or_live_orders']==0
+          assert x['filled_trades']==0
+          assert x['fresh_holdout_opened'] is False
+          assert x['live_authorized'] is False
+          assert x['profit_factor']=='UNAVAILABLE_NO_TRADES'
+          PY
+      - name: Exact reproducing commit and market evidence IDs
+        run: |
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "$FROZEN_M1_ID" > result/frozen-evidence-id.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ict-cleanroom-real-3y-no-cog-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

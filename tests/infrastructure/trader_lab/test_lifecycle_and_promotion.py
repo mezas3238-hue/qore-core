@@ -391,6 +391,31 @@ def test_demo_eligible_requires_full_chain_and_economic_evidence(
     assert with_economic.reasons == ()
 
 
+def test_independent_validation_cannot_skip_distinct_economic_evidence_stage(
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _EvidenceFactory,
+    economic_reference_factory: Callable[
+        [TraderLabCandidateBinding], TraderLabEvidenceReference
+    ],
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = start_trader_lab_lifecycle(candidate)
+    through_independent = MANDATORY_STAGES[:-1]
+    lifecycle = _qualify_through(
+        lifecycle, candidate, stage_evidence_factory, through_independent
+    )
+
+    assert lifecycle.state is TraderLabState.INDEPENDENTLY_VALIDATED
+    decision = evaluate_demo_eligibility(
+        lifecycle, economic_evidence=economic_reference_factory(candidate)
+    )
+    assert (
+        decision.status
+        is TraderLabPromotionStatus.NOT_ELIGIBLE_MISSING_ECONOMIC_EVIDENCE
+    )
+    assert lifecycle.completed_stages[-1] is TraderLabStage.INDEPENDENT_VALIDATION
+
+
 def test_blocked_state_reports_not_eligible_blocked(
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _EvidenceFactory,
@@ -435,6 +460,7 @@ def test_canonical_stage_ordering_is_deterministic(
         TraderLabStage.RISK_REVIEW,
         TraderLabStage.CIBO_REVIEW,
         TraderLabStage.INDEPENDENT_VALIDATION,
+        TraderLabStage.ECONOMIC_EVIDENCE,
     )
 
 

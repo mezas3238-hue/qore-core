@@ -1,0 +1,58 @@
+name: VT31 ICT Cleanroom Real MT5 Observed NDX100 Economics V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-ict-cleanroom-rebuild-20261009
+    paths:
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/observed_broker_economics.py
+      - tests/infrastructure/test_vt31_ict_cleanroom_observed_broker_economics.py
+      - .github/workflows/vt31-ict-cleanroom-mt5-observed-economics-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prove-observed-value-without-false-broker-certification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate actual MT5 screenshot observations
+        run: |
+          set -euo pipefail
+          python -m py_compile src/qore/infrastructure/traders/vt31_ict_cleanroom/observed_broker_economics.py
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure \
+            -p test_vt31_ict_cleanroom_observed_broker_economics.py -v
+      - name: Archive owner-observed symbol calibration but NEVER assert live specs
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          PYTHONPATH=src python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.traders.vt31_ict_cleanroom.observed_broker_economics import (
+              screenshot_economic_observation,
+          )
+          report=screenshot_economic_observation()
+          assert report["observed_mt5_symbol"]=="NDX100"
+          assert report["hypothesized_ten_account_currency_units_per_point_per_lot"]
+          assert report["observed_commission_account_currency"]=="0.00"
+          assert report["historical_bid_ask_tick_source_available"] is False
+          assert report["safe_to_use_for_live_sizing"] is False
+          Path("output/mt5-observed-ndx100-economics.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True)+"\n"
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+          echo "${GITHUB_SHA}" > output/git-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ndx100-mt5-observed-economic-facts-${{ github.sha }}
+          path: output/
+          if-no-files-found: error
+          retention-days: 90

@@ -55,6 +55,7 @@ class TraderLabStage(StrEnum):
     RISK_REVIEW = "risk_review"
     CIBO_REVIEW = "cibo_review"
     INDEPENDENT_VALIDATION = "independent_validation"
+    ECONOMIC_EVIDENCE = "economic_evidence"
 
 
 class TraderLabEvidenceKind(StrEnum):
@@ -96,6 +97,9 @@ STAGE_ALLOWED_EVIDENCE_KINDS: dict[TraderLabStage, frozenset[TraderLabEvidenceKi
     TraderLabStage.CIBO_REVIEW: frozenset({TraderLabEvidenceKind.CIBO_REVIEW}),
     TraderLabStage.INDEPENDENT_VALIDATION: frozenset(
         {TraderLabEvidenceKind.INDEPENDENT_VALIDATION}
+    ),
+    TraderLabStage.ECONOMIC_EVIDENCE: frozenset(
+        {TraderLabEvidenceKind.ECONOMIC_EVALUATION}
     ),
 }
 

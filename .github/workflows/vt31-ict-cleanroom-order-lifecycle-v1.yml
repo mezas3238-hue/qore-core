@@ -1,0 +1,48 @@
+name: VT31 ICT Cleanroom Quote Order Lifecycle V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-ict-cleanroom-rebuild-20261009
+    paths:
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/contracts.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/order_lifecycle.py
+      - tests/infrastructure/test_vt31_ict_cleanroom_order_lifecycle.py
+      - .github/workflows/vt31-ict-cleanroom-order-lifecycle-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quote-order-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prove quote lifecycle without old VT31, live router or fabricated fill
+        run: |
+          set -euo pipefail
+          python -m compileall -q src/qore/infrastructure/traders/vt31_ict_cleanroom
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure \
+            -p test_vt31_ict_cleanroom_order_lifecycle.py -v
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure \
+            -p test_vt31_ict_cleanroom_ops.py -v
+      - name: Guard single trader identity, broker acknowledgement and no external routing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          t=Path("src/qore/infrastructure/traders/vt31_ict_cleanroom/order_lifecycle.py").read_text()
+          assert 'TRADER_ID = "VT31"' in t
+          assert 'PENDING_UNROUTED' in t
+          assert 'QUOTE_CROSSED_NOT_FILLED' in t
+          assert 'CANCEL_ACK_RACE_REQUIRES_RECONCILIATION' in t
+          assert '"paper_or_live_order_submitted": False' in t
+          assert '"broker_api_called": False' in t
+          assert '"live_authorized": False' in t
+          assert "vt31_silver_bullet" not in t
+          assert "vt31_nas100_" not in t
+          PY

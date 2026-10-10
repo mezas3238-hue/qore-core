@@ -30,6 +30,12 @@ from qore.infrastructure.trader_lab.fast_forward import (
     qualify_trader_lab_fast_forward,
     reference_trader_lab_fast_forward,
 )
+from qore.infrastructure.trader_lab.first_cohort_story_forensics import (
+    FirstCohortStoryForensicsError,
+    StoryClassification,
+    StoryOutcome,
+    run_story_forensics,
+)
 from qore.infrastructure.trader_lab.governed_gate import (
     TraderLabExternalEvidenceDependencyError,
     TraderLabGovernedAuthenticityProof,
@@ -118,6 +124,9 @@ from qore.infrastructure.trader_lab.stage_evidence import (
 __all__ = [
     "MANDATORY_STAGES",
     "STAGE_ALLOWED_EVIDENCE_KINDS",
+    "FirstCohortStoryForensicsError",
+    "StoryClassification",
+    "StoryOutcome",
     "TraderLabCandidateBinding",
     "TraderLabCandidateFingerprint",
     "TraderLabCandidateId",
@@ -197,6 +206,7 @@ __all__ = [
     "reference_trader_lab_fast_forward",
     "reference_trader_lab_monte_carlo",
     "reference_trader_lab_stress",
+    "run_story_forensics",
     "start_trader_lab_lifecycle",
     "validate_trader_lab_evidence_reference",
     "validate_trader_lab_governed_authenticity_proof",

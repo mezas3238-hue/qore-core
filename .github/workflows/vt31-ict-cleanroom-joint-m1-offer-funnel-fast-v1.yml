@@ -1,0 +1,102 @@
+name: VT31 ICT Cleanroom Actual 3Y M1 Offer Funnel Fast V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-ict-cleanroom-rebuild-20261009
+    paths:
+      - scripts/vt31_ict_cleanroom_joint_m1_offer_audit_fast_v1.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/order_lifecycle.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py
+      - .github/workflows/vt31-ict-cleanroom-joint-m1-offer-funnel-fast-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-ict-cleanroom-joint-offers-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  SOURCE_ARTIFACT_ID: "11459859004"
+  VT31_INPUT_SOURCE_SHA256: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+
+jobs:
+  single-vt31-3y-m1-cognitive-offer-ledger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test source, broker order audit, research offer runner
+        run: |
+          set -euo pipefail
+          python -m pip install "ijson>=3.3,<4"
+          python -m py_compile scripts/vt31_ict_cleanroom_joint_m1_offer_audit_fast_v1.py
+          PYTHONPATH=src python scripts/vt31_ict_cleanroom_joint_m1_offer_audit_fast_v1.py --self-test
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure -p test_vt31_ict_cleanroom_ops.py -v
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure -p test_vt31_ict_cleanroom_order_lifecycle.py -v
+      - name: Verify 3Y NAS100 owner-frozen market evidence SHA
+        run: |
+          set -euo pipefail
+          mkdir -p input output
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}/zip" > market.zip
+          unzip -q market.zip -d input
+          test -s input/NAS100/market-evidence.json
+          test "$(sha256sum input/NAS100/market-evidence.json | cut -d ' ' -f 1)" = "${VT31_INPUT_SOURCE_SHA256}"
+      - name: Run actual 3Y original M1 COG-to-OPS research order funnel
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src python scripts/vt31_ict_cleanroom_joint_m1_offer_audit_fast_v1.py \
+            --evidence input/NAS100/market-evidence.json \
+            --output output/vt31-ict-cleanroom-3y-m1-offer-ledger.json \
+            | tee output/research-only-summary.json
+      - name: Fail closed on missing quote/tick + enforce candidate ledger
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          r=json.loads(Path("output/vt31-ict-cleanroom-3y-m1-offer-ledger.json").read_text())
+          assert r["market_m1_count"]==1059784
+          assert r["registered_traders"]==1
+          assert r["session_models"]==["LONDON","NEW_YORK"]
+          assert r["three_window_coverage"]=={
+              "VT31_LONDON":774,"VT31_NY_AM":771,"VT31_NY_PM":741
+          }
+          assert r["source_fvg_hypothesis_count"]==len(r["events"])
+          assert sum(r["candidate_count_by_window"].values())==len(r["events"])
+          assert r["source_fvg_hypothesis_count"]>0
+          assert r["terminal_source_invalidation_reason_counts"].get(
+              "ORIGINAL_M1_MSS_THESIS_REPLACED", 0
+          ) == 0, "ICT original does not automatically revoke first FVG for supportive later MSS"
+          assert r["post_revocation_m1_price_touches_excluded"] is True
+          assert r["historical_bid_ask_tick_stream_supplied"] is False
+          assert r["real_historical_broker_quote_ticks"]==0
+          assert r["paper_fills_proven"]==r["live_fills_proven"]==0
+          assert r["profit_factor"] is None
+          assert r["max_drawdown"] is None
+          assert r["fresh_holdout_opened"] is False
+          assert r["trader_lab_economic_certification"]=="BLOCKED_WITHOUT_TIMED_QUOTES_AND_COSTS"
+          assert all(
+              x["actual_broker_order_submitted"] is False
+              and x["broker_execution_ack"] is None
+              for x in r["events"]
+          )
+          print("CLEANROOM 3Y M1 SOURCES + ORDER LEDGER PASS; BROKER FILLS NOT PROVEN.")
+          PY
+      - name: Freeze report Git SHA and source id
+        run: |
+          echo "${GITHUB_SHA}" > output/git-sha.txt
+          echo "${SOURCE_ARTIFACT_ID}" > output/frozen-market-artifact-id.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ict-cleanroom-real-3y-m1-offer-ledger-${{ github.sha }}
+          path: output/
+          retention-days: 90
+          if-no-files-found: error

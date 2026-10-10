@@ -1,0 +1,63 @@
+name: VT31 ICT Original Cleanroom Rebuild P0
+
+on:
+  push:
+    branches:
+      - agent/vt31-ict-cleanroom-rebuild-20261009
+    paths:
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/**
+      - tests/infrastructure/test_vt31_ict_cleanroom_ops.py
+      - .github/workflows/vt31-ict-cleanroom-bootstrap-v1.yml
+      - docs/research/VT31_CLEANROOM_RESET_2026-10-09.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanroom-original-ict-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Standalone cleanroom unit tests (no imported old VT31)
+        run: |
+          set -euo pipefail
+          python -m compileall -q src/qore/infrastructure/traders/vt31_ict_cleanroom
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure -p test_vt31_ict_cleanroom_ops.py -v
+      - name: Verify 668 legacy VT31 paths no longer exist on rebuilt branch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src = Path('src/qore/infrastructure/traders')
+          scripts = Path('scripts')
+          tests = Path('tests')
+          wf = Path('.github/workflows')
+          assert not list(src.glob('vt31_*.py')), 'legacy VT31 trader source remains'
+          assert not list(scripts.glob('vt31_nas100_*.py')), 'legacy VT31 scripts remain'
+          assert not list(tests.rglob('test_vt31_nas100_*.py')), 'legacy VT31 tests remain'
+          assert not [p for p in wf.glob('vt31-*.yml') if 'cleanroom' not in p.name], 'old VT31 workflows remain'
+          assert list(src.glob('vt31_ict_cleanroom/*.py')), 'cleanroom not installed'
+          print('Legacy VT31 executable paths absent; only cleanroom remains: PASS')
+          PY
+      - name: Fail if OPS cleanroom imports any legacy VT31
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from ast import parse, walk, Import, ImportFrom
+          root=Path("src/qore/infrastructure/traders/vt31_ict_cleanroom")
+          assert (root/"contracts.py").is_file()
+          assert (root/"operations.py").is_file()
+          for f in root.glob("*.py"):
+              t=parse(f.read_text())
+              for n in walk(t):
+                  if isinstance(n, Import):
+                      for a in n.names:
+                          assert "vt31_nas100" not in a.name and "vt31_silver_bullet" not in a.name
+                  if isinstance(n, ImportFrom):
+                      m=n.module or ""
+                      assert "vt31_nas100" not in m and "vt31_silver_bullet" not in m, (f,m)
+          PY

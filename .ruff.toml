@@ -1,0 +1,4 @@
+extend = "pyproject.toml"
+
+[lint.per-file-ignores]
+"scripts/vt31_r5_candidate.py" = ["B009", "E501"]
