@@ -271,3 +271,88 @@ def test_source_id_does_not_depend_on_future_expiry() -> None:
             BEGIN + timedelta(hours=4)
         ).isoformat())
     )
+
+
+
+def test_foreign_trade_cannot_pass_even_if_counts_reconciled(tmp_path: Path) -> None:
+    capacity, replay = _fixture(tmp_path)
+    path = replay / "EURUSD" / "capitalizer-eurusd-v50-g-trades.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    rows[0]["entry_price"] = "101"
+    _write_jsonl(path, rows)
+    with pytest.raises(ValueError, match="absent or ambiguous V49 origin"):
+        build_waterfall(capacity, replay, expected_markets=2)
+
+
+def test_trade_claiming_source_from_wrong_trigger_fails(tmp_path: Path) -> None:
+    capacity, replay = _fixture(tmp_path)
+    path = replay / "EURUSD" / "capitalizer-eurusd-v50-g-trades.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    rows[0]["trigger_family"] = "UNSOURCED_NEW_TRIGGER"
+    _write_jsonl(path, rows)
+    with pytest.raises(ValueError, match="absent or ambiguous V49 origin"):
+        build_waterfall(capacity, replay, expected_markets=2)
+
+
+def test_duplicate_fills_for_same_source_fail_even_if_totals_match(
+    tmp_path: Path,
+) -> None:
+    capacity, replay = _fixture(tmp_path)
+    path = replay / "EURUSD" / "capitalizer-eurusd-v50-g-trades.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    geom = [row for row in rows if row["policy"] == "GEOMETRY_ONLY"]
+    assert len(geom) == 2
+    duplicate = next(
+        row for row in rows
+        if row["policy"] == "GEOMETRY_ONLY"
+        and row["entry_at"] == geom[0]["entry_at"]
+    )
+    rows = [
+        row if row is not geom[1] else dict(duplicate)
+        for row in rows
+    ]
+    _write_jsonl(path, rows)
+    with pytest.raises(ValueError, match="duplicate trade"):
+        build_waterfall(capacity, replay, expected_markets=2)
+
+
+def test_trade_on_rejected_geometry_does_not_relabel_gate_as_ready(
+    tmp_path: Path,
+) -> None:
+    capacity, replay = _fixture(tmp_path)
+    path = replay / "EURUSD" / "capitalizer-eurusd-v50-g-trades.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    original = rows[0]
+    # Preserve the number of rows while making one fill claim the geometry
+    # rejected third candidate. The discrepancy is caught by exact ID.
+    third = _opp("EURUSD", 2)
+    rows[0] = {
+        **original,
+        "entry_at": third.m1_trigger_confirmed_at,
+        "entry_price": third.decision_reference_price,
+        "trigger_family": third.m1_trigger_family,
+    }
+    _write_jsonl(path, rows)
+    with pytest.raises(ValueError, match="source-specific gate decision"):
+        build_waterfall(capacity, replay, expected_markets=2)
+
+
+def test_ambiguous_parent_source_cannot_be_matched_to_single_fill(
+    tmp_path: Path,
+) -> None:
+    capacity, replay = _fixture(tmp_path)
+    path = (
+        capacity / "EURUSD" /
+        "capitalizer-eurusd-v49-hf-capacity-opportunities.jsonl"
+    )
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    # Same observable trade key but a different M15 parent creates a
+    # nonunique source assignment. Report counts stay unchanged.
+    rows[1]["m1_trigger_confirmed_at"] = rows[0]["m1_trigger_confirmed_at"]
+    rows[1]["m1_trigger_family"] = rows[0]["m1_trigger_family"]
+    rows[1]["m15_protected_swing_price"] = "98.5"
+    _write_jsonl(path, rows)
+    # Existing A1 trace IDs no longer reconcile; failing on source mismatch
+    # is still safer than allowing an arbitrary parent attribution.
+    with pytest.raises(ValueError, match="source IDs"):
+        build_waterfall(capacity, replay, expected_markets=2)
