@@ -95,6 +95,31 @@ class A1MultiHypothesisBarrier:
 
 
 @dataclass(frozen=True, slots=True)
+class A1MultiHypothesisCompetitionDemand:
+    """True *candidate* demand, not one slot per symbol; no trade selection."""
+
+    decision_at: str
+    presented_source_count: int
+    pass_source_ids: tuple[str, ...]
+    source_counts_by_market: tuple[tuple[str, int], ...]
+    available_session_slots: int
+    arbitration_required: bool
+    selected_source_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.selected_source_id is not None:
+            raise ValueError("demand census must not choose a winner")
+        if self.presented_source_count < 1 or self.available_session_slots < 0:
+            raise ValueError("invalid competition demand denominator or slot count")
+        if sum(n for _, n in self.source_counts_by_market) != self.presented_source_count:
+            raise ValueError("competition market candidate census incomplete")
+        if self.arbitration_required != (
+            len(self.pass_source_ids) > self.available_session_slots
+        ):
+            raise ValueError("arbitration flag must use all candidate IDs, not markets")
+
+
+@dataclass(frozen=True, slots=True)
 class A1MultiHypothesisEvidence:
     identity: str
     decisions: tuple[A1FullFrameResearchDecision, ...]
@@ -102,6 +127,7 @@ class A1MultiHypothesisEvidence:
     barriers_evaluated: int
     source_ids: tuple[str, ...]
     source_ancestry: tuple[A1SourceHypothesisAlternative, ...]
+    competition_demand: tuple[A1MultiHypothesisCompetitionDemand, ...]
     pass_to_strategy: int
     wait: int
     abstain: int
@@ -120,6 +146,10 @@ class A1MultiHypothesisEvidence:
             raise ValueError("source opportunities were duplicated or lost")
         if self.pass_to_strategy + self.wait + self.abstain != len(ids):
             raise ValueError("cognitive disposition totals must include every source")
+        if len(self.competition_demand) != self.barriers_evaluated:
+            raise ValueError("missing observed competition barrier")
+        if sum(item.presented_source_count for item in self.competition_demand) != len(ids):
+            raise ValueError("competition demand lost source alternatives")
         if (
             self.global_opportunity_arbitration_resolved
             or self.trade_selected
@@ -146,6 +176,7 @@ def replay_multi_hypothesis_evidence(
     seen_ids: set[str] = set()
     decisions: list[A1FullFrameResearchDecision] = []
     ancestry: list[A1SourceHypothesisAlternative] = []
+    demand: list[A1MultiHypothesisCompetitionDemand] = []
     for barrier in barriers:
         at = _aware(barrier.observed_at)
         if last_at is not None and at <= last_at:
@@ -170,6 +201,7 @@ def replay_multi_hypothesis_evidence(
             raise ValueError("DECISION markets and source alternatives must match")
 
         markets = {item.symbol: item for item in barrier.world.markets}
+        barrier_decisions_start = len(decisions)
         for alt in sorted(
             barrier.alternatives,
             key=lambda item: (item.binding.symbol, item.binding.source_opportunity_id),
@@ -209,6 +241,29 @@ def replay_multi_hypothesis_evidence(
             decisions.extend(assessed)
             ancestry.append(alt)
 
+        new_decisions = tuple(decisions[barrier_decisions_start:])
+        by_market: dict[str, int] = {}
+        for alt in barrier.alternatives:
+            symbol = alt.binding.symbol
+            by_market[symbol] = by_market.get(symbol, 0) + 1
+        pass_ids = tuple(
+            row.source_opportunity_id
+            for row in new_decisions
+            if row.cognitive_gate == "PASS_TO_STRATEGY"
+        )
+        demand.append(
+            A1MultiHypothesisCompetitionDemand(
+                decision_at=at.isoformat(),
+                presented_source_count=len(barrier.alternatives),
+                pass_source_ids=pass_ids,
+                source_counts_by_market=tuple(sorted(by_market.items())),
+                available_session_slots=barrier.world.execution_slots_remaining,
+                arbitration_required=(
+                    len(pass_ids) > barrier.world.execution_slots_remaining
+                ),
+            )
+        )
+
     return A1MultiHypothesisEvidence(
         identity=IDENTITY,
         decisions=tuple(decisions),
@@ -216,6 +271,7 @@ def replay_multi_hypothesis_evidence(
         barriers_evaluated=len(barriers),
         source_ids=tuple(item.source_opportunity_id for item in decisions),
         source_ancestry=tuple(ancestry),
+        competition_demand=tuple(demand),
         pass_to_strategy=sum(d.cognitive_gate == "PASS_TO_STRATEGY" for d in decisions),
         wait=sum(d.cognitive_gate == "WAIT" for d in decisions),
         abstain=sum(d.cognitive_gate == "ABSTAIN" for d in decisions),
