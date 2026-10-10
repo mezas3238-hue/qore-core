@@ -18,9 +18,9 @@ Do not interpret this as live MT5, physical-cost P&L, or scientific certificatio
 
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -38,7 +38,6 @@ from qore.infrastructure.trader_lab.capitalizer_memory import CapitalizerLossCau
 from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     V49EconomicTrade,
     _metrics,
-    _portfolio_select,
 )
 
 IDENTITY = "QORE_SCALPER_A1_REAL_MASTER_FRAME_TO_PAPER_TRADER_V1"
@@ -170,7 +169,6 @@ def run_real_master_frame_paper_trader(
     chosen: list[A1PaperSource] = []
     capacity: Counter[tuple[str, str]] = Counter()
     chosen_receipts: list[tuple[str, A1SettledChosenTrade]] = []
-    newly_settled: set[str] = set()
     all_pass = all_sensors = True
 
     for barrier in barriers:
@@ -205,8 +203,6 @@ def run_real_master_frame_paper_trader(
             if require_all_source_cognitive_sensors and not has_sensors:
                 raise ValueError("A1 must receive REAL predecision A2 sensor tokens")
             all_sensors = all_sensors and has_sensors
-        from datetime import timedelta
-
         known = A1CausalSettledMemory(tuple(
             receipt for _, receipt in chosen_receipts
             if receipt.confirmed_at is not None and receipt.confirmed_at < at
@@ -224,6 +220,7 @@ def run_real_master_frame_paper_trader(
         all_pass = all_pass and packet.nine_market_frame_called_for_each_source
         for candidate in sorted(packet.candidates,
                                 key=lambda c: (c.decision_at, c.symbol,
+                                               by_id[c.source_opportunity_id].trade.trigger_family,
                                                c.source_opportunity_id)):
             item = by_id[candidate.source_opportunity_id]
             trade = item.trade
