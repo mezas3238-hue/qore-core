@@ -161,3 +161,98 @@ def test_deterministic_immutable_decision_ledger() -> None:
         )
     assert left.decisions == right.decisions
     assert left.positions == right.positions
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    (
+        {"side": "short"},
+        {"anchor_hour_ny": 5},
+        {"ltf_profile": "M5_FRACTAL"},
+        {"source_cycle_id": "different-h4"},
+        {"cycle_expires_at": T0 + timedelta(hours=8)},
+    ),
+)
+def test_event_identity_drift_of_side_anchor_profile_cycle_fails_closed(
+    overrides: dict[str, object]
+) -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot(cisd_state="PENDING"))
+    with pytest.raises(ValueError, match="identity cannot drift"):
+        gate.evaluate(_snapshot(when=T0 + timedelta(minutes=3), **overrides))
+
+
+def test_wait_event_expires_at_h4_boundary_without_late_execution() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    original = gate.evaluate(_snapshot(cisd_state="PENDING"))
+    assert original.action is Vt08CognitiveAction.WAIT
+    with pytest.raises(ValueError, match="expired at H4"):
+        gate.evaluate(_snapshot(when=T0 + timedelta(hours=4)))
+    assert len(gate.decisions) == 1
+    assert gate.evaluate(
+        _snapshot(
+            source="new-cycle-distinct-source",
+            when=T0 + timedelta(hours=4),
+            source_cycle_id="next-h4",
+            cycle_expires_at=T0 + timedelta(hours=8),
+        )
+    ).action is Vt08CognitiveAction.EXECUTE
+
+
+def test_source_id_cannot_be_reused_across_new_york_date() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot(cisd_state="PENDING"))
+    tomorrow = T0 + timedelta(days=1)
+    with pytest.raises(ValueError, match="identity cannot drift"):
+        gate.evaluate(
+            _snapshot(
+                when=tomorrow,
+                cycle_expires_at=tomorrow + timedelta(hours=4),
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    ("entry_state", "position_state", "expected"),
+    (
+        ("ACTIONABLE", "OPEN", "filled entry"),
+        ("FILLED", "FLAT", "open position"),
+        ("FILLED", "CLOSED", "open position"),
+    ),
+)
+def test_position_requires_actual_open_filled_source_state(
+    entry_state: str, position_state: str, expected: str
+) -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    later = T0 + timedelta(minutes=3)
+    with pytest.raises(ValueError, match=expected):
+        gate.evaluate_position(
+            _snapshot(
+                when=later,
+                entry_state=entry_state,
+                position_state=position_state,
+            ),
+            _position(later),
+        )
+
+
+def test_position_refuses_unauthorized_side_change_and_old_candle() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    with pytest.raises(ValueError, match="post-admission"):
+        gate.evaluate_position(
+            _snapshot(entry_state="FILLED", position_state="OPEN"),
+            _position(T0),
+        )
+    later = T0 + timedelta(minutes=3)
+    with pytest.raises(ValueError, match="identity cannot drift"):
+        gate.evaluate_position(
+            _snapshot(
+                when=later,
+                side="short",
+                entry_state="FILLED",
+                position_state="OPEN",
+            ),
+            _position(later),
+        )
