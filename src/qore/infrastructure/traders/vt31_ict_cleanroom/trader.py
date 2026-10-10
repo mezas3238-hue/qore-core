@@ -128,7 +128,20 @@ class VT31Trader:
             self.total_source_windows_seen += 1
 
         assessment = self.cognition.assess(session=window, as_of=at)
+        before_fvg = ops.intrawindow_raw_fvg_count
+        before_candidate = ops.first_suitable
         phase = ops.on_closed_m1(bar, cognition=assessment.decision)
+        if self.cognition.telemetry is not None:
+            self.cognition.telemetry.on_ops(
+                at=at, session=window, phase=phase,
+                raw_fvg_new=ops.intrawindow_raw_fvg_count > before_fvg,
+                candidate_new=(
+                    before_candidate is None and ops.first_suitable is not None
+                ),
+                cognition=assessment.decision,
+                candidate=ops.first_suitable,
+                missing=assessment.missing,
+            )
         return UnifiedVT31Observation(
             trader_id=TRADER_ID,
             instrument=INSTRUMENT,

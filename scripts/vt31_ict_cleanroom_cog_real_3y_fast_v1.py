@@ -20,6 +20,12 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
+    VT31CleanroomCognition,
+)
+from qore.infrastructure.traders.vt31_ict_cleanroom.cognitive_telemetry import (
+    CognitiveTelemetry,
+)
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     M1Bar,
     SessionId,
@@ -72,8 +78,11 @@ def _completed_hour(buffer: list[M1Bar], session: SessionId) -> bool:
     )
 
 
-def scan(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
-    trader = VT31Trader()
+def scan(
+    rows: Iterable[dict[str, Any]], *, audit_components: bool = False
+) -> dict[str, object]:
+    telemetry = CognitiveTelemetry() if audit_components else None
+    trader = VT31Trader(cognition=VT31CleanroomCognition(telemetry=telemetry))
     full: Counter[str] = Counter()
     partial: Counter[str] = Counter()
     cognitive_calls: Counter[str] = Counter()
@@ -160,7 +169,29 @@ def scan(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
         raise AssertionError("complete-hour cognition missing at source close")
     if sum(fvg_selected.values()) > sum(full.values()):
         raise AssertionError("more than first suitable FVG per ICT source hour")
+    if telemetry is not None:
+        if telemetry.closed_m1_seen != total:
+            raise AssertionError("COG sensors missed real M1 market calls")
+        if telemetry.cognition_calls != sum(cognitive_calls.values()):
+            raise AssertionError("COG assessment I/O calls missing")
+        if telemetry.ops_calls != sum(cognitive_calls.values()):
+            raise AssertionError("OPS FVG source sensors missed a closed M1")
+        if telemetry.counts["OPS_CANDIDATE"].outputs_present != sum(
+            fvg_selected.values()
+        ):
+            raise AssertionError("candidate lineage sensors do not reconcile")
+        for name in (
+            "M15_CONTEXT", "H1_CONTEXT", "H4_CONTEXT",
+            "NY_CASH_LIQUIDITY", "ASIA_LIQUIDITY", "LONDON_LIQUIDITY",
+            "M1_MSS_DISPLACEMENT", "DOL_ARBITRATION", "COGNITIVE_DECISION",
+            "OPS_M1_FVG", "OPS_CANDIDATE",
+        ):
+            if telemetry.counts[name].calls == 0:
+                raise AssertionError(f"COG component without observed I/O: {name}")
     return {
+        "cognitive_component_io_audit": (
+            None if telemetry is None else telemetry.report()
+        ),
         "schema": SCHEMA,
         "source_base": BASE,
         "trader_id": "VT31",
@@ -256,11 +287,20 @@ def self_test() -> None:
     incomplete = scan(rows[:-1])
     assert incomplete["source_partial_hour_days"]["VT31_LONDON"] == 1
     assert incomplete["cognitive_calls_by_window"]["VT31_LONDON"] == 0
+    audited = scan(rows, audit_components=True)
+    assert audited["native_source_fvg_candidates_by_window"] == result[
+        "native_source_fvg_candidates_by_window"
+    ]
+    sensors = audited["cognitive_component_io_audit"]
+    assert sensors["cognition_calls"] == sensors["ops_calls"] == 60
+    assert sensors["closed_m1_seen"] == 60
+    assert sensors["components"]["BID_ASK_FILL"]["calls_observed"] == 0
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--audit-components", action="store_true")
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
@@ -273,7 +313,7 @@ def main() -> None:
     import os
     if os.environ.get("VT31_INPUT_SOURCE_SHA256") != FROZEN_SOURCE_SHA256:
         raise ValueError("full 3Y scan requires verified exact consumed base digest")
-    output = scan(_stream(args.evidence))
+    output = scan(_stream(args.evidence), audit_components=args.audit_components)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(output, sort_keys=True, indent=2) + "\n",
