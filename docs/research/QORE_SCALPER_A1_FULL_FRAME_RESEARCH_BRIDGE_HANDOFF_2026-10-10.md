@@ -1,5 +1,8 @@
 # SCALPER A1 — Full-frame causal research bridge and verified CI failure repair
 
+> **P0 method-first hold (10-oct-2026):** la décima auditoría obliga a PAUSAR desarrollo nuevo del Global World Model y ampliación cognitiva dependiente de CISD hasta adjudicar la **fidelidad fuente CISD/POI/swing/HTF**, las **381 discrepancias YA clasificadas (247 early + 134 same-close family)** y el **A/B Candle 3 diciembre vs enero**. La definición básica original CISD (apertura de primera vela opuesta + cierre) coincide con V49, pero fidelidad de ruta/ventana no está certificada. Los 2.876 source IDs, sensores y native-M1 existentes quedan intactos, no vetos. **Nuevo documento rector A1:** [Décima Auditoría — METHOD FIRST / FREEZE](QORE_SCALPER_A1_TENTH_AUDIT_METHOD_FIRST_FREEZE_2026-10-10.md). B PR #759 dueño de veredictos, A PR #758 suspende nuevas capas World, PR #623 padre, no LIVE/VPS.
+
+
 Date: 2026-10-10. Owner: Cognitive Architect A, canonical draft PR #758.
 Parent: draft PR #623. Method cross-review: draft PR #759.
 Scope: **GitHub research only. NO VPS / LIVE / merge / production. NOT CERTIFIED.**
