@@ -353,9 +353,7 @@ def self_test():
 
     from vt31_shadow_opposite_pivot_ab_v1 import Shadow
 
-    from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-        M1Bar, SessionId, Side
-    )
+    from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import M1Bar, SessionId, Side
     t = datetime(2025, 7, 7, 7, 20, tzinfo=UTC)
     def bar(i, o, high, low, close):
         at = t + timedelta(minutes=i)
