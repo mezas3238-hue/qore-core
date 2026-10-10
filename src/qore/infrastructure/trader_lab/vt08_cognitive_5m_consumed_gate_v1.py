@@ -7,6 +7,7 @@ Situation snapshots and retains testable per-event cognitive decision lineage.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -73,6 +74,52 @@ class Vt08CognitivePositionTrace:
     broker_order_authorized: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class Vt08ResearchFillEvidence:
+    """Externally produced, research-only simulated fill acknowledgement.
+
+    An entry EXECUTE is only an intention. This evidence MUST come from a
+    separate deterministic execution model, not be inferred by cognition.
+    """
+    source_event_id: str
+    market: str
+    side: str
+    source_cycle_id: str
+    fill_id: str
+    filled_at: datetime
+    entry_price: Decimal
+    evidence_sha256: str
+    research_only: bool = True
+    broker_order_authorized: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.source_event_id or not self.source_cycle_id or not self.fill_id:
+            raise ValueError("VT08 fill requires source, cycle and unique fill identity")
+        if self.side not in {"long", "short"} or not self.market:
+            raise ValueError("VT08 fill requires valid market/side")
+        if self.filled_at.tzinfo is None or self.filled_at.utcoffset() is None:
+            raise ValueError("VT08 fill time must be timezone-aware")
+        if not self.entry_price.is_finite() or self.entry_price <= 0:
+            raise ValueError("VT08 fill entry price must be positive finite")
+        if re.fullmatch(r"[0-9a-f]{64}", self.evidence_sha256) is None:
+            raise ValueError("VT08 fill requires SHA256 evidence digest")
+        if not self.research_only or self.broker_order_authorized:
+            raise ValueError("VT08 cognitive fill is research-only")
+
+
+@dataclass(frozen=True, slots=True)
+class Vt08ResearchFillTrace:
+    source_event_id: str
+    market: str
+    fill_id: str
+    filled_at: datetime
+    entry_price: Decimal
+    evidence_sha256: str
+    related_decision_fingerprint: str
+    research_only: bool = True
+    broker_order_authorized: bool = False
+
+
 class Vt08FiveMarketCognitiveGate:
     """Stateful causal source-event cognition, no economic/broker authority."""
 
@@ -82,6 +129,9 @@ class Vt08FiveMarketCognitiveGate:
         self._last_decision_at: dict[str, datetime] = {}
         self._last_position_at: dict[str, datetime] = {}
         self._executed: set[str] = set()
+        self._fill_ids: set[str] = set()
+        self._filled: dict[str, Vt08ResearchFillTrace] = {}
+        self._fills: list[Vt08ResearchFillTrace] = []
         self._last_global_as_of: datetime | None = None
         self._decisions: list[Vt08CognitiveDecisionTrace] = []
         self._positions: list[Vt08CognitivePositionTrace] = []
@@ -93,6 +143,10 @@ class Vt08FiveMarketCognitiveGate:
     @property
     def positions(self) -> tuple[Vt08CognitivePositionTrace, ...]:
         return tuple(self._positions)
+
+    @property
+    def fills(self) -> tuple[Vt08ResearchFillTrace, ...]:
+        return tuple(self._fills)
 
     def _check_source_identity(
         self, situation: Vt08FiveMarketResearchSituation
@@ -168,6 +222,53 @@ class Vt08FiveMarketCognitiveGate:
         self._decisions.append(trace)
         return trace
 
+    def record_fill(self, evidence: Vt08ResearchFillEvidence) -> Vt08ResearchFillTrace:
+        """Attach simulated execution to a previously EXECUTE-approved source.
+
+        Strictly no inference from an EXECUTE, synthetic price or later PnL.
+        The source/execution architect still owns full price-path verification.
+        """
+        event_id = evidence.source_event_id
+        if event_id not in self._executed:
+            raise ValueError("VT08 cannot record fill without cognitive EXECUTE")
+        if event_id in self._filled or evidence.fill_id in self._fill_ids:
+            raise ValueError("VT08 duplicate fill or source execution")
+        identity = self._event_identity[event_id]
+        if (
+            evidence.market != identity[0]
+            or evidence.side != identity[1]
+            or evidence.source_cycle_id != identity[4]
+        ):
+            raise ValueError("VT08 fill evidence contradicts source identity")
+        if evidence.filled_at < self._last_decision_at[event_id]:
+            raise ValueError("VT08 fill cannot precede cognitive decision")
+        if evidence.filled_at >= datetime.fromisoformat(identity[5]):
+            raise ValueError("VT08 pending fill after H4 expiry")
+        if (
+            self._last_global_as_of is not None
+            and evidence.filled_at < self._last_global_as_of
+        ):
+            raise ValueError("VT08 fill global replay clock cannot move backwards")
+        source_decision = next(
+            d for d in reversed(self._decisions)
+            if d.source_event_id == event_id
+            and d.action is Vt08CognitiveAction.EXECUTE
+        )
+        trace = Vt08ResearchFillTrace(
+            source_event_id=event_id,
+            market=evidence.market,
+            fill_id=evidence.fill_id,
+            filled_at=evidence.filled_at,
+            entry_price=evidence.entry_price,
+            evidence_sha256=evidence.evidence_sha256,
+            related_decision_fingerprint=source_decision.decision_fingerprint,
+        )
+        self._filled[event_id] = trace
+        self._fill_ids.add(evidence.fill_id)
+        self._fills.append(trace)
+        self._last_global_as_of = evidence.filled_at
+        return trace
+
     def evaluate_position(
         self,
         situation: Vt08FiveMarketResearchSituation,
@@ -182,6 +283,13 @@ class Vt08FiveMarketCognitiveGate:
             raise ValueError("VT08 global replay clock cannot move backwards")
         if event_id not in self._executed:
             raise ValueError("VT08 cannot assess unadmitted research position")
+        if event_id not in self._filled:
+            raise ValueError("VT08 cannot assess position without recorded fill")
+        fill = self._filled[event_id]
+        if position.entry_price != fill.entry_price:
+            raise ValueError("VT08 position entry price differs from recorded fill")
+        if situation.as_of <= fill.filled_at:
+            raise ValueError("VT08 position assessment must follow recorded fill")
         if situation.as_of != position.as_of:
             raise ValueError("VT08 position and Situation as_of must match")
         if situation.side != position.side:
