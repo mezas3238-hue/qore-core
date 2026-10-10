@@ -50,11 +50,11 @@ from qore.infrastructure.trader_lab.capitalizer_cross_market_causality import (
     CapitalizerCrossMarketEdge,
     CapitalizerCrossMarketRelation,
 )
-from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
-    CapitalizerSide,
-)
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
+)
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
+    CapitalizerSide,
 )
 from qore.infrastructure.trader_lab.capitalizer_global_world_model import (
     CapitalizerGlobalWorldModel,
