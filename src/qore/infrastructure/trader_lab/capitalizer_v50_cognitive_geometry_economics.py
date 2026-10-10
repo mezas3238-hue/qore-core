@@ -37,11 +37,6 @@ from qore.infrastructure.trader_lab.capitalizer_metacognition_v2 import (
     CapitalizerEpistemicReadiness,
 )
 from qore.infrastructure.trader_lab.capitalizer_session_clock import capitalizer_session_at
-from qore.infrastructure.trader_lab.capitalizer_v50_g_causal_decision_trace import (
-    V50GCausalDecisionTrace,
-    trace_json_line,
-    trace_v50_g_bridge,
-)
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_specialist import (
     V50GeometryDecision,
     propose_v50_geometry,
@@ -51,6 +46,11 @@ from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_hf_bridge import (
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_opportunity import (
     build_v50_cognitive_snapshot,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_g_causal_decision_trace import (
+    V50GCausalDecisionTrace,
+    trace_json_line,
+    trace_v50_g_bridge,
 )
 
 IDENTITY = "QORE_CAPITALIZER_V50_G_COGNITIVE_GEOMETRY_ECONOMICS"
