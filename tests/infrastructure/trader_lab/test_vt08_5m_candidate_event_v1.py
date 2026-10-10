@@ -78,11 +78,17 @@ def test_banned_thirteen_ny_even_if_present_in_official_source_timing() -> None:
     event = golden()
     shifted = event.h4_anchor_at + timedelta(hours=12)
     with pytest.raises(CandidateEventContractError, match="01/05/09"):
-        replace(event, h4_anchor_at=shifted, decision_at=shifted, evidence_as_of=shifted,
-                candle2_closed_at=shifted, pending_expiry_at=shifted + timedelta(hours=4),
-                opposing_series_opened_at=shifted - timedelta(hours=2),
-                cisd_confirmed_at=shifted - timedelta(minutes=15),
-                ps_confirmed_at=shifted - timedelta(minutes=15))
+        replace(
+            event,
+            h4_anchor_at=shifted,
+            decision_at=shifted,
+            evidence_as_of=shifted,
+            candle2_closed_at=shifted,
+            pending_expiry_at=shifted + timedelta(hours=4),
+            opposing_series_opened_at=shifted - timedelta(hours=2),
+            cisd_confirmed_at=shifted - timedelta(minutes=15),
+            ps_confirmed_at=shifted - timedelta(minutes=15),
+        )
 
 
 def test_future_protected_swing_cannot_license_past_h4_open() -> None:
