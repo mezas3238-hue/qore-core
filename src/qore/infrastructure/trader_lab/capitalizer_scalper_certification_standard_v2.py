@@ -331,7 +331,10 @@ def evaluate_certification(
                 predicate=(
                     None
                     if evidence.owner_observed_max_drawdown_r is None
-                    else evidence.owner_observed_max_drawdown_r <= OWNER_ACCEPTANCE_DD_MAX_R
+                    else (
+                        evidence.owner_observed_max_drawdown_r
+                        <= OWNER_ACCEPTANCE_DD_MAX_R
+                    )
                 ),
                 detail_when_present=(
                     "unknown"
