@@ -73,6 +73,8 @@ class ClosedC3SourceShape:
     c3_closed_at: datetime
     snapshot_fingerprint: str
     c3_eq: Decimal
+    c3_full_low: Decimal
+    c3_full_high: Decimal
     c3_eq_range_basis: str
     c3_ps_proxies: tuple[tuple[str, str, str], ...]
     next_c4_owner_permitted: bool
@@ -91,6 +93,8 @@ class ClosedC3SourceShape:
             "observed_at": _utc(self.c3_closed_at).isoformat(),
             "as_of_stage": "C3_CLOSED",
             "eq_intra_c3_level": str(self.c3_eq),
+            "c3_full_range_low": str(self.c3_full_low),
+            "c3_full_range_high": str(self.c3_full_high),
             "eq_intra_c3_basis": self.c3_eq_range_basis,
             "c3_ps_internal_proxies": self.c3_ps_proxies,
             "c3_m15_sha256": self.c3_m15_sha256,
@@ -213,6 +217,8 @@ def c3_closed_source_shape(
         c3_closed_at=c3.closed_at,
         snapshot_fingerprint=_digest(c3_facts),
         c3_eq=eq.eq,
+        c3_full_low=c3.low,
+        c3_full_high=c3.high,
         c3_eq_range_basis=eq.basis.value,
         c3_ps_proxies=ps_proxies,
         next_c4_owner_permitted=owner,
@@ -243,8 +249,8 @@ def c4_first_m15_closed_observation(
     bullish = c3_shape.side == DemoTradingSetupSide.LONG.value
     respected = first_c4_m15.close >= eq if bullish else first_c4_m15.close <= eq
     wick_half = (
-        first_c4_m15.low >= eq
-        if bullish else first_c4_m15.high <= eq
+        eq <= first_c4_m15.low <= c3_shape.c3_full_high
+        if bullish else c3_shape.c3_full_low <= first_c4_m15.high <= eq
     )
     observation = {
         "schema": SCHEMA,
@@ -296,6 +302,10 @@ def audit_market(path: Path) -> dict[str, object]:
         )
         if shape is None:
             continue
+        # Independently assert the two C3 family partitions cannot claim
+        # the SAME completed C2 reversal under the frozen C1/C2 H4 rules.
+        if c2_reversal_closure(c1, c2):
+            raise AssertionError("C3 continuation/C3 closure family overlap")
         counts["C3_CLOSED_SHAPES"] += 1
         if shape.next_c4_owner_permitted:
             counts["C4_OWNER_PERMITTED"] += 1
@@ -307,6 +317,10 @@ def audit_market(path: Path) -> dict[str, object]:
             counts["C3_INTERNAL_CISD_PS_PROXY"] += 1
         if shape.c2_sweep_state == "DUAL_SWEEP_UNADJUDICATED":
             counts["C2_DUAL_SWEEP_UNADJUDICATED"] += 1
+            if shape.next_c4_owner_permitted:
+                counts["C4_OWNER_WITH_UNADJUDICATED_C2_DUAL_SWEEP"] += 1
+        elif shape.next_c4_owner_permitted:
+            counts["C4_OWNER_WITHOUT_C2_DUAL_SWEEP_SHAPE_ONLY"] += 1
         source.append(shape.payload())
         c4_first = bars.get(c3.closed_at)
         if c4_first is not None:
