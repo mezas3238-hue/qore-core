@@ -11,6 +11,7 @@ from qore.infrastructure.trader_lab.vt08_cognitive_5m_consumed_gate_v1 import (
     Vt08FiveMarketCognitiveGate,
 )
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
+    CAUSAL_FIELDS,
     Vt08FiveMarketResearchSituation,
 )
 from qore.infrastructure.traders.vt08_cognitive_position_intelligence import (
@@ -58,6 +59,9 @@ def _snapshot(
         "supporting_evidence": ("SOURCE:CISD", "SOURCE:PS"),
         "source_evidence_id": source,
         "latest_available_bar_close": when,
+        "feature_cutoffs": tuple((name, when) for name in CAUSAL_FIELDS),
+        "source_cycle_id": "synthetic-h4-cycle-09",
+        "cycle_expires_at": T0 + timedelta(hours=4),
         "research_only": True,
         "operational_authority": False,
     }
@@ -112,7 +116,7 @@ def test_reject_timestamp_regression_and_cross_market_fingerprint() -> None:
     gate.evaluate(_snapshot(cisd_state="PENDING"))
     with pytest.raises(ValueError, match="timestamp must advance"):
         gate.evaluate(_snapshot(cisd_state="PENDING"))
-    with pytest.raises(ValueError, match="cannot migrate"):
+    with pytest.raises(ValueError, match="cannot drift"):
         gate.evaluate(_snapshot(market="CADJPY", when=T0 + timedelta(minutes=3)))
 
 
