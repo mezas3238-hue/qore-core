@@ -1,0 +1,113 @@
+name: VT31 ICT Cleanroom Joint OPS COG 3Y M1 Fast Runner
+
+on:
+  push:
+    branches:
+      - agent/vt31-ict-cleanroom-rebuild-20261009
+    paths:
+      - scripts/vt31_ict_cleanroom_cog_real_3y_fast_v1.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/m1_execution.py
+      - tests/infrastructure/test_vt31_ict_cleanroom_ops.py
+      - tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py
+      - .github/workflows/vt31-ict-cleanroom-joined-3y-fast-v1.yml
+      - tests/infrastructure/test_vt31_ict_cleanroom_cognition.py
+      - .github/workflows/vt31-ict-cleanroom-cog-real-3y-fast-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-cleanroom-joint-ops-cog-3y-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  SOURCE_ARTIFACT_ID: "11459859004"
+  VT31_INPUT_SOURCE_SHA256: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+
+jobs:
+  one-trader-3y-native-market-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install deterministic research/test dependencies
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m pip install "ijson>=3.3,<4"
+      - name: Static gates + as-of market-cognition fixtures
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_ict_cleanroom_cog_real_3y_fast_v1.py src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py
+          ruff check scripts/vt31_ict_cleanroom_cog_real_3y_fast_v1.py src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py tests/infrastructure/test_vt31_ict_cleanroom_cognition.py
+          PYTHONPATH=src pytest -q -o addopts='' tests/infrastructure/test_vt31_ict_cleanroom_cognition.py tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py tests/infrastructure/test_vt31_ict_cleanroom_ops.py tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py tests/infrastructure/test_vt31_ict_cleanroom_order_lifecycle.py
+          PYTHONPATH=src python scripts/vt31_ict_cleanroom_cog_real_3y_fast_v1.py --self-test
+      - name: Download canonical owner-consumed 3Y NAS100 market M1
+        run: |
+          set -euo pipefail
+          mkdir -p input output
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}" --jq '{id,name,expired}' | tee output/source-metadata.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("output/source-metadata.json").read_text())
+          assert p["id"]==11459859004 and p["expired"] is False
+          PY
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}/zip" > frozen.zip
+          unzip -q frozen.zip -d input
+          test "$(sha256sum input/NAS100/market-evidence.json | cut -d ' ' -f 1)" = "${VT31_INPUT_SOURCE_SHA256}"
+          echo "${VT31_INPUT_SOURCE_SHA256}" > output/input-source-sha256.txt
+      - name: Replay frozen 3Y real M1 through ONE VT31 COG plus original ICT OPS
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src python scripts/vt31_ict_cleanroom_cog_real_3y_fast_v1.py \
+            --evidence input/NAS100/market-evidence.json \
+            --output output/cognitive-3y-cleanroom-result.json \
+            | tee output/summary.json
+      - name: Structural coverage, one-trader and no-capital guards
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("output/cognitive-3y-cleanroom-result.json").read_text())
+          assert d["source_base"]=="VT31_NAS100_OWNER_3Y_BASE_001"
+          assert d["source_m1"]==1059784
+          assert d["trader_id"]=="VT31"
+          assert d["registered_trader_count"]==1
+          assert d["session_models"]==["LONDON","NEW_YORK"]
+          assert d["source_window_count"]==3
+          assert d["source_full_hour_days"]=={
+              "VT31_LONDON":774,"VT31_NY_AM":771,"VT31_NY_PM":741}
+          assert all(d["cognitive_calls_by_window"][k]==v*60 for k,v in d["source_full_hour_days"].items())
+          assert all(d["native_source_fvg_candidates_by_window"][k]<=v for k,v in d["source_full_hour_days"].items())
+          g=d["governance"]
+          assert g["fresh_holdout_opened"] is False
+          assert g["positions_opened"]==0
+          assert g["bid_ask_quote_path_proven"] is False
+          assert g["economic_replay_run"] is False
+          assert g["live_authorized"] is False
+          assert g["certified"] is False
+          assert sum(d["native_source_fvg_candidates_by_window"].values()) > 0
+          assert d["source_window_count"] == 3
+          assert d["governance"]["broker_or_paper_fill_proven"] is False
+          PY
+      - name: Snapshot exact inputs and output digest
+        run: |
+          echo "${GITHUB_SHA}" > output/git-sha.txt
+          (cd output && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd output && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ict-cleanroom-joint-ops-cog-m1-3y-${{ github.sha }}
+          path: output/
+          retention-days: 90
+          if-no-files-found: error
