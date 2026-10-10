@@ -66,6 +66,9 @@ class CognitiveTelemetry:
         self.candidate_lineage: list[dict[str, Any]] = []
         self.blocker_examples: list[dict[str, str]] = []
         self.max_examples = max_examples
+        self._pending_without_cog_unique: set[tuple[str, datetime]] = set()
+        self._pending_without_cog_sources: Counter[str] = Counter()
+        self.pending_without_cog_examples: list[dict[str, str]] = []
         self.closed_m1_seen = 0
         self.cognition_calls = 0
         self.ops_calls = 0
@@ -295,12 +298,19 @@ class CognitiveTelemetry:
             # Cross-architect P0: selected source may remain pending after
             # its DOL/MSS was revoked. Observe ONLY, do not change OPS.
             self.by_session[session.value + "|P0_PENDING_WITHOUT_COG"] += 1
-            if len(self.blocker_examples) < self.max_examples:
-                self.blocker_examples.append({
-                    "as_of": utc(at).isoformat(),
-                    "session": session.value,
-                    "missing": "P0_SOURCE_PENDING_WITHOUT_VALID_COG",
-                })
+            affected_source = (session.value, utc(candidate.formed_at))
+            if affected_source not in self._pending_without_cog_unique:
+                self._pending_without_cog_unique.add(affected_source)
+                self._pending_without_cog_sources[session.value] += 1
+                if len(self.pending_without_cog_examples) < self.max_examples:
+                    self.pending_without_cog_examples.append({
+                        "source_fvg_at": utc(candidate.formed_at).isoformat(),
+                        "first_observed_without_cog_at": utc(at).isoformat(),
+                        "session": session.value,
+                        "remaining_ops_state": phase.value,
+                        "missing_at_detection": "|".join(missing),
+                        "external_order_or_broker_fill": "NOT_PROVEN",
+                    })
         elif raw_fvg_new and cognition is None:
             self.by_session[session.value + "|OPS_RAW_FVG_BLOCKED_BY_COG"] += 1
             for reason in missing:
@@ -335,6 +345,14 @@ class CognitiveTelemetry:
             "by_session_and_sensor": dict(sorted(self.by_session.items())),
             "candidate_causal_lineage_examples": self.candidate_lineage,
             "abstention_examples": self.blocker_examples,
+            "p0_pending_without_cog_unique_candidate_sources": dict(
+                sorted(self._pending_without_cog_sources.items())
+            ),
+            "p0_pending_without_cog_m1_observations": sum(
+                v for k, v in self.by_session.items()
+                if k.endswith("|P0_PENDING_WITHOUT_COG")
+            ),
+            "p0_pending_without_cog_examples": self.pending_without_cog_examples,
             "influence_definition": (
                 "Actual necessary-logic-gate participation and source lineage;"
                 " NOT independent counterfactual ablation or achieved PnL"
