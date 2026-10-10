@@ -618,6 +618,18 @@ class QDLE:
                 ).fetchone()
                 if account_mtm is None:
                     raise QDLEError("PAPER MTM account has no initial cash")
+                # A fill must also have a corresponding MTM OPEN journal
+                # before another signal can be sized. Likewise, a settled
+                # PAPER fill cannot leave an uncredited MTM position open.
+                # Both sets live inside the same database transaction.
+                qdle_filled={r[0] for r in db.execute(
+                    "SELECT request_id FROM reservations WHERE state='PAPER_FILLED'"
+                )}
+                mtm_open={r[0] for r in db.execute(
+                    "SELECT request_id FROM paper_mtm_positions WHERE settled_at IS NULL"
+                )}
+                if qdle_filled != mtm_open:
+                    raise QDLEError("PAPER QDLE open trades / MTM cash journal mismatch")
                 has_financial_history=db.execute(
                     "SELECT COUNT(*) FROM paper_mtm_event_log"
                 ).fetchone()[0]
