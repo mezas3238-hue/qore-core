@@ -253,15 +253,15 @@ def analyze_market(
     rows: list[DirectionNullRow] = []
     for source in sources:
         identifier = source_id(source)
-        original = by_source[identifier]
+        original_trade = by_source[identifier]
         decision = aware(source.m1_trigger_confirmed_at)
         side = 1 if source.h1_state_direction == "BULLISH" else -1
         if (
-            aware(original.entry_at) != decision
-            or original.entry_price != source.decision_reference_price
-            or original.direction != ("LONG" if side == 1 else "SHORT")
-            or original.stop_price != source.m15_protected_swing_price
-            or original.target_price != source.structural_target_witness_price
+            aware(original_trade.entry_at) != decision
+            or original_trade.entry_price != source.decision_reference_price
+            or original_trade.direction != ("LONG" if side == 1 else "SHORT")
+            or original_trade.stop_price != source.m15_protected_swing_price
+            or original_trade.target_price != source.structural_target_witness_price
         ):
             raise ValueError("source is not original V49 trade")
         i = bisect.bisect_left(opened, decision)
@@ -317,13 +317,13 @@ def analyze_market(
         rows.append(DirectionNullRow(
             source_opportunity_id=identifier, symbol=symbol,
             session=source.session, operating_date=source.operating_date,
-            original_entry_at=original.entry_at,
+            original_entry_at=original_trade.entry_at,
             direction=source.h1_state_direction,
             h1_state_from=source.h1_state_from,
             h1_basis=source.h1_state_basis,
             trigger_family=source.m1_trigger_family,
-            original_realized_gross_r=original.realized_gross_r,
-            original_exit_reason=original.exit_reason,
+            original_realized_gross_r=original_trade.realized_gross_r,
+            original_exit_reason=original_trade.exit_reason,
             original_h1_clock_third=_third(decision),
             h1_state_candidate_count=len(eligible),
             uniform_candidate_count=len(eligible),
@@ -374,10 +374,10 @@ def analyze_market(
 
 
 def _row_null(r: DirectionNullRow, h: int, mode: str) -> Decimal | None:
-    covered = getattr(r, f"{mode}_covered_{h}")
+    covered = int(getattr(r, f"{mode}_covered_{h}"))
     if covered <= 0:
         return None
-    return Decimal(getattr(r, f"{mode}_positive_{h}")) / covered
+    return Decimal(int(getattr(r, f"{mode}_positive_{h}"))) / covered
 
 
 def _summary(rows: tuple[DirectionNullRow, ...]) -> dict[str, Any]:
