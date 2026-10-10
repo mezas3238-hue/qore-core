@@ -19,6 +19,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab.capitalizer_a1_m1_second_pivot_forensics_v3 import (
+    A1SecondPivotReview,
+    SecondaryPivotClass,
+)
 from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
     A1M1ProtectedRouteReview,
     M1ProtectionClass,
@@ -58,6 +62,8 @@ class A1SensorizedPaperBridgeResult:
     independently_observed_market_sensors: int = 0
     causal_m1_route_reviews_received: int = 0
     prior_intact_m1_context_count: int = 0
+    secondary_m1_route_reviews_received: int = 0
+    newly_intact_second_m1_context_count: int = 0
     automatically_vetoed_cisd_conflicts: bool = False
     synthetic_nine_market_world_created: bool = False
     virtual_broker_quotes_created: bool = False
@@ -81,6 +87,7 @@ def run_sensorized_master_frame_paper(
     baseline_selected_source_ids: tuple[str, ...],
     independent_source_witnesses: Mapping[str, A1SourceSensorAttestation] | None = None,
     m1_route_reviews: Mapping[str, A1M1ProtectedRouteReview] | None = None,
+    m1_secondary_reviews: Mapping[str, A1SecondPivotReview] | None = None,
 ) -> A1SensorizedPaperBridgeResult:
     """Run 9-market A1 cognition with genuine A2 sensor observations per source."""
 
@@ -101,6 +108,10 @@ def run_sensorized_master_frame_paper(
         raise ValueError("all original source IDs need an independent sensor proof")
     if m1_route_reviews is not None and set(m1_route_reviews) != expected:
         raise ValueError("all original source IDs need M1 causal route reviews")
+    if m1_secondary_reviews is not None and (
+        m1_route_reviews is None or set(m1_secondary_reviews) != expected
+    ):
+        raise ValueError("all second-pivot native M1 witnesses need original V2 lineage")
     source_table = {
         row.source_opportunity_id: row for row in source_originals
     }
@@ -110,6 +121,8 @@ def run_sensorized_master_frame_paper(
     independently_upgraded_sensors = 0
     route_reviews_received = 0
     prior_intact_count = 0
+    second_route_review_count = 0
+    second_intact_count = 0
     wrapped_barriers: list[A1MultiHypothesisBarrier] = []
     for barrier in barriers:
         alternatives = []
@@ -200,10 +213,46 @@ def run_sensorized_master_frame_paper(
                     review.protection_class is M1ProtectionClass.PRIOR_CONFIRMED_INTACT
                 )
                 route_reviews_received += 1
+            second_tokens: tuple[str, ...] = ()
+            if m1_secondary_reviews is not None:
+                second = m1_secondary_reviews[sid]
+                prior = m1_route_reviews[sid] if m1_route_reviews is not None else None
+                if (
+                    prior is None
+                    or second.source_opportunity_id != sid
+                    or second.symbol != historical.symbol
+                    or second.source_family != historical.trigger_family
+                    or second.decision_at != frame.decision_at
+                    or second.previous_class != prior.protection_class
+                    or (
+                        second.finding is SecondaryPivotClass.PREVIOUS_V2_PROOF
+                    ) != prior.structurally_protected_at_entry
+                ):
+                    raise ValueError("V3 secondary pivot has false source/V2 ancestry")
+                if second.later_intact and (
+                    second.protected_price is None
+                    or second.confirmed_at is None
+                    or second.swing_at is None
+                    or second.confirmed_at > frame.decision_at
+                    or second.swing_at >= second.confirmed_at
+                ):
+                    raise ValueError("V3 second protected pivot lacks causal confirmation")
+                second_tokens = (
+                    "SCALPER_A1_NATIVE_M1_SECOND_PIVOT_REVIEW="
+                    + second.finding.value,
+                    "SCALPER_A1_SECOND_PIVOT_CAUSAL_CONFIRMED_AT="
+                    + (second.confirmed_at or "NOT_AVAILABLE"),
+                    "SCALPER_A1_SECOND_PIVOT_PRICE="
+                    + (second.protected_price or "NOT_AVAILABLE"),
+                    "SCALPER_A1_SECOND_PIVOT_INFORMATION_NOT_TRADE_VETO=YES",
+                )
+                second_route_review_count += 1
+                second_intact_count += int(second.later_intact)
             tokens = (
                 *alt.context.observation_tokens,
                 *binding.context.observation_tokens,
                 *route_tokens,
+                *second_tokens,
                 f"SCALPER_SENSOR_SOURCE_CISD_MATCH={not conflict}",
                 "SCALPER_SENSOR_DIFFERENCE_NOT_A_GATE=YES",
             )
@@ -236,4 +285,6 @@ def run_sensorized_master_frame_paper(
         independently_observed_market_sensors=independently_upgraded_sensors,
         causal_m1_route_reviews_received=route_reviews_received,
         prior_intact_m1_context_count=prior_intact_count,
+        secondary_m1_route_reviews_received=second_route_review_count,
+        newly_intact_second_m1_context_count=second_intact_count,
     )
