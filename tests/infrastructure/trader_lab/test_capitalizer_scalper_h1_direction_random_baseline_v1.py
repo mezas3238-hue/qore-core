@@ -110,3 +110,21 @@ def test_session_membership_bound_to_new_york_operating_date() -> None:
     # London cutoff 8:30 NY = 12:30 UTC in May (150m after START)
     assert len(eligible)>70
     assert all(b.opened_at >= START for b in eligible)
+
+
+def test_random_candidate_close_exactly_at_session_boundary_is_excluded() -> None:
+    # Asia in May is NY 20:00..02:00 (NY DST => UTC 00:00..06:00).
+    start = datetime(2026, 5, 5, 5, 58, tzinfo=UTC)
+    m1 = (
+        replace(_bar(0), opened_at=start, closed_at=start + timedelta(minutes=1)),
+        replace(_bar(0), opened_at=start + timedelta(minutes=1),
+                closed_at=start + timedelta(minutes=2)),
+    )
+    src = replace(
+        _source(), session="ASIA", operating_date="2026-05-04",
+        h1_state_from=datetime(2026, 5, 5, 0, tzinfo=UTC).isoformat(),
+        m1_trigger_confirmed_at=datetime(2026, 5, 5, 5, 30, tzinfo=UTC).isoformat(),
+    )
+    eligible = eligible_h1_state_times(src, m1, ())
+    assert len(eligible) == 1
+    assert eligible[0].closed_at == start + timedelta(minutes=1)
