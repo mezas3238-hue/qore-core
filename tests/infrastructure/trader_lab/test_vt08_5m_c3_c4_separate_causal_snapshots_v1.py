@@ -169,3 +169,18 @@ def test_source_event_rejects_other_market() -> None:
             market="NAS100", c1=c1, c2=c2, c3=c3,
             c3_m15=bars, observed_at=c3.closed_at,
         )
+
+
+def test_c4_first_m15_wick_must_be_inside_actual_c3_range() -> None:
+    s = shape_for()
+    assert s is not None
+    t = s.c3_closed_at
+    # EQ would be respected, but C4 wick lies above C3 high: no return
+    # to the respected half of the actual C3 candle.
+    outside = candle(t, "106", "109", "106", "107", 15)
+    obs = c4_first_m15_closed_observation(
+        s, first_c4_m15=outside, observed_at=outside.closed_at,
+    )
+    assert obs["eq_half_respected_at_closed_m15"] is True
+    assert obs["wick_in_respected_half"] is False
+    assert s.payload()["c3_full_range_high"] == "104"
