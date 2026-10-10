@@ -9,9 +9,8 @@ from test_capitalizer_a1_source_sensor_independent_attestation_v1 import (
     _source,
 )
 
-from qore.infrastructure.trader_lab.capitalizer_a1_native_source_session_clock_attestation_v1 import (
-    ClockAttestationStatus,
-    assess_v49_source_clock,
+from qore.infrastructure.trader_lab import (
+    capitalizer_a1_native_source_session_clock_attestation_v1 as native_clock,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_session_context_v2 import (
     CapitalizerSourceSessionResolution,
@@ -36,8 +35,8 @@ def test_asian_source_group_reconfirmed_but_author_open_not_invented() -> None:
         time=datetime(2026, 1, 5, 1, 4, tzinfo=UTC),
         operating_date="2026-01-04",
     )
-    clock = assess_v49_source_clock(src)
-    assert clock.qore_bucket_reconfirmed is ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
+    clock = native_clock.assess_v49_source_clock(src)
+    assert clock.qore_bucket_reconfirmed is native_clock.ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
     assert clock.local_operating_day_reconfirmed
     assert clock.methodology_window_resolution is (
         CapitalizerSourceSessionResolution.REVIEW_REQUIRED
@@ -54,8 +53,8 @@ def test_london_and_ny_broad_source_window_are_independent() -> None:
         time=datetime(2026, 1, 5, 8, tzinfo=UTC),
         operating_date="2026-01-05",
     )
-    clock = assess_v49_source_clock(london)
-    assert clock.qore_bucket_reconfirmed is ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
+    clock = native_clock.assess_v49_source_clock(london)
+    assert clock.qore_bucket_reconfirmed is native_clock.ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
     assert clock.local_operating_day_reconfirmed
     assert clock.methodology_window_resolution is (
         CapitalizerSourceSessionResolution.ELIGIBLE
@@ -67,8 +66,8 @@ def test_london_and_ny_broad_source_window_are_independent() -> None:
         time=datetime(2026, 1, 5, 14, tzinfo=UTC),
         operating_date="2026-01-05",
     )
-    actual = assess_v49_source_clock(ny)
-    assert actual.qore_bucket_reconfirmed is ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
+    actual = native_clock.assess_v49_source_clock(ny)
+    assert actual.qore_bucket_reconfirmed is native_clock.ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
     assert actual.methodology_window_resolution is (
         CapitalizerSourceSessionResolution.OUTSIDE
     )
@@ -76,12 +75,12 @@ def test_london_and_ny_broad_source_window_are_independent() -> None:
 
 
 def test_dst_conversions_do_not_use_fixed_new_york_offset() -> None:
-    winter = assess_v49_source_clock(_clock_case(
+    winter = native_clock.assess_v49_source_clock(_clock_case(
         session="NEW_YORK", symbol="NAS100",
         time=datetime(2026, 1, 5, 14, tzinfo=UTC),
         operating_date="2026-01-05",
     ))
-    summer = assess_v49_source_clock(_clock_case(
+    summer = native_clock.assess_v49_source_clock(_clock_case(
         session="NEW_YORK", symbol="NAS100",
         time=datetime(2026, 7, 1, 13, tzinfo=UTC),
         operating_date="2026-07-01",
@@ -98,8 +97,8 @@ def test_contradictory_source_does_not_silently_gain_clock_proof() -> None:
         time=datetime(2026, 1, 5, 8, tzinfo=UTC),
         operating_date="2026-01-05",
     )
-    wrong = assess_v49_source_clock(source)
-    assert wrong.qore_bucket_reconfirmed is ClockAttestationStatus.QORE_BUCKET_CONTRADICTED
+    wrong = native_clock.assess_v49_source_clock(source)
+    assert wrong.qore_bucket_reconfirmed is native_clock.ClockAttestationStatus.QORE_BUCKET_CONTRADICTED
     assert not wrong.local_operating_day_reconfirmed
     assert not wrong.within_qore_research_session
     assert wrong.remaining_session_seconds is None
@@ -111,4 +110,4 @@ def test_source_m1_naive_clock_is_not_allowed() -> None:
         _source(), m1_trigger_confirmed_at="2026-01-05T01:04:00",
     )
     with pytest.raises(ValueError, match="timezone"):
-        assess_v49_source_clock(source)
+        native_clock.assess_v49_source_clock(source)
