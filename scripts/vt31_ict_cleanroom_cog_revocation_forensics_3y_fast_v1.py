@@ -14,6 +14,16 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from vt31_ict_cleanroom_cog_real_3y_fast_v1 import (
+    BASE,
+    FROZEN_SOURCE_SHA256,
+    NY,
+    WINDOW_HOURS,
+    _bar,
+    _completed_hour,
+    _stream,
+)
+
 from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
     VT31CleanroomCognition,
     _ny_day,
@@ -25,16 +35,6 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     utc,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
-
-from vt31_ict_cleanroom_cog_real_3y_fast_v1 import (
-    BASE,
-    FROZEN_SOURCE_SHA256,
-    NY,
-    WINDOW_HOURS,
-    _bar,
-    _completed_hour,
-    _stream,
-)
 
 SCHEMA = "qore.vt31.cleanroom.one_trader.3y_cognitive_revocation_forensics.v1"
 MAX_EXAMPLES = 18
