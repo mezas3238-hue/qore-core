@@ -160,6 +160,12 @@ def _range_pool(
     ordered = sorted(bars, key=lambda b: utc(b.opened_at))
     if len({utc(b.opened_at) for b in ordered}) != len(ordered):
         raise ValueError("overlapping pool M1 timestamps")
+    if any(
+        utc(left.closed_at) != utc(right.opened_at)
+        for left, right in zip(ordered, ordered[1:], strict=False)
+    ):
+        # An incomplete source must NEVER masquerade as its genuine extreme.
+        return None
     confirmed = utc(ordered[-1].closed_at)
     source_start = utc(ordered[0].opened_at)
     source_end = confirmed
@@ -189,17 +195,36 @@ def _verified_pools(
     })
     if previous_days:
         prior = previous_days[-1]
-        prior_bars = tuple(
-            b for b in closed if _ny_day(b.opened_at) == prior
-        )
-        last_prior = utc(prior_bars[-1].closed_at)
-        if utc(as_of) - last_prior <= timedelta(days=5):
-            pair = _range_pool(
-                bars=prior_bars, name="PRIOR_NY_DAY",
-                minimum_bars=120,
+        # Previous *full NY cash session* only (09:30-16:00 New York).
+        # A partial 3-hour bar sample cannot truthfully be called PDH/PDL.
+        # Wider ICT daily dealing-range provenance must be designed and
+        # certified separately rather than mislabelled by this producer.
+        cash_bars = tuple(
+            b for b in closed
+            if _ny_day(b.opened_at) == prior
+            and (
+                9 * 60 + 30
+                <= (
+                    utc(b.opened_at).astimezone(NEW_YORK).hour * 60
+                    + utc(b.opened_at).astimezone(NEW_YORK).minute
+                ) < 16 * 60
             )
-            if pair:
-                candidates.extend(pair)
+        )
+        if len(cash_bars) == 390:
+            first_local = utc(cash_bars[0].opened_at).astimezone(NEW_YORK)
+            final_local = utc(cash_bars[-1].opened_at).astimezone(NEW_YORK)
+            if (
+                (first_local.hour, first_local.minute) == (9, 30)
+                and (final_local.hour, final_local.minute) == (15, 59)
+                and utc(as_of) - utc(cash_bars[-1].closed_at)
+                <= timedelta(days=5)
+            ):
+                pair = _range_pool(
+                    bars=cash_bars, name="PRIOR_NY_CASH_SESSION",
+                    minimum_bars=390,
+                )
+                if pair:
+                    candidates.extend(pair)
 
     def add_local_window(family: str, start_hour: int, end_hour: int) -> None:
         window_bars = tuple(
