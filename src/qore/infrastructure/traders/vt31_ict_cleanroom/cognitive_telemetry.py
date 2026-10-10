@@ -288,6 +288,19 @@ class CognitiveTelemetry:
                     "broker_filled": False,
                     "risk_authorized": False,
                 })
+        if (
+            candidate is not None and cognition is None
+            and phase is MethodologyDecision.RESEARCH_PENDING_CE
+        ):
+            # Cross-architect P0: selected source may remain pending after
+            # its DOL/MSS was revoked. Observe ONLY, do not change OPS.
+            self.by_session[session.value + "|P0_PENDING_WITHOUT_COG"] += 1
+            if len(self.blocker_examples) < self.max_examples:
+                self.blocker_examples.append({
+                    "as_of": utc(at).isoformat(),
+                    "session": session.value,
+                    "missing": "P0_SOURCE_PENDING_WITHOUT_VALID_COG",
+                })
         elif raw_fvg_new and cognition is None:
             self.by_session[session.value + "|OPS_RAW_FVG_BLOCKED_BY_COG"] += 1
             for reason in missing:
