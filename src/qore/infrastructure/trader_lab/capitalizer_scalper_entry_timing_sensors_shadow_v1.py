@@ -29,6 +29,8 @@ from qore.infrastructure.trader_lab.capitalizer_scalper_h1_timing_session_diagno
 )
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerSourceDirection,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_poi_v2 import (
     CapitalizerSourcePOIKind,
     bar_interacts_with_poi,
     detect_fair_value_gap,
