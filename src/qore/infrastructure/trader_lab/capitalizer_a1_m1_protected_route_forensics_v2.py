@@ -16,6 +16,7 @@ import json
 from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
+from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
 
@@ -159,13 +160,13 @@ def review_source_m1(
         b.symbol != source.symbol or b.closed_at > at for b in m1
     ):
         raise ValueError("incomplete/foreign/future native M1 at source close")
-    if m1[-1].close != __price(source.decision_reference_price):
+    if m1[-1].close != Decimal(source.decision_reference_price):
         raise ValueError("native source M1 close differs from frozen V49")
     local = tuple(
         b for b in m1 if b.opened_at >= thesis and b.closed_at <= at
     )
     direction = CapitalizerSourceDirection(source.h1_state_direction)
-    strict = _m1_protected(source, m1=m1, at=at, direction=direction)
+    strict = _m1_protected(source, m1=local, at=at, direction=direction)
     evidence = None
     if len(local) >= 4:
         timed = tuple(
@@ -239,11 +240,6 @@ def review_source_m1(
     )
 
 
-def __price(value: str):
-    from decimal import Decimal
-    return Decimal(value)
-
-
 def run_m1_market_forensics(
     *, source_root: Path, native_root: Path, output: Path,
 ) -> dict[str, object]:
@@ -275,10 +271,10 @@ def run_m1_market_forensics(
     output.mkdir(parents=True, exist_ok=True)
     with (output / "scalper-a1-m1-protection-family-review.jsonl").open("w") as handle:
         for source in original:
+            left = bisect.bisect_left(opened, _dt(source.m15_setup_confirmed_at))
             right = bisect.bisect_left(opened, _dt(source.m1_trigger_confirmed_at))
-            # Current M1 entry candle has opened just before decision_at.
-            # The slice by opened_at includes that candle and nothing later.
-            record = review_source_m1(source=source, m1=bars[:right])
+            # Only causal post-M15 M1 bars, through the source decision close.
+            record = review_source_m1(source=source, m1=bars[left:right])
             if record.source_opportunity_id in seen:
                 raise ValueError("reused historical source ID")
             seen.add(record.source_opportunity_id)
