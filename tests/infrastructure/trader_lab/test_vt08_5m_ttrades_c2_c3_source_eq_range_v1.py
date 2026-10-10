@@ -30,13 +30,15 @@ def h4(o: str, h: str, low: str, c: str) -> Vt08B01Bar:
 @pytest.mark.parametrize(
     ("side", "o", "c", "expected_basis", "eq"),
     [
-        (DemoTradingSetupSide.LONG, "100", "106", EqRangeBasis.FULL_CANDLE_c2_WITH_SWING, "100"),
-        (DemoTradingSetupSide.SHORT, "106", "100", EqRangeBasis.FULL_CANDLE_c2_WITH_SWING, "100"),
-        (DemoTradingSetupSide.LONG, "106", "102", EqRangeBasis.CLOSE_TO_EXTREME_c2_AGAINST_SWING, "96"),
-        (DemoTradingSetupSide.SHORT, "94", "98", EqRangeBasis.CLOSE_TO_EXTREME_c2_AGAINST_SWING, "104"),
+        (DemoTradingSetupSide.LONG, "100", "106", EqRangeBasis.FULL_CANDLE_C2_WITH_SWING, "100"),
+        (DemoTradingSetupSide.SHORT, "106", "100", EqRangeBasis.FULL_CANDLE_C2_WITH_SWING, "100"),
+        (DemoTradingSetupSide.LONG, "106", "102",
+         EqRangeBasis.CLOSE_TO_EXTREME_C2_AGAINST_SWING, "96"),
+        (DemoTradingSetupSide.SHORT, "94", "98",
+         EqRangeBasis.CLOSE_TO_EXTREME_C2_AGAINST_SWING, "104"),
     ],
 )
-def test_c2_range_depends_on_direction_of_CLOSE(
+def test_c2_range_depends_on_direction_of_close(
     side: DemoTradingSetupSide, o: str, c: str, expected_basis: EqRangeBasis, eq: str,
 ) -> None:
     candle = h4(o, "110", "90", c)
@@ -69,7 +71,7 @@ def test_without_adjudicated_closure_return_unknown_not_guess() -> None:
     ) is None
 
 
-def test_unclosed_H4_cannot_compute_future_EQ() -> None:
+def test_unclosed_h4_cannot_compute_future_eq() -> None:
     candle = h4("100", "110", "90", "106")
     with pytest.raises(ValueError, match="unclosed"):
         source_eq_after_closure(
