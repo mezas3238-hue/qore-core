@@ -154,9 +154,13 @@ def aggregate(root: Path) -> dict[str, Any]:
         "OFFLINE_FIRST_NOT_PREFIX_INVARIANT"
     ] != 381:
         raise ValueError("eleventh audit population changed unexpectedly")
+    if counts["ORIGINAL_ROUTE_FIRST_MATCH"] != 2876:
+        raise ValueError("original route not fully as-of witnessed at the M1 close")
     return {
         "identity": IDENTITY, "sources": 2876, "markets": 9,
         "counts": dict(sorted(counts.items())),
+        "source_event_asof_first_within_own_route": 2876,
+        "source_event_absent_from_own_route_asof": 0,
         "original_event_absent_from_every_asof_candidate_not_yet_proven": True,
         "future_dependent_offline_first_selection": 381,
         "changed_admissions": 0, "paper_pf": None, "paper_dd_r": None,
