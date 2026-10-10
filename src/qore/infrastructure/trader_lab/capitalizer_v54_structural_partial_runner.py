@@ -44,8 +44,10 @@ from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics import (
     COGNITIVE_GEOMETRY_ALLOWED,
     COST_STRESS_R,
-    _replay as replay_full_t1,
     _session_bars,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics import (
+    _replay as replay_full_t1,
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_specialist import (
     V50GeometryDecision,
