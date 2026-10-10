@@ -130,6 +130,13 @@ def test_loss_of_cognitive_thesis_flags_pending_source_p0() -> None:
         count for key, count in audit.by_session.items()
         if key.endswith("|P0_PENDING_WITHOUT_COG")
     ) >= 1
+    report = audit.report()
+    assert report["p0_pending_without_cog_unique_candidate_sources"] == {
+        "VT31_LONDON": 1
+    }
+    assert report["p0_pending_without_cog_examples"][0]["remaining_ops_state"] == (
+        "RESEARCH_PENDING_CE"
+    )
 
 
 def test_m1_market_component_does_not_imply_broker_or_agent_reasoning() -> None:
