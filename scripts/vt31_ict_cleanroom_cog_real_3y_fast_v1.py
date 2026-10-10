@@ -10,7 +10,6 @@ FVG-touch broker fills, trade PF/DD, capital, CIBO/QDLE or old VT31 algorithms.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import time
 from collections import Counter
