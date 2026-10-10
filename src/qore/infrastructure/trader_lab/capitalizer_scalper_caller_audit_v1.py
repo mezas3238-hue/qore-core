@@ -28,6 +28,8 @@ TARGETS = (
     "assess_dual_source_entry",
     "qore.infrastructure.trader_lab.capitalizer_source_strategy_grammar_v2."
     "assess_source_strategy",
+    "qore.infrastructure.trader_lab.capitalizer_source_trader_engine_v2."
+    "assess_source_trader_engine",
     "qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49."
     "build_market_capacity",
     "qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49."
