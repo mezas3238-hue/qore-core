@@ -163,17 +163,20 @@ class TestCleanroom(unittest.TestCase):
             "CAUSAL_DOL_DIRECTION_OR_TARGET_CHANGED",
         )
 
-    def test_unrelated_new_mss_cannot_reuse_old_first_fvg(self) -> None:
+    def test_later_same_direction_m1_mss_does_not_erase_valid_first_fvg(self) -> None:
         ops = self._pending()
+        first = ops.snapshot()["fvg"]
         phase = ops.on_closed_m1(
-            bar(self.t, 3, "105", "103", "104"),
+            bar(self.t, 3, "104", "102", "103"),
             cognition=decision(self.t + timedelta(minutes=4), self.session),
         )
-        self.assertEqual(phase, MethodologyDecision.SOURCE_INVALIDATED)
-        self.assertEqual(
-            ops.snapshot()["source_invalidation_reason"],
-            "ORIGINAL_M1_MSS_THESIS_REPLACED",
-        )
+        # A new same-side M1 MSS can strengthen a still valid DOL thesis.
+        # Original ICT does not universally cancel its first FVG because
+        # another confirming MSS is observed on a subsequent closed M1.
+        self.assertEqual(phase, MethodologyDecision.RESEARCH_PENDING_CE)
+        self.assertEqual(ops.snapshot()["fvg"], first)
+        self.assertIsNone(ops.snapshot()["source_invalidation_reason"])
+        self.assertFalse(ops.snapshot()["actual_mt5_fill_proven"])
 
     def test_stale_cognition_cannot_be_reused_for_later_m1(self) -> None:
         ops = self._pending()
