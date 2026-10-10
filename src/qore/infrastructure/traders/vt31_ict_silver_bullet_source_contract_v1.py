@@ -137,8 +137,19 @@ def assess_ict_silver_bullet_source(
     # At 04:00:00, the 03:59-04:00 M1 bar closes and is still valid.
     if c.astimezone(NY).hour != HOURS[session_model_id]:
         barriers.append("FVG_THIRD_CANDLE_NOT_IN_SOURCE_WINDOW")
+    # Conservative OPERATIONAL FORMALIZATION, not an unambiguous literal
+    # condition confirmed by the 2023 primary 19-minute lecture: all
+    # three contributing closed candles start inside the source hour.
+    first_ny = _time(first.opened_at).astimezone(NY)
+    if first_ny.date() != ny_formed.date() or first_ny.hour != HOURS[session_model_id]:
+        barriers.append("FVG_FIRST_CANDLE_BEFORE_SOURCE_WINDOW_RESEARCH_POLICY")
     if closed > at or _time(middle.closed_at) > at:
         barriers.append("UNCLOSED_FUTURE_FVG_DATA")
+    # At an M1 close instant the prospective next M1 open could coincide;
+    # without tick/sequence evidence a same-timestamp fill must NOT be
+    # inferred as a valid broker execution. Fail closed on ambiguity.
+    if fill <= at:
+        barriers.append("SAME_TIMESTAMP_OR_EARLY_FILL_NOT_PROVEN")
     if fill < at or fill.astimezone(NY).date() != ny_formed.date():
         barriers.append("FILL_BEFORE_ASOF_OR_ON_OTHER_SOURCE_DAY")
     if not (fill.astimezone(NY).hour == HOURS[session_model_id]):
@@ -265,6 +276,24 @@ def self_test() -> None:
     assert assess_ict_silver_bullet_source(**(
         kwargs | {"earliest_fvg_in_entry_zone_verified": False}
     )).action == "BLOCK_SOURCE_INCOMPLETE"
+    # 09:59 first candle + 10:00 middle + 10:01 third: FVG closes
+    # during ICT NY AM, but strict QORE full-three-inside policy vetoes.
+    crossing = (
+        ClosedCandle(base - timedelta(minutes=1), base,
+                     Decimal("110"), Decimal("100")),
+        ClosedCandle(base, base + timedelta(minutes=1),
+                     Decimal("108"), Decimal("99")),
+        ClosedCandle(base + timedelta(minutes=1), base + timedelta(minutes=2),
+                     Decimal("97"), Decimal("94")),
+    )
+    cross = assess_ict_silver_bullet_source(**(
+        kwargs | dict(zip(("first", "middle", "third"), crossing))
+    ))
+    assert "FVG_FIRST_CANDLE_BEFORE_SOURCE_WINDOW_RESEARCH_POLICY" in cross.barriers
+    same_timestamp = assess_ict_silver_bullet_source(**(
+        kwargs | {"prospective_fill_open": asof}
+    ))
+    assert "SAME_TIMESTAMP_OR_EARLY_FILL_NOT_PROVEN" in same_timestamp.barriers
 
 
 if __name__ == "__main__":
