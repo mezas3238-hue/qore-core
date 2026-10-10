@@ -252,9 +252,22 @@ def _verified_pools(
     add_local_window("ASIA_NY_CLOCK", *ASIA_WINDOW)
     if session in (SessionId.NY_AM, SessionId.NY_PM):
         add_local_window("LONDON_NY_CLOCK", *LONDON_EARLY_WINDOW)
-    return tuple(
-        pool for pool in candidates if utc(pool.confirmed_at) <= utc(as_of)
-    )
+    def still_available(pool: LiquidityPool) -> bool:
+        if utc(pool.confirmed_at) > utc(as_of):
+            return False
+        # A level traded through after it was first confirmed is mitigated.
+        # Reversion back below a swept high does not resurrect that DOL.
+        return not any(
+            utc(bar.opened_at) >= utc(pool.confirmed_at)
+            and utc(bar.closed_at) <= utc(as_of)
+            and (
+                bar.high >= pool.level
+                if pool.side is Side.LONG else bar.low <= pool.level
+            )
+            for bar in closed
+        )
+
+    return tuple(pool for pool in candidates if still_available(pool))
 
 
 def _confirmed_break(
