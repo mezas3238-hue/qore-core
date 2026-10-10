@@ -2,14 +2,9 @@
 """Research-only paired source OFFER chronology; ONE VT31, no broker fills."""
 from __future__ import annotations
 
-import argparse
-import json
-import os
-from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
     VT31CleanroomCognition,
@@ -20,11 +15,6 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
 from qore.infrastructure.traders.vt31_ict_cleanroom.m1_execution import (
     confirmed_m1_fvg,
 )
-from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
-from vt31_ict_cleanroom_cog_real_3y_fast_v1 import (
-    BASE, FROZEN_SOURCE_SHA256, NY, WINDOW_HOURS, _bar, _completed_hour, _stream,
-)
-
 SCHEMA = "qore.vt31.shadow_opposite_pivot_ab.source.v1"
 
 
