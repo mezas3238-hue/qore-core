@@ -1,0 +1,29 @@
+# Trader Scalper — de sensores a decisiones de entrada y comparación PAPER PF/DD
+
+**Owner**: «Lo que yo quiero es que los sensores trabajen para dar información al trader y así ejecutar su entrada y de acuerdo a eso ver si baja su Drawdown».
+
+**Alcance:** GitHub exclusivamente, rama B `agent/scalper-architect-b-methodology-20261010`, PR #759. A cognitiva: rama `agent/scalper-architect-a-cognition-20261010`, PR #758, issue #756. En producción cero modificaciones. Investigación PAPER offline sin VPS/MT5/LIVE.
+
+## Entregable operativo: cadena verificable completa
+
+1. Cada vela M1 cerrada alimenta `observe_entry_timing_sensors`: 20+ sensores H1 dirección/frescura, protected M15 y stop, H1 rango parcial/posición, reloj y runway de sesión NY, M1 Sweep/opposing series/CISD, FVG/retrace/CISD, ruido/volatilidad, huecos de datos, H1 target room solo con timestamp testigo, broker bid/ask/comisión solo con evidencia física. Ningún outcome futuro en features.
+2. **Cognitiva del Trader**, arquitecto A1: suministrar `scalper-a1-master-sensor-decision.jsonl` para **TODAS las 2876 oportunidades originales**, no solo las ganadoras, con `source_opportunity_id`, `symbol`, `observed_at` igual a fecha original decisión, `disposition=ACCEPT|WAIT|ABSTAIN`, `why`, `cognitive_engine_identity`, `master_frame_artifact_sha256`, `master_frame_evaluated=true`, `sensor_evidence_evaluated=true`, `outcome_visible=false`, `used_future_h1_expiry=false`, `authorization_is_live=false`. **No inventar el archivo** cuando aún no existe Master Frame real. `WAIT` o `ABSTAIN` NO se convierte en un fill en el futuro: la señal original concreta no se ejecuta. Si quiere retiming habrá que construir un motor real distinto usando candles futuras solo a medida que llegan.
+3. **Motor PAPER de decisiones** `capitalizer_scalper_sensor_paper_decision_ab_v1.py` consume las entradas originales V49, 9 market books, los 2876 frames de sensores con join SHA-256 y *si existe* el log causal A1 con todos los IDs. El módulo rechaza una fecha no coincidente, sensor corrupto, cognición falsa declarada, futuro H1 expiry, outcomes, missing 9 market logs, y cualquier capacidad live. Las decisiones se hacen **antes** de consultar los resultados V49. Portfolio MAX3: tres primeras oportunidades admitidas por sesión y día según cronología, sin mirar R/winner futuro; si una se descarta se puede sustituir por otra oportunidad posterior con SL/TP originales; se informa explícitamente del reemplazo.
+4. **A/B y drawdown** usando el mismo modelo económico V49 original sin falsos fills:
+   - `FROZEN_V49_CONTROL`: todas las señales originales, MAX3, 2020 trades / 1167 ganadores, -233.269R.
+   - `NOOP_SENSORS_OBSERVED`: sensores leídos pero sin influir en decisiones, debe reproducir bit a bit CONTROL y su PF/DD. Prueba de trazabilidad **obligatoria**.
+   - `RESEARCH_SOURCE_SENSOR_CONSISTENCY_ONLY`: un primer caso diagnóstico en el que el trader PAPER sólo considera fuentes cuyo primer evento reconstruido por el sensor coincide exactamente con el V49. **Este NO es el cerebro del Trader**, es un experimento de integridad tecnológica, y su DD no debe presentarse como causalidad de la cognitiva. No promocionar el filtro a regla.
+   - `A1_FULL_COGNITIVE_SENSORS_PAPER`: aparece **SOLO** después de que A1 entregue e integre evidencia de razonamiento Full Master Frame por oportunidad. Este es el test que responde al mandato Owner: fuentes→sensores→cognitiva real→PAPER entradas→PF/DD. En ausencia de ese archivo, el informe debe decir `a1_full_master_frame_attested=false` y NO inventar una simulación de cerebro.
+5. Informes por rama: nº autorizaciones, nº ejecutadas, PF bruto, DD máximo por cierres y R total, ganadores del V49 preservados por ID exacto, R ganador preservado (934/415.75R exigidos), cuántos slots MAX3 se rellenaron y comparación vs V49. No hay inferencia de costes BID/ASK, slippage, comisión ni prop firm; se marca `broker_bid_ask_commission_slippage_simulated=false`. El DD es **retrospectivo sobre trades originales, filtrados**, no un replay de órdenes retemporizadas.
+
+## Hallazgo P0: contrato de primer evento de sensores ≠ ledger V49
+
+El primer censo `#38070589243` abortó **correctamente**: detectó que para algunas fuentes, el primer evento M1 seleccionado por el sensor as-of no coincidía con la ruta/hora archivada V49. Ejemplo observado AUDJPY: V49 FVG+CISD 2025-09-29 04:21 UTC vs primer Sweep+CISD sensor 04:16 UTC, misma fuente con M15 original 04:00. **NO asumir que una entrada distinta es mejor** ni añadir veto ciego. El nuevo censo preserva **todos los 2876 source IDs** y reporta `source_cisd_identical` y `source_cisd_mismatch` cada uno explícito, sin afirmar que todas las 2876 coinciden. La discrepancia debe resolverse en el generador/cadena del original, especialmente por ventanas M15 y preferencia de evento, antes de dar autoridad real. El PAPER de consistencia es un **stress científico** y no validación de un algoritmo predictivo.
+
+## Gate de certificación
+
+No certificar aunque el DD de un brazo de investigación mejore, si PF neto OOS, preservación 934/415.75R, número de operaciones útil, estrés multianual y costes físicos no cumplen simultáneamente. No evaluar gain de un cerebro simulado cuando `A1_FULL_COGNITIVE_SENSORS_PAPER` falta. No permitir `h1_state_until`, `exit_reason`, R, MFE/MAE, o retorno a +30 min en el modelo decisor.
+
+**Ejecución automatizada del puente PAPER**: `.github/workflows/qore-scalper-a2-sensor-cognitive-paper-ab.yml`, fuente control [#38053946695](https://github.com/mezas3238-hue/qore-core/actions/runs/38053946695), sensores [#38071138991](https://github.com/mezas3238-hue/qore-core/actions/runs/38071138991), outputs inmutable SHA GH artifact por job.
+
+**Estado del mandato:** código de integración PAPER B listo para validar; cognitiva A1 pendiente de aportar decisiones reales. Se prohíbe afirmar reducción del DD por cognitiva antes de la comparación completa.
