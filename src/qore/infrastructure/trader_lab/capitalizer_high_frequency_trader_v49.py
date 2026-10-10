@@ -278,24 +278,44 @@ def select_master_frame_trade_intents(
         if x.cognitive_gate == "WAIT"
     }
     abstain_ids = set(known) - pass_ids - wait_ids
-    # Identical chronological frozen source competition; no outcome ranking.
-    grouped: dict[tuple[str, str], list[tuple[str, V49Opportunity]]] = defaultdict(list)
-    for id_, source in known.items():
-        if id_ in pass_ids:
-            grouped[(source.session, source.operating_date)].append((id_, source))
+    # Frozen source chronological competition, now respecting the actual
+    # as-of session ledger's remaining budget at EACH decision barrier.
+    # MAX3 is a ceiling, never a demand to fill or a cognitive veto.
     chosen: list[tuple[str, V49TradeIntent]] = []
-    for key in sorted(grouped):
-        rows = sorted(
-            grouped[key],
-            key=lambda pair: (
-                pair[1].m1_trigger_confirmed_at,
-                pair[1].symbol,
-                pair[1].m1_trigger_family,
-                pair[0],
-            ),
+    remaining_by_session_day: dict[tuple[str, str], int] = {}
+    for packet, barrier in zip(packets, barriers, strict=True):
+        active = tuple(
+            (row.source_opportunity_id, known[row.source_opportunity_id])
+            for row in packet.candidates
+            if row.cognitive_gate == "PASS_TO_STRATEGY"
         )
-        for id_, source in rows[:MAX_EXECUTIONS_PER_SESSION]:
-            chosen.append((id_, materialize_trade_intent(source)))
+        if not active:
+            continue
+        grouped: dict[tuple[str, str], list[tuple[str, V49Opportunity]]] = defaultdict(
+            list
+        )
+        for id_, source in active:
+            if source.session != barrier.world.current_session.value:
+                raise ValueError("source opportunity outside observed Master Frame session")
+            grouped[(source.session, source.operating_date)].append((id_, source))
+        for key, candidates in sorted(grouped.items()):
+            as_of_slots = packet.remaining_session_slots
+            if not 0 <= as_of_slots <= MAX_EXECUTIONS_PER_SESSION:
+                raise ValueError("Master Frame session budget invalid")
+            local_remaining = remaining_by_session_day.get(key, MAX_EXECUTIONS_PER_SESSION)
+            budget = min(local_remaining, as_of_slots)
+            rows = sorted(
+                candidates,
+                key=lambda pair: (
+                    pair[1].m1_trigger_confirmed_at,
+                    pair[1].symbol,
+                    pair[1].m1_trigger_family,
+                    pair[0],
+                ),
+            )
+            for id_, source in rows[:budget]:
+                chosen.append((id_, materialize_trade_intent(source)))
+            remaining_by_session_day[key] = budget - min(budget, len(rows))
     chosen.sort(key=lambda pair: (pair[1].entry_at, pair[1].symbol, pair[0]))
     chosen_ids = tuple(id_ for id_, _ in chosen)
     return A1MasterFrameTraderIntentReport(
