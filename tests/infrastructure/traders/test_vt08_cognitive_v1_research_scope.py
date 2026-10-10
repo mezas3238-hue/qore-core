@@ -14,6 +14,7 @@ from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_v1 import (
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     MEMORY_STATE,
     RESEARCH_MARKETS,
+    CAUSAL_FIELDS,
     Vt08FiveMarketResearchSituation,
     research_market_anchor_context,
 )
@@ -66,6 +67,9 @@ def _research_payload(market: str = "EURJPY") -> dict[str, object]:
         "supporting_evidence": ("SOURCE:CISD_CONFIRMED", "SOURCE:PS_CONFIRMED"),
         "source_evidence_id": "synthetic-fixture-v1",
         "latest_available_bar_close": AS_OF,
+        "feature_cutoffs": tuple((name, AS_OF) for name in CAUSAL_FIELDS),
+        "source_cycle_id": "synthetic-h4-cycle-09",
+        "cycle_expires_at": AS_OF + timedelta(hours=4),
         "research_only": True,
         "operational_authority": False,
     }
