@@ -10,11 +10,12 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from dataclasses import asdict, dataclass
+from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from itertools import groupby
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
@@ -29,13 +30,13 @@ from qore.infrastructure.trader_lab.capitalizer_scalper_c3_source_variants_v1 im
     C3AsOfInput,
     compare_c3_primary_readings,
 )
-from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
-    CapitalizerSourceBar,
-    detect_candle2_reversal_closure,
-)
 from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 import (
     _jsonl,
     source_id,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerSourceBar,
+    detect_candle2_reversal_closure,
 )
 
 IDENTITY = "QORE_SCALPER_A2_C3_NATIVE_GEOMETRY_9MARKET_V1"
