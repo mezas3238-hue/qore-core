@@ -390,3 +390,33 @@ La rama A1 PR #758 conserva:
 **Cómo continuar desde GitHub:** leer este handoff → comprobar HEAD y CI de ambos PR → cargar artefactos V49 #38053946695, nativo #35548099334, M1 9mercados #38080367716, percepción #38092434895 y forensic CISD #38076268436 → cerrar fidelidad por source IDs y origen temporal → completar el World Model con evidencias realmente disponibles → ejecutar FULL Master PAPER no-lookahead con MAX3 portfolio y memoria settled-only → publicar matriz PF/DD y preservación por identidad o reporte BLOCKED con causas. Los PR continúan DRAFT, no hay autorización de merge, VPS, MT5 ni LIVE.
 
 **Estado final y sucesor esperado:** infraestructura sensorial/cognitiva funcional en pruebas; causa CISD route precedence y definición C3 pendientes; entradas PAPER Master FULL 2876 sin medir, no hay PF/DD cognitivo; certificación NO. Handoff definitivo entregado por GitHub; siguiente trabajo empieza exactamente en B #759 / A #758, jamás desde resultados V50-G rechazados.
+
+
+---
+
+# 13. A2 SUCESOR — HALLAZGOS EJECUTADOS DESPUES DEL HANDOFF bbb4173 (2026-10-10)
+
+Esta sección es posterior a la firma del handoff original. Se añaden evidencias sin reescribir los resultados históricos ni sustituir el baseline V49.
+
+## 13.1 C3: dos lecturas fuente realmente parametrizadas y comparación H1 provider-native
+
+Documentación/fuentes exactas y prereg: [QORE_SCALPER_A2_C3_SOURCE_VARIANTS_METHOD_FIRST_2026-10-10.md](QORE_SCALPER_A2_C3_SOURCE_VARIANTS_METHOD_FIRST_2026-10-10.md).
+- Comparador sin autoridad de admisión: src/qore/infrastructure/trader_lab/capitalizer_scalper_c3_source_variants_v1.py. Diciembre 2025: C3 no barre C2 pero supera su cuerpo; enero 2026: hipótesis de ingeniería C3 cierra fuera del rango C2. NO establecer fidelidad exacta de segundo texto por sus resultados.
+- Censo nativo src/qore/infrastructure/trader_lab/capitalizer_scalper_a2_c3_native_geometry_census_v1.py: [CI 9market #38095270532 SUCCESS, 11/11](https://github.com/mezas3238-hue/qore-core/actions/runs/38095270532), [artifact matriz #11685698012](https://github.com/mezas3238-hue/qore-core/actions/runs/38095270532/artifacts/11685698012). 45086 tripletas H1 consecutivas con 60/60 M1 reales: DECEMBER_ONLY 2964, JANUARY_ONLY 21445, NEITHER 20677. 2876 fuente-IDs reconciliados, 238 CANDLE3 basis originales, 1460 linked native H1 C3 geometries exactas. 0 ejecución alterada.
+- Lo anterior es GEOMETRIA, no POI/CISD autor atestados, y el gran tamaño de JANUARY no autoriza implantación ni demuestra alta densidad rentable.
+
+## 13.2 Diagnóstico CISD 381 ahora cerrado COMO MECANISMO COMPUTACIONAL (no autor-fidelidad)
+
+**[GitHub Actions source/native/full-prefix #38095562104 SUCCESS, 11/11](https://github.com/mezas3238-hue/qore-core/actions/runs/38095562104)**, SHA de ejecución `a442a0d844b13cb4d013107b1b3721624abf574d`; [artifact aggregate #11685273575](https://github.com/mezas3238-hue/qore-core/actions/runs/38095562104/artifacts/11685273575). Programa src/qore/infrastructure/trader_lab/capitalizer_scalper_a2_cisd_prefix_causality_v1.py, workflow .github/workflows/qore-scalper-a2-cisd-window-nine-market.yml. Usa M1 provider-native nueve mercados y fuentes/sensores V49 congelados.
+
+Se reconstruyó por cada uno de los 2876 source_opportunity_id el M15 parent y sus dos observadores V48:
+- **FULL_WINDOW** desde M15 confirmado hasta siguiente M15/H1 boundary histórico: coincide con el ID, familia y close V49 original **2876/2876**.
+- **ASOF_CLOSED_PREFIX** desde M15 confirmado hasta close original M1, no futuro: coincide con el ID, familia y close de shadow sensors **2876/2876**.
+- **2495** MATCHED_BOTH_WINDOWS; **381** RECONSTRUCTED_FULL_VS_PREFIX_SELECTION. 0 M15_PARENT_NOT_RECONSTRUCTED, 0 fuentes ausentes, 0 nuevas órdenes. Ello **explica completamente por qué el mismo par de detectores QORE produce 381 familias/tiempos discordantes**, sin escoger ganador por MFE/MAE.
+- Las 381 incluyen la clasificación previa 247 FIRST SENSOR EARLIER DIFFERENT FAMILY +134 SAME_CLOSE DIFFERENT_FAMILY; no prueban CISD direccional invertida (sensor hereda H1 direction).
+
+**Riesgo P0 nuevo:** V49 seleccionó retroactivamente un primer evento con información de su ventana COMPLETA hasta un límite M15/H1 derivado del futuro. Un prefijo observado al momento de decisión puede escoger otro evento; por tanto el histórico V49 no tiene demostrada *prefix-invariance / online causal execution* en esos 381 IDs. No confundir la prueba del origen de discrepancia con determinar que el evento V49 sea falso según la fuente TTrades, ni suponer que la entrada sensor sea operable. El ledger full-window es un instrumento FORENSE EX-POST, nunca un feature cognitivo.
+
+**Reparación exigida ANTES de nuevo PF/DD certificado:** preregistrar nuevo replay de observadores ONLINE cerrado por cada M1 y cada parent M15, con múltiples rutas/TTrades y POI, fijando evento de primera confirmación realmente disponible, y compararlo contra V49 preservado mediante IDs y matriz. No usar winner-label, MFE/MAE, P&L ni next M15/H1 futuro para admission. Sin gate universal 381 ni retiming arbitrario. Comprobar efectos en densidad, MAX3 portfolio y >=934 IDs vencedores y >=415.74848565R masa original; medir PF/DD sólo después de replay causal con entries reales, y OOS independiente. Escalar fuente autor CISD swing/POI y Candle 3 antes de ejecutar.
+
+A1 sigue dueño del Master Frame y debe recibir únicamente testigos source-fieles confirmados <= decision_at; FULL_WINDOW/h1_state_until retrospectivo se mantiene fuera de cerebro. El PF/DD FULL Master sigue NO MEDIDO. Estado final: explicación técnica de 381 **CERRADA**; fidelidad semántica C3/POI/swing **PENDIENTE**; replay causal online corregido **PENDIENTE**; certificación NO, ningún VPS/LIVE/MERGE.
