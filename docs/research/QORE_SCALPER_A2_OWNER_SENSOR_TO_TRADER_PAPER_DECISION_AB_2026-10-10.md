@@ -27,3 +27,31 @@ No certificar aunque el DD de un brazo de investigación mejore, si PF neto OOS,
 **Ejecución automatizada del puente PAPER**: `.github/workflows/qore-scalper-a2-sensor-cognitive-paper-ab.yml`, fuente control [#38053946695](https://github.com/mezas3238-hue/qore-core/actions/runs/38053946695), sensores [#38071138991](https://github.com/mezas3238-hue/qore-core/actions/runs/38071138991), outputs inmutable SHA GH artifact por job.
 
 **Estado del mandato:** código de integración PAPER B listo para validar; cognitiva A1 pendiente de aportar decisiones reales. Se prohíbe afirmar reducción del DD por cognitiva antes de la comparación completa.
+
+## EVIDENCIA EMPÍRICA — PAPER A/B FINAL 9/9
+
+GitHub [#38071484777](https://github.com/mezas3238-hue/qore-core/actions/runs/38071484777), GREEN, importó nueve source ledgers V49 originales, nueve libros economics y nueve ledgers del **censo causal 2876 sensores** [#38071138991](https://github.com/mezas3238-hue/qore-core/actions/runs/38071138991), 11/11 GREEN. El nulo sensor-only reproduce exactamente 2020 trades, 1167 winners, -233.269327R, PF 0.6644630742, DD 236.134284R. No se fabricaron ejecuciones ni retemporizaciones.
+
+| Brazo PAPER | Trades | PF bruto | DD máximo R | R ganador original preservado | # winners originales preservados |
+|---|---:|---:|---:|---:|---:|
+| CONTROL V49, MAX3 | **2020** | **0.664463** | **236.134R** | 461.943R | 1167 |
+| SENSORES SOLO INFORMATIVOS, NOOP | **2020** | **0.664463** | **236.134R** | 461.943R | 1167 |
+| SOLO INVESTIGACIÓN: abstenerse si la primera señal reconstruida ≠ señal V49 | **1910** | **0.621312** | **252.103R** | **385.079R** | **1000** |
+
+**CONFLICT con objetivo owner**, predefinido: la mera política de descartar entradas por diferencia técnica de ruta produce DD **+15.969R** (EMPEORA), PF **−0.04315**, deja de preservar 90% de R de las ganadoras originales: 385.079R es inferior al suelo obligatorio 415.75R. Aunque 1000 supervivientes superan el mínimo numérico 934, **no conserva masa R**. Por ello **RECHAZADO** como gate, no promocionar a trader. Se confirma la decisión de mantener sensores como *evidencia cognitiva* y no apilarlos como vetos automáticos.
+
+**Contradicción de datos fuente 381/2876 (13.25%)**: 2495 coincidían exactamente; el primer detector CISD as-of eligió distinta ruta o timestamp en 381 que el ledger histórico V49. Es hallazgo P0 de contratos y causalidad de ventanas, NO un label de rendimiento de operación ni evidencia de una señal mejor. Resolver precedencia de rutas y fuente original con reproducción M1 en los ejemplos, antes de fiar una política al panel. No ocultar estas 381, ni contarlas todas como pérdidas, ni asumir que el nuevo sensor tiene razón.
+
+**NO CONFUNDIR**: este resultado PAPER no utilizó aún **A1_FULL_COGNITIVE_SENSORS_PAPER**, ausente de la corrida: `a1_full_master_frame_attested=false`. **No se ha medido DD de la cognitiva real de Scalper administrando entradas**. La política experimental de integridad técnica no sustituye razonamiento del Master Frame. Costes físicos BID/ASK/comisión/slippage aún no simulados; los PF/DD son BRUTOS.
+
+## Contrato real de sensorización hacia Master Cognitive Frame
+
+Nuevo módulo `src/qore/infrastructure/trader_lab/capitalizer_scalper_sensor_master_frame_bridge_v1.py` utiliza **el tipo de producción existente** `CapitalizerCandidateCognitiveContext` de `capitalizer_master_cognitive_frame.py`, consumiendo cada `EntrySensorFrame` y emitiendo **tokens de los >20 sensores, todos status+provenance as-of**. Procesa evento CISD genuinamente nuevo (solo si timestamp CISD == cierre decisión), H1 edad, liquidez actual confirmada, protected swing M15 y datos no disponibles; construye huella determinista y **no afirma tener lleno el Master Frame** si no existen 9 percepciones/World/Portfolio/Regime. El contexto está listo para incorporarse mediante `build_master_cognitive_frame` de A1 con el snapshot real de nueve mercados y luego dictaminar `ACCEPT/WAIT/ABSTAIN`.
+
+Pruebas unitarias verifican que context sea del **tipo concreto QORE de Master Frame**, que información no disponible no se convierta en confirmación y que ninguna lectura futura o repetida otorgue derecho de operación. A2 NO creará fingidamente la cognitiva completa. La implementación definitiva de A1 debe producir las 2876 decisiones como contratos de evidencia para habilitar la rama `A1_FULL_COGNITIVE_SENSORS_PAPER` y recién entonces medir PF, DD, frecuencia y winner retention antes de LIVE/MT5.
+
+## Estado final
+
+- **Hecho**: sensores H1/M15/M1 predecision, censo real 9 mercados, divergencias 381 cuantificadas, motor PAPER de decisiones A/B, DD/PF/retention reporte de baseline y estrés experimental, adaptador a Context real de Master Frame QORE.
+- **Bloqueante**: A1 todavía **no** aportó los nueve Master Frames reales y 2876 decisiones de entradas en formato causal; además el método de extracción M15 y la procedencia de target/spread siguen sin atestar en el panel. El usuario no quiere solo log de sensores: exigir A1 Master Frame con datos completos, no simularlo.
+- **Veredicto**: ensayo de sensor integrity rechazado, DD no disminuyó, **Scalper no certificado**, cero VPS/LIVE/merge.
