@@ -200,7 +200,7 @@ def eligible_h1_state_times(
             _operating_date(bar.opened_at, session) != source.operating_date
         ):
             continue
-        if at > session_end_at(bar.opened_at, source.session):
+        if at >= session_end_at(bar.opened_at, source.session):
             continue
         # Count ONLY opposite H1 signals CONFIRMED after source origin and
         # before the candidate bar's close. A later event cannot exclude a
