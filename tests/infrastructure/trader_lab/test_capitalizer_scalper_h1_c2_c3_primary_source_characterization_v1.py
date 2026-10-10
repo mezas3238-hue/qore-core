@@ -18,10 +18,10 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
 )
 
 
-def _bar(o: str, h: str, l: str, c: str) -> CapitalizerSourceBar:
+def _bar(o: str, h: str, low: str, c: str) -> CapitalizerSourceBar:
     return CapitalizerSourceBar(
         open=Decimal(o), high=Decimal(h),
-        low=Decimal(l), close=Decimal(c),
+        low=Decimal(low), close=Decimal(c),
     )
 
 
