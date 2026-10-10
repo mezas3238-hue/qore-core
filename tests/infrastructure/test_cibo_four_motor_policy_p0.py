@@ -113,7 +113,8 @@ class FourMotorEconomicTest(unittest.TestCase):
         o = observation(reconciled_cashflows=(cash(1, "-8", -4),
                         cash(2, "-2", -3), cash(3, "-10", -2)))
         self.assertEqual(o.qore_nav_usd, Decimal("40"))
-        self.assertEqual(Decimal(votes(o)[1].limits["approved_risk_usd"]), Decimal("1"))
+        # NAV $40 * 5% = $2; no second 0.5x three-loss haircut.
+        self.assertEqual(Decimal(votes(o)[1].limits["approved_risk_usd"]), Decimal("2"))
         self.assertEqual(
             observation(floating_loss_reserve_usd=Decimal("59")).qore_nav_usd,
             Decimal("60"),
@@ -238,7 +239,12 @@ class FourMotorEconomicTest(unittest.TestCase):
             self.assertFalse(report.pnl_attributed)
             self.assertFalse(report.drawdown_attributed)
             impacts = dict(report.incremental_lots_if_disabled)
-            self.assertGreater(impacts[binding_motor], 0, binding_motor)
+            if binding_motor == "CIBO_COMPOUND":
+                # Removing an arbitrary loss-streak haircut eliminates that
+                # old standalone veto. It must not be reintroduced to pass CI.
+                self.assertEqual(impacts[binding_motor], 0)
+            else:
+                self.assertGreater(impacts[binding_motor], 0, binding_motor)
             self.assertTrue(all(delta >= 0 for delta in impacts.values()))
             self.assertTrue(all(arm.potential_risk_usd <= arm.potential_lots *
                                 obs.full_stop_cost_per_lot_usd for arm in report.arms))

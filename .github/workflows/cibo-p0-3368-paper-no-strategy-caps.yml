@@ -1,0 +1,89 @@
+name: CIBO P0 - 3368 PAPER Strategy Caps Ablation
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - ".github/workflows/cibo-p0-3368-paper-no-strategy-caps.yml"
+permissions:
+  contents: read
+  actions: read
+jobs:
+  paper-ablation-3368:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preserve authority tests for QDLE, CIBO manager and 5pct
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_authority.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_trader_signal_administration.py -q
+      - name: Fetch 3368 sealed Trader source and validate sha256
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/no-strategy-caps"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11451743578/zip" > "$RUNNER_TEMP/no-strategy-caps/source.zip"
+          echo "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea  $RUNNER_TEMP/no-strategy-caps/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/no-strategy-caps/source.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/no-strategy-caps"
+      - name: Run all 3368 through CIBO and QDLE without 4 discretionary caps PAPER ONLY
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/no-strategy-caps/walk-forward-manifest.json" \
+            --motor-policy independent_four_motors \
+            --min-policy broker_grid \
+            --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --provider-trailing-usd disabled \
+            --swap-proxy off \
+            --experimental-cibo-administrator \
+            --experimental-paper-bypass-strategy-caps \
+            --output "$RUNNER_TEMP/no-strategy-caps/qdle-3368-paper-bypass-all-discretionary-caps.json"
+      - name: Assert no LIVE, account solvency and full coverage
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,decimal
+          report=pathlib.Path(os.environ['RUNNER_TEMP'])/'no-strategy-caps'/'qdle-3368-paper-bypass-all-discretionary-caps.json'
+          r=json.loads(report.read_text())
+          assert r['signal_count']==r['unique_signal_count']==3368
+          assert r['cibo_manager_experimental_activated'] is True
+          assert r['experimental_paper_bypass_strategy_caps'] is True
+          assert r['qdle_physical_and_5pct_caps_preserved'] is True
+          assert r['paper_only_hard_no_live_gateway'] is True
+          assert r['native_cibo_cognitive_decisions_consumed']==0
+          assert sum(r['cibo_manager_actions'].values())==3368
+          assert r['real_fundednext_fills']==0 and r['certified'] is False
+          assert r['cibo_manager_full_real_strategy_NAV_USD'] is None
+          assert r['cibo_manager_full_real_strategy_PF'] is None
+          assert r['cibo_manager_full_real_strategy_DD'] is None
+          assert all(
+            d.get('cibo_paper_bypass_applied') is True
+            for d in r['decisions'] if d.get('cibo_manager_received')
+              and 'four_engine_caps_usd' in d
+          )
+          assert all(
+            decimal.Decimal(d['planned_stop_usd']) <=
+            decimal.Decimal(d['nav_at_decision_usd'])*decimal.Decimal('0.05') +
+            decimal.Decimal('.000000001')
+            for d in r['decisions']
+            if d['status'] in ('RESERVED_FOR_TRADER','ECONOMIC_STOP_QDLE_PHYSICAL_QUOTE_SHADOW')
+          )
+          statuses={
+            'original_stop_research_funded':r['research_financed_proposals'],
+            'economic_stop_qdle_quote_only':r['cibo_manager_economic_stop_qdle_quote_only'],
+            'unfundable':r['research_unfundable_or_invalid'],
+          }
+          assert sum(statuses.values())==3368,statuses
+          print('CIBO_PAPER_ALL_STRATEGY_CAPS_REMOVED_3368_PASS',json.dumps(statuses))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-3368-paper-strategy-caps-removed-${{ github.run_id }}
+          path: ${{ runner.temp }}/no-strategy-caps/qdle-3368-paper-bypass-all-discretionary-caps.json
+          if-no-files-found: warn

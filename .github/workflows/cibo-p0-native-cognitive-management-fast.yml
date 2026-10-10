@@ -1,0 +1,71 @@
+name: CIBO P0 Native Cognitive Management Fast Tests
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - ".github/workflows/cibo-p0-native-cognitive-management-fast.yml"
+      - "src/qore/infrastructure/cibo_p0_native_cognitive_management.py"
+      - "src/qore/infrastructure/cibo_native_mode_authority.py"
+      - "src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py"
+      - "src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py"
+      - "tests/infrastructure/test_cibo_native_sovereign_qdle_p0.py"
+      - "tests/infrastructure/test_cibo_native_mode_authority_real_runtime.py"
+      - "scripts/cibo_p0_native_max_manager_advisory_3368.py"
+      - "scripts/qdle_3368_dual_ledger_replay.py"
+      - "scripts/cibo_p0_native_managed_exit_path_audit.py"
+      - "src/qore/infrastructure/cibo_native_sovereign_qdle.py"
+      - "src/qore/infrastructure/cibo_sovereign_integration.py"
+      - "tests/infrastructure/test_cibo_native_sovereign_qdle_p0.py"
+      - "tests/infrastructure/test_cibo_p0_native_managed_exit_path_audit.py"
+      - "tests/infrastructure/test_cibo_p0_native_cognitive_management.py"
+permissions:
+  contents: read
+jobs:
+  native-cognitive-no-control-cashflow:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: src
+      QORE_LIVE_TRADING: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile exact changed code
+        run: |
+          python -m py_compile src/qore/infrastructure/cibo_p0_native_cognitive_management.py
+          python -m py_compile src/qore/infrastructure/cibo_native_mode_authority.py
+          python -m py_compile src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py
+          python -m py_compile src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py
+          python -m py_compile scripts/cibo_p0_native_max_manager_advisory_3368.py
+          python -m py_compile scripts/qdle_3368_dual_ledger_replay.py
+          python -m py_compile scripts/cibo_p0_native_managed_exit_path_audit.py
+          python -m py_compile src/qore/infrastructure/cibo_native_sovereign_qdle.py
+      - name: Native cognitive policy causal ablation and guards
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_cognitive_management.py -v
+      - name: Causal bid/ask exit path coverage adapter
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_managed_exit_path_audit.py -v
+      - name: Real CIBO Native MAX cognitive source emits canonical QDLE mode instruction
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_native_mode_authority_real_runtime.py -v
+      - name: Full CIBO Soberano Native -> four engines -> QDLE physical research contract
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_native_sovereign_qdle_p0.py -v
+      - name: QDLE physical invariants
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_authority.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_trader_signal_administration.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -q
+      - name: Forbid LIVE and historical CONTROL settlement fallback
+        run: |
+          test "$QORE_LIVE_TRADING" = "false"
+          python - <<'PY'
+          import pathlib
+          src=pathlib.Path("scripts/qdle_3368_dual_ledger_replay.py").read_text()
+          assert "native_shadow_only" in src
+          assert "NATIVE_CIBO_NAV_CONTAMINATED_BY_TRADER_CONTROL" in src
+          assert "CIBO_NATIVE_COGNITIVE_QDLE_QUOTE_SHADOW" in src
+          assert 'if args.experimental_cibo_administrator and (manager_revised_stop or native_shadow_only)' in src
+          assert 'native_max_control_cashflows_excluded_from_manager_nav' in src
+          assert "qdle.acknowledge_fill" in src  # legacy path is explicitly NOT Native manager
+          PY

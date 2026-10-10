@@ -574,10 +574,12 @@ def evaluate_portfolio_netting(
             "netting credit lacks sufficient fresh OOS utility evidence",
         )
     gross = sum((abs(item.signed_risk_usd) for item in evidence.exposures), Decimal(0))
-    by_factor: dict[str, Decimal] = {}
+    by_factor_oos: dict[str, Decimal] = {}
     for item in evidence.exposures:
-        by_factor[item.factor_id] = by_factor.get(item.factor_id, Decimal(0)) + item.signed_risk_usd
-    net = sum((abs(value) for value in by_factor.values()), Decimal(0))
+        by_factor_oos[item.factor_id] = (
+            by_factor_oos.get(item.factor_id, Decimal(0)) + item.signed_risk_usd
+        )
+    net = sum((abs(value) for value in by_factor_oos.values()), Decimal(0))
     if gross <= 0 or net >= gross:
         return _abstain("T08", "no verified factor offset exists")
     theoretical = gross - net

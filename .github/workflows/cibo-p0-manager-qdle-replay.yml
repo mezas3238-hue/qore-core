@@ -1,0 +1,147 @@
+name: CIBO P0 CEO - 3368 Manager + 4 Motors QDLE Replay
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - "scripts/cibo_p0_manager_qdle_replay_audit.py"
+      - "scripts/cibo_p0_3368_managed_exit_path_audit.py"
+      - "src/qore/infrastructure/cibo_managed_exit_replay.py"
+      - "tests/infrastructure/test_cibo_managed_exit_replay.py"
+      - "scripts/cibo_p0_3368_manager_intake_sensitivity.py"
+      - "scripts/qdle_3368_dual_ledger_replay.py"
+      - ".github/workflows/cibo-p0-manager-qdle-replay.yml"
+permissions:
+  contents: read
+  actions: read
+jobs:
+  shadow-replay-3368:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify manager and QDLE contracts
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_cibo_trader_signal_administration.py -q
+          python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_authority.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -v
+      - name: Retrieve immutable walk-forward manifest with SHA256
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-p0-replay"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11451743578/zip" > "$RUNNER_TEMP/cibo-p0-replay/source.zip"
+          echo "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea  $RUNNER_TEMP/cibo-p0-replay/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/cibo-p0-replay/source.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/cibo-p0-replay"
+      - name: CIBO management intake of all 3368 with economic stop SHADOW
+        run: |
+          python scripts/cibo_p0_3368_manager_intake_sensitivity.py \
+            --manifest "$RUNNER_TEMP/cibo-p0-replay/walk-forward-manifest.json" \
+            --output "$RUNNER_TEMP/cibo-p0-replay/manager-intake.json"
+      - name: Original structural SL sequential dynamic NAV - four motors QDLE; NO old Native selector
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/cibo-p0-replay/walk-forward-manifest.json" \
+            --motor-policy independent_four_motors \
+            --min-policy broker_grid \
+            --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --provider-trailing-usd disabled \
+            --swap-proxy off \
+            --output "$RUNNER_TEMP/cibo-p0-replay/qdle-original-stops.json"
+      - name: CEO MANAGER all 3368 - dynamic NAV economic stop, four engines, independent QDLE physical requote
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/cibo-p0-replay/walk-forward-manifest.json" \
+            --motor-policy independent_four_motors \
+            --min-policy broker_grid \
+            --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --provider-trailing-usd disabled \
+            --swap-proxy off \
+            --experimental-cibo-administrator \
+            --output "$RUNNER_TEMP/cibo-p0-replay/qdle-cibo-manager-economic-sl.json"
+      - name: Audit ALL 3368 CIBO management actions and independent QDLE economic SL quotes
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          f=pathlib.Path(os.environ['RUNNER_TEMP'])/'cibo-p0-replay'/'qdle-cibo-manager-economic-sl.json'
+          r=json.loads(f.read_text())
+          assert r['signal_count']==r['unique_signal_count']==3368
+          assert r['cibo_manager_experimental_activated'] is True
+          assert r['native_cibo_cognitive_decisions_consumed']==0
+          assert sum(r['cibo_manager_actions'].values())==3368
+          quotes=r['cibo_manager_economic_stop_qdle_quote_only']
+          funded=r['research_financed_proposals']
+          blocked=r['research_unfundable_or_invalid']
+          assert quotes+funded+blocked==3368,(quotes,funded,blocked)
+          assert r['cibo_manager_full_real_strategy_NAV_USD'] is None
+          assert r['cibo_manager_full_real_strategy_PF'] is None
+          assert r['cibo_manager_full_real_strategy_DD'] is None
+          assert r['real_fundednext_fills']==0 and r['certified'] is False
+          assert r['cibo_exit_management_replayed'] is False
+          print('CEO_CIBO_3368_MANAGER_REAL_QDLE_QUOTE_PASS',json.dumps({
+            'signals':3368,'manager_actions':r['cibo_manager_actions'],
+            'qdle_economic_sl_physical_quotes':quotes,
+            'qdle_original_stop_conditional_funded':funded,
+            'unfinanceable':blocked,'real_mt5_fills':0,
+          },sort_keys=True))
+          PY
+      - name: Join all 3368 manager decisions with QDLE; distinguish economic-stop shadow
+        run: |
+          python scripts/cibo_p0_manager_qdle_replay_audit.py \
+            --manager "$RUNNER_TEMP/cibo-p0-replay/manager-intake.json" \
+            --qdle "$RUNNER_TEMP/cibo-p0-replay/qdle-original-stops.json" \
+            --output "$RUNNER_TEMP/cibo-p0-replay/combined-report.json"
+      - name: Replay managed exits ONLY if causal executable bars were supplied
+        run: |
+          python scripts/cibo_p0_3368_managed_exit_path_audit.py \
+            --manifest "$RUNNER_TEMP/cibo-p0-replay/walk-forward-manifest.json" \
+            --manager "$RUNNER_TEMP/cibo-p0-replay/manager-intake.json" \
+            --qdle "$RUNNER_TEMP/cibo-p0-replay/qdle-original-stops.json" \
+            --output "$RUNNER_TEMP/cibo-p0-replay/managed-exit-path-audit.json"
+      - name: Verify no real fills and no invented modified-stop performance
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,decimal
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'cibo-p0-replay'
+          d=json.loads((root/'combined-report.json').read_text())
+          s=d['summary']
+          assert s['received_signals']==s['qdle_evaluated']==3368
+          assert s['structural_stop_unmodified']==3068
+          assert s['economic_stop_shadow_candidates']==300
+          assert s['qdle_original_stop_funded_proposals']+s['qdle_original_stop_unfundable_or_invalid']==3368
+          assert s['new_economic_stop_pnl_or_dd'] is None
+          assert s['real_mt5_fills']==0
+          assert not s['cibo_selector_used'] and not s['outcomes_from_new_economic_stops_measured']
+          print('CIBO_P0_MANAGER_QDLE_3368_INTEGRITY_PASS')
+          print('CIBO_P0_MANAGER_QDLE_RESULTS',json.dumps(s,sort_keys=True))
+          p=json.loads((root/'managed-exit-path-audit.json').read_text())
+          m=p['summary']
+          assert m['signals_received']==3368
+          assert m['reason_counts']=={
+            'ECONOMIC_STOP_NEEDS_QDLE_REQUOTE_AND_PATH':300,
+            'MANAGED_EXIT_MISSING_PRICE_PATH':359,
+            'ORIGINAL_STOP_NOT_FINANCED':2709,
+          }
+          assert m['managed_strategy_profit_factor'] is None
+          assert m['managed_strategy_max_drawdown_pct'] is None
+          assert m['managed_strategy_final_NAV_USD'] is None
+          assert m['real_mt5_fills']==0 and not m['certified']
+          print('CIBO_P0_MANAGEMENT_CAUSAL_PROOF_AUDIT_PASS',json.dumps(m,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-p0-3368-manager-four-motors-qdle-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/cibo-p0-replay/manager-intake.json
+            ${{ runner.temp }}/cibo-p0-replay/qdle-original-stops.json
+            ${{ runner.temp }}/cibo-p0-replay/qdle-cibo-manager-economic-sl.json
+            ${{ runner.temp }}/cibo-p0-replay/combined-report.json
+            ${{ runner.temp }}/cibo-p0-replay/managed-exit-path-audit.json
+          if-no-files-found: warn

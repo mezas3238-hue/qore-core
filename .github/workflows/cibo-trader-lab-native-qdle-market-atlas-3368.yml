@@ -1,0 +1,138 @@
+name: CIBO Trader Lab Native MAX QDLE Market Atlas M5 3368 PAPER
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - ".github/workflows/cibo-trader-lab-native-qdle-market-atlas-3368.yml"
+      - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
+      - "src/qore/infrastructure/qdle_paper_book.py"
+      - "tests/infrastructure/test_qdle_paper_book.py"
+      - "tests/infrastructure/test_cibo_trader_lab_native_qdle_snapshot_spread.py"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cibo-trader-lab-native-qdle-m5-3368
+  cancel-in-progress: true
+env:
+  PYTHONPATH: src
+  QORE_LIVE_TRADING: "false"
+  QORE_REPLAY_AUTHORITY: "TRADER_LAB_CIBO_NATIVE_MAX_PAPER_NOT_LIVE"
+  MANIFEST_ARTIFACT: "11451743578"
+  MANIFEST_SHA: "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
+  UPDATED_QDLE_ARTIFACT: "11624832575"
+  UPDATED_QDLE_SHA: "1be41e8c4eb7831ae9057521b92ce6f3cd2141102276e357fe8a31f589c6309b"
+  ATLAS_AUDJPY_ARTIFACT: "10476530915"
+  ATLAS_AUDJPY_SHA: "a416085cfcef04003ae89debaad360304a0c4c8bac65b3bf2b439a8a4b7098bf"
+  ATLAS_EURUSD_ARTIFACT: "10475354631"
+  ATLAS_EURUSD_SHA: "e0fa9e316b79ba61c338161a57508359d4c6afe2fbf97d3f50f1e27c2d359a86"
+  ATLAS_GBPJPY_ARTIFACT: "10475453293"
+  ATLAS_GBPJPY_SHA: "b68e74b2afa54295f891c11cde19e12e92db4192930496036c7ebb372474e415"
+  ATLAS_GBPUSD_ARTIFACT: "10475449182"
+  ATLAS_GBPUSD_SHA: "77d5b65ce3c6763e3ac5f620e4167d4ef071bfe1c13746cd5ca7ad9788268dcf"
+  ATLAS_NDX100_ARTIFACT: "10476153072"
+  ATLAS_NDX100_SHA: "87ae8095feadce23c5026cda4dada49765d44d0baa2237b5bd7704ccc8deb863"
+  ATLAS_XAUUSD_ARTIFACT: "10476557530"
+  ATLAS_XAUUSD_SHA: "dcb905b11380e3d4e1a4dc621e269bb75d2886806dd662e260d21d1d15362e08"
+jobs:
+  trader-lab-cibo-native-qdle-market-atlas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert PAPER-only and compile actual Trader Lab / updated QDLE code
+        run: |
+          test "$QORE_LIVE_TRADING" = false
+          python -m py_compile scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py
+          python -m unittest discover -s tests/infrastructure -p test_qdle_stellar_instant_costs.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -q
+          if [ -f tests/infrastructure/test_cibo_trader_lab_native_qdle_snapshot_spread.py ]; then
+            python -m unittest discover -s tests/infrastructure -p test_cibo_trader_lab_native_qdle_snapshot_spread.py -q
+          fi
+      - name: Restore sealed 3368 Native QDLE and six Atlas 2019-2022 M5 partitions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-atlas-3368" "$RUNNER_TEMP/atlas"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$MANIFEST_ARTIFACT/zip" > "$RUNNER_TEMP/cibo-atlas-3368/manifest.zip"
+          echo "$MANIFEST_SHA  $RUNNER_TEMP/cibo-atlas-3368/manifest.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/cibo-atlas-3368/manifest.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/cibo-atlas-3368"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$UPDATED_QDLE_ARTIFACT/zip" > "$RUNNER_TEMP/cibo-atlas-3368/qdle.zip"
+          echo "$UPDATED_QDLE_SHA  $RUNNER_TEMP/cibo-atlas-3368/qdle.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/cibo-atlas-3368/qdle.zip" stellar-instant-3368.json -d "$RUNNER_TEMP/cibo-atlas-3368"
+          for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NDX100 XAUUSD; do
+            ID_VAR="ATLAS_${SYMBOL}_ARTIFACT"
+            SHA_VAR="ATLAS_${SYMBOL}_SHA"
+            ARCHIVE="$RUNNER_TEMP/cibo-atlas-3368/atlas-${SYMBOL}.zip"
+            ROOT="$RUNNER_TEMP/atlas/$SYMBOL"
+            mkdir -p "$ROOT"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/${!ID_VAR}/zip" > "$ARCHIVE"
+            echo "${!SHA_VAR}  $ARCHIVE" | sha256sum -c -
+            unzip -q "$ARCHIVE" 'RAW_M5_LEDGER/2019.jsonl' 'RAW_M5_LEDGER/2020.jsonl' 'RAW_M5_LEDGER/2021.jsonl' 'RAW_M5_LEDGER/2022.jsonl' -d "$ROOT"
+          done
+      - name: Test persistent QDLE PAPER lifecycle and no-LIVE guarantees
+        run: python -m unittest discover -s tests/infrastructure -p test_qdle_paper_book.py -v
+      - name: Run TRADER LAB full 3368 M5 plus CEO Bid-Ask snapshot and Stellar commissions
+        run: |
+          mkdir -p "$RUNNER_TEMP/cibo-atlas-3368/db"
+          python scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py \
+            --manifest "$RUNNER_TEMP/cibo-atlas-3368/walk-forward-manifest.json" \
+            --native-stellar-qdle "$RUNNER_TEMP/cibo-atlas-3368/stellar-instant-3368.json" \
+            --atlas-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+            --atlas-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+            --atlas-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+            --atlas-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+            --atlas-root "NDX100=$RUNNER_TEMP/atlas/NDX100" \
+            --atlas-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+            --workdir "$RUNNER_TEMP/cibo-atlas-3368/db" \
+            --max-bars 3200 \
+            --output "$RUNNER_TEMP/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json"
+      - name: Audit exact 3368, scientific paper metrics and NAV/DD provenance
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-atlas-3368"
+          r=json.loads((p/"trader-lab-cibo-qdle-spread-3368.json").read_text())
+          assert r["signal_count"]==r["counts"]["received"]==3368
+          assert r["commission_model"]=="FUNDEDNEXT_STELLAR_INSTANT_OPEN_ONLY"
+          assert r["legacy_fee_model_used"] is False
+          assert r["certified"] is False and r["broker_fills"]==0
+          assert r["bid_ask_verified_2019_2022"] is False
+          assert len(r["signal_decisions"])==3368
+          pbook=r["qdle_persistent_paper_ledger"]
+          assert pbook["received_accounted"]==3368
+          assert pbook["physical_quotes"]+pbook["unassessable"]==3368
+          assert pbook["paper_filled"]==r["counts"].get("paper_open",0)
+          assert pbook["paper_settled"]==r["counts"].get("settled",0)
+          assert r["qdle_book_role"]=="SINGLE_ACCOUNT_PAPER_ONLY_NOT_BROKER"
+          assert r["qdle_canonical_sqlite_role"]=="PaperQDLE_V1_SINGLE_RESERVATION_BOOK"
+          assert r["qdle_paper_event_audit"]["event_count"] >= 3368
+          import hashlib
+          dbfile=p/"db/cibo-p0-canonical-paper-3368.sqlite"
+          assert dbfile.is_file()
+          assert ("sha256:"+hashlib.sha256(dbfile.read_bytes()).hexdigest()
+                  == r["qdle_paper_sqlite_sha256"])
+          assert r["full_cibo_managed_drawdown_pct"] is None
+          assert r["counts"].get("paper_open",0)>=r["counts"].get("settled",0)
+          print("TRADER_LAB_NATIVE_QDLE_SCIENTIFIC_PAPER_FINISH",json.dumps({
+              "counts":r["counts"],
+              "shadow_paper_cash_balance_after_known_events_usd":r["shadow_paper_cash_balance_after_known_events_usd"],
+              "shadow_projected_closed_cash_max_dd_pct":r["shadow_projected_closed_cash_max_dd_pct"],
+              "shadow_projected_settled_profit_factor":r["shadow_projected_settled_profit_factor"],
+              "open_positions_missing_full_path":r["open_positions_missing_full_path"],
+              "financial_certification":r["financial_certification"],
+          },sort_keys=True),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trader-lab-cibo-native-qdle-atlas-3368-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json
+            ${{ runner.temp }}/cibo-atlas-3368/db/cibo-p0-canonical-paper-3368.sqlite
+          if-no-files-found: warn

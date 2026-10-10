@@ -1,0 +1,201 @@
+name: CIBO MAX Native Administrator - All 3368 + QDLE P0
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - ".github/workflows/cibo-p0-native-max-manager-qdle-3368.yml"
+      - "scripts/cibo_p0_native_max_manager_advisory_3368.py"
+      - "scripts/qdle_3368_dual_ledger_replay.py"
+      - "src/qore/infrastructure/cibo_native_sovereign_qdle.py"
+      - "src/qore/infrastructure/cibo_sovereign_integration.py"
+      - "src/qore/infrastructure/cibo_p0_native_cognitive_management.py"
+      - "src/qore/infrastructure/cibo_native_mode_authority.py"
+      - "src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py"
+      - "src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py"
+      - "tests/infrastructure/test_cibo_native_sovereign_qdle_p0.py"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: native-max-p0-3368-manager
+  cancel-in-progress: true
+jobs:
+  native-max-3368-cibo-manager-qdle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: src
+      QORE_LIVE_TRADING: "false"
+      QORE_REPLAY_AUTHORITY: "P0_CIBO_MAX_NATIVE_PAPER_NO_ORDER_SEND"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify physical lot and CIBO admin safety constraints
+        run: |
+          test "$QORE_LIVE_TRADING" = "false"
+          python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_authority.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_trader_signal_administration.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_cognitive_management.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_native_sovereign_qdle_p0.py -q
+      - name: Obtain sealed historical Trader opportunities AND exact 3368 Native MAX cognition
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-native-max-3368"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11451743578/zip" > "$RUNNER_TEMP/cibo-native-max-3368/original-trader.zip"
+          echo "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea  $RUNNER_TEMP/cibo-native-max-3368/original-trader.zip" | sha256sum -c -
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11588089131/zip" > "$RUNNER_TEMP/cibo-native-max-3368/native-max-source.zip"
+          echo "eebf6de43da63aadc200a3783109246188d46e0fcdd7da127f07eff815d6cec6  $RUNNER_TEMP/cibo-native-max-3368/native-max-source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/cibo-native-max-3368/original-trader.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/cibo-native-max-3368"
+      - name: Recompute FRESH actual Native MAX engine for the full 3368 original signal timeline
+        run: |
+          python scripts/cibo_single_account_historical_ceiling_replay.py \
+            --manifest "$RUNNER_TEMP/cibo-native-max-3368/walk-forward-manifest.json" \
+            --progress-every 500 \
+            --output "$RUNNER_TEMP/cibo-native-max-3368/native-max-fresh-full.json"
+      - name: CIBO MAX Native cognitive management plans for all 3368 (NO admission filter)
+        run: |
+          python scripts/cibo_p0_native_max_manager_advisory_3368.py \
+            --manifest "$RUNNER_TEMP/cibo-native-max-3368/original-trader.zip" \
+            --native-json "$RUNNER_TEMP/cibo-native-max-3368/native-max-fresh-full.json" \
+            --output "$RUNNER_TEMP/cibo-native-max-3368/native-max-3368-management-advisories.json"
+      - name: Full CIBO MAX Native + four economics + QDLE - normal motor caps, 3368 signals
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/cibo-native-max-3368/walk-forward-manifest.json" \
+            --native-max-management-advisories "$RUNNER_TEMP/cibo-native-max-3368/native-max-3368-management-advisories.json" \
+            --motor-policy independent_four_motors \
+            --min-policy broker_grid \
+            --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --provider-trailing-usd disabled \
+            --swap-proxy off \
+            --experimental-cibo-administrator \
+            --output "$RUNNER_TEMP/cibo-native-max-3368/native-max-qdle-3368-original-caps.json"
+      - name: Full CIBO MAX Native + QDLE with CEO PAPER no-strategy-caps on 3368
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/cibo-native-max-3368/walk-forward-manifest.json" \
+            --native-max-management-advisories "$RUNNER_TEMP/cibo-native-max-3368/native-max-3368-management-advisories.json" \
+            --motor-policy independent_four_motors \
+            --min-policy broker_grid \
+            --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --provider-trailing-usd disabled \
+            --swap-proxy off \
+            --experimental-cibo-administrator \
+            --experimental-paper-bypass-strategy-caps \
+            --output "$RUNNER_TEMP/cibo-native-max-3368/native-max-qdle-3368-paper-no-strategy-caps.json"
+      - name: Compare Native MAX cognition, CIBO receipt, QDLE finance and missing exits
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,decimal
+          path=pathlib.Path(os.environ['RUNNER_TEMP'])/'cibo-native-max-3368'
+          a=json.loads((path/'native-max-3368-management-advisories.json').read_text())
+          assert a['cognitive_intelligence_receipts_consumed']==a['trader_signals_received']==3368
+          assert a['source']=='FRESH_NATIVE_MAX_REPLAY_3368_SAME_SEALED_TRADER_INPUT'
+          assert len(a['receipts'])==3368 and not a['admission_gate_applied']
+          assert a['native_cibo_bank_medium_attack_instructions_issued']==3368
+          assert a['native_cibo_qdle_mode_authority_is_runtime'] is True
+          assert all(d['native_cibo_mode_instruction_issued'] is True
+                     and d['bank_medium_attack_request_qdle_physical_lotage'] is True
+                     for d in a['receipts'])
+          reports={}
+          for name in ('original-caps','paper-no-strategy-caps'):
+              r=json.loads((path/f'native-max-qdle-3368-{name}.json').read_text())
+              assert r['signal_count']==r['unique_signal_count']==3368
+              assert r['native_max_3368_cognitive_evidence_joined'] is True
+              assert r['native_max_cognitive_evidence_receipts_joined']==3368
+              assert r['native_max_cognitive_economic_intents_applied']==3368
+              assert r['native_cibo_bank_medium_attack_instructions_consumed']==3368
+              assert r['native_cibo_cognitive_decisions_consumed']==3368
+              assert r['native_cibo_all_three_modes_pass_through_physical_qdle'] is True
+              assert r['cibo_directives_consumed']==0  # NOT authenticated LIVE execution instructions
+              for mode in ('BANK','MEDIUM','ATTACK'):
+                  assert (r['native_cibo_modes_qdle_physically_quoted'].get(mode,0)
+                          +r['native_cibo_modes_qdle_no_financeable_lot'].get(mode,0)
+                          ==r['native_max_management_mode_counts'][mode])
+              assert r['native_max_all_qdle_quotes_nonsettling_without_price_path']
+              assert r['native_max_control_cashflows_excluded_from_manager_nav']
+              assert r['net_research_pnl_usd'] is None
+              assert r['settled_research_outcomes']==0
+              assert r['opening_commission_paid_proxy_usd']=='0'
+              assert r['cibo_manager_original_stop_historical_structural_proxy_funded']==0
+              assert r['qore_ending_capital_usd']=='60'
+              assert not r['native_max_real_managed_trade_exits_rebuilt']
+              assert r['native_max_legacy_admission_filter_disabled'] is True
+              assert r['native_cibo_cognitive_decisions_consumed']==3368
+              assert r['real_fundednext_fills']==0 and r['certified'] is False
+              assert r['cibo_manager_full_real_strategy_NAV_USD'] is None
+              assert r['cibo_manager_full_real_strategy_PF'] is None
+              assert r['cibo_manager_full_real_strategy_DD'] is None
+              assert sum(r['native_max_management_mode_counts'].values())==3368
+              assert r['native_max_management_mode_counts']==a['mode_counts']
+              assert sum(r['cibo_manager_actions'].values())==3368
+              funded=r['research_financed_proposals']
+              shadow=r['cibo_manager_native_policy_qdle_quote_only']
+              unfundable=r['research_unfundable_or_invalid']
+              assert funded==0 and funded+shadow+unfundable==3368,(funded,shadow,unfundable)
+              assert all(
+                  d.get('cibo_max_native_economic_budget_applied_to_qdle') is True
+                  for d in r['decisions']
+                  if d.get('status') in ('CIBO_NATIVE_COGNITIVE_QDLE_QUOTE_SHADOW',)
+              )
+              assert all(
+                d.get('cibo_max_native_cognition_consumed') is True
+                and d.get('cibo_max_native_trade_admission_gate_used') is False
+                for d in r['decisions']
+              )
+              assert all(
+                decimal.Decimal(d['planned_stop_usd']) <=
+                decimal.Decimal(d['nav_at_decision_usd'])*decimal.Decimal('0.05') +
+                decimal.Decimal('0.000000001')
+                for d in r['decisions']
+                if d['status'] in ('RESERVED_FOR_TRADER','ECONOMIC_STOP_QDLE_PHYSICAL_QUOTE_SHADOW','CIBO_NATIVE_COGNITIVE_QDLE_QUOTE_SHADOW')
+              )
+              reports[name]={
+                'native_max_analyzed':3368,'cibo_received':3368,
+                'original_stop_funded_structural_exit_proxy':funded,
+                'native_cognitive_qdle_quote_only':shadow,
+                'new_economic_stop_QDLE_quote_only':r['cibo_manager_economic_stop_qdle_quote_only'],
+                'original_stop_QDLE_quote_only':r['cibo_manager_original_stop_native_qdle_quote_only'],
+                'no_physical_volume_in_proxy':unfundable,
+                'native_max_modes':a['mode_counts'],
+                'real_mt5_fills':0,
+                'full_manager_profit_factor':None,
+                'full_manager_drawdown':None,
+                'original_stop_subset_structural_PnL_USD':None,
+                'original_stop_subset_structural_closedDD_pct':None,
+                'original_stop_subset_structural_PF':None,
+                'native_cognitive_economic_budget_wired_to_qdle':True,
+                'cibo_native_bank_medium_attack_requests_to_qdle':r['native_cibo_bank_medium_attack_instructions_consumed'],
+                'qdle_quotes_by_mode':r['native_cibo_modes_qdle_physically_quoted'],
+                'qdle_unfundable_by_mode':r['native_cibo_modes_qdle_no_financeable_lot'],
+                'control_settlements_excluded_from_manager':True,
+              }
+          full={'schema':'qore.cibo.max-native-manager-qdle-3368-comparison.v1',
+                'research_only':True,
+                'native_cognitive_provenance':a['seal_sha256'],
+                'native_old_gate_bypassed':True,
+                'max_native_mode_assignment_is_shadow_policy_not_validated_exit':True,
+                'trading_strategy_3368_final_pnl':None,
+                'genuine_cibo_managed_exit_PF':None,
+                'genuine_cibo_managed_exit_DD':None,
+                'broker_fills':0,
+                'scenarios':reports}
+          (path/'summary-max-native-3368-qdle.json').write_text(json.dumps(full,indent=2,sort_keys=True)+'\n')
+          print('NATIVE_MAX_CIBO_QDLE_3368_PASS',json.dumps(full,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-max-native-3368-qdle-replay-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/cibo-native-max-3368/native-max-3368-management-advisories.json
+            ${{ runner.temp }}/cibo-native-max-3368/native-max-qdle-3368-original-caps.json
+            ${{ runner.temp }}/cibo-native-max-3368/native-max-qdle-3368-paper-no-strategy-caps.json
+            ${{ runner.temp }}/cibo-native-max-3368/summary-max-native-3368-qdle.json
+          if-no-files-found: warn

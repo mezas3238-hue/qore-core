@@ -26,7 +26,12 @@ from qore.infrastructure.cibo_marginal_leverage_utility import propose_p0_adapti
 from qore.infrastructure.cibo_core_compound_portfolio import propose_p0_portfolio_vote
 from qore.infrastructure.cibo_four_motor_policy import FourMotorObservation, ReconciledQoreCashflow
 from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
+from qore.infrastructure.cibo_native_sovereign_qdle import apply_native_qdle_risk_cap
+from qore.infrastructure.qdle_stellar_instant_costs import LEGACY_REPLAY_PROXY, MODELS, estimate_per_lot_fees
 from qore.infrastructure.qdle_cibo_authority import CiboEconomicInstruction, build_cibo_directed_qdle_intent, audit_cibo_qdle_lotage
+from qore.infrastructure.cibo_trader_signal_administration import (
+    TraderSignalIntake, EconomicStopBudget, propose_received_trader_management,
+)
 from qore.infrastructure.qore_dynamic_lot_engine import (
     BrokerValuation, Position, QDLE, QDLEAccount, QDLEError, QDLEIntent, QDLESymbol,
 )
@@ -104,22 +109,62 @@ def main() -> int:
     p.add_argument("--target-lots", type=D, default=None, help="Optional maximum broker lots requested, never additional risk authorization")
     p.add_argument("--cibo-instructions", type=Path, default=None,
                    help="CIBO-authorized bank/cushion and per-signal budget; never synthesized")
+    p.add_argument("--experimental-native-ceiling-report", type=Path, default=None,
+                   help="CEO research: Native MAX causal approval projected to new 5pct QDLE physical NAV, NOT original strategy PnL")
+    p.add_argument("--experimental-native-lane-policy", choices=["all_bank", "split_30_30_alternate"], default="all_bank",
+                   help="Hypothetical Bank/Cushion scenario only; NOT actual native CIBO fund allocation")
     p.add_argument("--ndx-roundtrip-fee-proxy-usd-per-lot", type=D, default=None,
-                   help="Explicit research sensitivity only; unknown NDX fee never inferred")
+                   help="Legacy NDX fee scenario; Stellar Instant published index fee is zero")
+    p.add_argument("--fee-model", choices=MODELS, default=LEGACY_REPLAY_PROXY,
+                   help="Published Stellar tariff vs old model; not evidence of account-specific historical fees")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--min-policy", choices=["original_trader", "broker_grid"], default="original_trader")
+    p.add_argument("--native-max-management-advisories", type=Path, default=None,
+                   help="Pinned 3368 original Native MAX cognitive receipts mapped to PAPER CIBO exit-management modes (NEVER admissions).")
+    p.add_argument("--experimental-paper-bypass-strategy-caps", action="store_true",
+                   help="PAPER-ONLY research ablation: bypass Sizing/Compound/Leverage/Portfolio discretionary caps for all signals, while QDLE retains 5pct NAV, real volume grid, broker margin, actual source and fees. NO LIVE or real fills.")
+    p.add_argument("--experimental-cibo-administrator", action="store_true",
+                   help="CEO CIBO manager: re-quote economic SL physically via QDLE for EVERY Trader signal. Changed-stop lots are quote-only, NEVER settled with old Trader R.")
     p.add_argument("--swap-proxy", choices=["off", "utc_midnight"], default="utc_midnight")
     p.add_argument("--provider-trailing-usd", type=str, default="120",
                    help="USD loss threshold sensitivity; disabled = provider rule NOT modeled")
     args = p.parse_args()
+    if args.experimental_cibo_administrator and (
+        args.motor_policy != "independent_four_motors"
+        or args.cibo_instructions is not None
+        or args.experimental_native_ceiling_report is not None
+        or args.min_policy != "broker_grid"
+    ):
+        raise SystemExit("CEO CIBO administrator requires four-motor broker-grid research without legacy admission gate")
+    if args.experimental_paper_bypass_strategy_caps and (
+        not args.experimental_cibo_administrator
+        or args.motor_policy != "independent_four_motors"
+        or args.cibo_instructions is not None
+        or args.experimental_native_ceiling_report is not None
+        or args.min_policy != "broker_grid"
+        or args.provider_trailing_usd != "disabled"
+    ):
+        raise SystemExit("PAPER-ONLY strategy ablation requires manager+four-motor broker-grid and provider proxy disabled; cannot target LIVE or original CIBO.")
+    if args.native_max_management_advisories is not None and (
+        not args.experimental_cibo_administrator
+        or args.cibo_instructions is not None
+        or args.experimental_native_ceiling_report is not None
+        or args.motor_policy != "independent_four_motors"
+        or args.min_policy != "broker_grid"
+    ):
+        raise SystemExit("Native MAX management is a PAPER predecision advisory, never a pretrade veto or LIVE signal.")
     if args.target_lots is not None and (not args.target_lots.is_finite() or args.target_lots <= ZERO):
         raise SystemExit("Invalid target lots")
-    if args.motor_policy == "independent_four_motors" and (
+    if args.fee_model != LEGACY_REPLAY_PROXY and args.motor_policy != "independent_four_motors":
+        raise SystemExit("Stellar fee scenarios require independent four-motor policy")
+    if args.fee_model == LEGACY_REPLAY_PROXY and args.motor_policy == "independent_four_motors" and (
         args.ndx_roundtrip_fee_proxy_usd_per_lot is None
         or not args.ndx_roundtrip_fee_proxy_usd_per_lot.is_finite()
         or args.ndx_roundtrip_fee_proxy_usd_per_lot < ZERO
     ):
-        raise SystemExit("Independent replay requires explicit NDX all-in fee sensitivity; zero permitted only as optimistic sensitivity")
+        raise SystemExit("Legacy model requires explicit NDX assumption")
+    if args.fee_model != LEGACY_REPLAY_PROXY and args.ndx_roundtrip_fee_proxy_usd_per_lot not in (None, ZERO):
+        raise SystemExit("Cannot mix old NDX assumption with Stellar published fee scenario")
     provider_limit = None if args.provider_trailing_usd == "disabled" else D(args.provider_trailing_usd)
     if provider_limit is not None and provider_limit <= 0:
         raise SystemExit("Invalid trailing USD model")
@@ -127,15 +172,97 @@ def main() -> int:
     opportunities = raw["opportunities"]
     if len(opportunities) != 3368 or len({x["signal_fingerprint"] for x in opportunities}) != 3368:
         raise SystemExit("FAIL CLOSED: 3368 unique original signals required")
+    native_management_by_signal = None
+    native_management_modes = Counter()
+    native_mode_instructions_consumed = 0
+    native_mode_qdle_quotes = Counter()
+    native_mode_qdle_unfundable = Counter()
+    native_shadow_only = args.native_max_management_advisories is not None
+    # No executable bid/ask price trajectories in the sealed Trader manifest.
+    # Native cognitive management may QUOTE but cannot settle Trader CONTROL R.
+    if args.native_max_management_advisories is not None:
+        advisory = json.loads(args.native_max_management_advisories.read_text(encoding="utf-8"))
+        receipt_rows = advisory.get("receipts")
+        if (advisory.get("schema") != "qore.cibo.p0.native-max-3368-received-manager-advisory.v1"
+            or advisory.get("admission_gate_applied") is not False
+            or not isinstance(receipt_rows, list) or len(receipt_rows) != 3368
+            or advisory.get("cognitive_intelligence_receipts_consumed") != 3368):
+            raise SystemExit("Native MAX 3368 management source untrusted, cannot proceed")
+        native_management_by_signal = {x["signal_fingerprint"]: x for x in receipt_rows}
+        if len(native_management_by_signal) != 3368 or set(native_management_by_signal) != {
+            x["signal_fingerprint"] for x in opportunities
+        }:
+            raise SystemExit("Native MAX 3368 management fingerprints missing or duplicate")
+        for opportunity in opportunities:
+            a = native_management_by_signal[opportunity["signal_fingerprint"]]
+            if (a.get("trader_id") != opportunity["trader_id"]
+                or a.get("decided_at") != opportunity["market_decision_at"]
+                or a.get("native_max_cognition_read") is not True
+                or a.get("admission_gate_applied") is not False
+                or a.get("manager_mode_SHADOW_from_native_cognitive_sensors") not in (
+                    "BANK", "MEDIUM", "ATTACK"
+                ) or a.get("manager_cognitive_sensor_evidence_SHADOW", {}).get(
+                    "native_disposition_used_for_policy") is not False
+                or a.get("manager_cognitive_sensor_evidence_SHADOW", {}).get(
+                    "producer") not in (
+                        "CIBO_NATIVE_MAX_SOVEREIGN_MODE_QDLE_PAPER",
+                        "P0_DETERMINISTIC_SENSOR_DERIVED_RESEARCH_ADAPTER_NOT_NATIVE_BROKER_AUTHORIZATION",
+                    )
+                ):
+                raise SystemExit("Native MAX management causal sensor/trader clock mismatch")
+            if advisory.get("source") == "FRESH_NATIVE_MAX_REPLAY_3368_SAME_SEALED_TRADER_INPUT":
+                if (a.get("native_cibo_mode_instruction_issued") is not True
+                    or a.get("bank_medium_attack_request_qdle_physical_lotage") is not True
+                    or not str(a.get("native_cibo_mode_instruction_sha256", "")).startswith("sha256:")):
+                    raise SystemExit("Native runtime did not issue BANK/MEDIUM/ATTACK QDLE instruction")
+            if a.get("native_cibo_mode_instruction_issued") is True:
+                native_mode_instructions_consumed += 1
+            fraction = D(str(a.get("manager_risk_fraction_of_nav_SHADOW", "NaN")))
+            if not fraction.is_finite() or not ZERO < fraction <= FIVE:
+                raise SystemExit("Native MAX paper risk fraction violates 5pct all-in cap")
+            native_management_modes[a["manager_mode_SHADOW_from_native_cognitive_sensors"]] += 1
     if any(opportunities[i]["market_decision_at"] > opportunities[i + 1]["market_decision_at"]
            for i in range(len(opportunities) - 1)):
         raise SystemExit("FAIL CLOSED: sealed opportunity order not chronological")
 
+    if args.experimental_native_ceiling_report is not None and (
+        args.cibo_instructions is not None or args.motor_policy != "independent_four_motors"
+    ):
+        raise SystemExit("FAIL CLOSED: experimental native CIBO requires four motors and excludes explicit CIBO directions")
+    native_decisions_by_signal = None
     cibo_by_signal = None
     cibo_declared_provenance = None
     cibo_managed_outcomes = {}
     lane_cash = None
     transfer_events = []
+    if args.experimental_native_ceiling_report is not None:
+        native = json.loads(args.experimental_native_ceiling_report.read_text(encoding="utf-8"))
+        if native.get("governance", {}).get("certification_claimed") is not False:
+            raise SystemExit("FAIL CLOSED: native source must be noncertifying research")
+        native_rows = native.get("decision_receipts")
+        signals = {x["signal_fingerprint"] for x in opportunities}
+        if (not isinstance(native_rows, list) or len(native_rows) != 3368
+            or {x.get("signal_fingerprint") for x in native_rows} != signals):
+            raise SystemExit("FAIL CLOSED: exact 3368 Native CIBO decision identities needed")
+        native_decisions_by_signal = {x["signal_fingerprint"]: x for x in native_rows}
+        if len(native_decisions_by_signal) != 3368:
+            raise SystemExit("FAIL CLOSED: duplicate Native CIBO signal")
+        for row in opportunities:
+            n = native_decisions_by_signal[row["signal_fingerprint"]]
+            decision_time = datetime.fromisoformat(str(n["decided_at"]))
+            first_entry = datetime.fromisoformat(str(row["settlement_outcome_research_only"]["entry_at"]))
+            if (n["trader_id"] != row["trader_id"]
+                or decision_time.tzinfo is None or decision_time > first_entry
+                or D(str(n["authorized_volume"])) < ZERO
+                or D(str(n["authorized_stop_risk_usd"])) < ZERO
+                or (D(str(n["authorized_volume"])) == ZERO and D(str(n["authorized_stop_risk_usd"])) > ZERO)
+                or not str(n["semantic_digest"]).startswith("sha256:")
+                or len(str(n["semantic_digest"])) != 71):
+                raise SystemExit("FAIL CLOSED: native CIBO approval/chronology/trader contract invalid")
+        lane_cash = ({"SOVEREIGN_BANK": START_QORE, "PORTFOLIO_CUSHION": ZERO}
+                     if args.experimental_native_lane_policy == "all_bank"
+                     else {"SOVEREIGN_BANK": D("30"), "PORTFOLIO_CUSHION": D("30")})
+        cibo_declared_provenance = "EXPERIMENTAL_NATIVE_CIBO_PREDECISION_GATE_WITH_SIMULATED_ENTRY_NAV_AND_DECLARED_LANE_POLICY"
     if args.cibo_instructions:
         if args.motor_policy != "independent_four_motors":
             raise SystemExit("CIBO instructions require independent four-motor policy")
@@ -236,10 +363,20 @@ def main() -> int:
     cibo_transfers_applied = 0
     cibo_directions_consumed = 0
     cibo_managed_exit_receipts_consumed = 0
+    manager_actions = Counter()
+    manager_qdle_quoted = 0
+    manager_changed_stop_quoted = 0
+    manager_qdle_quoted_lots = ZERO
+    manager_funded_with_original_stop = 0
+    manager_requoted_ids: list[str] = []
+    last_account_snapshot: QDLEAccount | None = None
+    last_symbol_snapshot: QDLESymbol | None = None
+    symbol_snapshots: dict[str, QDLESymbol] = {}
 
     with tempfile.TemporaryDirectory() as t:
         broker = HistoricalProxy()
-        qdle = QDLE(Path(t) / "qdle_3368_sealed.sqlite", broker)
+        research_tmpdir = t  # do not reuse loop-local Trader dict named t
+        qdle = QDLE(Path(research_tmpdir) / "qdle_3368_sealed.sqlite", broker)
         sequence = 0
         def apply_cibo_transfers(at: datetime) -> None:
             nonlocal cibo_transfers_applied
@@ -260,7 +397,7 @@ def main() -> int:
                 cibo_transfers_applied += 1
 
         def publish(at: datetime) -> None:
-            nonlocal sequence, broker_peak, provider_floor_breach
+            nonlocal sequence, broker_peak, provider_floor_breach, last_account_snapshot
             sequence += 1
             broker_equity = START_BROKER + nav - START_QORE
             broker_peak = max(broker_peak, broker_equity)
@@ -287,7 +424,7 @@ def main() -> int:
             else:
                 free_bank, free_cushion = available_qore, ZERO
             broker_free_margin = max(ZERO, broker_equity - open_margin)
-            qdle.publish_account(QDLEAccount(
+            last_account_snapshot = QDLEAccount(
                 account_id="SEALED_RESEARCH_2000", provider="FundedNext", currency="USD",
                 sequence=sequence, as_of=at,
                 balance=max(ZERO, broker_equity), equity=max(ZERO, broker_equity),
@@ -299,7 +436,8 @@ def main() -> int:
                 positions=tuple(Position(k, v["symbol"], v["side"], v["lots"])
                                 for k, v in sorted(active.items())),
                 covered_fill_tickets=tuple(sorted(active)),
-            ))
+            )
+            qdle.publish_account(last_account_snapshot)
         def settle_until(at: datetime) -> None:
             nonlocal nav, peak_nav, max_dd_ratio, maximum_absolute_dd
             nonlocal provider_closed_at, unresolved_at_breach
@@ -374,6 +512,27 @@ def main() -> int:
                      "symbol": symbol, "trader": row["trader_id"],
                      "status": "UNFUNDABLE", "lots": "0"}
             sym_counts[symbol]["original_signals"] += 1
+            if native_management_by_signal is not None:
+                native_advice = native_management_by_signal[rid]
+                event["cibo_max_native_cognition_consumed"] = True
+                event["cibo_max_native_semantic_digest"] = native_advice["native_max_semantic_digest"]
+                event["cibo_max_native_legacy_reason_observation_only"] = native_advice[
+                    "native_legacy_capital_disposition_for_diagnostics_only"
+                ]
+                event["cibo_max_native_calibration_note"] = native_advice["native_max_calibration_note"]
+                event["cibo_max_native_management_mode"] = native_advice[
+                    "manager_mode_SHADOW_from_native_cognitive_sensors"
+                ]
+                event["cibo_max_native_proposed_exit_management"] = native_advice["manager_exit_policy_SHADOW"]
+                event["cibo_max_native_requested_risk_fraction_of_nav"] = native_advice[
+                    "manager_risk_fraction_of_nav_SHADOW"
+                ]
+                event["cibo_max_native_management_source"] = native_advice[
+                    "manager_cognitive_sensor_evidence_SHADOW"]["producer"]
+                event["cibo_max_native_cashflow_provenance"] = "NO_CIBO_MANAGED_SETTLEMENT_EVIDENCE"
+                event["trader_control_settlements_allowed_to_fund_manager"] = False
+                event["cibo_max_native_exit_policy_executed"] = False
+                event["cibo_max_native_trade_admission_gate_used"] = False
             if provider_closed_at is not None:
                 event["status"] = "BLOCKED_AFTER_PROVIDER_LIMIT"
                 event["reason"] = "PROVIDER_TRAILING_LIMIT_TRIGGERED_CLOSED_EQUITY_PROXY"
@@ -399,23 +558,98 @@ def main() -> int:
                 )
                 if stop_per_lot <= 0:
                     raise QDLEError("INVALID_RESEARCH_STOP_VALUATION")
-                # Explicit scenario fees are all-in *proxies*, not broker proof.
-                # FX opening $7 + closing $7 per lot, as requested by the user.
-                # XAU 0.0016% screenshot: unknown base/side, model 2 symmetric legs.
-                # NDX has NO observed fee; caller must supply a scenario assumption.
-                if symbol in {"AUDJPY", "GBPJPY", "GBPUSD", "EURUSD"}:
-                    fee = (D("14") if args.motor_policy == "independent_four_motors"
-                           else D("7"))
-                elif symbol == "XAUUSD":
-                    fee = D("0.000016") * CONTRACTS[symbol] * entry
-                    if args.motor_policy == "independent_four_motors":
-                        fee *= 2
-                elif args.motor_policy == "independent_four_motors":
-                    fee = args.ndx_roundtrip_fee_proxy_usd_per_lot
+                # Explicit OPEN/CLOSE tariff per symbol, never falsely marked MT5-verified.
+                if args.motor_policy == "independent_four_motors":
+                    tariff = estimate_per_lot_fees(
+                        symbol, entry_price=entry, contract_size=CONTRACTS[symbol],
+                        model=args.fee_model,
+                        legacy_ndx_fee_usd=args.ndx_roundtrip_fee_proxy_usd_per_lot,
+                    )
+                    opening_fee, closing_fee = tariff.opening_usd, tariff.closing_usd
+                    fee_source = tariff.fee_evidence
                 else:
-                    fee = ZERO
+                    opening_fee = (
+                        D("7") if symbol in {"AUDJPY", "GBPJPY", "GBPUSD", "EURUSD"}
+                        else D("0.000016") * CONTRACTS[symbol] * entry
+                        if symbol == "XAUUSD" else ZERO
+                    )
+                    closing_fee = ZERO
+                    fee_source = "SHARED_LEGACY_RESEARCH_ENTRY_ONLY_PROXY"
+                fee = opening_fee + closing_fee
+                event["fee_model"] = args.fee_model
+                event["fee_source"] = fee_source
+                event["commission_open_estimated_usd_per_lot"] = str(opening_fee)
+                event["commission_close_estimated_usd_per_lot"] = str(closing_fee)
+                event["commission_actual_account_verified"] = False
+                # CEO MANAGER, NOT SELECTOR: record a valid CIBO management
+                # action for every Trader signal, and use DYNAMIC entry-time
+                # NAV and independent remaining risk source to propose a
+                # protective economic stop. This is RESEARCH ONLY.
+                manager_revised_stop = False
+                manager_original_stop = stop
+                if args.experimental_cibo_administrator:
+                    signal = TraderSignalIntake(
+                        signal_fingerprint=rid, trader_id=row["trader_id"],
+                        symbol=symbol, side=side, entry_price=entry,
+                        structural_stop_price=stop,
+                        take_profit_price=D(str(t["take_profit"])),
+                        decided_at=decision_at,
+                        trader_evidence_sha256="sha256:" + hashlib.sha256(
+                            (rid + "|SEALED_TRADER_MANIFEST").encode()
+                        ).hexdigest(),
+                    )
+                    source_free = max(ZERO, nav - sum(
+                        (x["planned_risk"] for x in active.values()), ZERO
+                    ))
+                    valuation_per_price = stop_per_lot / abs(entry - stop)
+                    receipt = propose_received_trader_management(
+                        signal=signal,
+                        budget=EconomicStopBudget(
+                            qore_reconciled_nav_usd=max(ZERO,nav),
+                            cibo_max_loss_usd=max(ZERO,nav)*FIVE,
+                            source_unreserved_loss_capacity_usd=source_free,
+                            broker_min_lot=D(".01"),broker_lot_step=D(".01"),
+                            tick_size_price=TICKS[symbol],
+                            # Historical provider min-stops unverified.
+                            broker_min_stop_distance_price=ZERO,
+                            price_loss_usd_per_price_unit_per_lot=valuation_per_price,
+                            opening_commission_usd_per_lot=opening_fee,
+                            closing_commission_usd_per_lot=closing_fee,
+                            execution_buffer_usd_per_lot=ZERO,
+                            broker_data_as_of=decision_at,
+                            price_valuation_evidence_sha256="sha256:"+hashlib.sha256(
+                                (rid+"|DECISION_TIME_PROXY_MARGIN_PRICE").encode()
+                            ).hexdigest(),
+                        ),
+                    )
+                    manager_action = receipt.reason_codes[0]
+                    manager_actions[manager_action] += 1
+                    event["cibo_manager_status"] = receipt.status
+                    event["cibo_manager_action"] = manager_action
+                    event["cibo_manager_stop_original"] = str(manager_original_stop)
+                    event["cibo_manager_stop_proposed"] = (
+                        str(receipt.proposed_protective_stop_price)
+                        if receipt.proposed_protective_stop_price is not None else None
+                    )
+                    event["cibo_manager_budget_dynamic_usd"] = str(receipt.budget_usd)
+                    event["cibo_manager_received"] = True
+                    if receipt.proposed_protective_stop_price is not None:
+                        stop = receipt.proposed_protective_stop_price
+                        stop_per_lot = abs(entry - stop) * valuation_per_price
+                        manager_revised_stop = stop != manager_original_stop
+                    else:
+                        # No viable protective stop; CIBO does not reject the
+                        # signal, but cannot request an unsafe physical lot.
+                        event["status"] = "RECEIVED_UNFUNDABLE_CIBO_NO_SAFE_STOP"
+                        event["reason"] = manager_action
+                        event["lots"] = "0"
+                        decisions.append(event)
+                        sym_counts[symbol]["unfundable"] += 1
+                        sym_counts[symbol]["manager_no_safe_stop"] += 1
+                        source_counts[manager_action] += 1
+                        continue
                 if at > last_spec_time.get(symbol, datetime.min.replace(tzinfo=at.tzinfo)):
-                    qdle.publish_symbol(QDLESymbol(
+                    last_symbol_snapshot = QDLESymbol(
                         broker_symbol=symbol, aliases=(symbol, "NAS100") if symbol == "NDX100" else (symbol,),
                         min_lot=D(".01"), max_lot=D("50") if symbol == "XAUUSD" else D("40"),
                         lot_step=D(".01"), directional_volume_limit=ZERO,
@@ -427,7 +661,9 @@ def main() -> int:
                                          and symbol != "XAUUSD" else ZERO),
                         fee_provenance="SCENARIO_COST_PROXY_UNVERIFIED",
                         as_of=at, tradable=True,
-                    ))
+                    )
+                    qdle.publish_symbol(last_symbol_snapshot)
+                    symbol_snapshots[symbol] = last_symbol_snapshot
                     last_spec_time[symbol] = at
                 broker.quote = BrokerValuation(
                     stop_per_lot, MARGINS[symbol][side], at, "SCREENSHOT_2026_STATIC_MARGIN_RESEARCH_PROXY",
@@ -442,7 +678,7 @@ def main() -> int:
                     policy_min = D(".01")
                 event["stop_loss_usd_per_lot"] = str(stop_per_lot)
                 event["commission_roundtrip_proxy_per_lot"] = str(fee) if args.motor_policy == "independent_four_motors" else None
-                event["commission_entry_usd_per_lot_proxy"] = str(fee)
+                event["commission_entry_usd_per_lot_proxy"] = str(opening_fee)
                 if args.motor_policy == "independent_four_motors":
                     cibo = None
                     if cibo_by_signal is not None:
@@ -467,6 +703,35 @@ def main() -> int:
                             or cibo.symbol != symbol or cibo.side != side
                             or cibo.entry_price != entry or cibo.stop_price != stop):
                             raise QDLEError("CIBO_IDENTITY_OR_GEOMETRY_DRIFT")
+                    elif native_decisions_by_signal is not None:
+                        n = native_decisions_by_signal[rid]
+                        # Only Native CIBO's causal allow/risk budget is consumed here.
+                        # Research lane, entry-time NAV, broker fees and historic
+                        # Trader structural exits are DECLARED counterfactuals.
+                        native_approval = D(str(n["authorized_volume"])) > ZERO
+                        native_cap = D(str(n["authorized_stop_risk_usd"])) if native_approval else ZERO
+                        research_risk = min(native_cap, max(ZERO, nav) * FIVE)
+                        lane = ("SOVEREIGN_BANK"
+                                if args.experimental_native_lane_policy == "all_bank"
+                                or index % 2 == 0 else "PORTFOLIO_CUSHION")
+                        lane_held = sum((v["planned_risk"] for v in active.values()
+                                         if v["source_lane"] == lane), ZERO)
+                        backing = max(ZERO, lane_cash[lane] - lane_held)
+                        cibo = CiboEconomicInstruction(
+                            signal_id=rid, trader_id=row["trader_id"], symbol=symbol,
+                            side=side, entry_price=entry, stop_price=stop,
+                            source_lane=lane, allocated_source_funds_usd=backing,
+                            authorized_all_in_risk_usd=research_risk,
+                            maximum_requested_lots=None, account_sequence=sequence,
+                            issued_at=at, evidence_sha256=str(n["semantic_digest"]),
+                        )
+                        event["native_cibo_risk_decision"] = n["risk_decision"]
+                        event["native_cibo_authorized_volume_abstract"] = str(n["authorized_volume"])
+                        event["native_cibo_authorized_stop_risk_usd"] = str(native_cap)
+                        event["native_cibo_decided_at"] = n["decided_at"]
+                        event["native_cibo_semantic_digest"] = n["semantic_digest"]
+                        event["cibo_lane_model"] = "EXPERIMENTAL_UNVERIFIED_" + args.experimental_native_lane_policy
+                        event["cibo_budget_recomputed_on_simulated_entry_epoch"] = True
                     open_stop = sum((x["planned_risk"] for x in active.values()), ZERO)
                     open_margin = sum((x["margin"] for x in active.values()), ZERO)
                     same_symbol_stop = sum((x["planned_risk"] for x in active.values()
@@ -476,6 +741,10 @@ def main() -> int:
                     same_direction = sum((x["lots"] for x in active.values()
                                           if x["symbol"] == symbol and x["side"] == side), ZERO)
                     # Simulated cashbook is NOT a broker settlement statement.
+                    # For Native MAX, NO synthetic CONTROL settlement can be
+                    # used to invent managed NAV or a three-loss streak.
+                    if native_shadow_only and (recent_settlements or nav != START_QORE):
+                        raise QDLEError("NATIVE_CIBO_NAV_CONTAMINATED_BY_TRADER_CONTROL")
                     digest = "sha256:" + hashlib.sha256(
                         (rid + at.isoformat() + str(nav) + str(fee)).encode()
                     ).hexdigest()
@@ -586,14 +855,61 @@ def main() -> int:
                         slippage_usd_per_lot=fee, expected_account_sequence=sequence,
                         methodology_min_lots=policy_min,
                     )
+                if args.experimental_paper_bypass_strategy_caps:
+                    # PAPER-ONLY bypass discretionary recommendations: physical
+                    # QDLE nevertheless enforces risk <= 5pct NAV (as well as
+                    # broker grid, fees and available source/margin). Never
+                    # alter QDLEIntent authority or remove the LIVE guards.
+                    event["four_engine_caps_before_research_bypass"] = dict(
+                        event["four_engine_caps_usd"]
+                    )
+                    event["strategy_policy_ablation"] = "RESEARCH_ONLY_ALL_FOUR_STRATEGY_VOTES_BYPASSED"
+                    requested = replace(
+                        requested,
+                        requested_risk_usd=risk_budget,
+                        sizing_cap_usd=risk_budget,
+                        cibo_compound_cap_usd=risk_budget,
+                        portfolio_cap_usd=free_qore,
+                        leverage_cap_lots=limit_lots,
+                        margin_cap_usd=free_broker,
+                    )
+                    event["cibo_paper_bypass_applied"] = True
+                if native_shadow_only:
+                    # Economic intent actually depends on causal MAX sensor output.
+                    # Upstream 4 motors still vote; 5% NAV remains the ceiling.
+                    # NO legacy disposition or Trader settlement drives this cap.
+                    cognitive_cap = max(ZERO, nav) * D(
+                        native_management_by_signal[rid]["manager_risk_fraction_of_nav_SHADOW"]
+                    )
+                    requested = apply_native_qdle_risk_cap(
+                        intent=requested,
+                        qore_nav_usd=max(ZERO, nav),
+                        native_plan=native_management_by_signal[rid][
+                            "manager_cognitive_sensor_evidence_SHADOW"
+                        ],
+                    )
+                    event["cibo_max_native_economic_budget_requested_usd"] = str(cognitive_cap)
+                    event["cibo_max_native_economic_budget_applied_to_qdle"] = True
                 if args.target_lots is not None and args.motor_policy != "independent_four_motors":
                     requested = replace(requested, requested_target_lots=args.target_lots)
                 for label, value in event["four_engine_caps_usd"].items():
                     module_summed_limits_usd[label] += D(value)
                     module_audit_present[label] += 1
                 module_audit_present["ADAPTIVE_LEVERAGE"] += 1
-                result = qdle.reserve_for_trader(requested, now=at)
-                if cibo_by_signal is not None:
+                if args.experimental_cibo_administrator and (manager_revised_stop or native_shadow_only):
+                    # Independent ephemeral QDLE instance: its HOLD is a
+                    # physical **RESEARCH QUOTE** only, not a broker rejected
+                    # or filled trade. Never contaminate the original-stop
+                    # account ledger or invent a no-fill broker receipt.
+                    quote_qdle = QDLE(Path(research_tmpdir) / ("manager-quote-" + str(index) + ".sqlite"), broker)
+                    if last_account_snapshot is None or last_symbol_snapshot is None:
+                        raise QDLEError("MANAGER_QUOTE_MISSING_CAUSAL_ACCOUNT_SPEC")
+                    quote_qdle.publish_account(last_account_snapshot)
+                    quote_qdle.publish_symbol(symbol_snapshots[symbol])
+                    result = quote_qdle.reserve_for_trader(requested, now=at)
+                else:
+                    result = qdle.reserve_for_trader(requested, now=at)
+                if cibo_by_signal is not None or native_decisions_by_signal is not None:
                     receipt = audit_cibo_qdle_lotage(
                         cibo=cibo, observation=obs, votes=votes, result=result,
                         broker_min_lot=D(".01"), broker_lot_step=D(".01"),
@@ -623,6 +939,8 @@ def main() -> int:
                              bound_modules=list(result.binding_limits),
                              fees_entry_usd_proxy=str(result.cost_usd),
                              commission_roundtrip_reserved_usd_proxy=str(result.cost_usd),
+                             commission_open_reserved_usd_proxy=str(result.lots * opening_fee),
+                             commission_close_reserved_usd_proxy=str(result.lots * closing_fee),
                              commission_open_paid_usd_proxy="0",
                              planned_stop_usd=str(result.total_risk_usd),
                              margin_usd=str(result.margin_usd),
@@ -631,13 +949,43 @@ def main() -> int:
                 if result.lots > 0:
                     for bound in result.binding_limits:
                         module_binding_ties[bound] += 1
-                if result.lots == 0:
+                if args.experimental_cibo_administrator and (manager_revised_stop or native_shadow_only) and result.lots > 0:
+                    # Native management NEVER takes the Trader CONTROL outcome
+                    # even when its economic stop equals the original stop:
+                    # cognitive partials/trailing/defense change the outcome.
+                    manager_qdle_quoted += 1
+                    if native_shadow_only:
+                        native_mode_qdle_quotes[
+                            native_management_by_signal[rid]["manager_mode_SHADOW_from_native_cognitive_sensors"]
+                        ] += 1
+                    manager_qdle_quoted_lots += result.lots
+                    if manager_revised_stop:
+                        manager_changed_stop_quoted += 1
+                        manager_requoted_ids.append(rid)
+                    event["status"] = ("CIBO_NATIVE_COGNITIVE_QDLE_QUOTE_SHADOW"
+                                       if native_shadow_only else "ECONOMIC_STOP_QDLE_PHYSICAL_QUOTE_SHADOW")
+                    event["cibo_manager_action"] = "COGNITIVE_MANAGEMENT_AND_QDLE_QUOTE" if native_shadow_only else "ECONOMIC_STOP_AND_QDLE_QUOTE"
+                    event["cibo_manager_exit_status"] = "NEEDS_CAUSAL_PRICE_PATH"
+                    event["historical_structural_R_used_for_modified_stop"] = False
+                    event["position_opened"] = False
+                    event["opening_commission_debited"] = False
+                    sym_counts[symbol]["manager_cognitive_qdle_quote_only"] += 1
+                    if manager_revised_stop:
+                        sym_counts[symbol]["manager_economic_sl_quote_only"] += 1
+                    source_counts["CIBO_QDLE_QUOTE_NOT_HISTORICAL_FILL"] += 1
+                elif result.lots == 0:
+                    if native_shadow_only:
+                        native_mode_qdle_unfundable[
+                            native_management_by_signal[rid]["manager_mode_SHADOW_from_native_cognitive_sensors"]
+                        ] += 1
                     primary_constraint = result.binding_limits[0] if result.binding_limits else "UNKNOWN_BROKER_GRID"
                     rejection_binding_counts[primary_constraint] += 1
                     event["reason"] = "BROKER_MINIMUM_UNFINANCEABLE_BY_" + primary_constraint
                     source_counts[event["reason"]] += 1
                     sym_counts[symbol]["unfundable"] += 1
                 else:
+                    if args.experimental_cibo_administrator:
+                        manager_funded_with_original_stop += 1
                     if result.total_risk_usd > risk_budget or result.margin_usd > free_broker:
                         raise QDLEError("QDLE_INTERNAL_RISK_OR_MARGIN_BREACH")
                     # Research-only hypothetical fill at supplied structural entry,
@@ -650,9 +998,10 @@ def main() -> int:
                     # closing fee ONLY at the modeled exit. QDLE pre-reserves
                     # the full two-leg cost before entry in both cases.
                     full_fee = result.lots * fee
-                    entry_fee = (full_fee / D("2") if args.motor_policy == "independent_four_motors"
-                                 else full_fee)
-                    close_fee = full_fee - entry_fee
+                    entry_fee = result.lots * opening_fee
+                    close_fee = result.lots * closing_fee
+                    if entry_fee + close_fee != full_fee:
+                        raise QDLEError("BROKER_FEE_OPEN_CLOSE_SPLIT_MISMATCH")
                     event["commission_open_paid_usd_proxy"] = str(entry_fee)
                     event["commission_close_committed_usd_proxy"] = str(close_fee)
                     nav -= entry_fee
@@ -675,6 +1024,8 @@ def main() -> int:
                     else:
                         expiration = datetime.fromisoformat(row["settlement_outcome_research_only"]["exit_at"])
                         outcome_r = D(row["settlement_outcome_research_only"]["gross_structural_outcome_r"])
+                        if native_decisions_by_signal is not None:
+                            event["research_exit_source"] = "HISTORICAL_TRADER_STRUCTURAL_R_NOT_NATIVE_CIBO_MANAGED_EXIT"
                     if expiration < at:
                         raise QDLEError("HISTORICAL_EXIT_PRECEDES_DECISION")
                     # Tick values observed for metals/index; FX conversion
@@ -718,6 +1069,51 @@ def main() -> int:
         broker_end = START_BROKER + nav - START_QORE
         report = {
             "schema": "qore.qdle.3368.dual-capital-research.v1",
+            "cibo_manager_experimental_activated": args.experimental_cibo_administrator,
+            "experimental_paper_bypass_strategy_caps": args.experimental_paper_bypass_strategy_caps,
+            "native_max_3368_cognitive_evidence_joined": native_management_by_signal is not None,
+            "native_max_cognitive_evidence_receipts_joined": (
+                len(native_management_by_signal) if native_management_by_signal is not None else 0
+            ),
+            "native_max_management_mode_counts": dict(sorted(native_management_modes.items())),
+            "native_cibo_bank_medium_attack_instructions_consumed": native_mode_instructions_consumed,
+            "native_cibo_modes_qdle_physically_quoted": dict(sorted(native_mode_qdle_quotes.items())),
+            "native_cibo_modes_qdle_no_financeable_lot": dict(sorted(native_mode_qdle_unfundable.items())),
+            "native_cibo_all_three_modes_pass_through_physical_qdle": (
+                native_mode_instructions_consumed == len(opportunities)
+                and sum(native_mode_qdle_quotes.values())
+                + sum(native_mode_qdle_unfundable.values()) == len(opportunities)
+            ),
+            "native_max_cognitive_economic_intents_applied": len(native_management_by_signal) if native_shadow_only else 0,
+            "native_max_all_qdle_quotes_nonsettling_without_price_path": native_shadow_only,
+            "native_max_control_cashflows_excluded_from_manager_nav": native_shadow_only,
+            "native_max_manager_nav_funded_from_proven_managed_settlements": False,
+            "native_max_legacy_admission_filter_disabled": native_management_by_signal is not None,
+            "native_max_real_managed_trade_exits_rebuilt": False,
+            "native_max_management_plans_research_only": native_management_by_signal is not None,
+            "research_policy_bypassed_four_voters": (
+                ["SIZING", "CIBO_COMPOUND", "ADAPTIVE_LEVERAGE", "PORTFOLIO_COMPOUND"]
+                if args.experimental_paper_bypass_strategy_caps else []
+            ),
+            "qdle_physical_and_5pct_caps_preserved": True,
+            "paper_only_hard_no_live_gateway": True,
+            "cibo_manager_actions": dict(manager_actions),
+            "cibo_manager_economic_stop_qdle_quote_only": manager_changed_stop_quoted,
+            "cibo_manager_native_policy_qdle_quote_only": manager_qdle_quoted if native_shadow_only else 0,
+            "cibo_manager_original_stop_native_qdle_quote_only": (
+                manager_qdle_quoted - manager_changed_stop_quoted if native_shadow_only else 0
+            ),
+            "cibo_manager_economic_stop_quoted_lots_not_filled": str(manager_qdle_quoted_lots),
+            "cibo_manager_economic_stop_quoted_signal_ids": manager_requoted_ids,
+            "cibo_manager_original_stop_historical_structural_proxy_funded": manager_funded_with_original_stop,
+            "cibo_manager_full_real_strategy_NAV_USD": None if args.experimental_cibo_administrator else str(nav),
+            "cibo_manager_full_real_strategy_PF": None,
+            "cibo_manager_full_real_strategy_DD": None,
+            "cibo_manager_synthetic_ledger_nav_not_performance": str(nav) if native_shadow_only else None,
+            "cibo_manager_managed_exits_replayed": False,
+            "cibo_manager_exit_path_missing": True if args.experimental_cibo_administrator else None,
+            "cibo_manager_static_provider_stop_distance_assumed_zero": args.experimental_cibo_administrator,
+
             "certified": False,
             "broker_execution_proven": False,
             "real_fundednext_fills": 0,
@@ -728,12 +1124,44 @@ def main() -> int:
             "qore_initial_capital_usd": "60",
             "historical_exposure_model": "STATIC_2026_SCREENSHOT_MARGIN_NOT_HISTORICAL_BROKER",
             "provider_loss_limit_model": ("RESEARCH_SENSITIVITY_TRAILING_" + str(provider_limit) + "_USD_NOT_VERIFIED") if provider_limit is not None else "NO_VERIFIED_PROVIDER_LIMIT_NOT_SIMULATED",
-            "commission_model": ("FOREX_7_OPEN_PLUS_7_CLOSE_PER_LOT__XAU_SYMMETRIC_2_LEG_NOTIONAL_PROXY__NDX_EXPLICIT_SENSITIVITY" if args.motor_policy == "independent_four_motors" else "FOREX_ENTRY_ONLY_7USD_LOT__XAU_NOTIONAL_PROXY__NDX_ZERO_UNKNOWN"),
-            "ndx_assumed_total_fee_usd_per_lot": str(args.ndx_roundtrip_fee_proxy_usd_per_lot) if args.motor_policy == "independent_four_motors" else None,
+            "commission_model": (
+                "FUNDEDNEXT_STELLAR_INSTANT_HELP_OPEN_ONLY__PUBLIC_TARIFF_UNVERIFIED_ACCOUNT"
+                if args.fee_model == "stellar_instant_open_only" else
+                "FUNDEDNEXT_GENERAL_RULES_PER_SIDE_RESEARCH_SENSITIVITY"
+                if args.fee_model == "stellar_general_per_side" else
+                "FOREX_7_OPEN_PLUS_7_CLOSE_PER_LOT__XAU_SYMMETRIC_2_LEG_NOTIONAL_PROXY__NDX_EXPLICIT_SENSITIVITY"
+                if args.motor_policy == "independent_four_motors" else
+                "FOREX_ENTRY_ONLY_7USD_LOT__XAU_NOTIONAL_PROXY__NDX_ZERO_UNKNOWN"
+            ),
+            "fee_model": args.fee_model,
+            "broker_account_commission_verified": False,
+            "fee_tariff_only_public_stellar_instant": args.fee_model != LEGACY_REPLAY_PROXY,
+            "ndx_assumed_total_fee_usd_per_lot": (
+                str(args.ndx_roundtrip_fee_proxy_usd_per_lot)
+                if args.fee_model == LEGACY_REPLAY_PROXY and args.motor_policy == "independent_four_motors"
+                else "0" if args.fee_model != LEGACY_REPLAY_PROXY else None
+            ),
             "module_caps_provenance": ("SIMULATED_INDEPENDENT_FOUR_MOTOR_VOTES" if args.motor_policy == "independent_four_motors" else "PROXY_SHARED_5PCT_NOT_INDEPENDENT_MOTOR_DECISIONS"),
             "economic_motor_mode": args.motor_policy,
-            "cibo_authority_mode": ("CIBO_EXPLICIT_DIRECTIVES" if cibo_by_signal is not None
-                                   else "NOT_CIBO_INTEGRATED_ECONOMIC_PROXIES"),
+            "cibo_authority_mode": (
+                "CIBO_EXPLICIT_DIRECTIVES" if cibo_by_signal is not None
+                else "EXPERIMENTAL_NATIVE_CIBO_APPROVAL_GATE_QDLE_PHYSICAL_PROJECTION"
+                if native_decisions_by_signal is not None
+                else "NATIVE_SOVEREIGN_BANK_MEDIUM_ATTACK_INSTRUCTIONS_TO_QDLE_QUOTE_ONLY_NO_MANAGED_EXITS"
+                if native_shadow_only and native_mode_instructions_consumed == 3368
+                else "NATIVE_SENSOR_DERIVED_RESEARCH_QDLE_QUOTE_ONLY_NO_MANAGED_EXITS"
+                if native_shadow_only
+                else "NOT_CIBO_INTEGRATED_ECONOMIC_PROXIES"
+            ),
+            "native_cibo_cognitive_decisions_consumed": (
+                len(native_decisions_by_signal)
+                if native_decisions_by_signal is not None
+                else native_mode_instructions_consumed
+            ),
+            "native_cibo_true_source_lanes_verified": False,
+            "native_cibo_actual_management_settlements_verified": False,
+            "experimental_native_lane_policy": (args.experimental_native_lane_policy
+                                                if native_decisions_by_signal is not None else None),
             "cibo_instruction_provenance": cibo_declared_provenance,
             "cibo_management_broker_authenticated": False,
             "cibo_directives_consumed": cibo_directions_consumed,
@@ -751,7 +1179,11 @@ def main() -> int:
             "module_audit_observations": dict(module_audit_present),
             "module_summed_approved_usd_not_disbursed": {k: str(v) for k,v in module_summed_limits_usd.items()},
             "module_pnl_attribution_usd": None,
-            "pnl_model": "POST_EXIT_STRUCTURAL_R_TIMES_CAUSAL_STOP_LOSS_PROXY_MINUS_ENTRY_COST",
+            "pnl_model": (
+                "NATIVE_COGNITIVE_POLICY_QUOTE_ONLY_NO_SETTLEMENT_NO_PNL"
+                if native_shadow_only else
+                "POST_EXIT_STRUCTURAL_R_TIMES_CAUSAL_STOP_LOSS_PROXY_MINUS_ENTRY_COST"
+            ),
             "research_volume_policy": args.min_policy,
             "signal_count": len(opportunities),
             "unique_signal_count": len({x["signal_fingerprint"] for x in opportunities}),
@@ -761,7 +1193,7 @@ def main() -> int:
             "open_at_end": len(active),
             "qore_ending_capital_usd": str(nav),
             "broker_ending_equity_usd": str(broker_end),
-            "net_research_pnl_usd": str(nav - START_QORE),
+            "net_research_pnl_usd": None if native_shadow_only else str(nav - START_QORE),
             "settled_trade_net_pnl_excluding_open_fee_effect_usd": str(realized_gains),
             "provider_trailing_closed_equity_stop_at": provider_closed_at,
             "provider_unresolved_positions_at_stop": unresolved_at_breach,
@@ -779,9 +1211,9 @@ def main() -> int:
             "net_swap_pnl_utc_midnight_proxy_usd": str(swap_pnl),
             "swap_rollover_position_count_proxy": rollover_count,
             "swap_model": "SCREENSHOT_2026_POINTS_AT_UTC_MIDNIGHT_PROXY" if args.swap_proxy == "utc_midnight" else "OMITTED_NO_DATA",
-            "profit_factor_proxy": str(wins / losses) if losses > 0 else None,
-            "max_closed_equity_drawdown_usd": str(maximum_absolute_dd),
-            "max_closed_equity_drawdown_pct": str(max_dd_ratio * 100),
+            "profit_factor_proxy": None if native_shadow_only else str(wins / losses) if losses > 0 else None,
+            "max_closed_equity_drawdown_usd": None if native_shadow_only else str(maximum_absolute_dd),
+            "max_closed_equity_drawdown_pct": None if native_shadow_only else str(max_dd_ratio * 100),
             "intratrade_drawdown_measured": False,
             "provider_floor_proxy_breach_sample_count": provider_floor_breach,
             "by_symbol": {k: dict(v) for k, v in sorted(sym_counts.items())},
@@ -804,6 +1236,8 @@ def main() -> int:
                 "Independent 4-motor mode assumes fee completeness for RESEARCH ONLY; fake evidence must never be used for live authorization",
                 ("CIBO economic instructions supplied and honored, but broker authenticity not proved"
                  if cibo_by_signal is not None else
+                 "NATIVE CIBO APPROVAL used, but source lane/entry-time budget projected as a RESEARCH scenario"
+                 if native_decisions_by_signal is not None else
                  "NO CIBO trade management or portfolio allocation instructions; economic cap proxy ONLY"),
                 ("CIBO-supplied managed exit date and gross R dictate research settlement; no actual MT5 broker deal"
                  if cibo_managed_exit_receipts_consumed else

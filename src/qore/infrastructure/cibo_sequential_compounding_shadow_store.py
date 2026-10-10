@@ -24,7 +24,6 @@ from qore.infrastructure.cibo_compound_capital import (
     CompoundCapitalState,
 )
 from qore.infrastructure.cibo_sequential_compounding_shadow_policy import (
-    GENC5_SHADOW_POLICY_FROZEN_AT,
     GENC5_SHADOW_POLICY_ID,
     Genc5SequentialCompoundingShadowDecision,
     SequentialCompoundPosture,

@@ -1,0 +1,74 @@
+name: "CIBO P0 native 3368 genuine source readiness / no-proxy preflight"
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - ".github/workflows/cibo-p0-native-3368-real-source-readiness.yml"
+      - "scripts/cibo_p0_native_3368_evidence_gate.py"
+      - "tests/infrastructure/test_cibo_p0_native_3368_evidence_gate.py"
+      - "src/qore/infrastructure/cibo_p0_native_causal_market.py"
+      - "config/research/cibo_p0_four_arm_atr_5pct_3368_2026-10-09.json"
+  pull_request:
+    branches: [agent/cibo-architect-3-qdle-mt5-physical-20261008]
+permissions:
+  contents: read
+  actions: read
+env:
+  QORE_LIVE_TRADING: "false"
+  PYTHONPATH: 'src:.'
+  MANIFEST_ARTIFACT: "11451743578"
+  MANIFEST_SHA256: "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
+jobs:
+  native-evidence-source-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit-test original fingerprints and historical-causal proof requirements
+        run: |
+          test "$QORE_LIVE_TRADING" = false
+          python -m unittest discover -s tests/infrastructure -p 'test_cibo_p0_native_3368_evidence_gate.py' -v
+      - name: Restore EXACT source manifest and verify ZIP digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-p0-source"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$MANIFEST_ARTIFACT/zip" > "$RUNNER_TEMP/cibo-p0-source/manifest.zip"
+          echo "$MANIFEST_SHA256  $RUNNER_TEMP/cibo-p0-source/manifest.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/cibo-p0-source/manifest.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/cibo-p0-source/"
+      - name: Assess 3368 original signals with truthful missing native broker pack
+        run: |
+          python scripts/cibo_p0_native_3368_evidence_gate.py \
+            --manifest "$RUNNER_TEMP/cibo-p0-source/walk-forward-manifest.json" \
+            --contract config/research/cibo_p0_four_arm_atr_5pct_3368_2026-10-09.json \
+            --output "$RUNNER_TEMP/cibo-p0-source/native-3368-four-arm-readiness.json"
+          python - <<'PY'
+          import json,os,pathlib
+          r=json.loads((pathlib.Path(os.environ["RUNNER_TEMP"])/
+            "cibo-p0-source/native-3368-four-arm-readiness.json").read_text())
+          assert r["source_signals"]==3368
+          assert len(r["original_traders"])==7
+          assert r["original_timeframe_counts"]=={
+            "M1":484,"M15":162,"H1":2229,"H4":493}
+          assert r["status_counts"]=={
+            "NO_CAUSAL_EVIDENCE_PACK_FOR_SIGNAL":3368}
+          assert r["unassessable_count"]==3368
+          assert not r["full_replay_ready"]
+          assert r["broker_fills"]==0 and r["no_live"]
+          assert r["four_arms"]==["A-X","A-Y","B-X","B-Y"]
+          print("P0_SOURCE_COVERAGE_REAL_CORPUS_PASS",
+              json.dumps({"original":3368,"native_tf":r["original_timeframe_counts"],
+                          "missing_broker_evidence":3368,
+                          "profits_not_calculated":True},sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-p0-3368-true-source-evidence-readiness-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-p0-source/native-3368-four-arm-readiness.json
+          if-no-files-found: warn

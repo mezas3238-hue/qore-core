@@ -1,0 +1,145 @@
+name: QDLE P0 Stellar Instant 3368 Instrument Fee Reprice
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - "src/qore/infrastructure/qdle_stellar_instant_costs.py"
+      - "src/qore/infrastructure/qdle_mt5_history_fee_audit.py"
+      - "tests/infrastructure/test_qdle_mt5_history_fee_audit.py"
+      - "scripts/qdle_3368_dual_ledger_replay.py"
+      - "scripts/qdle_3368_fee_model_comparison.py"
+      - "tests/infrastructure/test_qdle_stellar_instant_costs.py"
+      - ".github/workflows/qdle-stellar-instant-3368-fee-reprice.yml"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: qdle-stellar-instant-3368-fee-reprice
+  cancel-in-progress: true
+jobs:
+  reprice-native-cibo-3368:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: src
+      QORE_LIVE_TRADING: "false"
+      QORE_REPLAY_AUTHORITY: "CIBO_NATIVE_MAX_COST_REPRICE_RESEARCH_NO_ORDER_SEND"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check QDLE Stellar Instant and native sovereign invariants
+        run: |
+          test "$QORE_LIVE_TRADING" = false
+          python -m unittest discover -s tests/infrastructure -p test_qdle_stellar_instant_costs.py -q
+          python -m unittest discover -s tests/infrastructure -p test_qdle_mt5_history_fee_audit.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_native_sovereign_qdle_p0.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -q
+      - name: Reconcile observed MT5 5 closed trades and screenshot commission total
+        run: |
+          mkdir -p "$RUNNER_TEMP/qdle-stellar-3368"
+          PYTHONPATH=src:tests/infrastructure python - <<'PY'
+          import json,os,pathlib
+          from test_qdle_mt5_history_fee_audit import audit
+          report=audit()
+          assert report["observed_final_balance_usd"]=="1998.85"
+          assert report["observed_total_commission_debit_usd"]=="0.28"
+          assert report["all_observed_fees_match_stellar_faq"]
+          assert report["cibo_3368_managed_dd_pct"] is None
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"qdle-stellar-3368"
+          (p/"actual-mt5-5-closed-trades-commission-reconciliation.json").write_text(
+              json.dumps(report,indent=2,sort_keys=True)+"\n")
+          print("MT5_5_CLOSED_POSITIONS_FEE_RECONCILED",
+                json.dumps({k:report[k] for k in (
+                    "position_count","observed_total_commission_debit_usd",
+                    "observed_price_pnl_usd","observed_net_change_usd",
+                    "observed_final_balance_usd")},sort_keys=True))
+          PY
+      - name: Fetch proven 3368 Trader manifest and FRESH Native CIBO management receipts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/qdle-stellar-3368"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11451743578/zip" > "$RUNNER_TEMP/qdle-stellar-3368/sealed-trader.zip"
+          echo "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea  $RUNNER_TEMP/qdle-stellar-3368/sealed-trader.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/qdle-stellar-3368/sealed-trader.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/qdle-stellar-3368"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11621741615/zip" > "$RUNNER_TEMP/qdle-stellar-3368/fresh-native-cibo.zip"
+          echo "cd44f1079862c78a20139a078dd4ba7bcc9de337e06cda69574bb50aa88a3bcb  $RUNNER_TEMP/qdle-stellar-3368/fresh-native-cibo.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/qdle-stellar-3368/fresh-native-cibo.zip" native-max-3368-management-advisories.json -d "$RUNNER_TEMP/qdle-stellar-3368"
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"qdle-stellar-3368"
+          m=json.loads((p/"walk-forward-manifest.json").read_text())
+          a=json.loads((p/"native-max-3368-management-advisories.json").read_text())
+          assert len(m["opportunities"])==a["trader_signals_received"]==a["native_cibo_bank_medium_attack_instructions_issued"]==3368
+          assert a["native_cibo_qdle_mode_authority_is_runtime"] is True
+          assert set(x["signal_fingerprint"] for x in m["opportunities"])==set(x["signal_fingerprint"] for x in a["receipts"])
+          PY
+      - name: Replay old legacy fee proxy on all 3368
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/qdle-stellar-3368/walk-forward-manifest.json" \
+            --native-max-management-advisories "$RUNNER_TEMP/qdle-stellar-3368/native-max-3368-management-advisories.json" \
+            --motor-policy independent_four_motors --min-policy broker_grid \
+            --fee-model legacy_proxy --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --provider-trailing-usd disabled --swap-proxy off --experimental-cibo-administrator \
+            --output "$RUNNER_TEMP/qdle-stellar-3368/legacy-3368.json"
+      - name: Replay published Stellar Instant opening-only tariffs on all 3368
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/qdle-stellar-3368/walk-forward-manifest.json" \
+            --native-max-management-advisories "$RUNNER_TEMP/qdle-stellar-3368/native-max-3368-management-advisories.json" \
+            --motor-policy independent_four_motors --min-policy broker_grid \
+            --fee-model stellar_instant_open_only \
+            --provider-trailing-usd disabled --swap-proxy off --experimental-cibo-administrator \
+            --output "$RUNNER_TEMP/qdle-stellar-3368/stellar-instant-3368.json"
+      - name: Replay general-rule per-side tariff sensitivity on all 3368
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/qdle-stellar-3368/walk-forward-manifest.json" \
+            --native-max-management-advisories "$RUNNER_TEMP/qdle-stellar-3368/native-max-3368-management-advisories.json" \
+            --motor-policy independent_four_motors --min-policy broker_grid \
+            --fee-model stellar_general_per_side \
+            --provider-trailing-usd disabled --swap-proxy off --experimental-cibo-administrator \
+            --output "$RUNNER_TEMP/qdle-stellar-3368/general-per-side-3368.json"
+      - name: Compare signal lots, mode financeability, fees, and managed DD truth gate
+        run: |
+          python scripts/qdle_3368_fee_model_comparison.py \
+            --legacy "$RUNNER_TEMP/qdle-stellar-3368/legacy-3368.json" \
+            --stellar-instant "$RUNNER_TEMP/qdle-stellar-3368/stellar-instant-3368.json" \
+            --general-per-side "$RUNNER_TEMP/qdle-stellar-3368/general-per-side-3368.json" \
+            --output "$RUNNER_TEMP/qdle-stellar-3368/summary-comparison.json"
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"qdle-stellar-3368"
+          r=json.loads((p/"summary-comparison.json").read_text())
+          assert r["source_signal_count"]==3368 and r["financial_certification"]=="REJECTED"
+          assert r["managed_drawdown_pct"] is None and r["managed_profit_factor"] is None
+          assert r["totals"]["legacy"]["positive_lot_quotes"]==1961, "baseline cost parity drift"
+          assert r["totals"]["stellar_instant"]["fee_model"]=="stellar_instant_open_only"
+          assert r["totals"]["general_per_side"]["fee_model"]=="stellar_general_per_side"
+          print("QDLE_STELLAR_3368_REPRICE_PASS",json.dumps({"totals":r["totals"],"changes":r["changes"]},sort_keys=True),flush=True)
+          PY
+      - name: Explicitly audit missing historical managed exit paths
+        run: |
+          echo '{"schema":"qore.cibo.native-max-executable-bars-research.v1","source_type":"BROKER_HISTORICAL_BID_ASK_RESEARCH_UNVERIFIED","source_description":"EMPTY: no verified 2019-2022 executable exit paths provided in 3368 sealed source; do not claim DD","items":[]}' > "$RUNNER_TEMP/qdle-stellar-3368/no-historical-price-paths.json"
+          python scripts/cibo_p0_native_managed_exit_path_audit.py \
+            --manifest "$RUNNER_TEMP/qdle-stellar-3368/walk-forward-manifest.json" \
+            --qdle-report "$RUNNER_TEMP/qdle-stellar-3368/stellar-instant-3368.json" \
+            --executable-bars "$RUNNER_TEMP/qdle-stellar-3368/no-historical-price-paths.json" \
+            --output "$RUNNER_TEMP/qdle-stellar-3368/cibo-exit-path-coverage.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qdle-stellar-instant-3368-fee-reprice-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/qdle-stellar-3368/legacy-3368.json
+            ${{ runner.temp }}/qdle-stellar-3368/stellar-instant-3368.json
+            ${{ runner.temp }}/qdle-stellar-3368/general-per-side-3368.json
+            ${{ runner.temp }}/qdle-stellar-3368/summary-comparison.json
+            ${{ runner.temp }}/qdle-stellar-3368/cibo-exit-path-coverage.json
+            ${{ runner.temp }}/qdle-stellar-3368/actual-mt5-5-closed-trades-commission-reconciliation.json
+          if-no-files-found: warn

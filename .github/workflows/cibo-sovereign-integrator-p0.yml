@@ -1,0 +1,78 @@
+name: CIBO Sovereign Integrator P0 - Shadow Cross-Architect
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-sovereign-integration-p0-20261008
+  pull_request:
+    paths:
+      - "src/qore/infrastructure/cibo_sovereign_integration.py"
+      - "tests/infrastructure/test_cibo_sovereign_integration_p0.py"
+      - "src/qore/infrastructure/cibo_atr_stop_shadow.py"
+      - "tests/infrastructure/test_cibo_atr_stop_shadow.py"
+      - "src/qore/infrastructure/cibo_trader_signal_administration.py"
+      - "tests/infrastructure/test_cibo_trader_signal_administration.py"
+      - "src/qore/infrastructure/cibo_managed_exit_replay.py"
+      - "tests/infrastructure/test_cibo_managed_exit_replay.py"
+      - "src/qore/infrastructure/cibo_trade_ops_*.py"
+      - "src/qore/infrastructure/cibo_four_motor_*.py"
+      - ".github/workflows/cibo-sovereign-integrator-p0.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cross-architect-no-send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Syntax validation of integration and A2 repaired gates
+        run: |
+          python -m py_compile \
+            src/qore/infrastructure/cibo_trade_ops_director.py \
+            src/qore/infrastructure/cibo_trade_ops_audit.py \
+            src/qore/infrastructure/cibo_sovereign_integration.py \
+            src/qore/infrastructure/cibo_atr_stop_shadow.py \
+            src/qore/infrastructure/cibo_trader_signal_administration.py \
+            src/qore/infrastructure/cibo_managed_exit_replay.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_ce2i_runtime_receipt.py \
+            src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py
+      - name: A1 cognition operations and audit, A2 economic votes, A3 physical QDLE + integrated bridge
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_cibo_trade_ops_director.py -v
+          python -m unittest discover -s tests/infrastructure -p test_cibo_trade_ops_audit.py -v
+          python -m unittest discover -s tests/infrastructure -p test_cibo_four_motor_policy_p0.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_authority.py -v
+          python -m unittest discover -s tests/infrastructure -p test_cibo_sovereign_integration_p0.py -v
+          python -m unittest discover -s tests/infrastructure -p test_cibo_atr_stop_shadow.py -v
+          python -m unittest discover -s tests/infrastructure -p test_cibo_trader_signal_administration.py -v
+          python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -v
+      - name: No actual gateway transmission in integration module
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          paths=[
+              Path("src/qore/infrastructure/cibo_sovereign_integration.py"),
+              Path("src/qore/infrastructure/cibo_atr_stop_shadow.py"),
+              Path("src/qore/infrastructure/cibo_trader_signal_administration.py"),
+              Path("src/qore/infrastructure/cibo_managed_exit_replay.py"),
+          ]
+          calls=[
+              node for p in paths for node in ast.walk(ast.parse(p.read_text()))
+              if isinstance(node,ast.Call)
+          ]
+          for node in calls:
+              func=node.func
+              name=func.attr if isinstance(func,ast.Attribute) else (
+                  func.id if isinstance(func,ast.Name) else "")
+              assert name not in ("order_send","submit_order","acknowledge_fill")
+          print("PASS: integration module never sends or authenticates fake broker fills")
+          PY
