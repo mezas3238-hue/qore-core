@@ -58,3 +58,42 @@
 | A1 V50-G parcial es Master Frame real | **CONFLICT:** mantener V50-G vs A1 scientific nine-market separados |
 
 **No cambiar ninguna regla operativa en esta revisión.** Siguiente P0: terminar run V50-G 9/9, comparar por source ID y cuantificar target/stop. Si el run falla, no aceptar métricas incompletas; reportar traza y reparar sólo ingeniería de replay de manera causal. Coordinación con A1 para Master Frame observado y memoria settled-only. No merge, producción, VPS o LIVE.
+
+## Segmentación adicional de MAX3 — auditoría post-hoc (sin cambiar reglas)
+
+**GitHub Actions** [#38056328467](https://github.com/mezas3238-hue/qore-core/actions/runs/38056328467) PASS con la misma matriz de resultados V49 nativos ya congelada. El artifact y log publican y reconcilian estadísticas por sesión, mercado, familia y sesión×familia; ningún trade reordenado o admitido utilizando R futuro.
+
+### Sesión
+
+| Sesión | Selected N | PF selected | Excluded simulated N | PF excluded |
+|---|---:|---:|---:|---:|
+| ASIA | 725 | 0.6987 | 429 | 0.5831 |
+| LONDON | 573 | 0.5857 | 88 | 0.8389 |
+| NEW_YORK | 722 | 0.6951 | 339 | 0.5547 |
+
+### Ruta de ejecución M1
+
+| Familia | Selected N / PF | Excluded N / PF | R medio selected | R medio excluded |
+|---|---:|---:|---:|---:|
+| FVG_RETRACE_CISD | 1066 / 0.7480 | 445 / 0.7867 | -0.07613 | -0.05601 |
+| LIQUIDITY_SWEEP_CISD | 954 / 0.5924 | 411 / 0.4540 | -0.15945 | -0.20270 |
+
+**Lectura:** FVG+CISD es comparativamente menos perdedora en desarrollo, pero ninguna familia presenta PF >1 entre seleccionadas; no certificar ni convertir datos post-hoc en un gate FVG universal que falsearía fidelidad metodológica.
+
+### Nueve mercados (seleccionadas / excluidas contrafactuales)
+
+| Mercado | N selected | PF selected | N excluded | PF excluded |
+|---|---:|---:|---:|---:|
+| AUDJPY | 181 | 0.6596 | 101 | 0.7419 |
+| AUDUSD | 171 | 0.6888 | 104 | 0.4503 |
+| EURUSD | 285 | 0.6611 | 47 | **1.1352** |
+| GBPJPY | 194 | 0.6942 | 106 | 0.6765 |
+| GBPUSD | 288 | 0.5169 | 41 | 0.4978 |
+| NAS100 | 258 | 0.5371 | 103 | 0.6159 |
+| USDCAD | 215 | 0.9664 | 105 | 0.4577 |
+| USDJPY | 179 | 0.7549 | 118 | 0.5184 |
+| XAUUSD | 249 | 0.6361 | 131 | 0.5978 |
+
+**Señal exploratoria:** las 47 oportunidades EURUSD excluidas presentan R medio +0.04302 y PF contrafactual 1.1352. **NO es evidencia de trading rentable aprobado**: fueron seleccionadas retrospectivamente por su resultado, no hay fills reales ni prueba OOS, y el segundo/tercer trade competía con otros mercados de Londres. Londres completo censurado PF 0.8389 sigue negativo. Para estudiar la propuesta habría que preregistrar un score ex ante basado exclusivamente en H1/M15/M1 observables y probarlo en un periodo OOS manteniendo MAX3 por sesión/día, preservación de ganadores y stop broker-real. Hasta entonces prohibido cambiar la selección cronológica o rescatar una familia que solo luce positiva ex-post.
+
+**Razonamiento de causa:** el PF negativo ya presente en cada familia seleccionada con un ratio de ganancia media/derrota desfavorable dirige la investigación a calidad H1/M15, ratio geométrico stops vs H1 targets, lateralidad de M1 y dinámica de salida; no autoriza concluir que el sesgo H1 por sí solo sea erróneo.
