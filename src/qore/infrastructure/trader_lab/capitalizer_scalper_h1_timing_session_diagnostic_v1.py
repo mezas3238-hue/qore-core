@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import bisect
 import json
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime, time, timedelta
 from decimal import Decimal
@@ -47,7 +47,6 @@ from qore.infrastructure.trader_lab.capitalizer_session_clock import (
 )
 from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     V49EconomicTrade,
-    _portfolio_select,
 )
 
 IDENTITY = "QORE_SCALPER_A2_H1_BIAS_PHASE_SESSION_RUNWAY_ASOF_V1"
@@ -326,11 +325,12 @@ def build_market(
     source_table = _source_table(sources)
     sources_by_id = {source_id(s): s for s in sources}
     trades_by_id = {_origin(t, source_table): t for t in trades}
-    key = lambda x: _key(
-        x.symbol, x.session, x.operating_date,
-        x.entry_at, x.entry_price, x.trigger_family, x.h1_state_basis,
-    )
-    excursions_by_key = {key(row): row for row in observed}
+    def evidence_key(x: V49EconomicTrade | ExcursionRow) -> tuple[Any, ...]:
+        return _key(
+            x.symbol, x.session, x.operating_date,
+            x.entry_at, x.entry_price, x.trigger_family, x.h1_state_basis,
+        )
+    excursions_by_key = {evidence_key(row): row for row in observed}
     if (
         len(sources_by_id) != len(sources) or len(trades_by_id) != len(sources)
         or len(excursions_by_key) != len(observed)
@@ -346,7 +346,7 @@ def build_market(
     out: list[JointDiagnosticRow] = []
     for identifier, source in sources_by_id.items():
         trade = trades_by_id[identifier]
-        row = excursions_by_key.get(key(trade))
+        row = excursions_by_key.get(evidence_key(trade))
         if row is None:
             raise ValueError("source-matched trade lacks exact native M1 MFE ledger")
         out.append(diagnostic_one(source, trade, row, bars, opened))
@@ -444,9 +444,10 @@ def aggregate(root: Path) -> dict[str, Any]:
     for r in all_rows:
         ordered[(r.session, r.operating_date)].append(r)
     chosen = tuple(
-        r for key in sorted(ordered)
+        r for group_key in sorted(ordered)
         for r in sorted(
-            ordered[key], key=lambda x: (x.entry_at, x.symbol)
+            ordered[group_key],
+            key=lambda x: (aware(x.entry_at), x.symbol, x.trigger_family),
         )[:3]
     )
     if len(chosen) != 2020 or sum(Decimal(x.realized_gross_r) > 0 for x in chosen) != 1167:
@@ -488,6 +489,9 @@ def aggregate(root: Path) -> dict[str, Any]:
             "UNDER_60_MIN" if age < 60 else
             "60_TO_180_MIN" if age < 180 else "AT_LEAST_180_MIN"
         ].append(r)
+    picked_ids = {x.source_opportunity_id for x in chosen}
+    if len(picked_ids) != len(chosen):
+        raise ValueError("duplicate original opportunity admitted by MAX3")
     return {
         "identity": IDENTITY,
         "market_count": len(markets),
@@ -496,9 +500,7 @@ def aggregate(root: Path) -> dict[str, Any]:
         "max3_unselected_counterfactual": len(all_rows) - len(chosen),
         "selected": _group_summary(chosen),
         "unselected_simulated": _group_summary(tuple(
-            r for r in all_rows if r.source_opportunity_id not in {
-                x.source_opportunity_id for x in chosen
-            }
+            r for r in all_rows if r.source_opportunity_id not in picked_ids
         )),
         "selected_by": {
             kind: {name: _group_summary(tuple(rows))
