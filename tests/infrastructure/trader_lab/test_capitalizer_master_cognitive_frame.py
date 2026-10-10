@@ -721,3 +721,43 @@ def test_a1_multi_hypothesis_rejects_missing_duplicates_and_future_source() -> N
             barriers=(replace(barrier, perceptions=future_perceptions),),
             chosen_settlements=A1CausalSettledMemory(),
         )
+
+
+def test_a1_multi_hypothesis_dense_burst_preserves_every_candidate() -> None:
+    """No winner/opportunity destroyed because MAX3 or one-symbol frame capacity."""
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    base = _a1_multi_hypothesis_fixture(at)
+    additional = tuple(
+        replace(
+            base.alternatives[0],
+            binding=A1SourceBinding(f"SRC:AUDJPY:{ordinal}", "AUDJPY", at),
+            hypothesis_id=f"H-AUDJPY-{ordinal}",
+            source_event_id=f"EVENT-AUDJPY-{ordinal}",
+            context=replace(
+                base.alternatives[0].context,
+                failure_state_fingerprint=f"UNIQUE-{ordinal}",
+            ),
+        )
+        for ordinal in range(3, 9)
+    )
+    alternatives = (*base.alternatives[:2], *additional, base.alternatives[2])
+    expected = tuple(item.binding.source_opportunity_id for item in alternatives)
+    barrier = replace(base, alternatives=alternatives, expected_source_ids=expected)
+    empty = A1CausalSettledMemory()
+    direct = replay_multi_hypothesis_evidence(
+        barriers=(barrier,), chosen_settlements=empty
+    )
+    shuffled = replay_multi_hypothesis_evidence(
+        barriers=(replace(barrier, alternatives=tuple(reversed(alternatives))),),
+        chosen_settlements=empty,
+    )
+    assert direct.evaluated_alternatives == len(alternatives) == 9
+    assert direct.source_ids == shuffled.source_ids
+    assert set(direct.source_ids) == set(expected)
+    assert direct.pass_to_strategy == 9
+    assert direct.global_opportunity_arbitration_resolved is False
+    # The fixture has only ONE execution slot left; 9 research PASSes are
+    # never represented as 9 permitted executions or as a quota bypass.
+    assert barrier.world.execution_slots_remaining == 1
+    assert direct.trade_selected is False
+    assert direct.economic_admission_changed is False
