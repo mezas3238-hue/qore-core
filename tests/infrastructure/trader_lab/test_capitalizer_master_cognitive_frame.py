@@ -26,7 +26,6 @@ from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research imp
     A1SourceHypothesisAlternative,
     replay_multi_hypothesis_evidence,
 )
-
 from qore.infrastructure.trader_lab.capitalizer_a1_trader_cognition_port import (
     A1ExternallySettledExecution,
     A1TraderCognitionState,
