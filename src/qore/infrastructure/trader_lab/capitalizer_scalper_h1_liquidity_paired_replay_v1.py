@@ -36,7 +36,6 @@ from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 i
     source_id,
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_winner_retention_v1 import (
-    _load_sources,
     _origin,
     _source_table,
     compare_winner_mass,
