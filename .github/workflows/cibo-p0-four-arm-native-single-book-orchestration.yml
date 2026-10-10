@@ -1,0 +1,89 @@
+name: "CIBO P0 four-arm ORIGINAL 3368 x4 same-SQLite orchestration NO LIVE"
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - ".github/workflows/cibo-p0-four-arm-native-single-book-orchestration.yml"
+      - "scripts/cibo_p0_four_arm_native_paper_orchestrator.py"
+      - "tests/infrastructure/test_cibo_p0_four_arm_native_paper_orchestrator.py"
+      - "src/qore/infrastructure/cibo_p0_paper_portfolio_mtm.py"
+      - "src/qore/infrastructure/qore_dynamic_lot_engine.py"
+  pull_request:
+    branches: [agent/cibo-architect-3-qdle-mt5-physical-20261008]
+permissions:
+  contents: read
+  actions: read
+env:
+  PYTHONPATH: "src:."
+  QORE_LIVE_TRADING: "false"
+  ORIGINAL_MANIFEST_ARTIFACT_ID: "11451743578"
+  ORIGINAL_MANIFEST_ZIP_SHA256: "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
+jobs:
+  four-arm-single-book-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Four independent PAPER SQLite tests, no LIVE
+        run: |
+          set -euo pipefail
+          test "$QORE_LIVE_TRADING" = false
+          python -m py_compile scripts/cibo_p0_four_arm_native_paper_orchestrator.py
+          python -m unittest discover -s tests/infrastructure -p 'test_cibo_p0_four_arm_native_paper_orchestrator.py' -v
+          python -m unittest discover -s tests/infrastructure -p 'test_cibo_p0_paper_portfolio_mtm.py' -q
+      - name: SHA256 verify EXACT original 3368 seven-Trader source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-4arm-original"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ORIGINAL_MANIFEST_ARTIFACT_ID/zip" > "$RUNNER_TEMP/cibo-4arm-original/source.zip"
+          echo "$ORIGINAL_MANIFEST_ZIP_SHA256  $RUNNER_TEMP/cibo-4arm-original/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/cibo-4arm-original/source.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/cibo-4arm-original/"
+      - name: Populate FOUR ORIGINAL cohorts with one canonical PAPER SQLite each
+        run: |
+          set -euo pipefail
+          python scripts/cibo_p0_four_arm_native_paper_orchestrator.py \
+            --manifest "$RUNNER_TEMP/cibo-4arm-original/walk-forward-manifest.json" \
+            --contract config/research/cibo_p0_four_arm_atr_5pct_3368_2026-10-09.json \
+            --out-dir "$RUNNER_TEMP/cibo-4arm-original/four_scenarios"
+          python - <<'PY'
+          import hashlib,json,os,pathlib,sqlite3
+          root=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-4arm-original/four_scenarios"
+          r=json.loads((root/"four-arm-orchestration-readiness.json").read_text())
+          assert r["original_signal_count"]==3368
+          assert r["total_source_arm_receipts"]==13472
+          assert r["source_timeframe_counts"]=={"M1":484,"M15":162,"H1":2229,"H4":493}
+          assert r["economic_fills"]==0 and r["broker_fills"]==0
+          assert r["new_profit_factor"] is None and r["new_drawdown_pct"] is None
+          assert r["same_sealed_corpus_all_arms"]
+          for arm in ["A-X","A-Y","B-X","B-Y"]:
+              a=r["arm_results"][arm]
+              assert a["coverage"]["received_accounted"]==3368
+              assert a["coverage"]["unassessable"]==3368
+              assert a["coverage"]["paper_filled"]==0
+              assert a["mtm"]["cash_usd"]=="60"
+              stable=pathlib.Path(a["sqlite_archive"]["path"])
+              assert stable.exists()
+              assert "sha256:"+hashlib.sha256(stable.read_bytes()).hexdigest()==a["sqlite_archive"]["sha256"]
+              with sqlite3.connect(stable) as db:
+                  count=db.execute("SELECT COUNT(*) FROM paper_unassessable").fetchone()[0]
+                  assert count==3368
+              print("FOUR_ARM_SOURCE_CONSERVATION",arm,"RECEIPTS",count,
+                    "SQLITE_SHA",a["sqlite_archive"]["sha256"])
+          print("PASS ORIGINAL_3368_X_4=13472_SOURCE_RECEIPTS, NO MARKET PROFITS CLAIMED")
+          PY
+      - name: Archive four scenarios separate PAPER ledgers and receipts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-p0-original-3368x4-canonical-paper-books-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/cibo-4arm-original/four_scenarios/four-arm-orchestration-readiness.json
+            ${{ runner.temp }}/cibo-4arm-original/four_scenarios/*-source-receipts.json
+            ${{ runner.temp }}/cibo-4arm-original/four_scenarios/*-audit.sqlite
+          if-no-files-found: warn
