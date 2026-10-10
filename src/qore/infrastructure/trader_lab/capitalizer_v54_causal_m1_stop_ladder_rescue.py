@@ -348,21 +348,21 @@ def _parent_key(item: V54Candidate) -> tuple[str, str, str, str, str]:
 def _portfolio(rows: tuple[V54Candidate, ...]) -> tuple[V54Candidate, ...]:
     by_parent: dict[tuple[str, str, str, str, str], V54Candidate] = {}
     for item in rows:
-        key = _parent_key(item)
-        current = by_parent.get(key)
+        parent_key = _parent_key(item)
+        current = by_parent.get(parent_key)
         if current is None or datetime.fromisoformat(item.entry_at) < datetime.fromisoformat(
             current.entry_at
         ):
-            by_parent[key] = item
+            by_parent[parent_key] = item
 
     grouped: dict[tuple[str, str], list[V54Candidate]] = defaultdict(list)
     for item in by_parent.values():
         grouped[(item.session, item.operating_date)].append(item)
 
     selected: list[V54Candidate] = []
-    for key in sorted(grouped):
+    for session_day_key in sorted(grouped):
         candidates = sorted(
-            grouped[key],
+            grouped[session_day_key],
             key=lambda item: (
                 datetime.fromisoformat(item.entry_at),
                 item.symbol,
