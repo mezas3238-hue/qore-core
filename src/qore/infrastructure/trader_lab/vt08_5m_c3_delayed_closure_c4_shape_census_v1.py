@@ -16,12 +16,12 @@ from pathlib import Path
 from typing import Final
 from zoneinfo import ZoneInfo
 
-from qore.infrastructure.trader_lab.vt08_5m_ttrades_c2_c3_source_eq_range_v1 import (
-    source_eq_after_closure,
-)
 from qore.infrastructure.trader_lab.vt08_5m_source_bias_asof_attestation_v1 import (
     SOURCE_SHA,
     attest_bias,
+)
+from qore.infrastructure.trader_lab.vt08_5m_ttrades_c2_c3_source_eq_range_v1 import (
+    source_eq_after_closure,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import (
     load_market_evidence,
