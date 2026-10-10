@@ -14,6 +14,7 @@ import json
 from collections import Counter
 from dataclasses import asdict
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -87,9 +88,7 @@ def build_market(
             h1_basis=source.h1_state_basis,
             h1_confirmed_at=aware(source.h1_state_from),
             m15_confirmed_at=m15,
-            m15_protected_stop=__import__("decimal").Decimal(
-                source.m15_protected_swing_price
-            ),
+            m15_protected_stop=Decimal(source.m15_protected_swing_price),
             m1_bars=witness,
             # V49 only supplies the target PRICE, not independent timestamp
             # witness. It is intentionally not passed into this panel.
