@@ -46,6 +46,7 @@ class AuthorSourceRoute:
     source_timeframe_roles: tuple[str, ...]
     mandatory_source_concepts: tuple[str, ...]
     source_alternatives: tuple[str, ...] = ()
+    illustrative_behaviors: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.author != "TTrades":
@@ -65,7 +66,9 @@ SOURCES: tuple[AuthorSourceRoute, ...] = (
         source_section="The Core Concept; Establishing Hourly Bias; Finding the Fifteen Minute Swing Point; Entry",
         source_timeframe_roles=("DAILY_CONTEXT", "H1_BIAS", "M15_SWING", "M1_EXECUTION"),
         mandatory_source_concepts=("HOURLY_BIAS", "M15_SWING", "M1_EXECUTION", "STRUCTURAL_STOP_HTF_TARGET"),
-        source_alternatives=("FVG_INTERACTION", "CISD", "PROTECTED_SWING_EXECUTION"),
+        # The generic article lists examples of continuation behavior; it does
+        # not declare each item a standalone, sufficient entry-model alternative.
+        illustrative_behaviors=("FVG_INTERACTION", "CISD", "PROTECTED_SWING_FORMATION"),
     ),
     AuthorSourceRoute(
         route=AuthorRoute.ASIA_POSITIONAL,
