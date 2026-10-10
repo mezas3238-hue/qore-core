@@ -56,6 +56,7 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_liquidity_target_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_timing_session_diagnostic_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_direction_random_baseline_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_c2_c3_primary_source_characterization_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_ttrades_m1_cisd_observer_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_v49_h1_target_causality.py \
             tests/infrastructure/trader_lab/test_capitalizer_v49_source_alternative_contract.py \
@@ -82,6 +83,7 @@ jobs:
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_timing_session_diagnostic_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_direction_random_baseline_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_c2_c3_primary_source_characterization_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_liquidity_target_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_ttrades_m1_cisd_observer_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_target_asymmetry_audit_v1.py \
