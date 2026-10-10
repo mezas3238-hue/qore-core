@@ -853,8 +853,10 @@ def test_a1_joint_graph_and_true_factor_exposure_are_only_hypothetical() -> None
     assert len(joint.pass_source_ids) == len(census.decisions) == 3
     assert len(joint.pair_rows) == 3
     assert all(not p.missing_causal_relation for p in joint.pair_rows)
-    assert all(p.factor_overlap == ("JPY",) for p in joint.pair_rows)
+    same = next(p for p in joint.pair_rows if p.left_symbol == p.right_symbol)
+    assert same.factor_overlap == ("AUD", "JPY")
     cross = [p for p in joint.pair_rows if p.left_symbol != p.right_symbol]
+    assert all(p.factor_overlap == ("JPY",) for p in cross)
     assert all(p.relation == "REDUNDANT" for p in cross)
     assert all(p.evidence_tokens == ("EVIDENCED_SHARED_DIRECTIONAL_CAUSE",)
                for p in cross)
