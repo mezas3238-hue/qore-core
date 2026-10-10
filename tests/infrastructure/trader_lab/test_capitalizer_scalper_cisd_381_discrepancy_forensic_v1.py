@@ -26,8 +26,8 @@ def _bar(i: int) -> CapitalizerM1Bar:
     return CapitalizerM1Bar(
         symbol="EURUSD",opened_at=t,closed_at=t+timedelta(minutes=1),
         open=Decimal("100"),close=Decimal("100")+Decimal(i)/100,
-        high=Decimal("100.6")+Decimal(i)/100,
-        low=Decimal("99.4")+Decimal(i)/100,volume=1,digits=5,
+        high=Decimal("101.5"),
+        low=Decimal("99.4"),volume=1,digits=5,
     )
 
 
