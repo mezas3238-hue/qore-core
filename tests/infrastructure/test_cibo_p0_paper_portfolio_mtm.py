@@ -187,6 +187,32 @@ class PortfolioMtm(unittest.TestCase):
         ))
         self.assertEqual(marks["mark_count"],2)
 
+    def test_inflight_fill_without_cash_book_or_close_without_cash_release_blocks(self):
+        q=self.q.reserve_for_trader(request("inflight",1),now=T)
+        self.assertEqual(q.lots,D(".01"))
+        self.q.paper_fill("inflight",T)
+        later=T+timedelta(seconds=1)
+        snapshot(self.q,later,2)
+        symbol(self.q,later)
+        with self.assertRaisesRegex(QDLEError,"open trades / MTM cash journal mismatch"):
+            self.q.reserve_for_trader(request("pending-ledger",2),now=later)
+        self.nav.book_open(request_id="inflight",at=T,side="BUY",symbol="EURUSD",
+            entry=D("1.1"),lots=D(".01"),
+            contract_usd_per_price_unit_lot=D(100000),
+            commission_open_usd=D(".07"))
+        fully_marked=self.nav.mark(
+            at=later,quotes=(quote(later,"1.099","1.100"),))
+        snapshot(self.q,later,3,nav=D(fully_marked["equity_usd"]))
+        release=self.q.reserve_for_trader(request("ready",3),now=later)
+        self.assertEqual(release.lots,D(".01"))
+        # Quoted but not filled holds DO NOT appear as active positions.
+        self.q.paper_cancel("ready",later,"TEST_CANCEL")
+        done=later+timedelta(seconds=1)
+        self.q.paper_settle("inflight",done,D(".50"))
+        snapshot(self.q,done,4,nav=self.nav.cash())
+        with self.assertRaisesRegex(QDLEError,"open trades / MTM cash journal mismatch"):
+            self.q.reserve_for_trader(request("bad-close",4),now=done)
+
     def test_new_QDLE_reserve_refuses_stale_or_mismatched_MTM_nav(self):
         self.open("one")
         later=T+timedelta(seconds=1)
