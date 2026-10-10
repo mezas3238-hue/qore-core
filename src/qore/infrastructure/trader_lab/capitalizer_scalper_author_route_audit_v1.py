@@ -129,7 +129,9 @@ SOURCES: tuple[AuthorSourceRoute, ...] = (
             "Pair It With Higher Time Frame Bias"
         ),
         source_timeframe_roles=("HTF_BIAS", "FAILED_REVERSAL", "LTF_CONTINUATION"),
-        mandatory_source_concepts=("HIGH_LOW_TAKEN", "REVERSAL_NOT_CONFIRMED", "HTF_ALIGNED_CONTINUATION"),
+        mandatory_source_concepts=(
+            "HIGH_LOW_TAKEN", "REVERSAL_NOT_CONFIRMED", "HTF_ALIGNED_CONTINUATION"
+        ),
     ),
 )
 
