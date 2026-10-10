@@ -73,3 +73,23 @@ The emitted event examples carry both the original selected FVG clock and first 
 5. Do formal **causal ablation replay** per active gate, same M1 market, with alternative lost/disabled components; sensor pass alone proves an upstream necessary condition under present implementation, not how much risk-adjusted profit it adds. Old immutable R2.2 replay must not re-enter.
 
 **Certification:** NOT PASSED. **Fresh Holdout:** SEALED. **LIVE/QDLE/CIBO exposure:** NONE. **Actual fills:** 0 proved. **PF/DD:** NOT COMPUTABLE.
+
+
+## FINAL STRICT PASS — FRESH MSS vs PERSISTED MSS candidate attribution
+
+One additional sensor refinement separates a first-suitable source FVG whose **M1 MSS/displacement is newly confirmed on the very same M1 close**, versus whose **original M1 MSS was confirmed on a prior closed M1 and its DOL/structure revalidated** at the later actual FVG close. This is owner-requested **genuine influence on the entry source**, not a synthetic reason-code.
+
+**Latest exact code [GitHub Actions #38018545147 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38018545147):** commit `4e7c84a07f08cdc6a7e18d2737cd3f60a40b4d5c`; output artifact `11657726407`; **33/33 tests pass** (new adversarial delayed-FVG input/output sensor), source hash verified, complete 1,059,784 true M1, unchanged base opportunities and source candidate count; **40.978 seconds** measured. Source-trace example now says `M1_MSS_source=CURRENT_M1_NEW` or `PRIOR_M1_REVALIDATED` alongside the original `structure_break_confirmed_at`.
+
+| Original ICT M1 source window | New MSS and first suitable FVG at same M1 close | Historical confirmed MSS revalidated into later M1 FVG | Total source FVGs |
+|---|---:|---:|---:|
+| London | **303** | **463** | 766 |
+| New York AM | **293** | **428** | 721 |
+| New York PM | **300** | **353** | 653 |
+| **TOTAL** | **896** | **1,244** | **2,140** |
+
+**Critical scientific conclusion:** **1,244 of 2,140 (58.13%) source FVG candidates** concretely relied on *retained as-of-valid prior M1 MSS* rather than same-bar MSS confirmation. This demonstrates that persistent cognition is **actually exercised** and impacts first-suitable source candidate formation. It does NOT establish 1,244 real fills, signal wins, predictive profitability or causal ablation alpha.
+
+The 937 unique P0 pending-without-cognition source FVGs and 7,648 repeated invalid pending M1 observations were **replicated unchanged** in this latest fully strict/green run, independently of MSS origin classification. OPS owns the fail-closed source/pending fix; cannot promote source research into execution until corrected.
+
+**Correction/qualification to any earlier run:** the run-38018396602 sensor output is valid and green; final `38018545147` supersedes it only for the added *fresh-MSS vs revalidated-MSS* impact attribution, without changing source M1, decisions, 2,140 source FVGs or deduplicated P0 counts.
