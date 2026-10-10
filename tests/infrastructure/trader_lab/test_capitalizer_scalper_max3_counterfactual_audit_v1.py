@@ -16,6 +16,8 @@ from qore.infrastructure.trader_lab.capitalizer_scalper_max3_counterfactual_audi
 )
 from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     IDENTITY as V49_REPORT_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     V49EconomicTrade,
 )
 
