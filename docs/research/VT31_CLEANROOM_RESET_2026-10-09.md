@@ -37,3 +37,16 @@ These are *reference-path counts* (matching `vt31`, `vt_31`, `vt-31`), not all p
 6. **No LIVE** or deployment until old runtime registry no longer routes to a deleted legacy class and safety/economic gates pass. Fresh holdout sealed.
 
 **Status: reset on isolated branch, certification intentionally revoked.** The operational old code is not restored by the audit archive.
+
+## VERIFIED execution checkpoint — 2026-10-09 (post-reset)
+
+- **Exact atomic 668-file deletion commit:** `01b0ccd598e75170912d63ede9b769538e3250b2` on new cleanroom branch.
+- **Post-delete Git tree:** 1,329 total paths; only 6 files containing `vt31` survived, and **all 6 are newly created cleanroom assets** (the cleanroom package 3 Python modules, 1 test, 1 new workflow and this document). Additional *new* audit workflow is added subsequently, never an old runtime file.
+- **Standalone new OPS and architect shared COG DTO test run:** [38011922245 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38011922245), tests after deletion verify no old trader sources or old workflows, NY original DST clock and read-only CE price touch, no fabricated fills.
+- **Direct Python import dependency audit:** [38011979440 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38011979440); *zero direct Python imports* from surviving `src` modules into the deleted `vt31_nas100_*` and `vt31_silver_bullet*` families. Dynamic string-based registries and full regression still need audit: a count of zero direct imports alone is not production-ready certification.
+- **Draft PR #750:** https://github.com/mezas3238-hue/qore-core/pull/750 — deliberately **not merged** while both architects build new COG and OPS execution and pass integration.
+- **Coordination request to ARCH1:** https://github.com/mezas3238-hue/qore-core/issues/727#issuecomment-6092006566 — new independent cognitive producer required, no recycling old COG code.
+- **Historical archive:** `archive/vt31-legacy-before-cleanroom-20261009` contains old files for audit only. Its existence does not give the new trader any execution or import authority.
+
+**Old VT31 operational state:** removed on rebuild branch, not yet retired from `main` or VPS. Deploying unfinished cleanroom would be unsafe; the PR is draft until complete substitution and certification.
+
