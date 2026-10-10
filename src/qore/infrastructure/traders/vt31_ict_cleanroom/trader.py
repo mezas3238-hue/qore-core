@@ -74,8 +74,6 @@ class VT31Trader:
     def on_closed_m1(self, bar: M1Bar) -> UnifiedVT31Observation:
         if not isinstance(bar, M1Bar):
             raise ValueError("VT31 accepts only valid cleanroom M1Bar")
-        self.cognition.observe_closed_m1(bar)
-        self.total_closed_m1 += 1
         at = utc(bar.closed_at)
         opened = utc(bar.opened_at)
         window: SessionId | None = None
@@ -87,6 +85,8 @@ class VT31Trader:
                 window = candidate
 
         if window is None:
+            self.cognition.observe_closed_m1(bar)
+            self.total_closed_m1 += 1
             return UnifiedVT31Observation(
                 trader_id=TRADER_ID,
                 instrument=INSTRUMENT,
@@ -108,6 +108,16 @@ class VT31Trader:
                 raise ValueError(
                     "cannot bootstrap partial Silver Bullet window silently"
                 )
+        elif ops.last_closed is not None and opened != ops.last_closed:
+            raise ValueError(
+                "missing/duplicate M1 in active VT31 source window"
+            )
+
+        # Refuse a malformed session bar BEFORE mutating unified cognition.
+        # No partly rejected bar may poison shared London/NY market memory.
+        self.cognition.observe_closed_m1(bar)
+        self.total_closed_m1 += 1
+        if ops is None:
             ops = IctSilverBulletOperations(session=window, day=opened)
             self._windows[key] = ops
             self.total_source_windows_seen += 1
