@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -23,7 +24,7 @@ from qore.infrastructure.trader_lab.capitalizer_v50_g_causal_decision_trace impo
 )
 
 
-def _fixture(tmp_path):
+def _fixture(tmp_path: Path) -> tuple[Path, Path]:
     original = tmp_path / "v49"
     sensor = tmp_path / "sensor"
     at = datetime(2026, 1, 7, 10, 0, tzinfo=UTC)
@@ -44,8 +45,8 @@ def _fixture(tmp_path):
             )
             original_book = original / symbol
             sensor_book = sensor / symbol
-            original_book.mkdir(parents=True)
-            sensor_book.mkdir(parents=True)
+            original_book.mkdir(parents=True, exist_ok=True)
+            sensor_book.mkdir(parents=True, exist_ok=True)
             filename = f"capitalizer-{symbol.lower()}-v49-hf-capacity-opportunities.jsonl"
             (original_book / filename).write_text(
                 json.dumps(asdict(candidate)) + "\n"
@@ -75,7 +76,7 @@ def _fixture(tmp_path):
     return original, sensor
 
 
-def test_pinned_full_frame_prerequisite_audit_preserves_nine_sources(tmp_path) -> None:
+def test_pinned_full_frame_prerequisite_audit_preserves_nine_sources(tmp_path: Path) -> None:
     original, sensor = _fixture(tmp_path)
     report = audit_pinned_historical_inputs(
         original_root=original, sensor_root=sensor
@@ -91,7 +92,7 @@ def test_pinned_full_frame_prerequisite_audit_preserves_nine_sources(tmp_path) -
     assert not report.trader_certified
 
 
-def test_preflight_rejects_missing_ninth_market_and_future_sensor(tmp_path) -> None:
+def test_preflight_rejects_missing_ninth_market_and_future_sensor(tmp_path: Path) -> None:
     original, sensor = _fixture(tmp_path)
     (sensor / "XAUUSD" / "scalper-entry-sensors-rows.jsonl").unlink()
     with pytest.raises(ValueError, match="nine source books and nine native"):
@@ -107,7 +108,7 @@ def test_preflight_rejects_missing_ninth_market_and_future_sensor(tmp_path) -> N
         audit_pinned_historical_inputs(original_root=original, sensor_root=sensor)
 
 
-def test_preflight_rejects_foreign_sensor_and_missing_original(tmp_path) -> None:
+def test_preflight_rejects_foreign_sensor_and_missing_original(tmp_path: Path) -> None:
     original, sensor = _fixture(tmp_path)
     target = sensor / "AUDJPY" / "scalper-entry-sensors-rows.jsonl"
     row = json.loads(target.read_text())
