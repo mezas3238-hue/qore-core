@@ -22,7 +22,7 @@ import json
 import random
 from collections import defaultdict
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -158,7 +158,7 @@ def _future_label(
     end = session_end_at(at, session)
     out: list[Decimal | None] = []
     for horizon in HORIZONS:
-        if at + __import__("datetime").timedelta(minutes=horizon) > end or (
+        if at + timedelta(minutes=horizon) > end or (
             consecutive[index] < horizon
         ):
             out.append(None)
@@ -300,7 +300,8 @@ def analyze_market(
                         continue
                     prefix = f"{mode}_{horizon}_"
                     counters[prefix + "covered"] += 1
-                    counters[prefix + ("positive" if label > 0 else "negative" if label < 0 else "flat")] += 1
+                    category = "positive" if label > 0 else "negative" if label < 0 else "flat"
+                    counters[prefix + category] += 1
         coin = random.Random(_seed(identifier, "COINFLIP_DIRECTION_CONTROL"))
         coin_positive: dict[int, int] = {h: 0 for h in HORIZONS}
         for _ in range(DRAWS):
@@ -308,8 +309,11 @@ def analyze_market(
             for horizon, label in zip(HORIZONS, originals, strict=True):
                 if label is not None and (label * randomized_side * side) > 0:
                     coin_positive[horizon] += 1
-        def value(mode: str, horizon: int, kind: str) -> int:
-            return counters[f"{mode}_{horizon}_{kind}"]
+        def value(
+            mode: str, horizon: int, kind: str,
+            observed: dict[str, int] = counters,
+        ) -> int:
+            return observed[f"{mode}_{horizon}_{kind}"]
         rows.append(DirectionNullRow(
             source_opportunity_id=identifier, symbol=symbol,
             session=source.session, operating_date=source.operating_date,
@@ -395,7 +399,10 @@ def _summary(rows: tuple[DirectionNullRow, ...]) -> dict[str, Any]:
                 "original_paired_n": len(paired),
                 "missing_random_coverage": len(real) - len(paired),
                 "actual_positive_fraction_paired": (
-                    str(sum(Decimal(getattr(r,f"original_signed_price_{h}")) > 0 for r,n in paired)/Decimal(len(paired)))
+                    str(
+                        sum(Decimal(getattr(r, f"original_signed_price_{h}")) > 0
+                            for r, _ in paired) / Decimal(len(paired))
+                    )
                     if paired else None
                 ),
                 "null_positive_fraction_per_source_average": (
@@ -472,7 +479,10 @@ def aggregate(root: Path) -> dict[str, Any]:
         grouped[(row.session,row.operating_date)].append(row)
     selected = tuple(
         row for key in sorted(grouped)
-        for row in sorted(grouped[key],key=lambda r:(aware(r.original_entry_at),r.symbol,r.trigger_family))[:3]
+        for row in sorted(
+            grouped[key],
+            key=lambda r: (aware(r.original_entry_at), r.symbol, r.trigger_family),
+        )[:3]
     )
     if len(selected)!=2020 or sum(Decimal(r.original_realized_gross_r)>0 for r in selected)!=1167:
         raise ValueError("original MAX3 winner population changed")
