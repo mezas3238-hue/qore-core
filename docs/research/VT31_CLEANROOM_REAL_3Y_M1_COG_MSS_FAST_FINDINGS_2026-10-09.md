@@ -68,3 +68,10 @@ The DOL/MSS decision counts are observations repeatedly carried inside M1 window
 5. Fresh Holdout SEALED; no live/VPS/funded authority; no reuse of old 55-trade R2.2 as reconstructed performance, only historical audit evidence.
 
 **Truthful state:** causal cognition and source opportunities demonstrated on complete 3Y M1. Actual profitable/economic VT31 trading and Core certification remain **NOT PROVEN**.
+
+
+## Additional cross-architect blocking integration finding: COG revocation after FVG
+
+A distinct **P0 gap** was verified directly in the independently OPS-owned `operations.py`: if an FVG has been selected and, on a later completed M1, the `CognitiveAssessment.decision` becomes `None` because its DOL was swept, structure thesis revoked or mandatory context unavailable, the existing OPS source processor currently invalidates the pending research source only when it receives a *non-None alternative* cognitive decision with changed side/target. There is no guaranteed fail-closed transition merely because cognition goes missing. Some `RESEARCH_PENDING_CE` states can therefore survive the loss of their originally validated cognitive thesis until separate FVG-zone invalidation or hour expiry. This does NOT certify the present source-lifecycle behavior.
+
+COG formally reported the ownership-safe fix and adversarial test to OPS via [Issue #727 (comment 6092603037)](https://github.com/mezas3238-hue/qore-core/issues/727#issuecomment-6092603037). OPS must own `operations.py` and the paper order-cancel/ACK reconciliation, enforcing explicit `SOURCE_INVALIDATED` when previously admitted cognition becomes unavailable; no hidden broker fill. Only after this safety-path test passes should source-pending terminal distributions be treated as operative evidence.
