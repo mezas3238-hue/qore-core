@@ -281,3 +281,80 @@ def test_swept_prior_cash_extreme_never_resurrects_after_reversal() -> None:
     )
     assert actual == static
     assert before.decision.draw_level_observed_at < sweep.closed_at
+
+
+def test_confirmed_m1_mss_remains_causal_for_later_m1_fvg() -> None:
+    """Source MSS 03:05, FVG 03:06; no invented second break at 03:06."""
+    from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
+        MethodologyDecision,
+    )
+    from qore.infrastructure.traders.vt31_ict_cleanroom.trader import (
+        VT31Trader,
+    )
+
+    bars, mss_at = _fixtures()
+    later = _bar(
+        mss_at, o="107", h="110", lo="105", c="109",
+    )
+    engine = VT31Trader()
+    captured_mss = None
+    source = None
+    for bar in bars + (later,):
+        result = engine.on_closed_m1(bar)
+        if bar.closed_at == mss_at:
+            captured_mss = result
+        if bar.closed_at == later.closed_at:
+            source = result
+
+    assert captured_mss is not None
+    assert captured_mss.cognition is not None
+    assert captured_mss.cognition.decision is not None
+    assert captured_mss.operational_phase is MethodologyDecision.AWAIT_FVG
+    assert source is not None
+    assert source.cognition is not None
+    assert source.cognition.decision is not None
+    assert source.cognition.structure_shift_detected is False
+    assert source.cognition.decision.observed_at == later.closed_at
+    assert (
+        source.cognition.decision.structure_break_confirmed_at == mss_at
+    )
+    assert (
+        source.cognition.decision.draw_target
+        == captured_mss.cognition.decision.draw_target
+    )
+    assert source.operational_phase is MethodologyDecision.RESEARCH_PENDING_CE
+    assert engine.snapshot()["registered_trader_count"] == 1
+
+
+def test_persisted_m1_mss_invalidates_at_swept_dol() -> None:
+    bars, mss_at = _fixtures()
+    e = VT31CleanroomCognition()
+    for bar in bars:
+        e.observe_closed_m1(bar)
+    source = e.assess(session=SessionId.LONDON, as_of=mss_at)
+    assert source.decision is not None
+    swept = _bar(mss_at, o="107", h="152", lo="106", c="110")
+    e.observe_closed_m1(swept)
+    changed = e.assess(session=SessionId.LONDON, as_of=swept.closed_at)
+    assert changed.decision is None
+    assert changed.trade_authorized is False
+    assert (
+        "NO_CAUSAL_NEXT_DRAW_MIN10" in changed.missing
+        or "LIQUIDITY_POOL" in changed.missing
+        or "CONFIRMED_DISPLACEMENT_MSS" in changed.missing
+    )
+
+
+def test_persisted_m1_mss_revoked_on_pivot_close_reversal() -> None:
+    bars, mss_at = _fixtures()
+    e = VT31CleanroomCognition()
+    for bar in bars:
+        e.observe_closed_m1(bar)
+    assert e.assess(session=SessionId.LONDON, as_of=mss_at).decision
+    invalidated = _bar(
+        mss_at, o="107", h="108", lo="100", c="102",
+    )
+    e.observe_closed_m1(invalidated)
+    out = e.assess(session=SessionId.LONDON, as_of=invalidated.closed_at)
+    assert out.decision is None
+    assert out.trade_authorized is False
