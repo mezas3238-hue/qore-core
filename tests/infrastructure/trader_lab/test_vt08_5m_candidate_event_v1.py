@@ -1,4 +1,5 @@
 """Hermetic causal/golden-fixture checks for Architect A -> B proposal."""
+
 from dataclasses import replace
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -59,10 +60,16 @@ def test_dst_preserves_new_york_anchor_not_utc_hour() -> None:
     assert summer.envelope()["anchor_ny_hour"] == 1
 
 
-@pytest.mark.parametrize("family", [
-    "reversal-entry", "continuation-entry", "confident-entry",
-    "open-entry", "poi-continuation-entry",
-])
+@pytest.mark.parametrize(
+    "family",
+    [
+        "reversal-entry",
+        "continuation-entry",
+        "confident-entry",
+        "open-entry",
+        "poi-continuation-entry",
+    ],
+)
 def test_no_unproven_nonpositional_fills(family: str) -> None:
     with pytest.raises(CandidateEventContractError, match="not an executable bundle"):
         replace(golden(), source_family=family)
@@ -94,8 +101,11 @@ def test_banned_thirteen_ny_even_if_present_in_official_source_timing() -> None:
 def test_future_protected_swing_cannot_license_past_h4_open() -> None:
     event = golden()
     with pytest.raises(CandidateEventContractError, match="not confirmed as-of"):
-        replace(event, ps_confirmed_at=event.decision_at + timedelta(minutes=15),
-                cisd_confirmed_at=event.decision_at + timedelta(minutes=15))
+        replace(
+            event,
+            ps_confirmed_at=event.decision_at + timedelta(minutes=15),
+            cisd_confirmed_at=event.decision_at + timedelta(minutes=15),
+        )
 
 
 def test_no_retroactive_evidence_asof() -> None:
@@ -120,9 +130,7 @@ def test_no_live_or_unapproved_market() -> None:
 
 def test_fingerprint_changes_with_source_known_information() -> None:
     event = golden()
-    assert event.fingerprint() != replace(
-        event, evidence_sha256="c" * 64
-    ).fingerprint()
+    assert event.fingerprint() != replace(event, evidence_sha256="c" * 64).fingerprint()
 
 
 def test_naive_or_bad_provenance_is_rejected() -> None:
