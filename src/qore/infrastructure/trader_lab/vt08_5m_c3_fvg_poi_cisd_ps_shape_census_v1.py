@@ -243,8 +243,12 @@ def evaluate(path: Path) -> dict[str, object]:
             failures["NO_CAUSAL_C3_PS_AFTER_POI"] += 1
             continue
         stage("C3_POI_CISD_PS_SHAPE_ONLY", year)
+        if prior_ps:
+            stage("C3_SHAPE_WITH_CONFIRMED_C2_PS", year)
         if shape["causal_stop_oriented_geometry"] is True:
             stage("C3_SHAPE_WITH_NEXT_OPEN_AND_ORIENTED_RISK", year)
+            if prior_ps:
+                stage("C3_SHAPE_WITH_C2_PS_AND_ORIENTED_RISK", year)
         anchor_id = hashlib.sha256(
             f"{SCHEMA}|{market}|{anchor.opened_at.isoformat()}".encode()
         ).hexdigest()
