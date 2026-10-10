@@ -20,11 +20,11 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from qore.infrastructure.traders.vt31_ict_cleanroom.cognitive_telemetry import (
-    CognitiveTelemetry,
-)
 from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
     VT31CleanroomCognition,
+)
+from qore.infrastructure.traders.vt31_ict_cleanroom.cognitive_telemetry import (
+    CognitiveTelemetry,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     M1Bar,
