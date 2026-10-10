@@ -72,6 +72,10 @@ jobs:
           assert r["source_fvg_hypothesis_count"]==len(r["events"])
           assert sum(r["candidate_count_by_window"].values())==len(r["events"])
           assert r["source_fvg_hypothesis_count"]>0
+          assert r["terminal_source_invalidation_reason_counts"].get(
+              "ORIGINAL_M1_MSS_THESIS_REPLACED", 0
+          ) == 0, "ICT original does not automatically revoke first FVG for supportive later MSS"
+          assert r["post_revocation_m1_price_touches_excluded"] is True
           assert r["historical_bid_ask_tick_stream_supplied"] is False
           assert r["real_historical_broker_quote_ticks"]==0
           assert r["paper_fills_proven"]==r["live_fills_proven"]==0
