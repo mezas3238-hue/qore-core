@@ -88,10 +88,13 @@ class IctSilverBulletOperations:
                 or cognition.draw_target != selected.target_price
             ):
                 reason = "CAUSAL_DOL_DIRECTION_OR_TARGET_CHANGED"
-            elif utc(cognition.structure_break_confirmed_at) > utc(
-                selected.formed_at
-            ):
-                reason = "ORIGINAL_M1_MSS_THESIS_REPLACED"
+            # Another *same-direction* M1 MSS after the chosen FVG
+            # is not, by itself, an ICT cancellation reason. COG already
+            # revalidates the continuing original liquidity draw and
+            # structural validity at EACH newly closed M1. Revoking on
+            # the mere observation of a later confirming MSS discarded
+            # 819/2140 source candidates in the strict 3Y research
+            # control without primary ICT source justification.
             if reason is not None:
                 self.decision = MethodologyDecision.SOURCE_INVALIDATED
                 self.source_invalidation_reason = reason
