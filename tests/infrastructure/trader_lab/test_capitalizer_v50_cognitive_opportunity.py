@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -137,3 +138,43 @@ def test_refinement_path_routes_geometry_to_specialists() -> None:
     )
     if snapshot.cognitive.disposition is V50CognitiveDisposition.REFINE_STOP_GEOMETRY:
         assert "MARKET_STOP_COGNITIVE_ENGINE" in refinement_path(snapshot)
+
+
+def test_h1_terminal_future_is_not_visible_to_cognitive_snapshot() -> None:
+    """V49's retrospectively known H1 end is never pre-entry knowledge."""
+    bars = tuple(_m1(i, "100", "100.1", "99.9", "100") for i in range(15))
+    decision = bars[-1].closed_at
+    opportunity = V49Opportunity(
+        symbol="EURUSD",
+        session="LONDON",
+        operating_date="2026-01-05",
+        h1_state_direction="BULLISH",
+        h1_state_from=bars[0].opened_at.isoformat(),
+        h1_state_until=(decision + timedelta(hours=1)).isoformat(),
+        h1_state_basis="CANDLE2_REVERSAL:BULLISH_FVG",
+        m15_setup_confirmed_at=bars[10].opened_at.isoformat(),
+        m15_protected_swing_price="99.95",
+        m1_trigger_confirmed_at=decision.isoformat(),
+        m1_trigger_family="LIQUIDITY_SWEEP_CISD",
+        decision_reference_price="100",
+        structural_target_witness_price="101",
+    )
+    h1 = (_h1(9, "101", "98"), _h1(10, "103", "99"), _h1(11, "102", "100"))
+
+    def snapshot_for(source: V49Opportunity):
+        return build_v50_cognitive_snapshot(
+            source,
+            m1_bars=bars,
+            h1_bars=h1,
+            experience_memory=CapitalizerExperienceMemory(),
+            metacognitive_readiness=CapitalizerEpistemicReadiness.WELL_SUPPORTED,
+        )
+
+    baseline = snapshot_for(opportunity)
+    future_changed = snapshot_for(
+        replace(opportunity, h1_state_until=(decision + timedelta(days=40)).isoformat())
+    )
+    assert opportunity.h1_state_until != decision.isoformat()  # V49 kept intact
+    assert baseline.source_opportunity.h1_state_until == decision.isoformat()
+    assert future_changed.source_opportunity.h1_state_until == decision.isoformat()
+    assert baseline == future_changed  # no cognitive, geometry or outcome delta
