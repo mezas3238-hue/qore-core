@@ -184,13 +184,22 @@ def cycle_signal(
     if side is None:
         return None, "BIAS_UNRESOLVED"
     end = anchor.opened_at + timedelta(hours=4)
-    bars = _window_bars(
-        bars_by_open,
-        opened_at=anchor.opened_at,
-        closed_at=end,
-    )
-    if bars is None or len(bars) != 16:
-        return None, "INCOMPLETE_M15_H4_CYCLE"
+    # Stream only the causal, contiguous M15 prefix. Do not require future
+    # H4 bars to exist before identifying an earlier valid CISD confirmation.
+    observed: list[Vt08B01Bar] = []
+    cursor = anchor.opened_at
+    while cursor < end:
+        row = bars_by_open.get(cursor)
+        if (
+            row is None
+            or row.closed_at != cursor + timedelta(minutes=15)
+        ):
+            break
+        observed.append(row)
+        cursor += timedelta(minutes=15)
+    bars = tuple(observed)
+    if len(bars) < 2:
+        return None, "INSUFFICIENT_CAUSAL_M15_PREFIX"
     important_level = (
         reference.low
         if side is DemoTradingSetupSide.LONG
