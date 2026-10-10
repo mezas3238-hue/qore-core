@@ -12,9 +12,9 @@ from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_v1 import (
     EXPANSION_MARKETS,
 )
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
+    CAUSAL_FIELDS,
     MEMORY_STATE,
     RESEARCH_MARKETS,
-    CAUSAL_FIELDS,
     Vt08FiveMarketResearchSituation,
     research_market_anchor_context,
 )
