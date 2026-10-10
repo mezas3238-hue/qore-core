@@ -2,27 +2,30 @@
 from __future__ import annotations
 
 import ast
+import unittest
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-import unittest
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    CognitiveDecision, M1Bar, MethodologyDecision, SessionId, Side, window_bounds
+    CognitiveDecision,
+    M1Bar,
+    MethodologyDecision,
+    SessionId,
+    Side,
+    window_bounds,
 )
-from qore.infrastructure.traders.vt31_ict_cleanroom.operations import (
-    IctSilverBulletOperations
-)
+from qore.infrastructure.traders.vt31_ict_cleanroom.operations import IctSilverBulletOperations
 
 NY = ZoneInfo("America/New_York")
 
 
-def bar(base: datetime, i: int, h: str, l: str, c: str) -> M1Bar:
+def bar(base: datetime, i: int, h: str, low: str, c: str) -> M1Bar:
     t = base + timedelta(minutes=i)
     return M1Bar(
         t, t + timedelta(minutes=1),
-        Decimal(c), Decimal(h), Decimal(l), Decimal(c)
+        Decimal(c), Decimal(h), Decimal(low), Decimal(c)
     )
 
 
@@ -143,7 +146,10 @@ class TestCleanroom(unittest.TestCase):
             )
 
     def test_no_legacy_source_imports(self) -> None:
-        root = Path(__file__).resolve().parents[2] / "src/qore/infrastructure/traders/vt31_ict_cleanroom"
+        root = (
+            Path(__file__).resolve().parents[2]
+            / "src/qore/infrastructure/traders/vt31_ict_cleanroom"
+        )
         self.assertTrue(root.is_dir())
         for name in ("__init__.py", "contracts.py", "operations.py"):
             syntax = ast.parse((root / name).read_text())
