@@ -10,13 +10,14 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
-from dataclasses import asdict
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal
 
 from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     IDENTITY as V49_REPORT_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     V49EconomicTrade,
     _portfolio_select,
 )
@@ -223,7 +224,9 @@ def main() -> None:
         "identity": report["identity"],
         "source_simulated_economic_rows": report["source_simulated_economic_rows"],
         "max3_selected": report["max3_selected"],
-        "max3_excluded_simulated_counterfactuals": report["max3_excluded_simulated_counterfactuals"],
+        "max3_excluded_simulated_counterfactuals": (
+            report["max3_excluded_simulated_counterfactuals"]
+        ),
         "selected": report["selected"],
         "excluded_counterfactual": report["excluded_counterfactual"],
         "trader_certified": False,
