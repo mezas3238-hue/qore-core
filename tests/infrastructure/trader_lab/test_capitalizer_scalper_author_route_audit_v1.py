@@ -68,6 +68,16 @@ def test_session_profile_and_ftm_require_caller_level_evidence(
     assert rows[route].verdict is FidelityVerdict.UNRESOLVED_ROUTE_EXECUTION
 
 
+def test_generic_m1_examples_are_not_upgraded_to_standalone_entry_routes() -> None:
+    generic = next(row for row in SOURCES if row.route is AuthorRoute.GENERIC_SCALPING)
+    assert generic.source_alternatives == ()
+    assert generic.illustrative_behaviors == (
+        "FVG_INTERACTION",
+        "CISD",
+        "PROTECTED_SWING_FORMATION",
+    )
+
+
 def test_new_york_entry_models_are_explicit_alternatives_not_super_and() -> None:
     ny = next(row for row in SOURCES if row.route is AuthorRoute.NEW_YORK_MANIPULATION)
     assert "FVG_ENTRY" in ny.source_alternatives
