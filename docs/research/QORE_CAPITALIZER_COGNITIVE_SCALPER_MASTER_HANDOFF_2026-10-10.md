@@ -32,12 +32,15 @@ The immediate continuation order is:
    - V54-B: Ruff import-order error.
    - Then rerun each from GitHub Actions.
 
-3. **Treat corrected-core V50-G run `36788519476` as the current authoritative geometry economics reference.**
-   - 9/9 market jobs GREEN.
-   - Aggregate GREEN.
+3. **Owner rejection — V50-G 90-trade architecture is NOT a viable final candidate.**
+   - Corrected-core run `36788519476` remains the authoritative **diagnostic geometry reference only**.
+   - 9/9 market jobs GREEN; aggregate GREEN.
    - Cognitive Geometry: 90 trades, PF 1.53459, +26.1231R, expectancy +0.29026R, DD 9R.
-   - This is promising but **NOT certification**.
-   - Corrected-core winner-preservation has **not yet been recomputed** and is mandatory.
+   - On 2026-10-10 the Owner explicitly **REJECTED** this architecture as a candidate because density collapsed to only 90 trades.
+   - Do not promote, certify, or optimize around keeping only these 90 trades.
+   - Use it only to identify what the positive-edge subset is teaching us about execution geometry.
+   - The next candidate must recover materially more of the original high-frequency opportunity stream while preserving positive edge, low DD and winner mass.
+   - No new exact density threshold was frozen by this rejection; the design goal remains genuinely high-frequency behavior, not a tiny survivor set.
 
 4. **Do not return to simple admission filtering.**
    - V52 falsified single-cell decision-time filtering as a viable edge-repair mechanism.
@@ -912,7 +915,7 @@ A lookback parity defect was found and corrected before authoritative runs.
 Later, the **core stop-integrity defects** described in section 5 were also found.
 Therefore old V50-G results are diagnostic only.
 
-### Current authoritative corrected-core V50-G
+### Current corrected-core V50-G diagnostic reference — OWNER-REJECTED AS FINAL CANDIDATE
 
 Run:
 `36788519476`
@@ -966,16 +969,17 @@ By market:
 - XAUUSD: 9 trades, PF 0.44999, -3.03129R.
 
 Interpretation:
-- corrected geometry + cognition has a real positive economic signal in development;
+- corrected geometry + cognition exposes a real positive economic signal in development;
 - gross PF clears the 1.50 per-era certification threshold;
 - gross DD is <=10R;
 - expectancy is strongly positive;
 - London is especially strong;
 - Asia is marginal and exceeds the 10R observed-DD gate;
 - New York remains negative;
-- density is extremely reduced;
+- density collapsed to only 90 trades;
 - **corrected-core winner preservation is not yet measured**;
-- therefore there is no certification or promotion.
+- on 2026-10-10 the Owner explicitly rejected the 90-trade architecture as a final candidate;
+- therefore V50-G is diagnostic evidence only and cannot be promoted, certified, or treated as the desired operating model.
 
 ### GEOMETRY_ONLY — corrected core
 
@@ -1724,17 +1728,18 @@ The correct question is:
 Priority research order:
 
 1. fix current quality blockers;
-2. close V50-R;
+2. close V50-R with emphasis on recovering many more executable parent theses;
 3. close V51;
-4. close V53;
-5. close V54-A;
-6. close V54-B;
+4. close V53 and measure whether re-arm restores winner/density mass;
+5. close V54-A and quantify same-timestamp stop-ladder recovery;
+6. close V54-B strictly as lifecycle improvement, not as a substitute for density recovery;
 7. recompute corrected-core winner preservation;
-8. compare transformed populations without retuning;
-9. freeze best causal candidate;
-10. run full certification battery;
-11. only after pass: Risk/CIBO/independent review;
-12. no deployment until explicit Owner instruction.
+8. reject any architecture that obtains PF/DD by collapsing the Scalper into a tiny survivor set;
+9. compare transformed populations without retuning;
+10. freeze the best genuinely high-frequency causal candidate;
+11. run full certification battery;
+12. only after pass: Risk/CIBO/independent review;
+13. no deployment until explicit Owner instruction.
 
 ---
 
@@ -1743,6 +1748,7 @@ Priority research order:
 What is already demonstrated:
 
 - High-frequency source capacity exists under persistent H1 topology.
+- The Owner explicitly rejected the 90-trade V50-G survivor architecture as an acceptable final Scalper candidate.
 - V49 baseline economics are unacceptable.
 - Simple cognition/memory selection does not solve the problem.
 - Simple categorical filtering does not solve the problem without destroying edge.
