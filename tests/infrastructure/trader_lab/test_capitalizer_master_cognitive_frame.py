@@ -23,6 +23,7 @@ from qore.infrastructure.trader_lab.capitalizer_a1_joint_competition_research im
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
     A1PaperSource,
+    run_real_master_frame_paper_trader,
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research import (
     A1MultiHypothesisBarrier,
@@ -1231,10 +1232,6 @@ def _paper_source(
 
 def test_a1_full_master_frame_directly_drives_paper_trader_and_after_exit_memory() -> None:
     """Actual nine-market cognition influences later paper decision, not a label mock."""
-    from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
-        run_real_master_frame_paper_trader,
-    )
-
     first = datetime(2026, 1, 5, 1, tzinfo=UTC)
     second = first+timedelta(days=1)
     ids1 = ("SRC:AUDJPY:A", "SRC:AUDJPY:B", "SRC:USDJPY:C")
@@ -1285,10 +1282,6 @@ def test_a1_full_master_frame_directly_drives_paper_trader_and_after_exit_memory
 
 
 def test_a1_paper_runtime_fail_closed_without_a2_sensors_or_source_census() -> None:
-    from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
-        run_real_master_frame_paper_trader,
-    )
-
     at=datetime(2026, 1, 5, 1, tzinfo=UTC)
     ids=("SRC:AUDJPY:A", "SRC:AUDJPY:B", "SRC:USDJPY:C")
     rows=(
