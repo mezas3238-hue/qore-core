@@ -19,14 +19,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from decimal import Decimal
 
-from qore.infrastructure.trader_lab.capitalizer_a1_m1_second_pivot_forensics_v3 import (
-    A1SecondPivotReview,
-    SecondaryPivotClass,
-)
 from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
     A1M1ProtectedRouteReview,
     M1ProtectionClass,
     SourceRouteClass,
+)
+from qore.infrastructure.trader_lab.capitalizer_a1_m1_second_pivot_forensics_v3 import (
+    A1SecondPivotReview,
+    SecondaryPivotClass,
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
     A1PaperSource,
