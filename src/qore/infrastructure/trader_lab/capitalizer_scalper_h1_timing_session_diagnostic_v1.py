@@ -245,7 +245,12 @@ def diagnostic_one(
     if aware(trade.exit_at) > end:
         raise ValueError("trade exits after known session policy boundary")
     entry = Decimal(trade.entry_price)
-    rank, clock, count = h1_observed_position(bars, at, entry, trade.direction)
+    h1_start = at.replace(minute=0, second=0, microsecond=0)
+    h1_left = bisect.bisect_left(opened, h1_start)
+    h1_right = bisect.bisect_left(opened, at)
+    rank, clock, count = h1_observed_position(
+        bars[h1_left:h1_right], at, entry, trade.direction
+    )
     risk = abs(entry - Decimal(trade.stop_price))
     index = bisect.bisect_left(opened, at)
     target = Decimal(trade.target_price)
