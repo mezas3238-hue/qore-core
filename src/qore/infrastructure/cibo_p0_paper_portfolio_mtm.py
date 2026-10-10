@@ -252,7 +252,7 @@ class CanonicalPaperPortfolioMtm:
             max_dd=max(max_dd,dd)
             max_cash_dd=max(max_cash_dd,cash_dd)
             evidence=json.dumps(marks,sort_keys=True,separators=(",",":"))
-            db.execute("INSERT INTO paper_mtm_snapshots VALUES(?,?,?,?,?,?)",
+            db.execute("INSERT INTO paper_mtm_snapshots VALUES(?,?,?,?,?,?,?)",
                        (at.isoformat(),str(cash),str(unrealized),str(equity),
                         str(dd),str(cash_dd),evidence))
             db.execute(
