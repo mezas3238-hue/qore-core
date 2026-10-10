@@ -24,10 +24,14 @@ FAMILIES = ("FVG_RETRACE_CISD", "LIQUIDITY_SWEEP_CISD")
 
 def route_first_at(witness: dict[str, Any], family: str) -> str | None:
     if family == "FVG_RETRACE_CISD":
-        return witness["fvg_cisd_confirmed_at"]
-    if family == "LIQUIDITY_SWEEP_CISD":
-        return witness["sweep_confirmed_at"]
-    raise ValueError("unknown V49 CISD route")
+        value = witness["fvg_cisd_confirmed_at"]
+    elif family == "LIQUIDITY_SWEEP_CISD":
+        value = witness["sweep_confirmed_at"]
+    else:
+        raise ValueError("unknown V49 CISD route")
+    if value is not None and not isinstance(value, str):
+        raise ValueError("source route witness must be an ISO time or null")
+    return value if isinstance(value, str) else None
 
 
 def classify_row(row: dict[str, Any]) -> dict[str, Any]:
