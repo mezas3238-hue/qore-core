@@ -192,39 +192,37 @@ def _verified_pools(
     previous_days = sorted({
         _ny_day(b.opened_at) for b in closed
         if _ny_day(b.opened_at) < local_day
-    })
-    if previous_days:
-        prior = previous_days[-1]
-        # Previous *full NY cash session* only (09:30-16:00 New York).
-        # A partial 3-hour bar sample cannot truthfully be called PDH/PDL.
-        # Wider ICT daily dealing-range provenance must be designed and
-        # certified separately rather than mislabelled by this producer.
+    }, reverse=True)
+    for prior in previous_days:
+        # The last *completed NY cash session* may be Friday while Sunday
+        # evening trades exist. Skip incomplete/weekend days; do not infer a
+        # previous full daily candle from their partial M1 coverage.
         cash_bars = tuple(
             b for b in closed
             if _ny_day(b.opened_at) == prior
-            and (
-                9 * 60 + 30
-                <= (
-                    utc(b.opened_at).astimezone(NEW_YORK).hour * 60
-                    + utc(b.opened_at).astimezone(NEW_YORK).minute
-                ) < 16 * 60
-            )
+            and 9 * 60 + 30 <= (
+                utc(b.opened_at).astimezone(NEW_YORK).hour * 60
+                + utc(b.opened_at).astimezone(NEW_YORK).minute
+            ) < 16 * 60
         )
-        if len(cash_bars) == 390:
-            first_local = utc(cash_bars[0].opened_at).astimezone(NEW_YORK)
-            final_local = utc(cash_bars[-1].opened_at).astimezone(NEW_YORK)
-            if (
-                (first_local.hour, first_local.minute) == (9, 30)
-                and (final_local.hour, final_local.minute) == (15, 59)
-                and utc(as_of) - utc(cash_bars[-1].closed_at)
-                <= timedelta(days=5)
-            ):
-                pair = _range_pool(
-                    bars=cash_bars, name="PRIOR_NY_CASH_SESSION",
-                    minimum_bars=390,
-                )
-                if pair:
-                    candidates.extend(pair)
+        if len(cash_bars) != 390:
+            continue
+        first_local = utc(cash_bars[0].opened_at).astimezone(NEW_YORK)
+        final_local = utc(cash_bars[-1].opened_at).astimezone(NEW_YORK)
+        if (
+            (first_local.hour, first_local.minute) != (9, 30)
+            or (final_local.hour, final_local.minute) != (15, 59)
+            or utc(as_of) - utc(cash_bars[-1].closed_at)
+            > timedelta(days=5)
+        ):
+            continue
+        pair = _range_pool(
+            bars=cash_bars, name="PRIOR_NY_CASH_SESSION",
+            minimum_bars=390,
+        )
+        if pair:
+            candidates.extend(pair)
+            break
 
     def add_local_window(family: str, start_hour: int, end_hour: int) -> None:
         window_bars = tuple(
