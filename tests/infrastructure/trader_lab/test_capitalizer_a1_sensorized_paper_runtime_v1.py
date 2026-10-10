@@ -16,6 +16,11 @@ from test_capitalizer_master_cognitive_frame import (
     _paper_source,
 )
 
+from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
+    A1M1ProtectedRouteReview,
+    M1ProtectionClass,
+    SourceRouteClass,
+)
 from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
     A1PaperSource,
 )
@@ -233,4 +238,79 @@ def test_independent_sensor_witnesses_are_actually_consumed_by_paper_master() ->
             source_evidence=snapshots, source_originals=originals,
             baseline_selected_source_ids=ids,
             independent_source_witnesses={ids[0]: proof[ids[0]]},
+        )
+
+
+def test_prior_intact_m1_review_reaches_master_context_but_never_grants_source_veto() -> None:
+    originals, snapshots = _inputs()
+    ids = tuple(x.source_opportunity_id for x in originals)
+    records: dict[str, A1M1ProtectedRouteReview] = {}
+    for item in originals:
+        records[item.source_opportunity_id] = A1M1ProtectedRouteReview(
+            source_opportunity_id=item.source_opportunity_id,
+            symbol=item.trade.symbol,
+            source_family=item.trade.trigger_family,
+            decision_at=T.isoformat(),
+            strict_previous_attestation=ProofStatus.NOT_AVAILABLE,
+            protection_class=M1ProtectionClass.PRIOR_CONFIRMED_INTACT,
+            structurally_protected_at_entry=True,
+            protected_price="98.5",
+            protection_confirmed_at=(T-timedelta(minutes=1)).isoformat(),
+            route_class=SourceRouteClass.SOURCE_ROUTE_CONFIRMED_AT_ENTRY,
+            own_route_first_confirmed_at=T.isoformat(),
+            other_route_first_confirmed_at=None,
+        )
+    result = run_sensorized_master_frame_paper(
+        barriers=(_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+        source_evidence=snapshots,
+        source_originals=originals,
+        baseline_selected_source_ids=ids,
+        m1_route_reviews=records,
+    )
+    assert result.causal_m1_route_reviews_received == 3
+    assert result.prior_intact_m1_context_count == 3
+    assert result.full_master_frame_invoked
+    assert result.report.paper_selected == 3
+    assert result.source_cisd_identity_conflicts == 0
+    assert not result.automatically_vetoed_cisd_conflicts
+    assert not result.live_authorized
+    with pytest.raises(ValueError, match="all original source IDs need M1"):
+        run_sensorized_master_frame_paper(
+            barriers=(_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+            source_evidence=snapshots,
+            source_originals=originals,
+            baseline_selected_source_ids=ids,
+            m1_route_reviews={ids[0]: records[ids[0]]},
+        )
+    false_id = {
+        **records,
+        ids[0]: replace(records[ids[0]], source_family=(
+            "LIQUIDITY_SWEEP_CISD"
+            if records[ids[0]].source_family == "FVG_RETRACE_CISD"
+            else "FVG_RETRACE_CISD"
+        )),
+    }
+    with pytest.raises(ValueError, match="M1 route forensic contradicts"):
+        run_sensorized_master_frame_paper(
+            barriers=(_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+            source_evidence=snapshots,
+            source_originals=originals,
+            baseline_selected_source_ids=ids,
+            m1_route_reviews=false_id,
+        )
+    false_time = {
+        **records,
+        ids[0]: replace(
+            records[ids[0]],
+            own_route_first_confirmed_at=(T-timedelta(minutes=1)).isoformat(),
+            route_class=SourceRouteClass.SOURCE_ROUTE_CONFIRMED_EARLIER,
+        ),
+    }
+    with pytest.raises(ValueError, match="M1 route forensic contradicts"):
+        run_sensorized_master_frame_paper(
+            barriers=(_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+            source_evidence=snapshots,
+            source_originals=originals,
+            baseline_selected_source_ids=ids,
+            m1_route_reviews=false_time,
         )
