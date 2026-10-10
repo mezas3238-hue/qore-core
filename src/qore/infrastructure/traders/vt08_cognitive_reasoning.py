@@ -167,6 +167,12 @@ def reason(
     elif meta.state is Vt08KnowledgeState.UNKNOWN:
         action = Vt08CognitiveAction.WAIT
         reasons.append("REASONING:NO_EXECUTION_SUPPORT_EVIDENCE")
+    elif situation.risk_geometry_state != "VALID":
+        action = Vt08CognitiveAction.WAIT
+        reasons.append("REASONING:RISK_GEOMETRY_NOT_VALIDATED")
+    elif situation.bias_state != "RESOLVED":
+        action = Vt08CognitiveAction.WAIT
+        reasons.append("REASONING:DAILY_BIAS_NOT_RESOLVED")
     elif situation.cisd_state not in {"CONFIRMED", "NOT_REQUIRED_BY_BOUND_PROFILE"}:
         action = Vt08CognitiveAction.WAIT
         reasons.append("REASONING:CISD_NOT_COMPLETE")
