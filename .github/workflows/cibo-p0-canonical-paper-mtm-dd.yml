@@ -1,0 +1,35 @@
+name: "CIBO P0 canonical PAPER portfolio equity MTM and DD (NO LIVE)"
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - "src/qore/infrastructure/cibo_p0_paper_portfolio_mtm.py"
+      - "tests/infrastructure/test_cibo_p0_paper_portfolio_mtm.py"
+      - ".github/workflows/cibo-p0-canonical-paper-mtm-dd.yml"
+  pull_request:
+    branches: [agent/cibo-architect-3-qdle-mt5-physical-20261008]
+permissions:
+  contents: read
+env:
+  PYTHONPATH: src
+  QORE_LIVE_TRADING: "false"
+jobs:
+  shared-paper-book-MTM:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Ensure single SQLite book, UTC, independent equity drawdown and no LIVE
+        run: |
+          set -euo pipefail
+          test "$QORE_LIVE_TRADING" = false
+          python -m py_compile src/qore/infrastructure/cibo_p0_paper_portfolio_mtm.py
+          python -m unittest discover -s tests/infrastructure -p 'test_cibo_p0_paper_portfolio_mtm.py' -v
+      - name: Prove broker and reservation base regresses unchanged
+        run: |
+          python -m unittest discover -s tests/infrastructure -p 'test_qdle_paper_book.py' -q
+          python -m unittest discover -s tests/infrastructure -p 'test_qore_dynamic_lot_engine.py' -q
