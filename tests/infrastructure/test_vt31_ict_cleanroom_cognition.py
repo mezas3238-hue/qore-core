@@ -238,3 +238,46 @@ def test_partial_previous_day_is_not_false_confirmed_pdh_or_cash_pool() -> None:
     full = _verified_pools(bars, at, SessionId.LONDON)
     assert any(p.family == "PRIOR_NY_CASH_SESSION_HIGH" for p in full)
     assert all(p.confirmed_at <= at for p in full)
+
+
+def test_online_cache_matches_direct_causal_pool_producer() -> None:
+    from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
+        _htf_context,
+    )
+
+    bars, at = _fixtures()
+    engine = VT31CleanroomCognition()
+    for bar in bars:
+        engine.observe_closed_m1(bar)
+    fast_pools = engine._index.pools(at, SessionId.LONDON)
+    exact_pools = _verified_pools(bars, at, SessionId.LONDON)
+    assert fast_pools == exact_pools
+    assert engine._index.context(at) == _htf_context(bars)
+
+
+def test_swept_prior_cash_extreme_never_resurrects_after_reversal() -> None:
+    bars, at = _fixtures()
+    engine = VT31CleanroomCognition()
+    for bar in bars:
+        engine.observe_closed_m1(bar)
+    before = engine.assess(session=SessionId.LONDON, as_of=at)
+    assert before.decision is not None
+    assert before.decision.draw_target == Decimal("150")
+
+    # A confirmed M1 hits 150 and closes back below; earlier cash extreme is
+    # not a valid unexecuted target again at next candle open.
+    sweep = _bar(
+        at, o="107", h="151", lo="106", c="110",
+    )
+    engine.observe_closed_m1(sweep)
+    actual = engine._index.pools(sweep.closed_at, SessionId.LONDON)
+    assert "PRIOR_NY_CASH_SESSION_HIGH" not in {
+        p.family for p in actual
+    }
+    static = _verified_pools(
+        bars + (sweep,),
+        sweep.closed_at,
+        SessionId.LONDON,
+    )
+    assert actual == static
+    assert before.decision.draw_level_observed_at < sweep.closed_at
