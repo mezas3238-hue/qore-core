@@ -45,6 +45,24 @@ CI checks out a separate, read-only GitHub worktree at A commit `6e537cd8a8a01d9
 3. B rejects a forged future `cisd` cutoff.
 4. This cross-branch check does **not** turn A's source candidates into fills and does **not** consume real historical closed-bar values.
 
+## 1.A. New P0 finding: EXECUTE is **not** a FILLED position
+
+**Discovered 2026-10-10 in the last code audit:** the earlier gate checked that a source event received `EXECUTE` before calling Position Intelligence, and took `entry_state=FILLED` from the Situation snapshot at face value. There was **no independent execution/fill record**. This allowed a forged or mistaken in-trade Situation to be assessed even if no order had filled. It is a material gap between Cognitive admission and economic replay.
+
+**Implemented correction:** `vt08_cognitive_5m_consumed_gate_v1.py` now exposes immutable `Vt08ResearchFillEvidence`, `Vt08ResearchFillTrace`, `record_fill()`, and `fills` ledger. A position assessment **requires all** of:
+- Same source event already passed a real Cognitive V1 `EXECUTE` and has not been KILLED or merely WAITING.
+- A separate, research-only simulated fill event has been explicitly recorded: source-event ID, market, side, frozen source H4 cycle, unique fill ID, timestamp, price and nonempty lowercase SHA-256 evidence identifier; no broker-order authorization.
+- Fill identity matches cognitive source identity; no cross-market, opposite-side or cross-cycle mutation.
+- Fill timestamp no earlier than Cognitive EXECUTE and strictly before pending H4 expiry. The global replay clock cannot move backwards.
+- No duplicate source fills or fill IDs. A position must be observed **after** the fill, with `FILLED` entry and active/open position states, exactly matching the recorded entry price and causal as-of.
+- No automatic fill promotion from an EXECUTE. Cognitive entry decision and economic fill are separately recorded and reconciled.
+
+**New code-and-tests CI:** [GitHub Actions #38078677701](https://github.com/mezas3238-hue/qore-core/actions/runs/38078677701), exact tested code/test SHA `91df65f15ea108110fa55140d33280aeea36b211`, **SUCCESS**: Ruff PASS, Mypy PASS for 14 sources, **166 passed / 3 skipped** in first test stage and **3 additional cross-branch tests passed** using actual A module frozen at SHA `6e537cd8a8a01d9817802383c736baf5688f2a0f`. Total **169 executed tests passed**. The three initial skips are the three same A-specific tests run separately. Gate statement coverage **96%** (184/192); percentages are not real-market certification.
+
+**Boundary that remains:** A signed/audited real execution engine must eventually create fill records from actual chronological BID/ASK bars, slippage, broker costs and source entry/SL/TP authority. A caller-supplied 64-hex digest alone does NOT prove an actual broker fill or a data-root hash: these gate fixtures are **synthetic research data only**. B will not label historical economics as full-cognitive until source, execution and position ledgers can be reconciled event-by-event.
+
+---
+
 ## 2. P0 root causes corrected in code
 
 - Previously 4/5 research markets rejected by old Forex operational whitelist; now opt-in dedicated research-only Situation type without changing production authority.
