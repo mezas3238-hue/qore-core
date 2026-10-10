@@ -38,6 +38,20 @@ Within the original source window, B labels outcomes conservatively:
 
 **Hypothesis risk:** A's current COG pivot and B's researched protected pivot can both be too sensitive because the existing `_confirmed_break` uses a 3-bar local pivot and the unverified QORE 1.25x median-body displacement. A paired test of invalidation alone does **not** certify original ICT methodology. The same-market A/B replay can test source survival and market-price overlap, **not real win rate, spread/commission net expectancy, Sharpe or drawdown**. Robustness must be checked separately London vs New York AM vs NY PM (same one trader book).
 
+## Locked v1 primary endpoint and decision threshold — BEFORE seeing A/B results
+
+**Primary source-only endpoint**: the *paired difference in unambiguous post-formation closed-M1 CE overlap per the same original 2,140 first-suitable FVG candidates*, B minus A. A and B are run on the same stream with exactly the same source offer, CE and target and a source-only state lifetime. `CE_OVERLAP` is **NOT** an actual fill. Denominator is ALL original 2,140 independent source-hour candidates, including unknown outcomes; never selectively drop inconvenient cases. **Minimum development-data effect**: B needs **at least +5.0 percentage points** (B-only minus A-only >= 107 out of 2,140, rounding up). Secondary safety/information guard: **B indeterminate event fraction no greater than 10% of all 2,140 candidates**; cannot discount an uncertain event as a failed trade. Missing causal opposite pivot or invalid stop geometry is also indeterminate, not a valid B setup. If either source gate fails, reject B for promotion. Even if both pass, they authorize ONLY further quote-level research, **NEVER production**.
+
+**Deferred mandatory economic gates:** once historical timestamped NAS100/NDX100 bid/ask quotes, matching external order ACK, symbol point value, commission and realistic stops are verified, pre-commit B **net PF no worse than 95% of A**, no higher max chronological **absolute account/R drawdown** than A, positive net expectancy and robust per-session performance. These quantities are deliberately **not computable** from the present M1-only historical input. This trial must not claim they passed.
+
+**Paired 2x2 + unknown matrix**: for each exact original candidate ID `(NY_date, source_window, FVG_confirmed_at)`, report a mutually exclusive classification for BOTH branches: `VALID_CE` (price-only unambiguous CE overlap while research source eligible), `INVALIDATED`, `TARGET_BEFORE_CE`, `EXPIRED`, `INDETERMINATE` (missing source pivot, stop geometry, same-M1 CE/cancellation ordering), or `OTHER` (never silently excluded). Report full contingency matrix, B-only CE and A-only CE, indeterminate rate for EACH arm and EACH NY source window. Report later **mid-price-only** target/stop possibilities after a clean B CE distinctly; any event within same M1 is path-unknown. Without quote/broker data, there is no true hit rate or PnL.
+
+**Multiplicity:** whole-trader, all-three-windows pooled paired contrast is the **sole primary comparison**. London, NY AM and NY PM are **secondary exploratory**; if any inferential individual-window claim is attempted, the predeclared familywise Bonferroni cutoff is `0.05 / 3 = 0.0166667`, not 0.05 each. These source M1 data are repeated/clustered trading days, so naive independent-binomial p-values are not valid as proof of alpha; use descriptive session counts without claiming significance until a cluster-appropriate analysis is implemented.
+
+**Source-doctrine provenance labels:** ICT explicit = original time window plus return to source FVG; ALG_FORMALIZATION = the existing 3-M1 swing and displacement 1.25x / CE and source life policies; EXPERIMENTAL_HYPOTHESIS = B last confirmed opposite 3-M1 pivot, same-source-window first contrary FVG confirmed at/after identical native displaced opposite MSS. Never call those formalizations categorical ICT rules. **No third arm, no parameter search, no opening sealed holdout.**
+
+---
+
 ## Implementation status
 
 The source-only A/B module is published in research branch `agent/vt31-ab-research-20261010`:
