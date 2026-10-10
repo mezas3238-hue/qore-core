@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime
 from typing import Final
 
@@ -34,6 +34,19 @@ RESEARCH_MARKETS: Final = (
 RESEARCH_SCOPE_ID: Final = "VT08_COGNITIVE_EXPANSION_5M_V1_RESEARCH_ONLY"
 MEMORY_STATE: Final = "UNKNOWN_NOT_BOUND"
 CONTEXT_SCHEMA: Final = "qore.vt08.cognitive_5m.market_context.research.v1"
+RESEARCH_SITUATION_SCHEMA: Final = "qore.vt08.cognitive_5m.situation.research.v2"
+
+# The producer must timestamp EACH decision and journey input. No fallback to
+# a single all-purpose latest-bar timestamp is accepted. This is a provenance
+# attestation contract; a later integration test must independently prove that
+# each timestamp actually describes its source data.
+CAUSAL_FIELDS: Final = tuple(
+    item.name for item in fields(Vt08ForexSituationModel)
+    if item.name not in {
+        "as_of", "market", "anchor_hour_ny", "side", "ltf_profile",
+        "terminal_pnl", "post_outcome_label",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +62,9 @@ class Vt08FiveMarketResearchSituation(Vt08ForexSituationModel):
 
     source_evidence_id: str = ""
     latest_available_bar_close: datetime | None = None
+    feature_cutoffs: tuple[tuple[str, datetime], ...] = ()
+    source_cycle_id: str = ""
+    cycle_expires_at: datetime | None = None
     research_only: bool = True
     operational_authority: bool = False
 
@@ -67,6 +83,47 @@ class Vt08FiveMarketResearchSituation(Vt08ForexSituationModel):
             raise ValueError("VT08 5M research situation requires bar close timezone")
         if observed > self.as_of:
             raise ValueError("VT08 5M research situation cannot consume future bars")
+        if not isinstance(self.source_cycle_id, str) or not self.source_cycle_id.strip():
+            raise ValueError("VT08 research situation requires H4 source cycle id")
+        expiry = self.cycle_expires_at
+        if expiry is None or expiry.tzinfo is None or expiry.utcoffset() is None:
+            raise ValueError("VT08 research situation requires timezone-aware cycle expiry")
+        if not isinstance(self.feature_cutoffs, tuple):
+            raise ValueError("VT08 research feature cutoffs must be immutable tuple")
+        if len(self.feature_cutoffs) != len(CAUSAL_FIELDS):
+            raise ValueError("VT08 research needs complete feature causal cutoffs")
+        observed_fields: list[str] = []
+        feature_max: datetime | None = None
+        for feature in self.feature_cutoffs:
+            if not isinstance(feature, tuple) or len(feature) != 2:
+                raise ValueError("VT08 research requires immutable feature/time pairs")
+            name, cutoff = feature
+            if not isinstance(name, str) or name not in CAUSAL_FIELDS:
+                raise ValueError("VT08 research contains unknown feature cutoff")
+            if not isinstance(cutoff, datetime) or (
+                cutoff.tzinfo is None or cutoff.utcoffset() is None
+            ):
+                raise ValueError("VT08 research feature cutoff must be timezone-aware")
+            if cutoff > self.as_of:
+                raise ValueError("VT08 research feature cutoff consumes future information")
+            observed_fields.append(name)
+            if feature_max is None or cutoff > feature_max:
+                feature_max = cutoff
+        if tuple(observed_fields) != CAUSAL_FIELDS:
+            raise ValueError("VT08 research feature cutoffs incomplete, duplicate or unordered")
+        if observed != feature_max:
+            raise ValueError("VT08 latest closed bar must match maximum feature cutoff")
+
+    def payload(self) -> dict[str, object]:
+        """Canonical JSON-safe event payload, including every feature timestamp."""
+        result = super().payload()
+        result["schema"] = RESEARCH_SITUATION_SCHEMA
+        result["feature_cutoffs"] = tuple(
+            (name, timestamp.isoformat()) for name, timestamp in self.feature_cutoffs
+        )
+        if self.cycle_expires_at is not None:
+            result["cycle_expires_at"] = self.cycle_expires_at.isoformat()
+        return result
 
 
 def research_market_anchor_context(
