@@ -144,3 +144,29 @@ def test_m1_market_component_does_not_imply_broker_or_agent_reasoning() -> None:
     assert all(z["calls_observed"] == 0 for z in x["components"].values())
     assert x["entry_executions_proven"] == 0
     assert "NOT independent counterfactual ablation" in x["influence_definition"]
+
+
+def test_prior_closed_m1_mss_actually_influenced_later_fvg() -> None:
+    """MSS from one M1, suitable FVG from the next closed M1."""
+    base = _real_source_sequence()
+    at = base[-1].opened_at
+    first_mss = _bar(
+        at, o="101", h="109", lo="101", c="107",
+    )
+    delayed_gap = _bar(
+        at + timedelta(minutes=1),
+        o="107", h="110", lo="105", c="109",
+    )
+    audit = CognitiveTelemetry()
+    t = VT31Trader(cognition=VT31CleanroomCognition(telemetry=audit))
+    for bar in (*base[:-1], first_mss, delayed_gap):
+        t.on_closed_m1(bar)
+    result = audit.report()
+    assert result["components"]["OPS_CANDIDATE"]["output_present"] == 1
+    assert result["components"][
+        "M1_THESIS_REVALIDATION"
+    ]["reached_first_suitable_FVG"] == 1
+    assert result["candidate_causal_lineage_examples"][0]["M1_MSS_source"] == (
+        "PRIOR_M1_REVALIDATED"
+    )
+    assert result["fills_proven"] == 0
