@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
