@@ -15,14 +15,13 @@ from __future__ import annotations
 from collections import deque
 from datetime import datetime
 from decimal import Decimal
-from typing import Deque
 
 from .contracts import (
+    MIN_INDEX_POINTS,
     CognitiveDecision,
     FvgCandidate,
     M1Bar,
     MethodologyDecision,
-    MIN_INDEX_POINTS,
     SessionId,
     Side,
     utc,
@@ -44,7 +43,7 @@ class IctSilverBulletOperations:
         self.intrawindow_raw_fvg_count = 0
         self.suitable_candidates_skipped_after_first = 0
         self.event_at: datetime | None = None
-        self._bars: Deque[M1Bar] = deque(maxlen=3)
+        self._bars: deque[M1Bar] = deque(maxlen=3)
 
     def on_closed_m1(
         self, bar: M1Bar, *, cognition: CognitiveDecision | None
