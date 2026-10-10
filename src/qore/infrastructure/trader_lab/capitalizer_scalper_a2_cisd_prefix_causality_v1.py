@@ -142,6 +142,8 @@ def _next_boundaries(
             setups[i+1].confirmed_at
             if i+1 < len(setups) else state.active_until
         )
+        if boundary is None:
+            raise ValueError("next structural M15 setup has no close")
         result[setup.confirmed_at.isoformat()] = boundary.isoformat()
     return result
 
