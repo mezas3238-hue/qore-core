@@ -228,7 +228,7 @@ def _m1_protected(
             else "M1_PROTECTED_SWING_NOT_INDEPENDENTLY_REOBSERVED_AT_SOURCE_CLOSE"
         ),
         observed_at=at.isoformat(),
-        source_witness=f"{source.m1_trigger_family};at={at.isoformat()}",
+        source_witness=f"family={source.m1_trigger_family};at={at.isoformat()}",
         independent_witness=found,
         provenance="native_m1_structural_cisd_v48_no_sweep_extreme_alias",
     )
