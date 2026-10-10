@@ -18,8 +18,8 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.trader import (
     INSTRUMENT,
-    TRADER_ID,
     SESSION_MODEL,
+    TRADER_ID,
     VT31Trader,
 )
 
