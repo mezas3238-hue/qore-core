@@ -64,7 +64,7 @@ FVG = (
 def _source(family: str, bars: tuple[CapitalizerM1Bar, ...]) -> V49Opportunity:
     side = "BULLISH"
     return V49Opportunity(
-        symbol="EURUSD", session="NEW_YORK", operating_date="2026-01-02",
+        symbol="EURUSD", session="LONDON", operating_date="2026-01-02",
         h1_state_direction=side,
         h1_state_from=(START-timedelta(hours=1)).isoformat(),
         h1_state_until=(START+timedelta(days=1)).isoformat(),
@@ -127,7 +127,7 @@ def test_fvg_stages_use_confirmed_fvg_retrace_and_real_m1_pivot() -> None:
     assert stages["M1_FVG_RETRACE_CONFIRMED_BAR"].confirmed_at == FVG[3].closed_at.isoformat()
     assert stages["M1_FVG_PIVOT_BAR_CLOSE_UNPROTECTED"].confirmed_at is not None
     assert stages["M1_PROTECTED_SWING_BECOMES_VALID"].confirmed_at == row.original_entry_at
-    assert row.fvg_or_sweep_to_cisd_minutes == "6.0"
+    assert row.fvg_or_sweep_to_cisd_minutes == "5.0"
     assert row.cisd_to_entry_minutes == "0"
 
 
