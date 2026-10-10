@@ -149,3 +149,69 @@ def test_aware_source_timestamp_required_with_no_timezone_guessing() -> None:
         independent._timestamp("2026-01-05T06:00:00")
     with pytest.raises(ValueError, match="missing causal ISO"):
         independent._timestamp(None)
+
+
+def test_source_payload_hash_check_rejects_missing_fields_without_trusting_digest() -> None:
+    with pytest.raises(ValueError, match="missing canonical payload"):
+        independent._verify_source_and_snapshot_identity(
+            {"event_id": "vt08-5m:" + "f" * 64}
+        )
+
+
+def test_independent_source_identity_is_not_reusable_with_modified_side() -> None:
+    at = T0.isoformat(timespec="microseconds")
+    old = (T0 - timedelta(hours=2)).isoformat(timespec="microseconds")
+    previous = (T0 - timedelta(minutes=15)).isoformat(timespec="microseconds")
+    values: dict[str, object] = {
+        "schema": "VT08_5M_CANDIDATE_EVENT_V1",
+        "market": "EURJPY",
+        "ny_date": "2026-01-05",
+        "anchor_ny_hour": 1,
+        "source_family": "positional-entry",
+        "ltf_profile": "M15_STANDARD",
+        "side": "long",
+        "scenario": "C2_COMPLETED",
+        "source_rule_ref": "vt08-r3.9-b01-positional",
+        "entry_basis": "H4_OPEN_EXACT_FILL_QORE_CONTAINMENT",
+        "stop_basis": "PROTECTED_SWING_NO_OFFSET_QORE_CONTAINMENT",
+        "target_basis": "FIXED_2R_QORE_CONTAINMENT",
+        "filled_lifecycle": "CLOSE_NEXT_H4_QORE_CONTAINMENT",
+        "source_methodology_sha256": "a" * 64,
+        "evidence_sha256": "b" * 64,
+        "research_only": True,
+        "execution_authorized": False,
+        "live_authorized": False,
+        "h4_anchor_at": at,
+        "decision_at": at,
+        "evidence_as_of": at,
+        "candle2_closed_at": at,
+        "opposing_series_opened_at": old,
+        "cisd_confirmed_at": previous,
+        "ps_confirmed_at": previous,
+        "pending_expiry_at": (T0 + timedelta(hours=4)).isoformat(
+            timespec="microseconds"
+        ),
+        "entry_price": "160",
+        "stop_price": "159.5",
+        "target_price": "161",
+    }
+    values["event_fingerprint"] = independent._canonical_digest(values)
+    values["event_id"] = f"vt08-5m:{values['event_fingerprint']}"
+    source_identity = {
+        key: values[key] for key in (
+            "schema", "source_rule_ref", "source_methodology_sha256", "market",
+            "ltf_profile", "source_family", "scenario", "side",
+            "h4_anchor_at", "opposing_series_opened_at",
+        )
+    }
+    values["source_event_id"] = (
+        f"vt08-5m-source:{independent._canonical_digest(source_identity)}"
+    )
+    independent._verify_source_and_snapshot_identity(values)
+    with pytest.raises(ValueError, match="snapshot fingerprint"):
+        independent._verify_source_and_snapshot_identity(
+            {**values, "target_price": "162"}
+        )
+    with pytest.raises(ValueError, match="stable source identity"):
+        values_updated = {**values, "source_event_id": "vt08-5m-source:" + "0" * 64}
+        independent._verify_source_and_snapshot_identity(values_updated)
