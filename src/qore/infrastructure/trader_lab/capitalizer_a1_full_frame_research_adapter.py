@@ -7,7 +7,7 @@ ranks trades, mutates memory, sizes risk, or changes the V49/V50-G baseline.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 from qore.infrastructure.trader_lab.capitalizer_cognitive_explanation import (
@@ -21,6 +21,10 @@ from qore.infrastructure.trader_lab.capitalizer_cross_market_causality import (
 )
 from qore.infrastructure.trader_lab.capitalizer_global_world_model import (
     CapitalizerGlobalWorldModel,
+)
+from qore.infrastructure.trader_lab.capitalizer_memory import (
+    CapitalizerLossCause,
+    CapitalizerLossMemory,
 )
 from qore.infrastructure.trader_lab.capitalizer_master_cognitive_frame import (
     CapitalizerCandidateCognitiveContext,
@@ -63,12 +67,15 @@ class A1SettledChosenTrade:
     execution_id: str
     entry_at: datetime
     exit_at: datetime
+    loss_cause: CapitalizerLossCause | None = None
 
     def __post_init__(self) -> None:
         if not self.execution_id:
             raise ValueError("settled execution ID is mandatory")
         if _aware(self.exit_at) < _aware(self.entry_at):
             raise ValueError("trade cannot settle before entry")
+        if self.loss_cause is not None and self.loss_cause.loss_id != self.execution_id:
+            raise ValueError("settled loss must match the chosen execution identity")
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +110,7 @@ class A1FullFrameResearchDecision:
     why_tokens: tuple[str, ...]
     uncertainty_tokens: tuple[str, ...]
     closed_chosen_history_count: int
+    closed_chosen_failure_count: int = 0
     nine_market_frame_invoked: bool = True
     economic_admission_changed: bool = False
     winner_selected: bool = False
@@ -114,6 +122,8 @@ class A1FullFrameResearchDecision:
             raise ValueError("invalid A1 research decision")
         if not self.why_tokens or self.closed_chosen_history_count < 0:
             raise ValueError("A1 trace requires causal explanation/history")
+        if not 0 <= self.closed_chosen_failure_count <= self.closed_chosen_history_count:
+            raise ValueError("A1 trace cannot contain unproven or future losses")
         if (
             not self.nine_market_frame_invoked
             or self.economic_admission_changed
@@ -154,10 +164,22 @@ def evaluate_full_frame_research_batch(
     if any(not context.evidence_provenance_complete for context in contexts):
         raise ValueError("missing candidate evidence provenance; fail closed")
 
+    # Compute immutable pre-decision memory solely from externally evidenced
+    # chosen trades settled STRICTLY before this time barrier. A losing trade
+    # without a causal failure label is not silently treated as known.
+    known_settlements = settled_memory.as_of(at)
+    seen_losses = tuple(
+        item.loss_cause for item in known_settlements if item.loss_cause is not None
+    )
+    derived_memory = CapitalizerLossMemory(unresolved=seen_losses)
+    if world.loss_memory.unresolved and world.loss_memory != derived_memory:
+        raise ValueError("unproven or future world loss memory; fail closed")
+    evidenced_world = replace(world, loss_memory=derived_memory)
+
     # The pre-existing full frame checks nine markets, no future perceptions,
     # regimes, cross-market state and candidate-to-decision identity.
     frame = build_master_cognitive_frame(
-        world=world,
+        world=evidenced_world,
         perceptions=perceptions,
         regime_hypotheses=regime_hypotheses,
         cross_market_graph=cross_market_graph,
@@ -168,7 +190,7 @@ def evaluate_full_frame_research_batch(
         item.symbol: item for item in explain_all_candidates(frame)
     }
     evaluations = {item.symbol: item for item in frame.candidate_evaluations}
-    historical_count = len(settled_memory.as_of(at))
+    historical_count = len(known_settlements)
     return tuple(
         A1FullFrameResearchDecision(
             identity=IDENTITY,
@@ -179,6 +201,7 @@ def evaluate_full_frame_research_batch(
             why_tokens=explanations[binding.symbol].why_tokens,
             uncertainty_tokens=explanations[binding.symbol].uncertainty_tokens,
             closed_chosen_history_count=historical_count,
+            closed_chosen_failure_count=len(seen_losses),
         )
         for binding in sorted(source_bindings, key=lambda item: item.source_opportunity_id)
     )
