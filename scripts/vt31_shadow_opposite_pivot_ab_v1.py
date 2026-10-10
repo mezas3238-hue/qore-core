@@ -91,20 +91,38 @@ def full_fvg_closed(b: M1Bar, side: Side, lo: Decimal, hi: Decimal) -> bool:
     return b.close < lo if side is Side.LONG else b.close > hi
 
 
-def opposite_mss_and_fvg(
+def first_opposing_mss_then_fvg(
     cog: TracedCognition, recent: tuple[M1Bar, ...],
-    session: SessionId, side: Side,
-) -> bool:
-    if len(recent) != 3:
-        return False
-    shift = cog._index.shift()
-    if shift is None or shift.side is side:
-        return False
+    session: SessionId, source_side: Side,
+    pending_mss_at: datetime | None,
+) -> tuple[bool, datetime | None]:
+    """Latch first displaced opposite MSS, await FIRST opposite FVG.
+
+    Exactly the same native M1 displacement and structure engine verifies
+    both directions. The source-hour closure check is in confirmed_m1_fvg.
+    """
+    at = utc(recent[-1].closed_at) if recent else None
+    if at is None:
+        return False, pending_mss_at
+    if pending_mss_at is None:
+        shift = cog._index.shift()
+        if (
+            shift is not None
+            and shift.side is not source_side
+            and utc(shift.break_confirmed_at) == at
+        ):
+            pending_mss_at = at
+    if pending_mss_at is None or len(recent) != 3:
+        return False, pending_mss_at
     a, b, c = recent
     if a.closed_at != b.opened_at or b.closed_at != c.opened_at:
-        return False
-    f = confirmed_m1_fvg(session=session, first=a, middle=b, third=c)
-    return f is not None and f.side is shift.side
+        return False, pending_mss_at
+    gap = confirmed_m1_fvg(session=session, first=a, middle=b, third=c)
+    return (
+        gap is not None
+        and gap.side is not source_side
+        and utc(gap.confirmed_at) >= pending_mss_at
+    ), pending_mss_at
 
 
 @dataclass
@@ -119,6 +137,8 @@ class Shadow:
     outcome: str = "OPEN"
     initial_ce_at: datetime | None = None
     exit_after_ce: str = "NOT_STARTED"
+    first_opposing_mss_at: datetime | None = None
+    first_opposing_fvg_at: datetime | None = None
 
     def on_m1(
         self, bar: M1Bar, cog: TracedCognition,
@@ -128,6 +148,13 @@ class Shadow:
             return
         if self.protected is None:
             self.outcome = "UNPROVEN_PROTECTED_SWING"
+            return
+        if (
+            self.side is Side.LONG and self.protected.price >= self.source_ce
+        ) or (
+            self.side is Side.SHORT and self.protected.price <= self.source_ce
+        ):
+            self.outcome = "UNPROVEN_PROTECTED_STOP_GEOMETRY"
             return
         if self.initial_ce_at is not None:
             if self.exit_after_ce != "UNRESOLVED":
@@ -154,7 +181,11 @@ class Shadow:
         fvg = full_fvg_closed(
             bar, self.side, self.zone_low, self.zone_high
         )
-        opposite = opposite_mss_and_fvg(cog, recent, session, self.side)
+        opposite, self.first_opposing_mss_at = first_opposing_mss_then_fvg(
+            cog, recent, session, self.side, self.first_opposing_mss_at
+        )
+        if opposite and self.first_opposing_fvg_at is None:
+            self.first_opposing_fvg_at = utc(bar.closed_at)
         if ce and (draw or protected or fvg or opposite):
             self.outcome = "CE_AND_CANCELLATION_SAME_M1_UNKNOWN"
         elif draw:
