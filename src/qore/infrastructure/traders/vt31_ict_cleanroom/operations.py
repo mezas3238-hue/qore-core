@@ -27,6 +27,7 @@ from .contracts import (
     utc,
     window_bounds,
 )
+from .m1_execution import confirmed_m1_fvg, required_timeframe_contract
 
 
 class IctSilverBulletOperations:
@@ -107,9 +108,10 @@ class IctSilverBulletOperations:
         a, b, current = self._bars
         if utc(a.closed_at) != utc(b.opened_at) or utc(b.closed_at) != opened:
             raise ValueError("non-contiguous triple")
-        bull = current.low > a.high
-        bear = current.high < a.low
-        if bull or bear:
+        m1_gap = confirmed_m1_fvg(
+            session=self.session, first=a, middle=b, third=current
+        )
+        if m1_gap is not None:
             self.intrawindow_raw_fvg_count += 1
 
         if closed >= self.end:
@@ -120,9 +122,7 @@ class IctSilverBulletOperations:
             return self.decision
         if not isinstance(cognition.side, Side):
             raise ValueError("unproven cognitive direction")
-        if (cognition.side == Side.LONG and not bull) or (
-            cognition.side == Side.SHORT and not bear
-        ):
+        if m1_gap is None or cognition.side != m1_gap.side:
             self.decision = MethodologyDecision.AWAIT_FVG
             return self.decision
         if utc(cognition.structure_break_confirmed_at) > closed:
@@ -135,11 +135,11 @@ class IctSilverBulletOperations:
             self.decision = MethodologyDecision.AWAIT_FVG
             return self.decision
 
-        lower, upper = (
-            (a.high, current.low) if cognition.side == Side.LONG
-            else (current.high, a.low)
-        )
-        midpoint = (lower + upper) / Decimal(2)
+        # Trading shape originates ONLY from the three actual CLOSED M1
+        # bars; M15/H1/H4 from cognition can inform DOL but cannot create
+        # or time the trigger candle.
+        lower, upper = m1_gap.zone_low, m1_gap.zone_high
+        midpoint = m1_gap.consequent_encroachment
         room = (
             cognition.draw_target - current.close
             if cognition.side == Side.LONG else current.close - cognition.draw_target
@@ -175,10 +175,17 @@ class IctSilverBulletOperations:
             "phase": self.decision.value,
             "raw_fvg_count": self.intrawindow_raw_fvg_count,
             "source": "ICT_2023_SILVER_BULLET",
+            "execution_timeframe": "M1",
+            "structure_execution_timeframe": "M1",
+            "fvg_timeframe": "M1",
+            "higher_timeframes_role": "CONTEXT_ONLY",
+            "m1_execution_contract": required_timeframe_contract(),
             "fvg": None if candidate is None else {
                 "direction": candidate.side.value,
                 "formed_at": candidate.formed_at.isoformat(),
                 "first_m1_open": candidate.first_candle_open.isoformat(),
+                "formed_by_closed_m1": True,
+                "candle_duration_seconds": 60,
                 "zone_low": str(candidate.lower),
                 "zone_high": str(candidate.upper),
                 "ce_midpoint_research_only": str(candidate.consequent_encroachment),
