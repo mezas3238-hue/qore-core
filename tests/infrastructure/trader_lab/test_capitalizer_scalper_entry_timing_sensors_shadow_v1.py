@@ -62,7 +62,7 @@ def _context(bars: tuple[CapitalizerM1Bar, ...] = SWEEP) -> EntrySensorInput:
         h1_confirmed_at=START - timedelta(minutes=30),
         m15_confirmed_at=START,
         m15_protected_stop=Decimal("1.0950")
-        if bars is SWEEP else Decimal("9.80"),
+        if bars[0].close < Decimal("5") else Decimal("9.80"),
         m1_bars=bars,
     )
 
