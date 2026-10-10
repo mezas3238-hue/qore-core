@@ -28,7 +28,7 @@ def candle(t: datetime, o: str, h: str, low: str, c: str, hours: int = 4) -> Vt0
 
 
 @pytest.mark.parametrize("month", [1, 7])
-def test_c3_close_to_c4_not_same_candle_and_NY_clock_stable(month: int) -> None:
+def test_c3_close_to_c4_not_same_candle_and_ny_clock_stable(month: int) -> None:
     t = datetime(2026, month, 15, 1, tzinfo=NY)
     c2 = candle(t, "100", "105", "95", "98")
     c3 = candle(t + timedelta(hours=4), "97", "104", "96", "103")
@@ -40,7 +40,7 @@ def test_c3_close_to_c4_not_same_candle_and_NY_clock_stable(month: int) -> None:
     assert c3.opened_at.astimezone(NY).hour == 5
 
 
-def test_bearish_C3_close_inside_C2_extremes() -> None:
+def test_bearish_c3_close_inside_c2_extremes() -> None:
     t = datetime(2026, 1, 15, 1, tzinfo=NY)
     c2 = candle(t, "99", "105", "95", "102")
     c3 = candle(t + timedelta(hours=4), "103", "104", "96", "97")
@@ -59,14 +59,14 @@ def test_c3_sweeping_c2_high_or_low_rejected() -> None:
     assert c3_body_closure(c2, c3_low) == ()
 
 
-def test_C3_close_not_over_body_no_shape() -> None:
+def test_c3_close_not_over_body_no_shape() -> None:
     t = datetime(2026, 1, 15, 1, tzinfo=NY)
     c2 = candle(t, "100", "105", "95", "98")
     at_body = candle(t + timedelta(hours=4), "97", "103", "96", "100")
     assert c3_body_closure(c2, at_body) == ()
 
 
-def test_C3_incomplete_or_not_contiguous_must_fail() -> None:
+def test_c3_incomplete_or_not_contiguous_must_fail() -> None:
     t = datetime(2026, 1, 15, 1, tzinfo=NY)
     c2 = candle(t, "100", "105", "95", "98")
     c3_incomplete = candle(t + timedelta(hours=4), "97", "104", "96", "103", 3)
@@ -77,7 +77,7 @@ def test_C3_incomplete_or_not_contiguous_must_fail() -> None:
         c3_body_closure(c2, c3_wrong)
 
 
-def test_C2_reversal_closure_separate_vs_not_swept() -> None:
+def test_c2_reversal_closure_separate_vs_not_swept() -> None:
     t = datetime(2026, 1, 15, 1, tzinfo=NY)
     c1 = candle(t, "100", "105", "95", "101")
     c2_swept_inside = candle(t + timedelta(hours=4), "100", "106", "96", "102")
@@ -88,7 +88,7 @@ def test_C2_reversal_closure_separate_vs_not_swept() -> None:
     assert c2_reversal_closure(c1, c2_both) is False
 
 
-def test_C4_EQ_observed_only_at_FIRST_CLOSED_M15() -> None:
+def test_c4_eq_observed_only_at_first_closed_m15() -> None:
     t = datetime(2026, 1, 15, 1, tzinfo=NY)
     c3 = candle(t, "100", "110", "90", "105")
     unknown = first_c4_eq_observation(
@@ -113,7 +113,7 @@ def test_C4_EQ_observed_only_at_FIRST_CLOSED_M15() -> None:
     assert measured["c4_first_15m_closed_at"] > c3.closed_at.isoformat()
 
 
-def test_C4_EQ_reject_earlier_or_not_closed_future() -> None:
+def test_c4_eq_reject_earlier_or_not_closed_future() -> None:
     t = datetime(2026, 1, 15, 1, tzinfo=NY)
     c3 = candle(t, "100", "110", "90", "105")
     wrong = Vt08B01Bar(
