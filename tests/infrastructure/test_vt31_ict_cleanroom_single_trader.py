@@ -117,3 +117,21 @@ def test_session_mapping_has_one_new_york_model_not_two_traders() -> None:
             assert "vt31_nas100_" not in name
             assert "vt31_silver_bullet_" not in name
             assert "ttrades" not in name
+
+
+def test_rejected_partial_or_gap_bar_never_poison_unified_market_memory() -> None:
+    trader = VT31Trader()
+    start = datetime(2025, 7, 7, 3, tzinfo=NY).astimezone(UTC)
+    with pytest.raises(ValueError, match="partial Silver Bullet window"):
+        trader.on_closed_m1(bar(start + timedelta(minutes=3)))
+    assert trader.total_closed_m1 == 0
+    assert trader.snapshot()["source_windows_seen"] == 0
+
+    trader.on_closed_m1(bar(start))
+    with pytest.raises(ValueError, match="missing/duplicate M1"):
+        trader.on_closed_m1(bar(start + timedelta(minutes=2)))
+    assert trader.total_closed_m1 == 1
+    assert trader.snapshot()["source_windows_seen"] == 1
+    valid = trader.on_closed_m1(bar(start + timedelta(minutes=1)))
+    assert valid.trader_id == "VT31"
+    assert trader.total_closed_m1 == 2
