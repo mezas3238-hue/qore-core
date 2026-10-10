@@ -33,3 +33,38 @@ Los tests `test_capitalizer_scalper_h1_c2_c3_primary_source_characterization_v1.
 **Código nuevo**: `src/qore/infrastructure/trader_lab/capitalizer_scalper_m1_stage_chain_forensic_v1.py`, pruebas `tests/infrastructure/trader_lab/test_capitalizer_scalper_m1_stage_chain_forensic_v1.py`, ejecución exclusiva GitHub `.github/workflows/qore-scalper-a2-seventh-m1-stage-chain.yml`. Las salidas JSONL por source_id no contienen decisiones nuevas.
 
 **Veredicto prerregistro:** hipótesis CISD→entry post-delay incompatible con simulador V49; causa del deterioro conjunto H1+M15+M1 NO resuelta aún. Registro exacto de hitos y validación causal exigidos antes de sacar conclusiones.
+
+## 4. RESULTADO FINAL — 9/9 nativos M1 originales, ninguna regla cambiada
+
+**Corrida** [GitHub Actions #38068938682](https://github.com/mezas3238-hue/qore-core/actions/runs/38068938682): **11/11 SUCCESS** (contrato + 9 mercados + agregado). La reconstrucción con los observadores **reales** Sweep/FVG de V49 conciliaba exactamente las **2876 oportunidades SOURCE, 2020 MAX3**, **1167 positivas**, -233.269327R. Ninguna fuente se perdió en el join, todas pasaron `confirmed_at original == confirmed_at reconstruido`, `decision_reference_price == close M1`, `M15 protected stop == source stop`. El muestreo depende exclusivamente del M1 nativo del proyecto y no usa outcomes para seleccionar eventos. **No se creó una sola operación contrafactual autorizada**.
+
+| Medida H1-aligned favorable +30m | Sweep+CISD (n 954 seleccionados) | FVG_RETRACE_CISD (n 1066 seleccionados) |
+|---|---:|---:|
+| M15 setup confirmado | 419/943 = **44.43%** | 555/1060 = **52.36%** |
+| Sweep candle cerrada | 480/915 = **52.46%** | n/a |
+| Serie opuesta M1 finalizada | 484/913 = **53.01%** | n/a |
+| FVG M1 confirmada | n/a | 513/1045 = **49.09%** |
+| Retest al FVG, vela cerrada | n/a | 567/1041 = **54.47%** |
+| Pivot M1: cierre de vela, aún NO protected | n/a | 666/1036 = **64.29%** |
+| **CISD M1 confirmada / EXEC original** | **362/901 = 40.18%** | **477/1023 = 46.63%** |
+
+**Contraste PAREADO preregistrado, solo mismos source ID con datos M1+30 completos en ambos hitos:**
+- **Sweep candle → CISD**: **N=900**, 475 favorables si se observa al cierre sweep frente a 362 al cierre CISD; cambio **-12.5556 puntos porcentuales** en favorabilidad de dirección H1 a +30m. El cierre Sweep es *no ejecutable según la metodología original* porque todavía falta confirmar CISD, por lo que la diferencia NO equivale a R perdido ni demuestra que entrar en sweep sea mejor con stop/target.
+- **FVG formó → CISD**: **N=1023**, 506 favorables en cierre FVG contra 477 al cerrar CISD; delta **-2.8348 pp**. Este pareado tiene menos pérdida que la ruta Sweep según ancla FVG *formación*, pero el FVG aún no había sido testeado y tampoco es setup confirmado.
+- Pivote FVG a +30m **64.29%** sobre 1036 con cobertura; posterior cierre CISD **46.63%** sobre 1023; **no comparar esas dos tasas como pareja exacta** porque tienen denominadores distintos, aunque es un indicio de concentración temporal post-pivote para fase posterior preregistrada.
+- Mediana **M15 CISD setup→M1 CISD: 17m**, y mediana **evento Sweep/FVG formación→CISD: 6m**. Por familia, Sweep 15m M15→CISD y 4m Sweep→CISD; FVG 19m M15→CISD y 9m FVG→CISD.
+- **En las 2020 operaciones, CISD→entrada fue exactamente CERO minutos**; no existe demora extra tras la CISD en este *simulador*, aunque no mide slippage ni latencia MT5.
+
+**Fuente y trazabilidad**: `src/qore/infrastructure/trader_lab/capitalizer_scalper_m1_stage_chain_forensic_v1.py` reconstruye cada ruta con el mismo `observe_first_m1_cisd` u `observe_first_m1_fvg_cisd_continuation` de V48/V49. Cada fila registra stage, timestamp, precio M1 al cierre y outcomes forward *POST-HOC, NEVER ENTRY*. El observador Sweep **no emite** un protected M1 swing individual: el extremo barrido no fue relabelled 'protected'. En FVG el pivot se observa primero en M1 pero solo pasa a protected al cierre CISD; nunca se antepone confirmación estructural a su existencia. El M15 protected swing de V49 queda independiente de estos hitos.
+
+### Interpretación técnica, NO parametrización
+
+**Localizado con evidencia**: el desfase desfavorable del procedimiento de selección temporal ocurre ya dentro de la secuencia Sweep→CISD y parece relevante alrededor de FVG retrace/pivot→CISD, **no** en una ejecución retrasada después de la CISD. Sin embargo no es prueba de error literal de autor TTrades: los hitos anteriores carecen de confirmación de entrada, y la ventaja medida depende del comportamiento *futuro* de un subconjunto seleccionado porque finalmente sí generó CISD. No basta para adelantar la entrada (lookahead) ni para alterar protected swings. Sigue viva la hipótesis de mala selección del POI, interacción H1 edad/regímenes, riesgo M15, y una metodología fuente fiel pero poco rentable con esta estrategia. NO ha sido demostrado que el 'M1 CISD por sí solo' destruya un edge operable.
+
+**Contradicción C3** sigue UNRESOLVED, sin cambios del generador. Para A/B formal diciembre/enero deben generarse por separado nuevos universos de eventos H1 con todo lo demás congelado, prereg y compararse frecuencias, direccionalidad y economía SIN elegir ganador por PF in-sample. Aun si cambia H1, esa prueba es otra hipótesis upstream, no se mezclarán simultáneamente cambios M1.
+
+**Cobertura temporal real de estos últimos replays:** `DEV_WINDOW_START=2025-09-17` a `DEV_WINDOW_END=2026-09-17` (12 meses). La solicitud de contrastar régimen 2023/2024/2025 **no puede declararse cumplida con este único universo V49**; requiere dataset fuente preservado y periodos OOS antes de concluir estabilidad de años múltiples.
+
+### Veredicto certificado
+
+**SCALPER: NO CERTIFICABLE.** Ningún filtro, stop, target, regla de edad H1 ni anticipación de CISD fue añadido al trader. La selección MAX3, ganadoras 1167, R original y todo el universo siguen congelados. No hay simulación con spreads/comisión MT5, no se ha verificado intervención A1 Master Frame, ni ensayos independientes OOS. El diagnóstico permanece marcado **RESEARCH ONLY**, PR de continuidad DRAFT y sin merge.
