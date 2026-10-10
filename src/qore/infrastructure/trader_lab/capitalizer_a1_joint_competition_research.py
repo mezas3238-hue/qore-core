@@ -177,7 +177,10 @@ def assess_joint_competition_barrier(
         raise ValueError("joint cognitive decision identity collision")
     intents: dict[str, A1ProspectiveSourceExposure] = {}
     for intent in exposure_intents:
-        if intent.source_opportunity_id in intents or intent.source_opportunity_id not in source_map:
+        if (
+            intent.source_opportunity_id in intents
+            or intent.source_opportunity_id not in source_map
+        ):
             raise ValueError("duplicate or unrecognized source exposure intent")
         if (
             intent.symbol != source_map[intent.source_opportunity_id].binding.symbol
