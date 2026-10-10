@@ -167,6 +167,7 @@ def evaluate_full_frame_research_batch(
     explanations = {
         item.symbol: item for item in explain_all_candidates(frame)
     }
+    evaluations = {item.symbol: item for item in frame.candidate_evaluations}
     historical_count = len(settled_memory.as_of(at))
     return tuple(
         A1FullFrameResearchDecision(
@@ -174,7 +175,7 @@ def evaluate_full_frame_research_batch(
             source_opportunity_id=binding.source_opportunity_id,
             symbol=binding.symbol,
             decision_at=at.isoformat(),
-            cognitive_gate=explanations[binding.symbol].audit_record.cognitive_gate_decision.value,
+            cognitive_gate=evaluations[binding.symbol].gate.decision.value,
             why_tokens=explanations[binding.symbol].why_tokens,
             uncertainty_tokens=explanations[binding.symbol].uncertainty_tokens,
             closed_chosen_history_count=historical_count,
