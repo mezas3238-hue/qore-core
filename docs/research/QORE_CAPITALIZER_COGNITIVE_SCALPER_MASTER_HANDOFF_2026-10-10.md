@@ -110,7 +110,288 @@ The certification documentation was amended accordingly.
 
 ---
 
-# 2. FROZEN TRADER IDENTITY
+# 3. AUTHOR / SOURCE PROVENANCE AND FIDELITY AUDIT
+
+This section is mandatory continuity context. The next architect must verify the Trader against the author's own material before claiming source fidelity.
+
+## 2.1 What is the author-source of the Scalper?
+
+The direct published source for the **TTrades Scalping Model** used in the QORE reconstruction is the first-party TTrades publication:
+
+**TTrades — “TTrades Scalping Model – Simple Day Trading Strategy”**  
+Publication date shown by TTrades: 2026-02-07  
+Primary first-party URL:  
+https://ttrades.com/ttrades-scalping-model-simple-day-trading-strategy/
+
+The public first-party site attributes the article/model to **TTrades**. The repository currently has no independently verified personal/legal name behind the TTrades public author identity. Therefore:
+
+- record the author/publisher as **TTrades**;
+- do not invent or infer a personal name;
+- treat first-party TTrades pages/videos/PDFs as primary material for the TTrades Fractal/Scalping Model.
+
+The first-party TTrades model states the top-down structure as:
+
+- Daily = broader directional context;
+- H1 = scalping bias;
+- M15 = swing structure;
+- M1 = execution.
+
+It further states that M1 is where the trade is executed, not where the core decision should be invented, and describes M1 continuation behavior using concepts such as FVG interaction, CISD and protected-swing formation.
+
+This first-party page is the main author-source against which the generic QORE Scalper route must be audited.
+
+## 2.2 TTrades first-party source pack
+
+The following first-party sources are part of the canonical source pack.
+
+### Generic Scalping Model
+
+**TTrades Scalping Model – Simple Day Trading Strategy**  
+https://ttrades.com/ttrades-scalping-model-simple-day-trading-strategy/
+
+Use it to verify:
+- top-down timeframe roles;
+- H1 bias;
+- M15 swing formation;
+- M1 execution role;
+- protected-swing stop concept;
+- higher-timeframe objective targeting;
+- whether M1 techniques are examples/alternatives or universal simultaneous requirements.
+
+### TTrades Fractal Model library
+
+**Trading Education Center — Fractal Model**  
+https://ttrades.com/trading-education-center/ttfm/
+
+Use it as the first-party index for current Fractal Model material.
+
+### Asia
+
+**How to Trade Asia Using the TTrades Fractal Model**  
+https://ttrades.com/how-to-trade-asia-using-the-ttrades-fractal-model/
+
+The source explicitly describes two primary Asia routes:
+
+1. positional entry when a completed higher-timeframe framework/protected swing already exists; or
+2. wait for 4H Candle-2 confirmation, then use the 15M fractal model.
+
+This means a universal H1 -> M15 -> M1 route for Asia is **not automatically source-faithful** merely because it resembles the generic scalping model.
+
+### London
+
+**How to Trade London Using TTrades Fractal Model**  
+https://ttrades.com/how-to-trade-london-using-ttrades-fractal-model/
+
+The first-party London material describes:
+- Daily bias;
+- daily wick formation;
+- 4H swing/wick structure;
+- 15M protected-swing/CISD confirmation;
+- expansion toward higher-timeframe objectives.
+
+Therefore the current QORE universal H1 -> M15 -> M1 London route must be treated as a **QORE operating specialization requiring explicit fidelity adjudication**, not silently labelled as the author's exact London model.
+
+### New York manipulation
+
+**Daily Profile: Understanding the New York Manipulation**  
+https://ttrades.com/daily-profile-understanding-the-new-york-manipulation/
+
+Use it to verify:
+- session liquidity sweep/manipulation logic;
+- CISD confirmation;
+- expansion logic;
+- whether FVG / Order Block / other entry techniques are alternatives rather than a universal AND gate.
+
+### Failure To Manipulate / breakout continuation
+
+**How to Trade Breakouts (Failure to Manipulate)**  
+https://ttrades.com/how-to-trade-breakouts-failure-to-manipulate/
+
+Use it to verify:
+- high/low taken;
+- expected reversal fails to confirm;
+- continuation becomes the working hypothesis;
+- higher-timeframe bias provides the reason;
+- lower-timeframe structure confirms continuation/protected swing.
+
+Do not treat Failure To Manipulate as a standalone universal entry gate unless the author's source explicitly says so.
+
+### Additional first-party context
+
+**The Best Timeframes for TTrades Fractal Model (Simple)**  
+https://ttrades.com/the-best-timeframes-for-ttrades-fractal-model-simple/
+
+**Why Your Continuations Fail (Order Blocks + CISD Explained)**  
+https://ttrades.com/why-your-continuations-fail-order-blocks-cisd-explained/
+
+**Best Trading Strategy for 2026 – TTFM**  
+https://ttrades.com/best-trading-strategy-for-2026-ttfm/
+
+These may be used to resolve exact route semantics, but no rule should be promoted from a title/summary alone. Bind the exact claim to the article/video/PDF passage.
+
+## 2.3 ICT primary-source ancestry
+
+QORE also uses ICT concepts. The primary public author identity for ICT is:
+
+**Michael J. Huddleston — The Inner Circle Trader (ICT).**
+
+Official ICT site:
+https://theinnercircletrader.com/
+
+The official site identifies Michael J. Huddleston as The Inner Circle Trader and as the author/teacher of ICT trading concepts.
+
+Primary retained ICT material already referenced by the repository:
+
+**2022 ICT Mentorship — Episode 2**  
+https://www.youtube.com/watch?v=tmeCWULSTHc
+
+Important boundary:
+
+- ICT is primary authority for claims attributed to ICT;
+- TTrades is primary authority for claims attributed to the TTrades Scalping/Fractal Model;
+- do not use a TTrades explanation as proof that ICT himself required a rule;
+- do not use an ICT concept as proof that TTrades makes it mandatory in every route;
+- exact ICT claims still require timestamp-level provenance where QORE turns them into executable hard rules.
+
+The repository's V48 source reconstruction explicitly states that timestamp-level binding of every current ICT field was not yet complete. That unresolved provenance work remains open.
+
+## 2.4 Existing canonical source-reconstruction document
+
+Before modifying source methodology, read:
+
+`docs/research/QORE-CAPITALIZER-V48-SOURCE-RECONSTRUCTION.md`
+
+That document established the mandatory rule classifications:
+
+- `SOURCE_EXPLICIT`
+- `SOURCE_STRONGLY_IMPLIED`
+- `INTERPRETATION`
+- `QORE_ENGINEERING_RULE`
+- `UNRESOLVED`
+
+Critical governance law:
+
+> `INTERPRETATION`, `QORE_ENGINEERING_RULE` and `UNRESOLVED` must never silently become universal hard gates.
+
+## 2.5 Current source-fidelity status of the QORE Scalper
+
+### Generic H1 -> M15 -> M1 route
+
+**PARTIALLY SOURCE-ALIGNED, NOT YET FULLY CERTIFIED AS SOURCE-FAITHFUL.**
+
+Aligned with TTrades generic Scalping Model:
+- H1 supplies scalping bias/context;
+- M15 supplies swing structure;
+- M1 supplies execution;
+- M1 should not become an independent second strategy;
+- protected swings define logical invalidation;
+- targets should relate to higher-timeframe objectives.
+
+Current QORE deviation:
+- the TTrades generic source includes Daily as broader directional context;
+- Owner/QORE identity currently forbids Daily/H4 as decision/gating layers and freezes H1 -> M15 -> M1;
+- therefore this is a deliberate QORE specialization and must not be described as a verbatim copy of every author rule.
+
+### Asia
+
+**SOURCE-FIDELITY CONFLICT / UNRESOLVED.**
+
+TTrades' current first-party Asia material includes:
+- positional higher-timeframe route; or
+- 4H -> 15M route.
+
+Current universal QORE H1 -> M15 -> M1 Asia path is not proven to be the author's exact Asia methodology.
+
+### London
+
+**SOURCE-FIDELITY CONFLICT / UNRESOLVED.**
+
+TTrades' first-party London material uses Daily -> 4H -> 15M logic.
+Current universal QORE H1 -> M15 -> M1 London path is not the author's published London route.
+
+### New York
+
+**PARTIALLY RESOLVED / ROUTE-SPECIFIC AUDIT REQUIRED.**
+
+TTrades New York manipulation material supports sweep -> CISD -> expansion and plural entry refinement techniques.
+The next architect must determine which QORE New York route is:
+- generic H1 scalping;
+- New York manipulation profile;
+- continuation;
+- Failure To Manipulate;
+- another explicitly sourced route.
+
+Do not collapse these into one universal AND gate.
+
+## 2.6 Mandatory author-fidelity verification protocol
+
+Before declaring any QORE Scalper architecture “faithful to the author,” build a rule ledger with one row per executable rule.
+
+Required columns:
+
+| Field | Meaning |
+|---|---|
+| QORE rule ID | exact executable rule/module |
+| Session | Asia / London / New York / generic |
+| Route | exact source route |
+| Timeframe | H1 / M15 / M1 / author HTF if applicable |
+| QORE behavior | what the code actually requires |
+| Source author | TTrades or ICT/Michael J. Huddleston |
+| Primary source | exact first-party URL/video/PDF |
+| Timestamp/page | exact location of claim |
+| Source wording summary | short paraphrase only |
+| Classification | SOURCE_EXPLICIT / STRONGLY_IMPLIED / INTERPRETATION / QORE_ENGINEERING_RULE / UNRESOLVED |
+| Mandatory vs alternative | whether author requires it or presents it as one route/technique |
+| Fidelity verdict | MATCH / PARTIAL / CONFLICT / UNRESOLVED |
+| Action | keep / route-scope / remove-as-hard-gate / research |
+
+No architecture may receive `SOURCE_FAITHFUL` status while mandatory rows remain CONFLICT or UNRESOLVED.
+
+## 2.7 Source-fidelity graph required before certification
+
+The next architect must construct:
+
+`AUTHOR SOURCE GRAPH -> QORE RULE GRAPH -> DIFFERENTIAL`
+
+At minimum by:
+- generic Scalping route;
+- Asia route(s);
+- London route(s);
+- New York route(s);
+- FTM/continuation route;
+- M1 execution family.
+
+For each route answer:
+
+1. What supplies bias?
+2. What confirms the swing?
+3. What confirms continuation/reversal?
+4. What timeframe executes?
+5. What are valid alternative entries?
+6. What invalidates execution?
+7. What invalidates thesis?
+8. What is the target/draw?
+9. What is mandatory?
+10. What is optional/contextual?
+11. Which QORE rules are engineering additions rather than author rules?
+
+## 2.8 Certification implication
+
+Source fidelity and statistical certification are separate gates.
+
+A model can be:
+- statistically strong but source-unfaithful;
+- source-faithful but statistically weak;
+- both;
+- neither.
+
+For this Trader, both are required before describing it as a certified source-faithful Scalper.
+
+Therefore final certification must include an explicit **Author Fidelity Audit** in addition to PF, expectancy, DD, Sharpe, Sortino, Monte Carlo, cost, winner preservation, anti-leakage and independent/prospective OOS.
+
+---
+
+# 3. FROZEN TRADER IDENTITY
 
 Core contract identity:
 `QORE_CAPITALIZER_COGNITIVE_SCALPER_V1`
@@ -143,7 +424,7 @@ Primary contracts:
 
 ---
 
-# 3. OPERATING UNIVERSE AND SESSION MODEL
+# 4. OPERATING UNIVERSE AND SESSION MODEL
 
 Session segmentation is DST-aware and based on America/New_York.
 
@@ -180,7 +461,7 @@ These are broad research/operating buckets, not claims that the bucket itself cr
 
 ---
 
-# 4. SCALPER OPERATIONAL MODEL — H1 -> M15 -> M1
+# 5. SCALPER OPERATIONAL MODEL — H1 -> M15 -> M1
 
 ## 4.1 H1 — persistent context state
 
@@ -243,7 +524,7 @@ MAX3 is portfolio-wide per session/operating date:
 
 ---
 
-# 5. STOP AND TARGET MODEL
+# 6. STOP AND TARGET MODEL
 
 ## 5.1 Dual invalidation
 
@@ -315,7 +596,7 @@ Again, these are development hypotheses until independent validation.
 
 ---
 
-# 6. COGNITIVE ARCHITECTURE — COMPONENTS AND FUNCTIONS
+# 7. COGNITIVE ARCHITECTURE — COMPONENTS AND FUNCTIONS
 
 The Scalper cognition is not one filter. It is a layered decision-time architecture.
 
@@ -835,7 +1116,7 @@ This module is architecture-only and does not define an admission rule.
 
 ---
 
-# 7. RESEARCH LINEAGE AND WHAT WAS LEARNED
+# 8. RESEARCH LINEAGE AND WHAT WAS LEARNED
 
 ## V48 — density failure
 
@@ -1202,7 +1483,7 @@ Fix import order only.
 
 ---
 
-# 8. IMPORTANT OLD RESULTS THAT ARE NOW DIAGNOSTIC ONLY
+# 9. IMPORTANT OLD RESULTS THAT ARE NOW DIAGNOSTIC ONLY
 
 Before the core execution-stop correction, V50-G showed strong loss suppression but extremely poor winner preservation.
 
@@ -1219,7 +1500,7 @@ Mandatory next task:
 
 ---
 
-# 9. CURRENT GITHUB QUALITY STATE
+# 10. CURRENT GITHUB QUALITY STATE
 
 Current HEAD:
 `db0fec90c95bb434e1828aa862de622f3653348d`
@@ -1251,7 +1532,7 @@ Therefore the global CI red state is currently explained by known style failures
 
 ---
 
-# 10. CERTIFICATION STANDARD V2 — WHAT MUST BE PASSED
+# 11. CERTIFICATION STANDARD V2 — WHAT MUST BE PASSED
 
 Executable contract:
 `capitalizer_scalper_certification_standard_v2.py`
@@ -1305,7 +1586,7 @@ High-frequency density remains a design goal and the certification standard stil
 
 ---
 
-# 11. WHAT IS STILL MISSING BEFORE CERTIFICATION
+# 12. WHAT IS STILL MISSING BEFORE CERTIFICATION
 
 This is the critical unfinished work.
 
@@ -1555,7 +1836,7 @@ Still mandatory before ACCEPTED:
 
 ---
 
-# 12. DATA SOURCES AND RETAINED ARTIFACTS
+# 13. DATA SOURCES AND RETAINED ARTIFACTS
 
 ## Current development provider-native M1 source
 
@@ -1584,7 +1865,7 @@ Under Owner override this era is valid for repair research and is considered con
 
 ---
 
-# 13. KEY FILE MAP FOR THE NEXT ARCHITECT
+# 14. KEY FILE MAP FOR THE NEXT ARCHITECT
 
 ## Frozen identity / operating model
 - `capitalizer_contract.py`
@@ -1645,7 +1926,7 @@ Under Owner override this era is valid for repair research and is considered con
 
 ---
 
-# 14. KEY GITHUB ACTIONS WORKFLOWS
+# 15. KEY GITHUB ACTIONS WORKFLOWS
 
 Active corrected-core workflows:
 
@@ -1663,7 +1944,7 @@ All V50-derived experiments have been bound to the V50 stop-integrity dependency
 
 ---
 
-# 15. IMPORTANT ENGINEERING COMMITS FROM THIS WORK CYCLE
+# 16. IMPORTANT ENGINEERING COMMITS FROM THIS WORK CYCLE
 
 Selected continuity commits:
 
@@ -1686,7 +1967,7 @@ Selected continuity commits:
 
 ---
 
-# 16. RESEARCH LAWS THAT MUST NOT BE BROKEN
+# 17. RESEARCH LAWS THAT MUST NOT BE BROKEN
 
 The next architect must preserve these laws:
 
@@ -1713,7 +1994,7 @@ The next architect must preserve these laws:
 
 ---
 
-# 17. SCIENTIFIC PRIORITY FROM THIS HANDOFF
+# 18. SCIENTIFIC PRIORITY FROM THIS HANDOFF
 
 The core question is no longer:
 
@@ -1743,7 +2024,7 @@ Priority research order:
 
 ---
 
-# 18. CURRENT BOTTOM LINE
+# 19. CURRENT BOTTOM LINE
 
 What is already demonstrated:
 
@@ -1771,7 +2052,7 @@ The next architect should **repair the blocked research harnesses first** and co
 
 ---
 
-# 19. CANONICAL REFERENCES
+# 20. CANONICAL REFERENCES
 
 PR:
 - #623
