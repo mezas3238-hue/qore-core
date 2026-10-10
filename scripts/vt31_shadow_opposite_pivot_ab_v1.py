@@ -18,6 +18,7 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
 from qore.infrastructure.traders.vt31_ict_cleanroom.m1_execution import (
     confirmed_m1_fvg,
 )
+
 SCHEMA = "qore.vt31.shadow_opposite_pivot_ab.source.v1"
 
 
