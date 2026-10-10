@@ -74,7 +74,8 @@ class FourArmOrchestrationTests(unittest.TestCase):
                 m=db.execute(
                     "SELECT value FROM meta WHERE key='canonical_research_paper_authority'"
                 ).fetchone()[0]
-                self.assertEqual(m,"PaperQDLE_V1_SINGLE_RESERVATION_BOOK")
+                # QDLE stores SQLite meta strings as canonical JSON values.
+                self.assertEqual(json.loads(m),"PaperQDLE_V1_SINGLE_RESERVATION_BOOK")
             self.assertTrue(Path(part["sqlite_archive"]["path"]).is_file())
             self.assertTrue(part["receipts_sha256"].startswith("sha256:"))
         self.assertEqual(len(files),4)
