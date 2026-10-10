@@ -69,7 +69,13 @@ def rows(bars: tuple[M1Bar, ...]):
 def test_probe_preserves_real_cognition_and_ops_source_candidate() -> None:
     normal = VT31Trader()
     probed = VT31Trader(cognition=CausalForensicCognition())
-    for item in source():
+    observed = source()
+    # The first suitable FVG can be chosen on the initial M1 MSS candle;
+    # an extra CLOSED M1 is necessary to actually re-evaluate that thesis.
+    next_closed = bar(
+        observed[-1].closed_at, "108", "109", "105", "108"
+    )
+    for item in (*observed, next_closed):
         x = normal.on_closed_m1(item)
         y = probed.on_closed_m1(item)
         assert y == x
