@@ -32,15 +32,18 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_author_route_audit_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_caller_audit_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_high_frequency_capacity_census_v49.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_author_route_audit_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_caller_audit_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_v49_h1_target_causality.py \
             tests/infrastructure/trader_lab/test_capitalizer_v49_source_alternative_contract.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py
       - name: Mypy methodology and certification
         run: |
           mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_caller_audit_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_author_route_audit_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_high_frequency_capacity_census_v49.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py
@@ -48,10 +51,24 @@ jobs:
         run: |
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_author_route_audit_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_caller_audit_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_v49_h1_target_causality.py \
             tests/infrastructure/trader_lab/test_capitalizer_v49_source_alternative_contract.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py \
             tests/infrastructure/trader_lab/test_capitalizer_high_frequency_capacity_census_v49.py
+      - name: Static caller census for QORE source gates
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_caller_audit_v1 \
+            --source-root src \
+            --json-out artifacts/scalper-entry-caller-census.json \
+            | tee artifacts/scalper-entry-caller-census.log
+      - name: Upload caller evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scalper-entry-caller-census
+          path: artifacts/scalper-entry-caller-census.*
+          if-no-files-found: warn
 
   full_quality:
     runs-on: ubuntu-latest
