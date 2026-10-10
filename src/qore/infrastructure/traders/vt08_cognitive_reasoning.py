@@ -12,6 +12,10 @@ import json
 from dataclasses import dataclass
 from typing import Final
 
+from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
+    Vt08FiveMarketResearchSituation,
+    research_market_anchor_context,
+)
 from qore.infrastructure.traders.vt08_cognitive_memory import (
     cognitive_memory_fingerprint,
     market_anchor_context,
@@ -142,9 +146,10 @@ def metacognitive_assessment(
 def reason(
     situation: Vt08ForexSituationModel,
 ) -> Vt08ReasoningDecision:
-    memory_context = market_anchor_context(
-        situation.market,
-        situation.anchor_hour_ny,
+    memory_context = (
+        research_market_anchor_context(situation.market, situation.anchor_hour_ny)
+        if isinstance(situation, Vt08FiveMarketResearchSituation)
+        else market_anchor_context(situation.market, situation.anchor_hour_ny)
     )
     context_fingerprint = str(memory_context["fingerprint"])
     adversarial = adversarial_assessment(situation)
@@ -157,6 +162,9 @@ def reason(
     elif adversarial.unresolved_material_challenges:
         action = Vt08CognitiveAction.WAIT
         reasons.append("REASONING:MATERIAL_UNCERTAINTY")
+    elif meta.state is Vt08KnowledgeState.UNKNOWN:
+        action = Vt08CognitiveAction.WAIT
+        reasons.append("REASONING:NO_EXECUTION_SUPPORT_EVIDENCE")
     elif situation.cisd_state not in {"CONFIRMED", "NOT_REQUIRED_BY_BOUND_PROFILE"}:
         action = Vt08CognitiveAction.WAIT
         reasons.append("REASONING:CISD_NOT_COMPLETE")
