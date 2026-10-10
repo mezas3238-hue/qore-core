@@ -4,6 +4,7 @@ No price-path economic replay and no historical source-entry authority is claime
 """
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -410,3 +411,37 @@ def test_full_five_market_stream_every_admission_gets_cognition() -> None:
         and decision.metacognitive_state
         for decision in gate.decisions
     )
+
+
+def test_dst_fallback_repeated_new_york_hour_uses_distinct_absolute_clock() -> None:
+    """01:30 repeats on DST fallback; comparisons must use aware instants."""
+    before_fold = datetime(2026, 11, 1, 5, 30, tzinfo=UTC)
+    after_fold = datetime(2026, 11, 1, 6, 30, tzinfo=UTC)
+    cycle_end = datetime(2026, 11, 1, 7, 0, tzinfo=UTC)
+    ny = ZoneInfo("America/New_York")
+    assert before_fold.astimezone(ny).hour == after_fold.astimezone(ny).hour == 1
+    assert before_fold.astimezone(ny).fold == 0
+    assert after_fold.astimezone(ny).fold == 1
+    gate = Vt08FiveMarketCognitiveGate()
+    wait = gate.evaluate(
+        _snapshot(
+            source="synthetic-dst-event",
+            when=before_fold,
+            anchor_hour_ny=1,
+            source_cycle_id="synthetic-dst-cycle",
+            cycle_expires_at=cycle_end,
+            cisd_state="PENDING",
+        )
+    )
+    execute = gate.evaluate(
+        _snapshot(
+            source="synthetic-dst-event",
+            when=after_fold,
+            anchor_hour_ny=1,
+            source_cycle_id="synthetic-dst-cycle",
+            cycle_expires_at=cycle_end,
+        )
+    )
+    assert wait.action is Vt08CognitiveAction.WAIT
+    assert execute.action is Vt08CognitiveAction.EXECUTE
+    assert len(gate.decisions) == 2
