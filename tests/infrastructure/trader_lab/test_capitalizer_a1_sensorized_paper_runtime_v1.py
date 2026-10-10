@@ -16,6 +16,13 @@ from test_capitalizer_master_cognitive_frame import (
     _paper_source,
 )
 
+from qore.infrastructure.trader_lab import (
+    capitalizer_a1_native_source_session_clock_attestation_v1 as native_clock,
+)
+from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
+from qore.infrastructure.trader_lab.capitalizer_source_session_context_v2 import (
+    CapitalizerSourceSessionResolution,
+)
 from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
     A1M1ProtectedRouteReview,
     M1ProtectionClass,
@@ -389,3 +396,64 @@ def test_second_confirmed_m1_pivot_reaches_true_master_context_not_trade_veto() 
         )
     with pytest.raises(ValueError, match="need original V2 lineage"):
         invoke(first, {ids[0]: second[ids[0]]})
+
+
+def test_actual_ny_source_clock_provenance_enters_master_paper_without_killzone_veto() -> None:
+    originals, snapshots = _inputs()
+    ids = tuple(x.source_opportunity_id for x in originals)
+    clock_witnesses: dict[str, native_clock.A1V49SourceClockEvidence] = {}
+    for row in originals:
+        clock_witnesses[row.source_opportunity_id] = (
+            native_clock.A1V49SourceClockEvidence(
+                source_opportunity_id=row.source_opportunity_id,
+                symbol=row.trade.symbol,
+                source_session=CapitalizerSession.ASIA,
+                source_operating_date=row.trade.operating_date,
+                observed_at=T.isoformat(),
+                m1_opened_at=(T - timedelta(minutes=1)).isoformat(),
+                new_york_local_time="2026-01-04T20:00:00-05:00",
+                new_york_utc_offset_minutes=-300,
+                qore_bucket_reconfirmed=(
+                    native_clock.ClockAttestationStatus.QORE_BUCKET_RECONFIRMED
+                ),
+                local_operating_day_reconfirmed=True,
+                within_qore_research_session=True,
+                remaining_session_seconds=6 * 3600,
+                methodology_window_resolution=(
+                    CapitalizerSourceSessionResolution.REVIEW_REQUIRED
+                ),
+                methodology_window_id="ICT_ASIAN_OPEN_REFERENCE_REQUIRED",
+            )
+        )
+    result = run_sensorized_master_frame_paper(
+        barriers=(_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+        source_evidence=snapshots,
+        source_originals=originals,
+        baseline_selected_source_ids=ids,
+        source_clock_witnesses=clock_witnesses,
+    )
+    assert result.independently_attested_source_clocks == 3
+    assert result.source_methodology_windows_unresolved == 3
+    assert result.full_master_frame_invoked
+    assert result.report.paper_selected == 3
+    assert not result.automatically_vetoed_cisd_conflicts
+    assert not result.live_authorized
+    with pytest.raises(ValueError, match="all original source IDs need clock provenance"):
+        run_sensorized_master_frame_paper(
+            barriers=(_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+            source_evidence=snapshots, source_originals=originals,
+            baseline_selected_source_ids=ids,
+            source_clock_witnesses={ids[0]: clock_witnesses[ids[0]]},
+        )
+    with pytest.raises(ValueError, match="cannot cross V49 ancestry"):
+        run_sensorized_master_frame_paper(
+            barriers=(_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+            source_evidence=snapshots, source_originals=originals,
+            baseline_selected_source_ids=ids,
+            source_clock_witnesses={
+                **clock_witnesses,
+                ids[0]: replace(
+                    clock_witnesses[ids[0]], source_operating_date="2024-01-01"
+                ),
+            },
+        )
