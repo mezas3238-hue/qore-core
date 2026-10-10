@@ -202,3 +202,30 @@ def test_no_assumption_that_mae_before_exit_bar_predicts_sequence() -> None:
     assert row.mae_preterminal_r == "0.3"
     assert row.mae_full_exitbar_observation_upper_r == "0.6"
     assert row.forward_returns_are_research_labels_only
+
+
+def test_native_m1_gap_does_not_erase_observed_target_witness() -> None:
+    source = _source()
+    old = _trade(source)
+    trade = replace(
+        old, exit_reason="TARGET", realized_gross_r="2",
+        m1_bars_held=14,
+    )
+    bars = tuple(
+        _bar(
+            i,
+            high="102" if i == 44 else "101",
+            low="99.1",
+        )
+        for i in range(70) if i != 36
+    )
+    result = diagnostic_one(
+        source, trade, _excursion(trade),
+        bars, tuple(x.opened_at for x in bars),
+    )
+    assert result.target_hit_in_real_trade is True
+    assert result.target_first_observed_touch_delay_minutes_hypothetical == 15
+    assert result.target_observed_touch_follows_native_m1_gap is True
+    assert result.forward_15m_signed_price is None
+    assert result.forward_30m_signed_price is None
+    assert result.forward_60m_signed_price is None
