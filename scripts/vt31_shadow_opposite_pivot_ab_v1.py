@@ -15,7 +15,7 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
     VT31CleanroomCognition,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    M1Bar, SessionId, Side, utc, MethodologyDecision,
+    M1Bar, MethodologyDecision, SessionId, Side, utc,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.m1_execution import (
     confirmed_m1_fvg,
