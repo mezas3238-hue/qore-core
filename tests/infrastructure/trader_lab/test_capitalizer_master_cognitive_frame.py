@@ -646,6 +646,13 @@ def test_a1_multi_hypothesis_census_keeps_every_same_market_candidate() -> None:
     assert evidence.pass_to_strategy == 3
     assert evidence.wait == evidence.abstain == 0
     assert evidence.global_opportunity_arbitration_resolved is False
+    assert len(evidence.competition_demand) == 1
+    assert evidence.competition_demand[0].presented_source_count == 3
+    assert evidence.competition_demand[0].source_counts_by_market == (
+        ("AUDJPY", 2), ("USDJPY", 1)
+    )
+    assert evidence.competition_demand[0].arbitration_required is True
+    assert evidence.competition_demand[0].selected_source_id is None
     assert evidence.trade_selected is False
     assert evidence.economic_admission_changed is False
     assert evidence.actual_historical_replay_completed is False
@@ -756,6 +763,14 @@ def test_a1_multi_hypothesis_dense_burst_preserves_every_candidate() -> None:
     assert set(direct.source_ids) == set(expected)
     assert direct.pass_to_strategy == 9
     assert direct.global_opportunity_arbitration_resolved is False
+    assert direct.competition_demand[0].presented_source_count == 9
+    assert direct.competition_demand[0].source_counts_by_market == (
+        ("AUDJPY", 8), ("USDJPY", 1)
+    )
+    assert len(direct.competition_demand[0].pass_source_ids) == 9
+    assert direct.competition_demand[0].available_session_slots == 1
+    assert direct.competition_demand[0].arbitration_required is True
+    assert direct.competition_demand == shuffled.competition_demand
     # The fixture has only ONE execution slot left; 9 research PASSes are
     # never represented as 9 permitted executions or as a quota bypass.
     assert barrier.world.execution_slots_remaining == 1
