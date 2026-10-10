@@ -68,12 +68,15 @@ class A1SettledChosenTrade:
     entry_at: datetime
     exit_at: datetime
     loss_cause: CapitalizerLossCause | None = None
+    confirmed_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if not self.execution_id:
             raise ValueError("settled execution ID is mandatory")
         if _aware(self.exit_at) < _aware(self.entry_at):
             raise ValueError("trade cannot settle before entry")
+        if self.confirmed_at is not None and _aware(self.confirmed_at) < _aware(self.exit_at):
+            raise ValueError("settlement confirmed before actual exit")
         if self.loss_cause is not None and self.loss_cause.loss_id != self.execution_id:
             raise ValueError("settled loss must match the chosen execution identity")
 
@@ -90,12 +93,15 @@ class A1CausalSettledMemory:
             raise ValueError("duplicate settled execution ID")
 
     def as_of(self, decision_at: datetime) -> tuple[A1SettledChosenTrade, ...]:
-        """Strictly earlier closes only: same-clock ties are NOT yet visible."""
+        """Strictly earlier *known* closes; same-clock ACK is not visible."""
         _aware(decision_at)
         return tuple(
             sorted(
-                (item for item in self.chosen_settlements if item.exit_at < decision_at),
-                key=lambda item: (item.exit_at, item.execution_id),
+                (
+                    item for item in self.chosen_settlements
+                    if (item.confirmed_at or item.exit_at) < decision_at
+                ),
+                key=lambda item: (item.confirmed_at or item.exit_at, item.execution_id),
             )
         )
 
