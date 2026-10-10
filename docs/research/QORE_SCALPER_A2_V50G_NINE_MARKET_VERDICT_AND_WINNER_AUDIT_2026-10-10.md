@@ -67,3 +67,24 @@ En la matriz de 9 mercados SOURCE total 2,876:
 4. Certificar únicamente si 9/9 dataset iguales, retención ≥934 winners/≥415.75R original mass, PF/OOS/física bid-ask, Drawdown ≤6R Owner, Sharpe/Sortino/MC, fuente TTrades e integridad causal. Las pruebas de ingeniería exitosas no sustituyen estas barreras.
 
 **VEREDICTO FINAL: V49 ECONOMICS FAIL; V50-G PF IMPROVED BUT RETENTION/SOLVENCY FAIL; SCALPER NOT CERTIFIABLE / NO LIVE / NO VPS / NO MERGE.**
+
+## CAUSA INMEDIATA DE LOS 2,782 RECHAZOS — descomposición exacta por reason-code
+
+**Corrida forense adicional:** [GitHub Actions #38057731321](https://github.com/mezas3238-hue/qore-core/actions/runs/38057731321) SUCCESS, lee el waterfall de 9/9 del mismo V50-G sin modificarlo ni seleccionar trades por outcomes. Suma de ocurrencias `geometry_reason_occurrences` = 2,655, suma `bridge_reason_occurrences_on_geometry_ready` = 127, con cardinalidad exacta en este caso (cada reject con una razón).
+
+| Etapa | Reason code | Oportunidades | Interpretación, NO política aprobada |
+|---|---|---:|---|
+| Geometry | `M1_EXECUTION_STOP_INSIDE_LOCAL_NOISE` | **2,371** | Motor de geometría interpreta stop M1 de ejecución dentro del ruido de corto plazo; filtro basado en escala M1 QORE, **no** exigencia universal demostrada de TTrades |
+| Geometry | `M1_EXECUTION_INVALIDATION_UNAVAILABLE` | **272** | No se construyó un nivel causal M1 de invalidación para esa oportunidad en el selector V50-G, aunque el candidato V49 tiene protected swing M15 |
+| Geometry | `M1_EXECUTION_STOP_TOO_WIDE_FOR_SCALP` | **10** | Invalidez M1 demasiado lejana según criterio ingenieril de geometría; no confundir 4–8× stop/local M1 range con 4–8R reward/risk |
+| Geometry | `NO_CAUSAL_H1_DESTINATION_LADDER` | 1 | Sin escalera de objetivo estructural H1 causal en el detector |
+| Geometry | `NO_H1_DESTINATION_AT_OR_ABOVE_1R_WITH_EXECUTION_STOP` | 1 | Objetivo H1 disponible pero la regla V50-G exige ≥1R desde el stop de ejecución M1; es regla económica del modelo, no source literal |
+| **TOTAL GEOMETRY** | | **2,655** | 92.32% del universo 2,876 no pasa geometría |
+| Cognition after geometry READY | `H1_CONTEXT_STALE` | **99** | Contexto H1 considerado caducado por TTL de puente cognitivo |
+| Cognition after geometry READY | `M15_SETUP_EXECUTION_WINDOW_STALE` | **23** | M15 confirmado pero considerado fuera de ventana por reglas de timeout |
+| Cognition after geometry READY | `SESSION_RUNWAY_EXHAUSTING` | **5** | Sesión avanzada y ventana restante insuficiente según regla del puente |
+| **TOTAL COGNITION after READY** | | **127** | De 221 READY, sólo 94 sobreviven |
+
+**Hallazgo P0 principal:** 2,371 rechazos por `M1_EXECUTION_STOP_INSIDE_LOCAL_NOISE`, **82.44% de todas las oportunidades V49 (2,876)** y **89.30% de los rechazados geométricos**. Es **la causa cuantitativamente dominante** de la caída de frecuencia, no un AND MSS+FVG+OB, ni MAX3, ni 90-trade statistics. En adición, las reglas de «staleness» H1 y M15 representan 122 de 127 rechazos cognitivos.
+
+**Acción ordenada de ingeniería, SIN aflojar seguridad hoy:** reconstruir con trazas `m1_invalidating_swing`, `recent_m1_range`, `stop_distance`, `execution_stop_noise`, timestamp y protected swing M15 para cada uno de los 2,371 rechazados. Distinguir casos con protected swing M1 válido pero <4× M1 recent range, casos realmente sin invalidación, y alternativas metodológicamente respaldadas (stop protegido M15 como estructura vs refinado M1) mediante A/B congelado en GitHub, manteniendo capital/riesgo/solvencia y first-come MAX3. Para los 99 H1 stale, distinguir TTL artificial QORE de invalidación por swing/tesis real, sin usar `h1_state_until` futuro. NO activar señales a ciegas.
