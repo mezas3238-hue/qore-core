@@ -98,6 +98,7 @@ def audit(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
         first_observed_touch: datetime | None = None
         first_ambiguous: datetime | None = None
         first_cognitive_revocation: datetime | None = None
+        first_revocation_bar_overlap: datetime | None = None
 
         for m1 in pending_bars:
             observation = trader.on_closed_m1(m1)
@@ -119,14 +120,31 @@ def audit(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
                 candidates[window.value] += 1
             if offer is None:
                 continue
-            if (
+            gross_ce_overlap = (
                 m1.closed_at > offer.offered_at
                 and m1.low <= offer.source.consequent_encroachment <= m1.high
+            )
+            if (
+                gross_ce_overlap
                 and first_observed_touch is None
+                and phase in (
+                    MethodologyDecision.RESEARCH_PENDING_CE,
+                    MethodologyDecision.RESEARCH_TOUCH_NOT_FILL,
+                )
             ):
-                # NOT a quote: M1 midpoint OHLC overlap may have happened
-                # before cognitive revocation inside the very same M1.
+                # Research-only OHLC price overlap BEFORE a terminal
+                # cancellation. Never count later prices from a canceled
+                # order as a potential quote crossing or a real fill.
                 first_observed_touch = m1.closed_at
+            if (
+                gross_ce_overlap
+                and phase is MethodologyDecision.SOURCE_INVALIDATED
+                and first_revocation_bar_overlap is None
+            ):
+                # No intrabar tick ordering exists: a CE-touch and COG
+                # cancellation both appear in this CLOSED M1. The outcome
+                # is UNKNOWN, not an eligible quote fill.
+                first_revocation_bar_overlap = m1.closed_at
             if phase is MethodologyDecision.AMBIGUOUS_PRICE_PATH:
                 first_ambiguous = first_ambiguous or m1.closed_at
             if phase is MethodologyDecision.SOURCE_INVALIDATED:
@@ -170,11 +188,23 @@ def audit(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
                     None if first_ambiguous is None
                     else first_ambiguous.isoformat()
                 ),
+                "m1_ce_overlap_same_m1_as_source_revocation": (
+                    None if first_revocation_bar_overlap is None
+                    else first_revocation_bar_overlap.isoformat()
+                ),
                 "cognition_lost_or_source_invalidated_at": (
                     None if first_cognitive_revocation is None
                     else first_cognitive_revocation.isoformat()
                 ),
                 "final_source_phase": ops.decision.value,
+                "source_invalidation_reason": (
+                    ops.source_invalidation_reason
+                    or (
+                        "M1_SOURCE_ZONE_INVALIDATED"
+                        if ops.decision is MethodologyDecision.SOURCE_INVALIDATED
+                        else None
+                    )
+                ),
                 "research_order_terminal": offer.state.value,
                 "bid_ask_quote_crossing_proven": False,
                 "actual_broker_order_submitted": False,
@@ -222,6 +252,15 @@ def audit(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
     gross_m1_price_touch = sum(
         x["m1_touch_observed_at_not_fill"] is not None for x in study_events
     )
+    same_revocation_overlap = sum(
+        x["m1_ce_overlap_same_m1_as_source_revocation"] is not None
+        for x in study_events
+    )
+    revocation_reasons = Counter(
+        str(x["source_invalidation_reason"])
+        for x in study_events
+        if x["source_invalidation_reason"] is not None
+    )
     return {
         "schema": "qore.vt31.ict_cleanroom.one_trader.3y_m1_offer_audit.v1",
         "source_base": SOURCE_ID,
@@ -237,7 +276,16 @@ def audit(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
         },
         "post_source_final_phases": dict(sorted(counts.items())),
         "post_source_final_phases_by_window": dict(sorted(phase_counts.items())),
-        "m1_price_touch_seen_without_broker_fill": gross_m1_price_touch,
+        "m1_price_touch_seen_while_source_valid_not_broker_fill": (
+            gross_m1_price_touch
+        ),
+        "m1_ce_overlap_same_close_as_revocation_order_unknown": (
+            same_revocation_overlap
+        ),
+        "terminal_source_invalidation_reason_counts": dict(
+            sorted(revocation_reasons.items())
+        ),
+        "post_revocation_m1_price_touches_excluded": True,
         "historical_bid_ask_tick_stream_supplied": False,
         "M1_columns_on_first_market_row": sorted(bidask_columns),
         "real_historical_broker_quote_ticks": total_real_broker_quote_rows,
