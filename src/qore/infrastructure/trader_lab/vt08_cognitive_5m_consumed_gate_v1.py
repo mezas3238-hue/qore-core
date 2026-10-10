@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from typing import Final
 from zoneinfo import ZoneInfo
 
@@ -27,6 +28,7 @@ from qore.infrastructure.traders.vt08_cognitive_position_intelligence import (
 from qore.infrastructure.traders.vt08_cognitive_v1_contracts import (
     Vt08CognitiveAction,
     Vt08HypothesisState,
+    Vt08KnowledgeState,
     Vt08PositionAction,
 )
 
@@ -46,6 +48,10 @@ class Vt08CognitiveDecisionTrace:
     strategy_identity_fingerprint: str
     memory_fingerprint: str
     market_context_fingerprint: str
+    metacognitive_state: Vt08KnowledgeState
+    adversarial_challenges: tuple[str, ...]
+    adversarial_unknowns: tuple[str, ...]
+    supporting_evidence: tuple[str, ...]
     research_only: bool = True
     broker_order_authorized: bool = False
 
@@ -59,6 +65,10 @@ class Vt08CognitivePositionTrace:
     reason_codes: tuple[str, ...]
     journey_fingerprint: str
     position_fingerprint: str
+    journey_state: str
+    destination_state: str
+    next_stop: Decimal | None
+    policy_calibrated: bool
     research_only: bool = True
     broker_order_authorized: bool = False
 
@@ -72,6 +82,7 @@ class Vt08FiveMarketCognitiveGate:
         self._last_decision_at: dict[str, datetime] = {}
         self._last_position_at: dict[str, datetime] = {}
         self._executed: set[str] = set()
+        self._last_global_as_of: datetime | None = None
         self._decisions: list[Vt08CognitiveDecisionTrace] = []
         self._positions: list[Vt08CognitivePositionTrace] = []
 
@@ -111,6 +122,11 @@ class Vt08FiveMarketCognitiveGate:
     ) -> Vt08CognitiveDecisionTrace:
         """Consume an as-of source snapshot, preserving WAIT and killed events."""
         event_id, source_identity = self._check_source_identity(situation)
+        if (
+            self._last_global_as_of is not None
+            and situation.as_of < self._last_global_as_of
+        ):
+            raise ValueError("VT08 global replay clock cannot move backwards")
         if situation.cycle_expires_at is None or (
             situation.as_of >= situation.cycle_expires_at
         ):
@@ -128,6 +144,7 @@ class Vt08FiveMarketCognitiveGate:
         self._hypotheses[event_id] = assessed.hypothesis
         self._last_decision_at[event_id] = situation.as_of
         self._event_identity[event_id] = source_identity
+        self._last_global_as_of = situation.as_of
         if assessed.decision.action is Vt08CognitiveAction.EXECUTE:
             self._executed.add(event_id)
         d = assessed.decision
@@ -143,6 +160,10 @@ class Vt08FiveMarketCognitiveGate:
             strategy_identity_fingerprint=d.strategy_identity_fingerprint,
             memory_fingerprint=d.cognitive_memory_fingerprint,
             market_context_fingerprint=d.market_anchor_context_fingerprint,
+            metacognitive_state=d.metacognition.state,
+            adversarial_challenges=d.adversarial.material_challenges,
+            adversarial_unknowns=d.adversarial.unresolved_material_challenges,
+            supporting_evidence=d.supporting_evidence,
         )
         self._decisions.append(trace)
         return trace
@@ -154,6 +175,11 @@ class Vt08FiveMarketCognitiveGate:
     ) -> Vt08CognitivePositionTrace:
         """Read-only position advice. It never edits a trade or executes an exit."""
         event_id, _ = self._check_source_identity(situation)
+        if (
+            self._last_global_as_of is not None
+            and situation.as_of < self._last_global_as_of
+        ):
+            raise ValueError("VT08 global replay clock cannot move backwards")
         if event_id not in self._executed:
             raise ValueError("VT08 cannot assess unadmitted research position")
         if situation.as_of != position.as_of:
@@ -176,6 +202,7 @@ class Vt08FiveMarketCognitiveGate:
             policy=RESEARCH_UNCALIBRATED_POSITION_POLICY,
         )
         self._last_position_at[event_id] = situation.as_of
+        self._last_global_as_of = situation.as_of
         trace = Vt08CognitivePositionTrace(
             market=situation.market,
             source_event_id=event_id,
@@ -184,6 +211,10 @@ class Vt08FiveMarketCognitiveGate:
             reason_codes=result.position_decision.reason_codes,
             journey_fingerprint=result.journey.fingerprint(),
             position_fingerprint=result.position_decision.fingerprint(),
+            journey_state=result.journey.journey_state.value,
+            destination_state=result.journey.destination_state.value,
+            next_stop=result.position_decision.next_stop,
+            policy_calibrated=result.position_decision.policy_calibrated,
         )
         self._positions.append(trace)
         return trace
