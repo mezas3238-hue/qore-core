@@ -21,6 +21,9 @@ from qore.infrastructure.trader_lab.capitalizer_a1_joint_competition_research im
     A1ProspectiveSourceExposure,
     assess_joint_competition_barrier,
 )
+from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
+    A1PaperSource,
+)
 from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research import (
     A1MultiHypothesisBarrier,
     A1SourceHypothesisAlternative,
@@ -1166,3 +1169,139 @@ def test_a1_settlement_visibility_uses_ack_time_without_falsifying_real_exit() -
     assert ledger.as_of(known + timedelta(microseconds=1)) == (settled,)
     with pytest.raises(ValueError, match="confirmed before actual exit"):
         replace(settled, confirmed_at=at)
+
+
+def _paper_master_barrier(
+    at: datetime, source_ids: tuple[str, str, str],
+) -> A1MultiHypothesisBarrier:
+    """Actual Master Frame candidate, with A2 source-sensor tokens and real WHY."""
+    b = _a1_multi_hypothesis_fixture(at, source_ids=source_ids)
+    return replace(b, alternatives=tuple(
+        replace(alt, context=replace(
+            alt.context,
+            observation_tokens=(
+                "SCALPER_SENSOR:H1_BIAS_DECLARED:OBSERVED:BULLISH",
+                "SCALPER_SENSOR:M15_PROTECTED_STOP_DECLARED:OBSERVED:1.095",
+                "SCALPER_SENSOR:M1_SWEEP_CISD_CLOSED:OBSERVED:"+at.isoformat(),
+                "SCALPER_NATIVE_M1_ASOF=YES",
+            ),
+        ))
+        for alt in b.alternatives
+    ))
+
+
+def _paper_source(
+    sid: str, at: datetime, *,
+    symbol: str, realized_r: str,
+    loss: CapitalizerLossCause | None = None,
+) -> A1PaperSource:
+    from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
+        V49EconomicTrade,
+    )
+
+    return A1PaperSource(
+        source_opportunity_id=sid,
+        trade=V49EconomicTrade(
+            symbol=symbol,
+            session="ASIA",
+            operating_date=(at-timedelta(hours=1)).date().isoformat(),
+            ordinal_candidate_at=at.isoformat(),
+            direction="LONG", entry_at=at.isoformat(),
+            exit_at=(at+timedelta(minutes=12)).isoformat(),
+            entry_price="100", stop_price="98", target_price="102",
+            planned_reward_r="1", realized_gross_r=realized_r,
+            exit_reason="STOP" if Decimal(realized_r) < 0 else "TARGET",
+            m1_bars_held=12, trigger_family="LIQUIDITY_SWEEP_CISD",
+            h1_state_basis="CANDLE2_REVERSAL",
+        ),
+        independently_attested_settled_loss=loss,
+    )
+
+
+def test_a1_full_master_frame_directly_drives_paper_trader_and_after_exit_memory() -> None:
+    """Actual nine-market cognition influences later paper decision, not a label mock."""
+    from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
+        run_real_master_frame_paper_trader,
+    )
+
+    first = datetime(2026, 1, 5, 1, tzinfo=UTC)
+    second = first+timedelta(days=1)
+    ids1 = ("SRC:AUDJPY:A", "SRC:AUDJPY:B", "SRC:USDJPY:C")
+    ids2 = ("SRC:AUDJPY:D", "SRC:AUDJPY:E", "SRC:USDJPY:F")
+    true_loss = CapitalizerLossCause(
+        loss_id="PAPER:SRC:AUDJPY:A",
+        symbol="AUDJPY", session=CapitalizerSession.ASIA,
+        hypothesis_id="H-A1", failure_state_fingerprint="STATE-A",
+        realized_r=Decimal("-1"), causes=("INDEPENDENT_SOURCE_INVALIDATION",),
+    )
+    sources = (
+        _paper_source(ids1[0], first, symbol="AUDJPY", realized_r="-1", loss=true_loss),
+        _paper_source(ids1[1], first, symbol="AUDJPY", realized_r="0.5"),
+        _paper_source(ids1[2], first, symbol="USDJPY", realized_r="0.4"),
+        _paper_source(ids2[0], second, symbol="AUDJPY", realized_r="0.7"),
+        _paper_source(ids2[1], second, symbol="AUDJPY", realized_r="0.9"),
+        _paper_source(ids2[2], second, symbol="USDJPY", realized_r="0.5"),
+    )
+    baseline = tuple(x.source_opportunity_id for x in sources)
+    report = run_real_master_frame_paper_trader(
+        barriers=(
+            _paper_master_barrier(first, ids1),
+            _paper_master_barrier(second, ids2),
+        ),
+        original_sources=sources,
+        baseline_selected_source_ids=baseline,
+    )
+    assert report.nine_market_frame_per_candidate
+    assert report.all_sensor_inputs_evidenced
+    assert report.source_candidates_seen == 6
+    assert report.cognitively_passed == 5
+    assert report.cognitively_abstained == 1
+    assert report.cognitively_waited == 0
+    assert report.paper_selected == 5
+    assert "SRC:AUDJPY:D" not in report.selected_source_ids
+    assert report.source_ledger[3].cognitive_gate == "ABSTAIN"
+    assert report.source_ledger[3].memory_settled_count_asof == 3
+    assert "PAPER_ABSTAIN" == report.source_ledger[3].paper_disposition
+    assert report.reference_control_metrics["trades"] == 6
+    assert report.master_frame_paper_metrics["trades"] == 5
+    assert report.master_frame_paper_metrics["total_r"] != (
+        report.reference_control_metrics["total_r"]
+    )
+    assert not report.full_historical_native_nine_market_run
+    assert not report.trader_certified
+    assert not report.live_authorized
+    assert not report.physical_broker_costs_verified
+
+
+def test_a1_paper_runtime_fail_closed_without_a2_sensors_or_source_census() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
+        run_real_master_frame_paper_trader,
+    )
+
+    at=datetime(2026, 1, 5, 1, tzinfo=UTC)
+    ids=("SRC:AUDJPY:A", "SRC:AUDJPY:B", "SRC:USDJPY:C")
+    rows=(
+        _paper_source(ids[0], at,symbol="AUDJPY",realized_r="-1"),
+        _paper_source(ids[1], at,symbol="AUDJPY",realized_r="0.4"),
+        _paper_source(ids[2], at,symbol="USDJPY",realized_r="0.7"),
+    )
+    missing_sensors=_a1_multi_hypothesis_fixture(at, source_ids=ids)
+    with pytest.raises(ValueError,match="REAL predecision A2 sensor tokens"):
+        run_real_master_frame_paper_trader(
+            barriers=(missing_sensors,),
+            original_sources=rows,
+            baseline_selected_source_ids=ids,
+        )
+    with pytest.raises(ValueError,match="source identities"):
+        run_real_master_frame_paper_trader(
+            barriers=(_paper_master_barrier(at,ids),),
+            original_sources=rows[:-1],
+            baseline_selected_source_ids=ids[:2],
+        )
+    with pytest.raises(ValueError,match="time must progress"):
+        run_real_master_frame_paper_trader(
+            barriers=(_paper_master_barrier(at,ids),
+                      _paper_master_barrier(at,ids)),
+            original_sources=rows,
+            baseline_selected_source_ids=ids,
+        )
