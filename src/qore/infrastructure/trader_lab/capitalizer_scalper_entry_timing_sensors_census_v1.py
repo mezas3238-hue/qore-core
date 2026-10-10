@@ -101,7 +101,14 @@ def build_market(
             or frame.first_source_cisd_family != source.m1_trigger_family
             or frame.first_source_cisd_confirmed_at != source.m1_trigger_confirmed_at
         ):
-            raise ValueError("new sensor panel changed original V49 route identity")
+            raise ValueError(
+                "new sensor panel changed original V49 route identity: "
+                f"source={source_id(source)} expected="
+                f"{source.m1_trigger_family}@{source.m1_trigger_confirmed_at} "
+                f"observed={frame.first_source_cisd_family}@"
+                f"{frame.first_source_cisd_confirmed_at} "
+                f"m15={source.m15_setup_confirmed_at} M1_bars={len(witness)}"
+            )
         if frame.identity != SENSOR_ID:
             raise ValueError("different sensor panel contract")
         rows = [asdict(r) for r in frame.sensors]
