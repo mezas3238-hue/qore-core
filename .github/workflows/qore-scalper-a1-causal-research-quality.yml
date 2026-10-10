@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/qore-scalper-a1-causal-research-quality.yml'
       - 'src/qore/infrastructure/trader_lab/capitalizer_a1_full_frame_research_adapter.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_a1_master_frame_paper_trader_integration_v1.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_master_cognitive_frame.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v51_multi_era_repair.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v54_structural_partial_runner.py'
@@ -29,11 +30,12 @@ jobs:
       - name: Ruff A1 scope
         run: |
           ruff check src/qore/infrastructure/trader_lab/capitalizer_a1_full_frame_research_adapter.py \
+            src/qore/infrastructure/trader_lab/capitalizer_a1_master_frame_paper_trader_integration_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_master_cognitive_frame.py \
             tests/infrastructure/trader_lab/test_capitalizer_v51_multi_era_repair.py \
             tests/infrastructure/trader_lab/test_capitalizer_v54_structural_partial_runner.py
       - name: Mypy A1 production research adapter
-        run: mypy src/qore/infrastructure/trader_lab/capitalizer_a1_full_frame_research_adapter.py
+        run: mypy src/qore/infrastructure/trader_lab/capitalizer_a1_full_frame_research_adapter.py src/qore/infrastructure/trader_lab/capitalizer_a1_master_frame_paper_trader_integration_v1.py
       - name: Focused causal and corrected-fixture regressions
         run: |
           pytest -q --no-cov \
