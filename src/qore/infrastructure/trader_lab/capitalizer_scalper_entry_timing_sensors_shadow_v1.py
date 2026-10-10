@@ -17,15 +17,15 @@ from decimal import Decimal
 from enum import StrEnum
 from statistics import median
 
+from qore.infrastructure.trader_lab.capitalizer_a1_entry_timing_clock_v1 import (
+    h1_observed_position,
+    session_end_at,
+)
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
-)
-from qore.infrastructure.trader_lab.capitalizer_a1_entry_timing_clock_v1 import (
-    h1_observed_position,
-    session_end_at,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerSourceDirection,
