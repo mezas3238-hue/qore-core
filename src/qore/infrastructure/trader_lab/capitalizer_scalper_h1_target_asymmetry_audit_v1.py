@@ -234,15 +234,18 @@ def build_target_audit(
     sources = tuple(
         x for symbol in sorted(sources_by_market) for x in sources_by_market[symbol]
     )
-    trades = _load_trades(
+    loaded = _load_trades(
         root,
         "capitalizer-*-v49-development-economics-trades.jsonl",
         set(sources_by_market),
         V49EconomicTrade,
     )
+    trades = tuple(row for row in loaded if isinstance(row, V49EconomicTrade))
+    if len(trades) != len(loaded):
+        raise ValueError("foreign V50-G trade type in V49 control")
     return report_source_target_geometry(
         sources, trades, expected_markets=expected_markets,
-    )  # type: ignore[arg-type]
+    )
 
 
 def main() -> None:
