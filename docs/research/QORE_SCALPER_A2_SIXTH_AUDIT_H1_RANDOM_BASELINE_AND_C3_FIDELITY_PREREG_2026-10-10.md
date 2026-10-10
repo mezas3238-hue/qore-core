@@ -45,3 +45,56 @@ Verificado directamente el código:
 Sólo después de resultados B0/B1/B2/B3 y validación de fuente se podrá formular una intervención **única** causal, preregistrada y probada en datos independientes, con todas las reglas de conservación del Owner (≥934 ganadoras originales, ≥415.75R original winner mass, no menos de 500 como mínimo investigación, PF OOS >1.5, DD≤6R, costes reales bid/ask comisión y Master Frame cognitivo A1). Cualquier PF de baseline aleatorio sin replay físico está prohibido.
 
 **Estado al preregistro:** no se conocen resultados del benchmark nuevo, en GitHub únicamente; Scalper sigue NO CERTIFICADO.
+
+## 5. RESULTADOS — NULO H1 CON DIRECCIÓN IDÉNTICA, 9/9 mercados, versión congelada
+
+**Run base del experimento [#38067672878](https://github.com/mezas3238-hue/qore-core/actions/runs/38067672878), SHA `c654a6847e380b3c4a61e566549a4f6a7d6f5e64`, 11/11 GREEN** (contrato + 9 mercados nativos + agregado). [Artifact agregado #11676370363](https://github.com/mezas3238-hue/qore-core/actions/runs/38067672878/artifacts/11676370363); nueve archivos por symbol, fuente/trade IDs, 32 réplicas y conteos de elegibilidad disponibles en esa corrida. La validación volvió a conciliar 2876 fuentes únicas, 2020 MAX3, 1167 ganadoras, -233.269327R de resultado ORIGINAL. **No es replay de entradas aleatorias con SL/TP, ni PF de trader aleatorio.**
+
+| Horizonte fijo | Original a favor | Baseline B1 H1-state uniforme | Baseline B2 H1-clock-matched | Control B3 coinflip |
+|---|---:|---:|---:|---:|
+| +15m | **874/1975=44.253%** | **53.101%** | **53.200%** | 49.949% |
+| +30m | **839/1924=43.607%** | **54.902%** | **56.161%** | 49.587% |
+| +60m | **837/1824=45.888%** | **57.827%** | **58.612%** | 49.741% |
+
+La estadística B1/B2 reportada es el promedio de proporciones nulas por **ID original y muestras cubiertas**, comparado con las mismas fuentes con datos reales válidos; es más apropiado para un **pareado condicionado a fuente** que sumar cada barra random como trade independiente. Los informes detallan cobertura y missing por grupo. No hay nuevas oportunidades ejecutadas.
+
+**Diferencia ORIGINAL − NULO de dirección al +30m:**
+- B1 sin ajustar reloj: **−11.295 puntos porcentuales**; bootstrap de 1000 resamples por fecha operativa NY en 9 mercados (313 clusters): intervalo 95% **[−13.427, −9.099] pp**.
+- B2 mismo tercio reloj H1: **−12.554 puntos porcentuales**, intervalo 95% **[−14.534, −10.373] pp**.
+- +15m B2 **−8.947pp**, intervalo **[−11.314, −6.610]pp**; +60m B2 **−12.723pp**, intervalo **[−14.624, −10.902]pp** (312 clusters).
+- Intervenciones de muestra B1/B2 se definen **antes de comprobar desenlaces**, SHA/seed y 9/9 ledger reproducibles. La incertidumbre del estimador se calcula por cluster fecha para mitigar múltiples oportunidades correlacionadas, pero **no** demuestra causalidad ni robustez OOS, y 32 draws/registro aportan ruido Monte Carlo.
+
+### Desglose por grupo al +30m, SIN FILTROS
+
+| Grupo V49 | Original positivo 30m | B1 nulo H1 (%) | Diferencia Original−B1 (pp) |
+|---|---:|---:|---:|
+| Asia (725 ops totales) | 45.74% | 56.05% | −10.31 |
+| Londres (573) | 42.64% | 54.04% | −11.40 |
+| Nueva York (722) | 42.17% | 54.39% | −12.22 |
+| FVG_RETRACE_CISD (1066) | 46.63% | 55.81% | −9.18 |
+| LIQUIDITY_SWEEP_CISD (954) | **40.18%** | 53.87% | **−13.70** |
+| Edad H1 <60min (69) | 55.88% | 58.21% | −2.33 (muestra insuficiente) |
+| Edad H1 60–180min (1305) | 45.17% | 56.66% | −11.49 |
+| Edad H1 ≥180min (646) | 38.77% | 50.67% | −11.91 |
+
+Los nueve mercados presentan diferencia negativa a +30m en B1: AUDJPY −7.42 pp, AUDUSD −9.90, EURUSD −9.89, GBPJPY −14.69, GBPUSD −12.91, NAS100 −16.16, USDCAD −9.79, USDJPY −8.81, XAUUSD −10.26. **Ningún mercado queda redimido por este análisis, que sigue IN-SAMPLE y correlacional**.
+
+### Dictamen de la prueba planteada por DeepSeek
+
+El escenario observado es precisamente el de un sesgo H1 que, al tomar tiempos random **dentro del mismo estado confirmado**, presenta más avances direccionales que las entradas M1 reales. El control B3 en los timestamps originales no tiene >50%; esto sugiere **valor descriptivo de la información H1 cuando se evalúa en puntos distintos**, junto a una **penalización fuerte del timing o del mecanismo de admisión M15/M1**.
+
+**Esto NO identifica todavía exactamente cuál componente causa la penalización**:
+- B1/B2 comparan tiempos de la tesis H1, NO exigen que los tiempos random coincidan con protected swing M15 confirmado, CISD M1, POI actual, valor de volatilidad, spread, distancia al target, ni edad H1/rango parcial. La propia formación del setup de M15/M1 condiciona la selección observada y puede estar correlacionada con reversión.
+- Aunque B2 controla tercio horario H1, no controla todos los componentes anteriores. B1 selecciona episodios que sabemos que generaron oportunidades V49, por lo que representa un benchmark **condicional a las tesis seleccionadas**, no la habilidad del sesgo en todos los estados H1 del mercado.
+- Una fracción de cierres de precio positivos no es un PF, ni prueba que se hubiera podido ejecutar un stop estructural y un target HTF de forma rentable en esas velas elegidas al azar.
+- La misma direccionalidad negativa en 9 mercados + bootstrap de 313 dates es evidencia de **problema transversal de timing/estructura en la IMPLEMENTACIÓN ACTUAL**, no una justificación para invertir automáticamente H1, eliminar Sweep, descartar M1 o fijar edad H1 arbitraria.
+
+### 6. Paso siguiente estrictamente permitido
+
+1. Congelar 9/9 baseline fuente `c654a... `, su resultado y semilla. No cambiar el replay original.
+2. Auditar en código y con ejemplos originales el **emparejamiento H1 C2/C3 closure → protected M15 CISD → timing de M1**, comenzando por *cómo el POI se conserva/reutiliza* y por si el momento de confirmar el swing obliga a entrar tras el impulso. No sustituir ese análisis por un hard noise gate.
+3. Contestar contradicción de fuentes C3 antes de modificar detector. Casos de carácter exactos en `tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_c2_c3_primary_source_characterization_v1.py`, que identifican interpretación diciembre `inside-range body` y enero `beyond body/range` como `SOURCE_AMBIGUITY`. No asumir que la implementación actual es errónea por un único texto; tampoco declarar C3 fuente-fiel sin resolver conflicto.
+4. Pedir a arquitecto A1 la auditoría transversal del Master Frame COGNITIVO, con H1 y M15 as-of, no `h1_state_until` futuro ni outcomes que el trader no sabía, y **sin introducir A1 como optimizador del mismo holdout**.
+5. Próximo ensayo causal debe preregistrar UNA intervención sobre señal M15/M1 y comparar por **los mismos IDs y el periodo OOS independiente**; n≥500 NO sustituye criterios de conservación ≥934 winners/415.75R originales, PF OOS ≥1.5 y DD≤6R, broker costs físicos, prueba de estrés 9 mercados y estabilidad.
+
+**Veredicto sexta ronda**: H1 no queda demostrado como inútil; la implementación del **timing M15/M1 necesita revisión prioritaria**. La dirección H1 es condicionalmente más favorable a tiempos random en los mismos estados, pero NO representa estrategia rentable por sí sola. NO CERTIFICADO; NO VPS/LIVE/MERGE.
