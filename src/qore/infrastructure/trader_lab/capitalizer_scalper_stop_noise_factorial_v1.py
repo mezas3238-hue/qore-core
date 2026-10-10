@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import bisect
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from decimal import Decimal
@@ -94,7 +94,11 @@ class StopNoiseSourceGate:
     entry_authorized: bool = False
 
     def __post_init__(self) -> None:
-        if self.outcome_used_for_admission or self.entry_authorized or self.full_master_frame_evaluated:
+        if (
+            self.outcome_used_for_admission
+            or self.entry_authorized
+            or self.full_master_frame_evaluated
+        ):
             raise ValueError("factorial gate has no outcome, trade or Master Frame authority")
         if Arm.M15_NOISE_OFF not in self.eligible_arms:
             raise ValueError("all source-complete V49 opportunities need M15 baseline")
@@ -198,9 +202,15 @@ def build_market(
     sources_root: Path,
     native_m1_root: Path,
     baseline_root: Path,
-) -> tuple[dict[str, Any], tuple[StopNoiseSourceGate, ...], dict[Arm, tuple[V49EconomicTrade, ...]]]:
+) -> tuple[
+    dict[str, Any],
+    tuple[StopNoiseSourceGate, ...],
+    dict[Arm, tuple[V49EconomicTrade, ...]],
+]:
     source_paths = sorted(sources_root.rglob("capitalizer-*-v49-hf-capacity-opportunities.jsonl"))
-    trade_paths = sorted(baseline_root.rglob("capitalizer-*-v49-development-economics-trades.jsonl"))
+    trade_paths = sorted(
+        baseline_root.rglob("capitalizer-*-v49-development-economics-trades.jsonl")
+    )
     if len(source_paths) != 1 or len(trade_paths) != 1:
         raise ValueError("one market needs one frozen V49 source and trade ledger")
     sources = tuple(V49Opportunity(**data) for data in _jsonl(source_paths[0]))
