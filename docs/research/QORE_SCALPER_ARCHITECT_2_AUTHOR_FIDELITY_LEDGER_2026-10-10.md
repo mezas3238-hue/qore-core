@@ -2,8 +2,8 @@
 
 **Fecha:** 2026-10-10  
 **Base auditada:** `535a2054d43c259e09b9a7e8eb3d54d21a503b4c`  
-**Rama:** `agent/scalper-architect-2-methodology-cert-20261010`  
-**PR madre:** #623 (DRAFT/UNMERGED). **Issue metodología:** #755. **Cross-review:** #754.  
+**Rama:** `agent/scalper-architect-b-methodology-20261010`  
+**PR madre:** #623 (DRAFT/UNMERGED). **Issue metodología:** #757. **Cross-review:** #756.  
 **Ámbito:** fuentes primarias del autor y contrato/código de Scalper. Sin cambio de estrategia ni uso VPS/LIVE.
 
 ## 1. Principio de atribución y frontera de evidencia
@@ -106,7 +106,7 @@ Veredicto: **UNRESOLVED**. No usar FTM como gate universal sin fuente.
 - Expandir ledger al conjunto **completo** de condiciones de `capitalizer_high_frequency_capacity_census_v49.py`, H1 context, M15 detectors, M1 CISD/FVG, dual invalidation, V50-G, rearm, lifecycle.
 - Por cada ruta, generar casos sintéticos long/short y contraejemplos: no H1 bias, setup M15 no confirmado, M1 antes de M15, FVG/CISD alternativos, swing roto, target tocado, H1 invalidado, cruces de sesión/DST y MAX3.
 - Separar claramente source-aligned generic scalping / perfiles especiales Asia London NY / especializaciones QORE. Proponer corrección documentada, **no** introducir H4/Daily en código congelado sin acuerdo explícito de propietario.
-- A2 debe solicitar a A1 (#754) análisis causal / económico del cambio propuesto, con preservación ganadores y densidad. A1 debe remitir a A2 todo nuevo gate/trigger para cotejo con autor.
-- Publicar reporte firmado en #755 y #623; aprobación metodológica no significa aprobación estadística.
+- A2 debe solicitar a A1 (#756) análisis causal / económico del cambio propuesto, con preservación ganadores y densidad. A1 debe remitir a A2 todo nuevo gate/trigger para cotejo con autor.
+- Publicar reporte firmado en #757 y #623; aprobación metodológica no significa aprobación estadística.
 
 **Estado: DIFERENCIAL INICIAL REPRODUCIBLE / LEDGER INCOMPLETO / FIDELITY NOT CERTIFIED / NO LIVE.**
