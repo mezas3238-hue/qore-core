@@ -82,12 +82,13 @@ def test_clock_without_matching_exact_native_source_bar_rejected() -> None:
         replace(_clock(), observed_at=(T-timedelta(minutes=1)).isoformat(),
                 m1_opened_at=(T-timedelta(minutes=2)).isoformat()),
         replace(_clock(), symbol="UNIVERSE_OUTSIDE"),
-        replace(_clock(), m1_opened_at=(T-timedelta(minutes=2)).isoformat()),
     ):
         with pytest.raises(ValueError, match="clock|outside|physically"):
             bind_source_clocks_to_perceptions(
                 observations=_observations(), source_clocks=(witness,),
             )
+    with pytest.raises(ValueError, match="exact timezone-aware closed bar"):
+        replace(_clock(), m1_opened_at=(T-timedelta(minutes=2)).isoformat())
     with pytest.raises(ValueError, match="duplicated"):
         bind_source_clocks_to_perceptions(
             observations=_observations(), source_clocks=(_clock(), _clock()),
