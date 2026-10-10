@@ -29,7 +29,13 @@ def bar(base: datetime, i: int, h: str, low: str, c: str) -> M1Bar:
     )
 
 
-def decision(at: datetime, session: SessionId, side: Side = Side.SHORT) -> CognitiveDecision:
+def decision(
+    at: datetime,
+    session: SessionId,
+    side: Side = Side.SHORT,
+    *,
+    mss_confirmed_at: datetime | None = None,
+) -> CognitiveDecision:
     return CognitiveDecision(
         session=session, side=side, observed_at=at,
         draw_target=Decimal("80") if side is Side.SHORT else Decimal("140"),
@@ -37,7 +43,7 @@ def decision(at: datetime, session: SessionId, side: Side = Side.SHORT) -> Cogni
         draw_level_observed_at=at - timedelta(minutes=20),
         structure_level=Decimal("105") if side is Side.SHORT else Decimal("106"),
         structure_level_confirmed_at=at-timedelta(minutes=5),
-        structure_break_confirmed_at=at,
+        structure_break_confirmed_at=at if mss_confirmed_at is None else mss_confirmed_at,
         source_provenance="COG_CLEANROOM_TEST_PRODUCER",
         cognitive_version="cleanroom-cog-interface-v1"
     )
@@ -94,7 +100,10 @@ class TestCleanroom(unittest.TestCase):
         original = ops.snapshot()["fvg"]
         phase = ops.on_closed_m1(
             bar(self.t, 3, "105", "103", "104"),
-            cognition=decision(self.t + timedelta(minutes=4), self.session)
+            cognition=decision(
+                self.t + timedelta(minutes=4), self.session,
+                mss_confirmed_at=self.t + timedelta(minutes=3),
+            )
         )
         self.assertEqual(phase, MethodologyDecision.RESEARCH_TOUCH_NOT_FILL)
         self.assertEqual(original, ops.snapshot()["fvg"])
@@ -103,10 +112,79 @@ class TestCleanroom(unittest.TestCase):
     def test_same_bar_touch_and_invalidation_is_ambiguous(self) -> None:
         ops = self._pending()
         phase = ops.on_closed_m1(
-            bar(self.t, 3, "110", "103", "108"), cognition=None
+            bar(self.t, 3, "110", "103", "108"),
+            cognition=decision(
+                self.t + timedelta(minutes=4), self.session,
+                mss_confirmed_at=self.t + timedelta(minutes=3),
+            ),
         )
         self.assertEqual(phase, MethodologyDecision.AMBIGUOUS_PRICE_PATH)
         self.assertFalse(ops.snapshot()["actual_mt5_fill_proven"])
+
+    def test_lost_cognitive_source_cancels_pending_on_next_closed_m1(self) -> None:
+        ops = self._pending()
+        original = ops.snapshot()["fvg"]
+        phase = ops.on_closed_m1(
+            bar(self.t, 3, "105", "103", "104"), cognition=None,
+        )
+        self.assertEqual(phase, MethodologyDecision.SOURCE_INVALIDATED)
+        snapshot = ops.snapshot()
+        self.assertEqual(
+            snapshot["source_invalidation_reason"],
+            "COGNITIVE_THESIS_REVOKED_OR_UNAVAILABLE",
+        )
+        self.assertEqual(snapshot["fvg"], original)
+        self.assertFalse(snapshot["actual_mt5_fill_proven"])
+        # A newly valid thesis is NOT allowed to revive a revoked order.
+        result = ops.on_closed_m1(
+            bar(self.t, 4, "107", "103", "106"),
+            cognition=decision(
+                self.t + timedelta(minutes=5), self.session,
+                mss_confirmed_at=self.t + timedelta(minutes=3),
+            ),
+        )
+        self.assertEqual(result, MethodologyDecision.SOURCE_INVALIDATED)
+
+    def test_changed_dol_cancels_pending_without_price_relabel(self) -> None:
+        from dataclasses import replace
+
+        ops = self._pending()
+        at = self.t + timedelta(minutes=4)
+        different = replace(
+            decision(at, self.session, mss_confirmed_at=self.t + timedelta(minutes=3)),
+            draw_target=Decimal("75"),
+        )
+        phase = ops.on_closed_m1(
+            bar(self.t, 3, "105", "103", "104"), cognition=different,
+        )
+        self.assertEqual(phase, MethodologyDecision.SOURCE_INVALIDATED)
+        self.assertEqual(
+            ops.snapshot()["source_invalidation_reason"],
+            "CAUSAL_DOL_DIRECTION_OR_TARGET_CHANGED",
+        )
+
+    def test_unrelated_new_mss_cannot_reuse_old_first_fvg(self) -> None:
+        ops = self._pending()
+        phase = ops.on_closed_m1(
+            bar(self.t, 3, "105", "103", "104"),
+            cognition=decision(self.t + timedelta(minutes=4), self.session),
+        )
+        self.assertEqual(phase, MethodologyDecision.SOURCE_INVALIDATED)
+        self.assertEqual(
+            ops.snapshot()["source_invalidation_reason"],
+            "ORIGINAL_M1_MSS_THESIS_REPLACED",
+        )
+
+    def test_stale_cognition_cannot_be_reused_for_later_m1(self) -> None:
+        ops = self._pending()
+        with self.assertRaises(ValueError):
+            ops.on_closed_m1(
+                bar(self.t, 3, "105", "103", "104"),
+                cognition=decision(self.t + timedelta(minutes=3), self.session),
+            )
+        self.assertEqual(
+            ops.last_closed, self.t + timedelta(minutes=3),
+        )
 
     def test_no_future_cognition(self) -> None:
         ops = IctSilverBulletOperations(session=self.session, day=self.t)
