@@ -65,7 +65,11 @@ def _verified_value(
             raise ValueError("M15 independent price/timestamp mismatch")
         return source["stop"]
     if name == "M1_PROTECTED_SWING_ATTESTATION":
-        if _aware(observed["confirmed"]) != at or Decimal(observed["swing"]) <= 0:
+        if (
+            _aware(source["at"]) != at
+            or _aware(observed["confirmed"]) != at
+            or Decimal(observed["swing"]) <= 0
+        ):
             raise ValueError("M1 protected swing not confirmed at source M1 close")
         return observed["swing"]
     if name == "H1_TARGET_ROOM_R":
@@ -118,6 +122,16 @@ def apply_independent_source_sensor_witnesses(
             raise ValueError("independent proof cannot overwrite existing A2 market fact")
         if proof.source_witness is None or proof.independent_witness is None:
             raise ValueError("OBSERVED status requires both source and raw-M1 witness")
+        if name == "ACTUAL_M15_STRUCTURE_REVALIDATION":
+            declared = original_by_name.get("M15_PROTECTED_STOP_DECLARED")
+            if (
+                declared is None
+                or declared.value is None
+                or Decimal(declared.value) != Decimal(
+                    _kv(proof.source_witness)["stop"]
+                )
+            ):
+                raise ValueError("independent M15 proof mismatches declared source stop")
         val = _verified_value(
             name, proof.source_witness, proof.independent_witness, frame=frame
         )
