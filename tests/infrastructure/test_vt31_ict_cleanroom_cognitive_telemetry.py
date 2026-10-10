@@ -73,8 +73,10 @@ def test_instrumentation_is_passive_and_cannot_change_entry_candidate() -> None:
     assert raw.snapshot()["session_windows"] == traced.snapshot()["session_windows"]
     assert original.cognition == observed.cognition
     assert audit.closed_m1_seen == len(_real_source_sequence())
-    assert audit.cognition_calls == 6
-    assert audit.ops_calls == 6
+    # 390-M1 prior cash fixture includes its 10–11 and 14–15 NY source
+    # windows (60 + 60), plus 6 Monday London source M1 = 126 calls.
+    assert audit.cognition_calls == 126
+    assert audit.ops_calls == 126
     x = audit.report()
     assert x["components"]["OPS_CANDIDATE"]["reached_first_suitable_FVG"] == 1
     assert x["candidate_causal_lineage_examples"][0]["draw_target"] == "150"
