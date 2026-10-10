@@ -32,6 +32,7 @@ class OrderResearchState(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class TwoSidedQuote:
+    symbol: str
     observed_at: datetime
     bid: Decimal
     ask: Decimal
@@ -40,8 +41,8 @@ class TwoSidedQuote:
     def __post_init__(self) -> None:
         utc(self.observed_at)
         bid, ask = price(self.bid), price(self.ask)
-        if bid > ask or not self.source:
-            raise ValueError("bid <= ask and quote-source provenance required")
+        if bid > ask or not self.source or self.symbol != SYMBOL:
+            raise ValueError("NAS100 quote must have bid <= ask and source provenance")
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +55,7 @@ class ExternalExecutionAck:
     """
 
     client_order_id: str
+    symbol: str
     broker_execution_id: str
     executed_at: datetime
     received_at: datetime
@@ -66,6 +68,8 @@ class ExternalExecutionAck:
             raise ValueError("cannot receive execution before actual execution")
         price(self.executed_price)
         price(self.executed_volume)
+        if self.symbol != SYMBOL:
+            raise ValueError("external fill symbol does not match unique NAS100 trader")
         if not all((self.client_order_id, self.broker_execution_id, self.broker)):
             raise ValueError("execution identity and broker provenance required")
 
@@ -150,6 +154,8 @@ class SourceLimitOrderAudit:
         at = utc(observed_at)
         if at < self.offered_at:
             raise ValueError("cannot invalidate an order before creation")
+        if self.last_quote_at is not None and at < self.last_quote_at:
+            raise ValueError("cannot backdate invalidation behind observed bid/ask")
         if self.execution is not None:
             raise ValueError("position invalidation belongs to post-fill management")
         if self.state in (
@@ -185,8 +191,8 @@ class SourceLimitOrderAudit:
     ) -> OrderResearchState:
         if self.execution is not None:
             raise ValueError("duplicate or second execution requires a fill ledger")
-        if execution.client_order_id != self.client_order_id:
-            raise ValueError("broker acknowledgement for another source order")
+        if execution.client_order_id != self.client_order_id or execution.symbol != SYMBOL:
+            raise ValueError("broker acknowledgement for another source order/instrument")
         traded = utc(execution.executed_at)
         if traded < self.offered_at or traded >= self.window_expires_at:
             raise ValueError("execution outside source order life; escalate reconciliation")
