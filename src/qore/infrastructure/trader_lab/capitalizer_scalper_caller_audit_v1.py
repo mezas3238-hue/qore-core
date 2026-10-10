@@ -32,8 +32,10 @@ TARGETS = (
     "observe_first_m1_fvg_cisd_continuation",
     "qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics."
     "build_market",
-    "qore.infrastructure.trader_lab.capitalizer_a1_full_frame_research_adapter."
-    "assess_a1_full_frame_research",
+    "qore.infrastructure.trader_lab.capitalizer_master_cognitive_frame."
+    "build_master_cognitive_frame",
+    "qore.infrastructure.trader_lab.capitalizer_v50_master_cognitive_adapter."
+    "adapt_v50_to_master_context",
 )
 
 
