@@ -126,7 +126,10 @@ def _capacity_metadata(root: Path) -> dict[str, Any]:
     paths = sorted(root.rglob("capitalizer-*-v49-hf-capacity.json"))
     if len(paths) != 1:
         raise ValueError("V51 market replay requires one V49 capacity report")
-    return json.loads(paths[0].read_text(encoding="utf-8"))
+    loaded: object = json.loads(paths[0].read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict) or not all(isinstance(key, str) for key in loaded):
+        raise ValueError("V51 capacity metadata must be a JSON object with string keys")
+    return {key: value for key, value in loaded.items()}
 
 
 def _load_window_bars(
@@ -577,8 +580,8 @@ def write_market(
     with (output / f"capitalizer-{symbol}-v51-geometry.jsonl").open(
         "w", encoding="utf-8"
     ) as handle:
-        for item in geometry:
-            handle.write(json.dumps(asdict(item), sort_keys=True) + "\n")
+        for geometry_item in geometry:
+            handle.write(json.dumps(asdict(geometry_item), sort_keys=True) + "\n")
 
 
 def main() -> None:
