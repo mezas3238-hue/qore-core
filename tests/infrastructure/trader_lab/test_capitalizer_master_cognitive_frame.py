@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from qore.infrastructure.trader_lab.capitalizer_a1_full_frame_research_adapter import (
+    A1CausalSettledMemory,
+    A1SettledChosenTrade,
+    A1SourceBinding,
+    evaluate_full_frame_research_batch,
+)
 from qore.infrastructure.trader_lab.capitalizer_cognitive_explanation import (
     explain_all_candidates,
 )
@@ -256,3 +263,112 @@ def test_same_failure_pressure_observes_instead_of_recovery_aggression() -> None
     assert assessment.pressure is CapitalizerCognitivePressure.RECOVERY_OBSERVATION
     assert assessment.increases_risk_to_recover is False
     assert assessment.grants_capital_authority is False
+
+
+def _a1_research_run(
+    at: datetime,
+    *,
+    perceptions: tuple[CapitalizerMarketPerceptionSnapshot, ...] | None = None,
+    contexts: tuple[CapitalizerCandidateCognitiveContext, ...] | None = None,
+    bindings: tuple[A1SourceBinding, ...] | None = None,
+    memory: A1CausalSettledMemory | None = None,
+):
+    return evaluate_full_frame_research_batch(
+        world=_world(at),
+        perceptions=_perceptions(at) if perceptions is None else perceptions,
+        regime_hypotheses=_regimes(at),
+        cross_market_graph=CapitalizerCrossMarketCausalGraph(observed_at=at, edges=()),
+        pressure_facts=CapitalizerCognitivePressureFacts(),
+        contexts=_candidate_contexts(at) if contexts is None else contexts,
+        source_bindings=(
+            (
+                A1SourceBinding("SRC:AUDJPY", "AUDJPY", at),
+                A1SourceBinding("SRC:USDJPY", "USDJPY", at),
+            )
+            if bindings is None
+            else bindings
+        ),
+        settled_memory=A1CausalSettledMemory() if memory is None else memory,
+    )
+
+
+def test_a1_research_adapter_invokes_real_nine_market_frame_with_why() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    decisions = _a1_research_run(at)
+    assert len(decisions) == 2
+    assert {item.source_opportunity_id for item in decisions} == {
+        "SRC:AUDJPY", "SRC:USDJPY"
+    }
+    assert all(item.nine_market_frame_invoked for item in decisions)
+    assert all(item.cognitive_gate == "PASS_TO_STRATEGY" for item in decisions)
+    assert all(any(t.startswith("COGNITIVE_GATE:") for t in item.why_tokens)
+               for item in decisions)
+    assert all(not item.economic_admission_changed and not item.outcome_visible
+               and not item.winner_selected and not item.grants_capital_authority
+               for item in decisions)
+
+
+def test_a1_research_adapter_fails_closed_on_missing_market_or_future_data() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    perceptions = _perceptions(at)
+    with pytest.raises(ValueError, match="nine markets|perception snapshot"):
+        _a1_research_run(at, perceptions=perceptions[:-1])
+    with pytest.raises(ValueError, match="future perception"):
+        _a1_research_run(
+            at,
+            perceptions=(
+                replace(perceptions[0], observed_at=at + timedelta(seconds=1)),
+                *perceptions[1:],
+            ),
+        )
+
+
+def test_a1_research_adapter_rejects_source_collisions_and_missing_provenance() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    with pytest.raises(ValueError, match="duplicate source ID"):
+        _a1_research_run(
+            at,
+            bindings=(
+                A1SourceBinding("DUPLICATE", "AUDJPY", at),
+                A1SourceBinding("DUPLICATE", "USDJPY", at),
+            ),
+        )
+    with pytest.raises(ValueError, match="time barrier"):
+        _a1_research_run(
+            at,
+            bindings=(
+                A1SourceBinding("SRC:AUDJPY", "AUDJPY", at - timedelta(minutes=1)),
+                A1SourceBinding("SRC:USDJPY", "USDJPY", at),
+            ),
+        )
+    contexts = _candidate_contexts(at)
+    with pytest.raises(ValueError, match="provenance"):
+        _a1_research_run(
+            at,
+            contexts=(replace(contexts[0], evidence_provenance_complete=False), contexts[1]),
+        )
+
+
+def test_a1_research_memory_reads_only_strictly_prior_settlements() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    memory = A1CausalSettledMemory(
+        (
+            A1SettledChosenTrade(
+                "PRIOR", at - timedelta(hours=2), at - timedelta(seconds=1)
+            ),
+            A1SettledChosenTrade(
+                "TIE", at - timedelta(hours=1), at
+            ),
+            A1SettledChosenTrade(
+                "FUTURE", at - timedelta(minutes=1), at + timedelta(seconds=1)
+            ),
+        )
+    )
+    assert tuple(row.execution_id for row in memory.as_of(at)) == ("PRIOR",)
+    decisions = _a1_research_run(at, memory=memory)
+    assert all(item.closed_chosen_history_count == 1 for item in decisions)
+    assert all(not hasattr(item, "realized_gross_r") for item in decisions)
+    with pytest.raises(ValueError, match="duplicate settled execution"):
+        A1CausalSettledMemory(
+            (memory.chosen_settlements[0], memory.chosen_settlements[0])
+        )
