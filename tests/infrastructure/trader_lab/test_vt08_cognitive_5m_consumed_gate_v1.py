@@ -343,3 +343,70 @@ def test_h4_expiry_position_has_an_explicit_cognitive_exit_proposal() -> None:
     assert outcome.journey_state == "INVALIDATED"
     assert outcome.research_only
     assert not outcome.broker_order_authorized
+
+
+def test_full_five_market_stream_every_admission_gets_cognition() -> None:
+    """Causal five-market acceptance fixture, NOT historical economic replay."""
+    gate = Vt08FiveMarketCognitiveGate()
+    first: dict[str, Vt08CognitiveAction] = {
+        "EURJPY": Vt08CognitiveAction.WAIT,
+        "USDCHF": Vt08CognitiveAction.ABSTAIN,
+        "NZDUSD": Vt08CognitiveAction.EXECUTE,
+        "CADJPY": Vt08CognitiveAction.WAIT,
+        "USDCAD": Vt08CognitiveAction.EXECUTE,
+    }
+    for market, expected in first.items():
+        overrides: dict[str, object] = {}
+        if expected is Vt08CognitiveAction.WAIT:
+            overrides["cisd_state"] = "PENDING"
+        elif expected is Vt08CognitiveAction.ABSTAIN:
+            overrides["material_contradictions"] = ("SOURCE:THESIS_INVALIDATED",)
+        assessed = gate.evaluate(
+            _snapshot(source=f"synthetic-{market}", market=market, **overrides)
+        )
+        assert assessed.action is expected
+
+    confirmed_at = T0 + timedelta(minutes=3)
+    for market in ("EURJPY", "CADJPY"):
+        assessed = gate.evaluate(
+            _snapshot(
+                source=f"synthetic-{market}", market=market, when=confirmed_at
+            )
+        )
+        assert assessed.action is Vt08CognitiveAction.EXECUTE
+
+    assessed_at = T0 + timedelta(minutes=6)
+    for market in ("EURJPY", "NZDUSD", "CADJPY", "USDCAD"):
+        outcome = gate.evaluate_position(
+            _snapshot(
+                source=f"synthetic-{market}",
+                market=market,
+                when=assessed_at,
+                entry_state="FILLED",
+                position_state="OPEN",
+                journey_stage="IN_TRADE",
+            ),
+            _position(assessed_at),
+        )
+        assert outcome.action is Vt08PositionAction.HOLD
+        assert outcome.research_only and not outcome.broker_order_authorized
+
+    assert len(gate.decisions) == 7
+    assert len(gate.positions) == 4
+    assert sum(x.action is Vt08CognitiveAction.EXECUTE for x in gate.decisions) == 4
+    assert sum(x.action is Vt08CognitiveAction.WAIT for x in gate.decisions) == 2
+    assert sum(x.action is Vt08CognitiveAction.ABSTAIN for x in gate.decisions) == 1
+    admitted = {
+        (trace.source_event_id, trace.market)
+        for trace in gate.decisions
+        if trace.action is Vt08CognitiveAction.EXECUTE
+    }
+    assert admitted == {
+        (pos.source_event_id, pos.market) for pos in gate.positions
+    }
+    assert all(
+        decision.decision_fingerprint
+        and decision.memory_fingerprint
+        and decision.metacognitive_state
+        for decision in gate.decisions
+    )
