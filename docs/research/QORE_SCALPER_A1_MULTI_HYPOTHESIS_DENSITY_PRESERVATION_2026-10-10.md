@@ -22,6 +22,18 @@ The frozen nine-market `CapitalizerGlobalWorldModel` stores one `CapitalizerMark
 - `84d1718ad77954e6443815aebda921dd042919a1`: regression tests for two AUDJPY alternatives + one USDJPY alternative in the same instant, causal *same-market* settled-loss ablation, missing/duplicate IDs, future H1/M1, repeated time barrier, future perception. **Official [A1 focused run 38053716565](https://github.com/mezas3238-hue/qore-core/actions/runs/38053716565) SUCCESS; [A1 full-source run 38053716593](https://github.com/mezas3238-hue/qore-core/actions/runs/38053716593) SUCCESS.** They are software quality gates, not return/edge results.
 - `4b08d44048bca3ec46e70dc598486e3655fa1599`: stress fixture with **nine distinct M1 source alternatives in one minute**, including eight from AUDJPY; verifies input permutation independence, lossless nine-ID accounting, and no execution-authority claim even when observed research world has only ONE session execution slot left. CI for this more recent commit must be independently checked before calling HEAD GREEN.
 
+## True candidate-count competition pressure (research-only, no ranking)
+
+Additional code `4a1a7bd7eb954e4d04a2310c6268d5d95bafe73e` plus test `35f012704fc6743d0e58ea1c4e439d68b5b6d812` adds `A1MultiHypothesisCompetitionDemand` to the census. Unlike `build_opportunity_competition_state(world)`, whose input World Model represents just one DECISION item per symbol, this diagnostic counts **every distinct source candidate**:
+
+- `presented_source_count` and `source_counts_by_market` preserve the actual denominator and same-symbol multiplicity;
+- `pass_source_ids` retain unique individually supported cognitive candidates, with `WAIT`/`ABSTAIN` still represented in the full ledger;
+- `available_session_slots` reads the immutable current ledger; `arbitration_required = len(pass_source_ids) > available_session_slots` observes genuine pressure, but `selected_source_id` must remain `None`;
+- the nine-candidate test records **8 AUDJPY + 1 USDJPY**, **9** independent PASS dispositions, **1** session execution slot left, `arbitration_required=True` and **zero** execution authorization. This does not imply 9 trades or that the real cross-market competition would PASS 9.
+- input permutation does not alter the decision IDs or competition-demand report.
+
+**Official GitHub Actions GREEN on exact code SHA `35f012704fc6743d0e58ea1c4e439d68b5b6d812`:** [full A1 Cognition Audit #38054014954](https://github.com/mezas3238-hue/qore-core/actions/runs/38054014954) SUCCESS (Ruff complete repo, Mypy 1,626 files, 42 focused pytest) and [A1 Research Quality #38054015028](https://github.com/mezas3238-hue/qore-core/actions/runs/38054015028) SUCCESS. This strengthens the capacity audit only; it is **not source-fidelity, PnL or historical replay certification**.
+
 ## Scientific and methodology limitations
 
 1. Research fixtures are synthetic. No actual historical nine-market M1 source census or observed market-state importer has been connected; coverage cannot yet be called 9/9 historical.
