@@ -65,6 +65,13 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
 )
+from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
+    V49Opportunity,
+)
+from qore.infrastructure.trader_lab.capitalizer_high_frequency_trader_v49 import (
+    select_master_frame_trade_intents,
+    select_portfolio_trade_intents,
+)
 from qore.infrastructure.trader_lab.capitalizer_global_world_model import (
     CapitalizerGlobalWorldModel,
     CapitalizerMarketWorldState,
@@ -94,6 +101,10 @@ from qore.infrastructure.trader_lab.capitalizer_perception_integrity import (
 )
 from qore.infrastructure.trader_lab.capitalizer_regime_intelligence import (
     CapitalizerRegimeHypothesis,
+)
+
+from qore.infrastructure.trader_lab.capitalizer_v50_g_causal_decision_trace import (
+    source_opportunity_id,
 )
 
 
@@ -1304,4 +1315,177 @@ def test_a1_paper_runtime_fail_closed_without_a2_sensors_or_source_census() -> N
                       _paper_master_barrier(at,ids)),
             original_sources=rows,
             baseline_selected_source_ids=ids,
+        )
+
+
+def _a1_cognitive_trader_source_fixture(
+    at: datetime,
+) -> tuple[tuple[V49Opportunity, ...], A1MultiHypothesisBarrier]:
+    """Observed-census-shaped source fixtures, NOT real historical market feeds."""
+    base = _a1_multi_hypothesis_fixture(at)
+    sources: list[V49Opportunity] = []
+    alternatives: list[A1SourceHypothesisAlternative] = []
+    for index, alternative in enumerate(base.alternatives):
+        source = V49Opportunity(
+            symbol=alternative.binding.symbol,
+            session="ASIA",
+            operating_date=at.date().isoformat(),
+            h1_state_direction="BULLISH",
+            h1_state_from=alternative.h1_confirmed_at.isoformat(),
+            h1_state_until=(at + timedelta(hours=1)).isoformat(),
+            h1_state_basis="QORE_GENERIC_H1_STATE",
+            m15_setup_confirmed_at=alternative.m15_confirmed_at.isoformat(),
+            m15_protected_swing_price=str(90 + index),
+            m1_trigger_confirmed_at=at.isoformat(),
+            m1_trigger_family="FVG_RETRACE_CISD",
+            decision_reference_price=str(100 + index),
+            structural_target_witness_price=str(112 + index),
+        )
+        source_id = source_opportunity_id(source)
+        sources.append(source)
+        alternatives.append(replace(
+            alternative,
+            binding=A1SourceBinding(source_id, source.symbol, at),
+            source_rule_id="QORE_ENGINEERING_GENERIC_V49_M1_RESEARCH",
+        ))
+    barrier = replace(
+        base,
+        alternatives=tuple(alternatives),
+        expected_source_ids=tuple(x.binding.source_opportunity_id for x in alternatives),
+    )
+    return tuple(sources), barrier
+
+
+def test_trader_real_intent_boundary_invokes_master_frame_and_changes_admission() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    opportunities, barrier = _a1_cognitive_trader_source_fixture(at)
+    original = select_portfolio_trade_intents(opportunities)
+    assert len(original) == 3  # Original V49 control remains untouched.
+    no_memory = select_master_frame_trade_intents(
+        opportunities, barriers=(barrier,), settled_memory=A1CausalSettledMemory()
+    )
+    assert no_memory.full_master_frame_used
+    assert len(no_memory.cognitive_packets) == 1
+    assert len(no_memory.source_opportunity_ids) == 3
+    assert len(no_memory.cognition_pass_ids) == 3
+    assert len(no_memory.trade_intents) == 1  # World already consumed two MAX3 slots.
+    assert len(no_memory.held_by_max3_ids) == 2
+    assert no_memory.cognitive_packets[0].joint.capacity_competition_required
+
+    cause = CapitalizerLossCause(
+        loss_id="REAL_SETTLED_TEST",
+        symbol="AUDJPY",
+        session=CapitalizerSession.ASIA,
+        hypothesis_id="OLDER_THESIS",
+        failure_state_fingerprint="STATE-A",
+        realized_r=Decimal("-1"),
+        causes=("PREVIOUS_ASOF_CONFIRMED_LOSS",),
+    )
+    memory = A1CausalSettledMemory((
+        A1SettledChosenTrade(
+            "REAL_SETTLED_TEST",
+            at - timedelta(hours=2),
+            at - timedelta(seconds=1),
+            cause,
+        ),
+    ))
+    integrated = select_master_frame_trade_intents(
+        opportunities, barriers=(barrier,), settled_memory=memory
+    )
+    assert len(integrated.cognition_abstain_ids) == 1
+    assert len(integrated.cognition_pass_ids) == 2
+    assert len(integrated.source_opportunity_ids) == 3
+    assert integrated.trade_intents[0].entry_price != no_memory.trade_intents[0].entry_price
+    assert len(integrated.trade_intents) == 1
+    assert integrated.trade_intents[0].stop_price == Decimal("91")
+    assert integrated.trade_intents[0].target_price == Decimal("113")
+    assert not integrated.trade_intents[0].execution_authority
+    assert not integrated.trade_intents[0].sizing_authority
+    assert not integrated.real_orders_placed
+    assert not integrated.certified
+    assert select_portfolio_trade_intents(
+        opportunities, master_frame_barriers=(barrier,), settled_memory=memory
+    ) == integrated.trade_intents
+
+
+def test_trader_master_frame_rejects_missing_sources_and_pending_author_rules() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    opportunities, barrier = _a1_cognitive_trader_source_fixture(at)
+    with pytest.raises(ValueError, match="missing original V49"):
+        select_master_frame_trade_intents(
+            opportunities, barriers=(
+                replace(
+                    barrier,
+                    alternatives=barrier.alternatives[:-1],
+                    expected_source_ids=barrier.expected_source_ids[:-1],
+                    world=replace(
+                        barrier.world,
+                        markets=tuple(
+                            replace(row, attention=CapitalizerAttentionState.FOCUSED)
+                            if row.symbol == "USDJPY" else row
+                            for row in barrier.world.markets
+                        ),
+                    ),
+                ),
+            ),
+            settled_memory=A1CausalSettledMemory(),
+        )
+    with pytest.raises(ValueError, match="unmatched or unresolved"):
+        select_master_frame_trade_intents(
+            opportunities,
+            barriers=(replace(
+                barrier,
+                alternatives=(
+                    replace(barrier.alternatives[0], source_rule_id="TTRADES_REVIEW_PENDING"),
+                    *barrier.alternatives[1:],
+                ),
+            ),),
+            settled_memory=A1CausalSettledMemory(),
+        )
+    with pytest.raises(ValueError, match="duplicated V49"):
+        select_master_frame_trade_intents(
+            (*opportunities, opportunities[0]),
+            barriers=(barrier,),
+            settled_memory=A1CausalSettledMemory(),
+        )
+    with pytest.raises(ValueError, match="causal settled-memory"):
+        select_portfolio_trade_intents(
+            opportunities, master_frame_barriers=(barrier,),
+        )
+    with pytest.raises(ValueError, match="without Master Frame barriers"):
+        select_portfolio_trade_intents(
+            opportunities, settled_memory=A1CausalSettledMemory()
+        )
+
+
+def test_trader_master_frame_rejects_future_and_wrong_session_sources() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    opportunities, barrier = _a1_cognitive_trader_source_fixture(at)
+    with pytest.raises(ValueError, match="strictly chronological"):
+        select_master_frame_trade_intents(
+            opportunities,
+            barriers=(barrier, barrier),
+            settled_memory=A1CausalSettledMemory(),
+        )
+    with pytest.raises(ValueError, match="outside observed Master Frame session"):
+        altered = tuple(
+            replace(x, session="LONDON") if index == 0 else x
+            for index, x in enumerate(opportunities)
+        )
+        adjusted = replace(barrier, alternatives=tuple(
+            replace(
+                alt, binding=A1SourceBinding(
+                    source_opportunity_id(src), src.symbol, at
+                )
+            )
+            for alt, src in zip(barrier.alternatives, altered, strict=True)
+        ))
+        adjusted = replace(
+            adjusted,
+            expected_source_ids=tuple(x.binding.source_opportunity_id
+                                      for x in adjusted.alternatives),
+        )
+        select_master_frame_trade_intents(
+            altered, barriers=(adjusted,),
+            settled_memory=A1CausalSettledMemory(),
         )
