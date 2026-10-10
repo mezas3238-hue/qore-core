@@ -110,7 +110,7 @@ jobs:
           assert economics["symbol"] == os.environ["EXPECTED_SYMBOL"]
           assert economics["session"] == os.environ["EXPECTED_SESSION"]
           assert economics["candidate_opportunities"] == source["source_complete_opportunities"]
-          assert economics["development_only"] is True if "development_only" in economics else True
+          assert economics["development_only"] is True
           assert economics["outcome_used_for_selection"] is False
           assert economics["trader_certified"] is False
           assert economics["live_authorized"] is False
