@@ -23,7 +23,6 @@ from qore.infrastructure.trader_lab.capitalizer_ttrades_m1_cisd_observer_v48 imp
     V48M1CISDStatus,
 )
 
-
 THESIS = datetime(2026, 10, 9, 10, tzinfo=UTC)
 CLOSE_1 = THESIS + timedelta(minutes=1)
 CLOSE_2 = THESIS + timedelta(minutes=2)
