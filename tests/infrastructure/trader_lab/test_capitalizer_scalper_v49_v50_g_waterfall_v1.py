@@ -25,6 +25,8 @@ from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 i
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics import (
     IDENTITY as V50_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics import (
     V50GTrade,
 )
 
@@ -130,11 +132,11 @@ def _fixture(root: Path) -> tuple[Path, Path]:
         )
         traces = [
             _trace(item, ready=ready, cognitive=cognitive)
-            for item, (ready, cognitive) in zip(source, permits)
+            for item, (ready, cognitive) in zip(source, permits, strict=True)
         ]
         trades = [
             _trade(item, policy)
-            for item, (ready, cognitive) in zip(source, permits)
+            for item, (ready, cognitive) in zip(source, permits, strict=True)
             for policy in (
                 ("GEOMETRY_ONLY", "COGNITIVE_GEOMETRY") if ready and cognitive
                 else ("GEOMETRY_ONLY",) if ready else ()
