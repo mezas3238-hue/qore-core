@@ -85,8 +85,8 @@ def test_sweep_cisd_sensor_emits_only_at_actual_closed_confirmation() -> None:
     assert confirmed.first_source_cisd_family == "LIQUIDITY_SWEEP_CISD"
     assert confirmed.first_source_cisd_confirmed_at == SWEEP[-1].closed_at.isoformat()
     assert _sensor(confirmed, "M1_SWEEP_CISD_CLOSED")[0] is SensorStatus.OBSERVED
-    assert _sensor(confirmed, "H1_THESIS_AGE_MINUTES")[1] == "36"
-    assert _sensor(confirmed, "M15_TO_M1_ELAPSED_MINUTES")[1] == "6"
+    assert _sensor(confirmed, "H1_THESIS_AGE_MINUTES")[1] == "36.0"
+    assert _sensor(confirmed, "M15_TO_M1_ELAPSED_MINUTES")[1] == "6.0"
     assert _sensor(confirmed, "M1_PROTECTED_SWING_ATTESTATION")[0] is (
         SensorStatus.NOT_AVAILABLE
     )
@@ -131,7 +131,7 @@ def test_spread_costs_and_target_require_independent_asof_witness() -> None:
     for name in ("H1_TARGET_ROOM_R", "BROKER_BID_ASK_SPREAD",
                  "BROKER_COMMISSION_PER_LOT"):
         assert _sensor(reading, name)[0] is SensorStatus.NOT_AVAILABLE
-    with pytest.raises(ValueError, match="causal witness"):
+    with pytest.raises(ValueError, match="as-of witness"):
         replace(
             ctx, witnessed_h1_target=Decimal("1.1100"),
             h1_target_confirmed_at=START + timedelta(minutes=60),
