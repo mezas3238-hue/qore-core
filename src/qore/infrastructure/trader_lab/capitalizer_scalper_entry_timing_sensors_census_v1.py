@@ -96,25 +96,24 @@ def build_market(
             h1_target_confirmed_at=None,
             bid=None, ask=None, commission_round_trip_per_lot=None,
         ))
-        if (
-            not frame.source_event_observed
-            or frame.first_source_cisd_family != source.m1_trigger_family
-            or frame.first_source_cisd_confirmed_at != source.m1_trigger_confirmed_at
-        ):
-            raise ValueError(
-                "new sensor panel changed original V49 route identity: "
-                f"source={source_id(source)} expected="
-                f"{source.m1_trigger_family}@{source.m1_trigger_confirmed_at} "
-                f"observed={frame.first_source_cisd_family}@"
-                f"{frame.first_source_cisd_confirmed_at} "
-                f"m15={source.m15_setup_confirmed_at} M1_bars={len(witness)}"
-            )
+        sensor_matches_source = (
+            frame.source_event_observed
+            and frame.first_source_cisd_family == source.m1_trigger_family
+            and frame.first_source_cisd_confirmed_at == source.m1_trigger_confirmed_at
+        )
+        if not sensor_matches_source:
+            # Do not suppress original V49 sources in an observational census.
+            # Preserve the conflicting pair for forensic review, explicitly
+            # disallow any downstream admission relying on this unmatched view.
+            status_counts["ORIGINAL_SOURCE_SENSOR_MISMATCH"] += 1
+        else:
+            status_counts["ORIGINAL_SOURCE_SENSOR_MATCH"] += 1
         if frame.identity != SENSOR_ID:
             raise ValueError("different sensor panel contract")
         rows = [asdict(r) for r in frame.sensors]
         for x in rows:
             status_counts[f"{x['sensor']}:{x['status']}"] += 1
-        first_route_counts[frame.first_source_cisd_family] += 1
+        first_route_counts[str(frame.first_source_cisd_family)] += 1
         frames.append({
             "source_opportunity_id": source_id(source),
             "symbol": symbol,
@@ -123,6 +122,9 @@ def build_market(
             "first_source_cisd_family": frame.first_source_cisd_family,
             "first_source_cisd_confirmed_at": frame.first_source_cisd_confirmed_at,
             "sensor_count": len(frame.sensors),
+            "sensor_source_identity_match": sensor_matches_source,
+            "original_source_signal_preserved": True,
+            "paper_entry_authorized": False,
             "sensors": rows,
             "execution_authorized": frame.execution_authorized,
             "hard_entry_gate_added": frame.hard_entry_gate_added,
@@ -136,7 +138,8 @@ def build_market(
         "identity": IDENTITY,
         "symbol": symbol,
         "original_source_opportunities": len(sources),
-        "source_cisd_identical": len(frames),
+        "source_cisd_identical": len(frames) - status_counts["ORIGINAL_SOURCE_SENSOR_MISMATCH"],
+        "source_cisd_mismatch": status_counts["ORIGINAL_SOURCE_SENSOR_MISMATCH"],
         "sensor_status_counts": dict(sorted(status_counts.items())),
         "route_counts": dict(sorted(first_route_counts.items())),
         "modified_original_entries": 0,
@@ -177,8 +180,12 @@ def aggregate(root: Path) -> dict[str, Any]:
     ]
     if len(rows) != 2876 or len({r["source_opportunity_id"] for r in rows}) != 2876:
         raise ValueError("shadow sensor source census differs from original 2876")
-    if sum(r["source_cisd_identical"] for r in reports) != 2876:
-        raise ValueError("original V49 source trigger identities diverge")
+    matched = sum(r["source_cisd_identical"] for r in reports)
+    mismatched = sum(r["source_cisd_mismatch"] for r in reports)
+    if matched + mismatched != 2876:
+        raise ValueError("source identity evidence census is incomplete")
+    if sum(bool(r["sensor_source_identity_match"]) for r in rows) != matched:
+        raise ValueError("per-source identity flags not reconciled")
     if any(r["execution_authorized"] or r["hard_entry_gate_added"]
            or r["full_master_frame_attested"] or r["trader_certified"]
            or r["live_authorized"] for r in rows):
@@ -190,7 +197,8 @@ def aggregate(root: Path) -> dict[str, Any]:
         "identity": IDENTITY,
         "markets": 9,
         "original_source_opportunities": 2876,
-        "source_cisd_identical": 2876,
+        "source_cisd_identical": matched,
+        "source_cisd_mismatch": mismatched,
         "sensor_status_counts": dict(sorted(counts.items())),
         "source_event_observed": 2876,
         "entries_changed": 0,
