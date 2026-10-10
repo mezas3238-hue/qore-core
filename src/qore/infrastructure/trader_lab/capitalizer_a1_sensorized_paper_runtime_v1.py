@@ -19,15 +19,15 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from decimal import Decimal
 
-from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
-    A1PaperSource,
-    A1PaperTraderReport,
-    run_real_master_frame_paper_trader,
-)
 from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
     A1M1ProtectedRouteReview,
     M1ProtectionClass,
     SourceRouteClass,
+)
+from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
+    A1PaperSource,
+    A1PaperTraderReport,
+    run_real_master_frame_paper_trader,
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research import (
     A1MultiHypothesisBarrier,
