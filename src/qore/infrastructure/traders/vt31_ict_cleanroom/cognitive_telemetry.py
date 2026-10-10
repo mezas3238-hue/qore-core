@@ -158,11 +158,11 @@ class CognitiveTelemetry:
         for prefix, component in SOURCE_TO_COMPONENT.items():
             count = sum(
                 1 for p in pools
-                if str(getattr(p, "family", "")).startswith(prefix)
+                if str(p.family).startswith(prefix)
             )
             chosen = (
                 decision is not None
-                and str(getattr(decision, "draw_family", "")).startswith(prefix)
+                and str(decision.draw_family).startswith(prefix)
             )
             self.pulse(
                 component, session=session,
@@ -200,7 +200,7 @@ class CognitiveTelemetry:
             "DOL_ARBITRATION", session=session,
             input_kind="M1_SIDE_AND_AVAILABLE_UNSWEPT_POOLS",
             output_kind=(
-                str(getattr(decision, "draw_family"))
+                str(decision.draw_family)
                 if decision is not None else
                 "NO_TARGET" if "NO_CAUSAL_NEXT_DRAW_MIN10" in names
                 else "BLOCKED_UPSTREAM"
@@ -266,24 +266,24 @@ class CognitiveTelemetry:
                 ("ASIA_LIQUIDITY", "ASIA_NY_CLOCK"),
                 ("LONDON_LIQUIDITY", "LONDON_NY_CLOCK"),
             ):
-                if str(getattr(cognition, "draw_family")).startswith(prefix):
+                if str(cognition.draw_family).startswith(prefix):
                     self.counts[name].reached_source_candidate += 1
             if len(self.candidate_lineage) < self.max_examples:
                 self.candidate_lineage.append({
                     "trader_id": "VT31",
                     "session": session.value,
-                    "cognitive_as_of": utc(getattr(cognition, "observed_at")).isoformat(),
-                    "formed_at": utc(getattr(candidate, "formed_at")).isoformat(),
+                    "cognitive_as_of": utc(cognition.observed_at).isoformat(),
+                    "formed_at": utc(candidate.formed_at).isoformat(),
                     "M1_MSS_confirmed_at": utc(
-                        getattr(cognition, "structure_break_confirmed_at")
+                        cognition.structure_break_confirmed_at
                     ).isoformat(),
-                    "draw_family": str(getattr(cognition, "draw_family")),
+                    "draw_family": str(cognition.draw_family),
                     "draw_level_observed_at": utc(
-                        getattr(cognition, "draw_level_observed_at")
+                        cognition.draw_level_observed_at
                     ).isoformat(),
-                    "draw_target": str(getattr(cognition, "draw_target")),
-                    "side": str(getattr(cognition, "side")),
-                    "cognitive_source": str(getattr(cognition, "source_provenance")),
+                    "draw_target": str(cognition.draw_target),
+                    "side": str(cognition.side),
+                    "cognitive_source": str(cognition.source_provenance),
                     "causal_source_candidates_only": True,
                     "broker_filled": False,
                     "risk_authorized": False,
