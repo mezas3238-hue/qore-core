@@ -19,7 +19,45 @@ from vt31_ict_cleanroom_cog_real_3y_fast_v1 import (
 )
 from vt31_shadow_opposite_pivot_ab_v1 import Shadow, TracedCognition
 
-SCHEMA = "qore.vt31.one_trader.source_AB_protected_pivot.v1"
+SCHEMA = "qore.vt31.one_trader.source_AB_protected_pivot.v2"
+THRESHOLD_PRIMARY_SOURCE_PP = 5.0
+MAX_B_INDETERMINATE_PERCENT = 10.0
+
+
+def classify_a(phase, *, ce, ambiguous, target_before_ce):
+    if ce:
+        return "VALID_CE"
+    if ambiguous or phase is MethodologyDecision.AMBIGUOUS_PRICE_PATH:
+        return "INDETERMINATE"
+    if target_before_ce:
+        return "TARGET_BEFORE_CE"
+    if phase is MethodologyDecision.SOURCE_INVALIDATED:
+        return "INVALIDATED"
+    if phase is MethodologyDecision.WINDOW_EXPIRED:
+        return "EXPIRED"
+    return "OTHER"
+
+
+def classify_b(outcome):
+    if outcome == "CE_OVERLAP_NOT_BROKER_FILL":
+        return "VALID_CE"
+    if outcome in (
+        "UNPROVEN_PROTECTED_SWING",
+        "UNPROVEN_PROTECTED_STOP_GEOMETRY",
+        "CE_AND_CANCELLATION_SAME_M1_UNKNOWN",
+    ):
+        return "INDETERMINATE"
+    if outcome == "TARGET_BEFORE_CE":
+        return "TARGET_BEFORE_CE"
+    if outcome == "WINDOW_EXPIRED_BEFORE_CE":
+        return "EXPIRED"
+    if outcome in (
+        "PROTECTED_SWING_CLOSE_BROKEN",
+        "OPPOSING_MSS_DISPLACEMENT_AND_FVG",
+        "FVG_FULL_CLOSE",
+    ):
+        return "INVALIDATED"
+    return "OTHER"
 
 
 def scan(rows):
@@ -28,6 +66,8 @@ def scan(rows):
     full, partial, born = Counter(), Counter(), Counter()
     proven_pivot, arm_a, arm_b = Counter(), Counter(), Counter()
     a_ce, b_ce, mid = Counter(), Counter(), Counter()
+    contingency, a_labels, b_labels = Counter(), Counter(), Counter()
+    paired_records = []
     samples = []
     total, calls, p0 = 0, 0, 0
     last = None
@@ -49,7 +89,10 @@ def scan(rows):
         shadow = None
         recent = []
         a_touched, a_ambiguous = False, False
+        a_target_before_ce = False
         for bar in pending:
+            prior_ops = trader._windows.get(source_key)
+            prior_phase = prior_ops.decision if prior_ops else None
             obs = trader.on_closed_m1(bar)
             calls += 1
             ops = trader._windows[source_key]
@@ -93,6 +136,16 @@ def scan(rows):
             ):
                 a_touched = True
             if (
+                prior_phase is MethodologyDecision.RESEARCH_PENDING_CE
+                and not a_touched and not overlaps
+                and (
+                    bar.high >= shadow.target
+                    if shadow.side.value == "LONG"
+                    else bar.low <= shadow.target
+                )
+            ):
+                a_target_before_ce = True
+            if (
                 overlaps
                 and ops.decision is MethodologyDecision.SOURCE_INVALIDATED
                 and ops.event_at == bar.closed_at
@@ -102,6 +155,36 @@ def scan(rows):
         if shadow:
             shadow.finish()
             ops = trader._windows[source_key]
+            lab_a = classify_a(
+                ops.decision, ce=a_touched, ambiguous=a_ambiguous,
+                target_before_ce=a_target_before_ce,
+            )
+            lab_b = classify_b(shadow.outcome)
+            contingency[session.value + "|" + lab_a + "|" + lab_b] += 1
+            a_labels[session.value + "|" + lab_a] += 1
+            b_labels[session.value + "|" + lab_b] += 1
+            paired_records.append({
+                "ny_day": source_key[0],
+                "session_window": session.value,
+                "source_fvg_confirmed_at": shadow.formed_at.isoformat(),
+                "A_class": lab_a,
+                "B_class": lab_b,
+                "A_original_terminal": ops.decision.value,
+                "B_research_terminal": shadow.outcome,
+                "B_protected_pivot": (
+                    str(shadow.protected.price) if shadow.protected else None
+                ),
+                "B_opposite_mss_at": (
+                    shadow.first_opposing_mss_at.isoformat()
+                    if shadow.first_opposing_mss_at else None
+                ),
+                "B_first_opposing_fvg_at": (
+                    shadow.first_opposing_fvg_at.isoformat()
+                    if shadow.first_opposing_fvg_at else None
+                ),
+                "B_mid_only_post_ce": shadow.exit_after_ce,
+                "real_broker_fill_proven": False,
+            })
             arm_a[session.value + "|" + ops.decision.value] += 1
             arm_b[session.value + "|" + shadow.outcome] += 1
             mid[session.value + "|" + shadow.exit_after_ce] += 1
@@ -154,6 +237,26 @@ def scan(rows):
         raise AssertionError("B invented or dropped FVG")
     if p0:
         raise AssertionError("original OPS pending without COG regression")
+    if sum(contingency.values()) != sum(born.values()):
+        raise AssertionError("paired contingency and original FVG count drift")
+    if len({
+        (r["ny_day"], r["session_window"], r["source_fvg_confirmed_at"])
+        for r in paired_records
+    }) != len(paired_records):
+        raise AssertionError("duplicate first-FVG paired candidate IDs")
+    n = len(paired_records)
+    a_only = sum(r["A_class"] == "VALID_CE" and r["B_class"] != "VALID_CE"
+                 for r in paired_records)
+    b_only = sum(r["B_class"] == "VALID_CE" and r["A_class"] != "VALID_CE"
+                 for r in paired_records)
+    unknown_b = sum(r["B_class"] == "INDETERMINATE" for r in paired_records)
+    delta_pct = (100.0 * (b_only - a_only) / n) if n else 0.0
+    unknown_pct = (100.0 * unknown_b / n) if n else 0.0
+    primary_met = (
+        n > 0
+        and delta_pct >= THRESHOLD_PRIMARY_SOURCE_PP
+        and unknown_pct <= MAX_B_INDETERMINATE_PERCENT
+    )
     return {
         "schema": SCHEMA, "base": BASE, "trader_id": "VT31",
         "registered_trader_count": 1, "models": ["LONDON", "NEW_YORK"],
@@ -168,6 +271,28 @@ def scan(rows):
         "B_CE_overlap_M1_not_fill": dict(sorted(b_ce.items())),
         "B_after_CE_mid_price_only": dict(sorted(mid.items())),
         "original_P0_pending_without_COG": p0,
+        "paired_contingency_by_window": dict(sorted(contingency.items())),
+        "A_mutually_exclusive_labels": dict(sorted(a_labels.items())),
+        "B_mutually_exclusive_labels": dict(sorted(b_labels.items())),
+        "paired_candidate_records": paired_records,
+        "preregistered_primary_endpoint": {
+            "population_original_first_FVGs": n,
+            "A_only_unambiguous_CE_OHLC": a_only,
+            "B_only_unambiguous_CE_OHLC": b_only,
+            "paired_difference_percentage_points": round(delta_pct, 6),
+            "B_indeterminate_count": unknown_b,
+            "B_indeterminate_percentage": round(unknown_pct, 6),
+            "min_net_B_advantage_percentage_points": THRESHOLD_PRIMARY_SOURCE_PP,
+            "max_B_indeterminate_percentage": MAX_B_INDETERMINATE_PERCENT,
+            "source_only_two_part_gate_met": primary_met,
+            "authorized_for_real_money_or_production": False,
+        },
+        "multiple_comparisons": {
+            "primary": "ONE pooled all-window paired source contrast",
+            "three_windows_secondary_exploratory": True,
+            "bonferroni_alpha_if_window_hypotheses_tested": 0.05 / 3,
+            "valid_independent_pvalue_calculated": False,
+        },
         "examples": samples,
         "guards": {
             "source_only_no_legacy": True,
