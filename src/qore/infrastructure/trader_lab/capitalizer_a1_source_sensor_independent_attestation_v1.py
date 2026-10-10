@@ -26,7 +26,6 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
     iter_cibo_m1,
 )
-from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import (
     V48AggregatedBar,
     _aggregate,
@@ -38,10 +37,8 @@ from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v
     V49Opportunity,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerSourceBar,
     CapitalizerSourceDirection,
-)
-from qore.infrastructure.trader_lab.capitalizer_ttrades_m1_cisd_observer_v48 import (
-    observe_first_m1_cisd,
 )
 from qore.infrastructure.trader_lab.capitalizer_ttrades_structural_cisd_v48 import (
     V48TimedSourceBar,
@@ -237,10 +234,7 @@ def _m1_protected(
     )
 
 
-def __source_bar(row: CapitalizerM1Bar):
-    from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
-        CapitalizerSourceBar,
-    )
+def __source_bar(row: CapitalizerM1Bar) -> CapitalizerSourceBar:
     return CapitalizerSourceBar(
         open=row.open, high=row.high, low=row.low, close=row.close
     )
@@ -264,7 +258,7 @@ def _h1_target(
     candidates = tuple(
         bar for bar in h1 if _bar_time_closed(bar, minutes=60, at=at)
     )
-    witnesses: list[tuple[Decimal, datetime]] = []
+    original_witness: tuple[Decimal, datetime] | None = None
     for bar in reversed(candidates[-24:]):
         level = (
             bar.source.high
@@ -275,7 +269,7 @@ def _h1_target(
             level > entry if direction is CapitalizerSourceDirection.BULLISH
             else level < entry
         )
-        if not ahead:
+        if not ahead or level != original:
             continue
         untouched = all(
             row.high < level if direction is CapitalizerSourceDirection.BULLISH
@@ -284,11 +278,8 @@ def _h1_target(
             if bar.closed_at < row.opened_at and row.closed_at <= at
         )
         if untouched:
-            witnesses.append((level, bar.closed_at))
-    original_witness = next(
-        ((value, confirmed) for value, confirmed in witnesses if value == original),
-        None,
-    )
+            original_witness = (level, bar.closed_at)
+            break
     status = (
         ProofStatus.OBSERVED if original_witness is not None
         else ProofStatus.NOT_AVAILABLE
@@ -395,9 +386,6 @@ def attest_market(native_root: Path, source_root: Path, target: Path) -> dict[st
                 raise ValueError("duplicate source opportunity")
             seen.add(sid)
             at = _dt(source.m1_trigger_confirmed_at)
-            left = bisect.bisect_left(
-                opened, _dt(source.m15_setup_confirmed_at) - timedelta(minutes=5)
-            )
             # As-of includes enough earlier H1 native context for untouched check.
             right = bisect.bisect_left(opened, at)
             asof = bars[:right]
