@@ -48,6 +48,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_scalper_entry_timing_sensors_census_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_sensor_master_frame_bridge_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_sensor_paper_decision_ab_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_cisd_381_discrepancy_forensic_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_high_frequency_capacity_census_v49.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_author_route_audit_v1.py \
@@ -65,6 +66,7 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_scalper_entry_timing_sensors_shadow_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_sensor_master_frame_bridge_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_sensor_paper_decision_ab_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_cisd_381_discrepancy_forensic_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_c2_c3_primary_source_characterization_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_ttrades_m1_cisd_observer_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_v49_h1_target_causality.py \
@@ -85,6 +87,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_scalper_entry_timing_sensors_census_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_sensor_master_frame_bridge_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_sensor_paper_decision_ab_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_cisd_381_discrepancy_forensic_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_max3_counterfactual_audit_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_winner_retention_v1.py \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_v49_v50_g_waterfall_v1.py \
@@ -101,6 +104,7 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_scalper_entry_timing_sensors_shadow_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_sensor_master_frame_bridge_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_sensor_paper_decision_ab_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_cisd_381_discrepancy_forensic_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_c2_c3_primary_source_characterization_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_liquidity_target_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_ttrades_m1_cisd_observer_v48.py \
