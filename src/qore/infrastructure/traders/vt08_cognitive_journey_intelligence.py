@@ -14,6 +14,7 @@ from typing import Final
 
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     Vt08FiveMarketResearchSituation,
+    research_cognitive_memory_fingerprint,
     research_market_anchor_context,
 )
 from qore.infrastructure.traders.vt08_cognitive_memory import (
@@ -171,6 +172,10 @@ def assess_journey(
         contradictions=tuple(dict.fromkeys(contradictions)),
         uncertainty=tuple(dict.fromkeys(uncertainty)),
         situation_fingerprint=situation.fingerprint(),
-        cognitive_memory_fingerprint=cognitive_memory_fingerprint(),
+        cognitive_memory_fingerprint=(
+            research_cognitive_memory_fingerprint()
+            if isinstance(situation, Vt08FiveMarketResearchSituation)
+            else cognitive_memory_fingerprint()
+        ),
         market_anchor_context_fingerprint=str(context["fingerprint"]),
     )
