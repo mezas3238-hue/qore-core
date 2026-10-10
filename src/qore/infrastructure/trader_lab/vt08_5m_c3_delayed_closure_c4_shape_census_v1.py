@@ -16,6 +16,9 @@ from pathlib import Path
 from typing import Final
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.trader_lab.vt08_5m_ttrades_c2_c3_source_eq_range_v1 import (
+    source_eq_after_closure,
+)
 from qore.infrastructure.trader_lab.vt08_5m_source_bias_asof_attestation_v1 import (
     SOURCE_SHA,
     attest_bias,
@@ -99,7 +102,16 @@ def first_c4_eq_observation(
     side: DemoTradingSetupSide,
 ) -> dict[str, object]:
     """ONLY observation after C4 M15 closes; zero orders or hindsight fills."""
-    eq = (c3.high + c3.low) / 2
+    eq_proof = source_eq_after_closure(
+        c3,
+        candle_label="C3",
+        intended_side=side,
+        closure_adjudicated=True,
+        decision_at=c3.closed_at,
+    )
+    if eq_proof is None:
+        raise ValueError("C3 closed source EQ proof is missing")
+    eq = eq_proof.eq
     payload: dict[str, object] = {
         "eq_level": str(eq),
         "eq_basis": "C3_FULL_WICK_TO_WICK_AS_OF_C3_CLOSE",
