@@ -373,7 +373,7 @@ def self_test():
     # A displaced opposite MSS may appear BEFORE the first confirmed
     # opposite FVG. The same-bar-only shortcut would miss this.
     a = bar(0, "109", "112", "108", "110")
-    b = bar(1, "110", "120", "113", "119")
+    b = bar(1, "115", "120", "113", "119")
     c = bar(2, "119", "119", "105", "106")
     d = bar(3, "106", "107", "100", "104")
     class Index:
@@ -396,7 +396,7 @@ def self_test():
     assert is_ready is True and unchanged == latched
     # Strictly no acceptance of FVG confirmed AFTER the source hour.
     assert opposing_pivot((a, b), Side.LONG, c.closed_at) is None
-    y = bar(38, "110", "120", "113", "119")
+    y = bar(38, "115", "120", "113", "119")
     z = bar(39, "119", "119", "105", "106")
     after = bar(40, "106", "107", "100", "104")
     too_late, _ = first_opposing_mss_then_fvg(
