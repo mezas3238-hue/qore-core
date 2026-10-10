@@ -128,12 +128,95 @@ def _bias_from_closed_days(previous: dict[str, object], current: dict[str, objec
     return "long" if bullish else "short"
 
 
+SOURCE_SNAPSHOT_TIMESTAMPS: Final = (
+    "h4_anchor_at",
+    "decision_at",
+    "evidence_as_of",
+    "candle2_closed_at",
+    "opposing_series_opened_at",
+    "cisd_confirmed_at",
+    "ps_confirmed_at",
+    "pending_expiry_at",
+)
+SOURCE_SNAPSHOT_PRICES: Final = ("entry_price", "stop_price", "target_price")
+SOURCE_SNAPSHOT_OTHER: Final = (
+    "schema",
+    "market",
+    "ny_date",
+    "anchor_ny_hour",
+    "source_family",
+    "ltf_profile",
+    "side",
+    "scenario",
+    "source_rule_ref",
+    "entry_basis",
+    "stop_basis",
+    "target_basis",
+    "filled_lifecycle",
+    "source_methodology_sha256",
+    "evidence_sha256",
+    "research_only",
+    "execution_authorized",
+    "live_authorized",
+)
+
+
+def _verify_source_and_snapshot_identity(event: dict[str, object]) -> None:
+    """Recompute A source and mutable snapshot IDs from declared root fields.
+
+    The immutable ID must not depend on later evidence_sha256. This calculation
+    is reproduced independently rather than calling A's hash method.
+    """
+    keys = SOURCE_SNAPSHOT_OTHER + SOURCE_SNAPSHOT_TIMESTAMPS + SOURCE_SNAPSHOT_PRICES
+    if any(key not in event for key in keys):
+        raise ValueError("candidate source snapshot missing canonical payload field")
+    source_payload = {key: event[key] for key in keys}
+    for key in SOURCE_SNAPSHOT_TIMESTAMPS:
+        source_payload[key] = _timestamp(event[key]).isoformat(timespec="microseconds")
+    for key in SOURCE_SNAPSHOT_PRICES:
+        number = Decimal(str(event[key]))
+        if not number.is_finite() or number <= 0:
+            raise ValueError("candidate price invalid in snapshot root")
+        source_payload[key] = format(number.normalize(), "f")
+    source_payload["ny_date"] = _timestamp(event["h4_anchor_at"]).astimezone(
+        _NY
+    ).date().isoformat()
+    source_payload["anchor_ny_hour"] = _timestamp(
+        event["h4_anchor_at"]
+    ).astimezone(_NY).hour
+    if _canonical_digest(source_payload) != event.get("event_fingerprint"):
+        raise ValueError("A snapshot fingerprint inconsistent with canonical source payload")
+    if event.get("event_id") != f"vt08-5m:{event['event_fingerprint']}":
+        raise ValueError("A snapshot ID does not bind canonical fingerprint")
+    source_identity = {
+        "schema": "VT08_5M_CANDIDATE_EVENT_V1",
+        "source_rule_ref": event["source_rule_ref"],
+        "source_methodology_sha256": event["source_methodology_sha256"],
+        "market": event["market"],
+        "ltf_profile": event["ltf_profile"],
+        "source_family": event["source_family"],
+        "scenario": event["scenario"],
+        "side": event["side"],
+        "h4_anchor_at": _timestamp(event["h4_anchor_at"]).isoformat(
+            timespec="microseconds"
+        ),
+        "opposing_series_opened_at": _timestamp(
+            event["opposing_series_opened_at"]
+        ).isoformat(timespec="microseconds"),
+    }
+    if event.get("source_event_id") != (
+        f"vt08-5m-source:{_canonical_digest(source_identity)}"
+    ):
+        raise ValueError("A stable source identity inconsistent with source origin")
+
+
 def audit_candidate(
     event: object,
     bars_by_open: dict[datetime, Vt08B01Bar],
 ) -> dict[str, object]:
     if not isinstance(event, dict):
         raise ValueError("invalid candidate envelope")
+    _verify_source_and_snapshot_identity(event)
     decision = _timestamp(event.get("decision_at"))
     if event.get("anchor_ny_hour") != decision.astimezone(_NY).hour:
         raise ValueError("candidate anchor NY/UTC clock mismatch")
