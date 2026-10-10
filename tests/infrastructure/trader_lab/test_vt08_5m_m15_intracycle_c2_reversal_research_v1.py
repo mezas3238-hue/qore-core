@@ -19,7 +19,7 @@ def bar(
     t: datetime,
     o: str,
     h: str,
-    l: str,
+    low: str,
     c: str,
 ) -> Vt08B01Bar:
     return Vt08B01Bar(
@@ -27,7 +27,7 @@ def bar(
         closed_at=(t + timedelta(minutes=15)).astimezone(UTC),
         open=Decimal(o),
         high=Decimal(h),
-        low=Decimal(l),
+        low=Decimal(low),
         close=Decimal(c),
     )
 
