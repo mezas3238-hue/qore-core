@@ -6,6 +6,10 @@
 
 **Congelar nuevas capas del CapitalizerGlobalWorldModel, nuevos regímenes, filtros y políticas cognitivas hasta cerrar P0-1, P0-2 y P0-3 de abajo.** A1 conserva los resultados físicos auditados y el código ya integrado de solo lectura sin introducir autoridad de decisión adicional. Esta pausa NO borra pruebas, no convierte datos NOT_AVAILABLE en trade veto y no implica que el CISD sea definitivamente incorrecto. El Master Frame PAPER histórico nine-market 2.876 fuentes **NO se ha ejecutado**, por lo que PF y DD cognitivos reales siguen ausentes.
 
+## A1 FASE NUEVA ENTREGADA — cuarentena as-of de los datos B con futuro excluido
+
+[Run GitHub #38094209281 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38094209281) reconcilió los **2876** registros de B novena auditoría contra el **hash original V49** en los nueve mercados. La fuente B contiene los campos de investigación posthoc `original_excur` y `sensor_excur` MFE/MAE +15/+30/+60, que **nunca** deben alcanzar la decisión cognitiva. El [nuevo aislamiento de datos A1](QORE_SCALPER_A1_TENTH_AUDIT_CISD_NO_HINDSIGHT_BOUNDARY_9MARKET_2026-10-10.md) emite un JSONL de 2876 testigos estrictamente as-of y un registro de clasificación idéntico 2495 MATCHED / 247 EARLY / 134 SAME_TIME_DIFFERENT_FAMILY; excluye todas las excursiones futuras y rechaza identidad/tiempo incompatibles o cualquier cambio de esquema desconocido. **No se conecta al Master Frame hasta que la metodología B sea adjudicada**, no da nuevos vetos ni autoridad de operación. [Full CI #38094209262 GREEN](https://github.com/mezas3238-hue/qore-core/actions/runs/38094209262).
+
 ## P0-1 | La definición CISD básica coincide, pero la fidelidad completa aún no
 
 Fuentes primarias:
