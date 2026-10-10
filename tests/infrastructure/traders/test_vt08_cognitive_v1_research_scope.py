@@ -2,6 +2,7 @@
 
 Synthetic situations only: these are not strategy signals or economic replays.
 """
+import json
 from dataclasses import fields
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -16,7 +17,13 @@ from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     MEMORY_STATE,
     RESEARCH_MARKETS,
     Vt08FiveMarketResearchSituation,
+    research_cognitive_memory_fingerprint,
     research_market_anchor_context,
+    research_strategy_identity_fingerprint,
+)
+from qore.infrastructure.traders.vt08_cognitive_memory import (
+    cognitive_memory_fingerprint,
+    validate_cognitive_memory,
 )
 from qore.infrastructure.traders.vt08_cognitive_orchestrator import (
     evaluate_cognitive_hypothesis,
@@ -190,3 +197,104 @@ def test_all_five_markets_reach_in_trade_journey_and_position(market: str) -> No
     assert decision.position_decision.action is Vt08PositionAction.HOLD
     assert not decision.position_decision.execution_authorized
     assert len(decision.position_decision.fingerprint()) == 64
+
+
+@pytest.mark.parametrize("market", RESEARCH_MARKETS)
+@pytest.mark.parametrize("anchor", (1, 5, 9))
+def test_all_market_anchor_memories_are_bounded_unknown_not_pnl_gate(
+    market: str, anchor: int
+) -> None:
+    value = research_market_anchor_context(market, anchor)
+    assert value["cibo_market_prior_state"] == MEMORY_STATE
+    assert value["trader_experience_state"] == MEMORY_STATE
+    assert value["market_memory_version"] is None
+    assert value["experience_memory_version"] is None
+    assert value["execution_gate_from_pnl"] is False
+    assert value["operational_authority"] is False
+    assert research_market_anchor_context(market, anchor) == value
+
+
+def test_research_memory_and_identity_not_misrepresented_as_legacy_memory() -> None:
+    validate_cognitive_memory()
+    assert research_cognitive_memory_fingerprint() != cognitive_memory_fingerprint()
+    assert len(research_strategy_identity_fingerprint()) == 64
+    assert len(research_cognitive_memory_fingerprint()) == 64
+
+
+def test_research_envelope_rejects_missing_duplicate_and_unknown_features() -> None:
+    cutoffs = tuple((field, AS_OF) for field in CAUSAL_FIELDS)
+    with pytest.raises(ValueError, match="complete feature"):
+        _situation(feature_cutoffs=cutoffs[:-1])
+    with pytest.raises(ValueError, match="duplicate or unordered"):
+        _situation(feature_cutoffs=(cutoffs[1], cutoffs[0], *cutoffs[2:]))
+    with pytest.raises(ValueError, match="unknown feature"):
+        _situation(feature_cutoffs=(("pnl_future", AS_OF), *cutoffs[1:]))
+    with pytest.raises(ValueError, match="immutable"):
+        _situation(feature_cutoffs=list(cutoffs))
+
+
+@pytest.mark.parametrize("feature", CAUSAL_FIELDS)
+def test_research_envelope_rejects_each_future_feature(feature: str) -> None:
+    future = AS_OF + timedelta(minutes=1)
+    feature_cutoffs = tuple(
+        (field, future if field == feature else AS_OF)
+        for field in CAUSAL_FIELDS
+    )
+    with pytest.raises(ValueError, match="future information"):
+        _situation(feature_cutoffs=feature_cutoffs)
+
+
+def test_research_envelope_rejects_inconsistent_latest_bar_and_naive_proof() -> None:
+    lagging = tuple(
+        (field, AS_OF - timedelta(minutes=1)) for field in CAUSAL_FIELDS
+    )
+    with pytest.raises(ValueError, match="maximum feature cutoff"):
+        _situation(feature_cutoffs=lagging, latest_available_bar_close=AS_OF)
+    malformed = tuple(
+        (field, AS_OF.replace(tzinfo=None) if i == 3 else AS_OF)
+        for i, field in enumerate(CAUSAL_FIELDS)
+    )
+    with pytest.raises(ValueError, match="feature cutoff must be timezone-aware"):
+        _situation(feature_cutoffs=malformed)
+
+
+def test_research_payload_is_json_safe_and_every_provenance_byte_is_hashed() -> None:
+    first = _situation()
+    json.dumps(first.payload(), sort_keys=True)
+    assert len(first.fingerprint()) == 64
+    changed = tuple(
+        (field, AS_OF - timedelta(minutes=1) if i == 0 else AS_OF)
+        for i, field in enumerate(CAUSAL_FIELDS)
+    )
+    revised = _situation(feature_cutoffs=changed)
+    assert first.fingerprint() != revised.fingerprint()
+    assert first.payload()["schema"].startswith("qore.vt08.cognitive_5m.")
+    assert revised.payload()["feature_cutoffs"][0][1] != (
+        first.payload()["feature_cutoffs"][0][1]
+    )
+
+
+def test_research_requires_source_cycle_and_timezone_bound() -> None:
+    with pytest.raises(ValueError, match="cycle id"):
+        _situation(source_cycle_id="")
+    with pytest.raises(ValueError, match="cycle expiry"):
+        _situation(cycle_expires_at=None)
+    with pytest.raises(ValueError, match="cycle expiry"):
+        _situation(cycle_expires_at=AS_OF.replace(tzinfo=None))
+
+
+@pytest.mark.parametrize(
+    ("state", "expected_action"),
+    (
+        ("INVALID", Vt08CognitiveAction.ABSTAIN),
+        ("UNKNOWN", Vt08CognitiveAction.WAIT),
+    ),
+)
+def test_risk_geometry_does_not_execute_if_not_valid(
+    state: str, expected_action: Vt08CognitiveAction
+) -> None:
+    outcome = evaluate_cognitive_hypothesis(
+        situation=_situation(risk_geometry_state=state),
+        source_fingerprint=f"synthetic-risk-{state}",
+    )
+    assert outcome.decision.action is expected_action
