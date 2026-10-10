@@ -175,3 +175,52 @@ def test_no_legacy_research_or_dynamic_risk_in_cleanroom() -> None:
     assert set(VT31CleanroomCognition.assess.__annotations__) >= {
         "session", "as_of",
     }
+
+
+def test_old_closed_htf_does_not_masquerade_as_current_session_context() -> None:
+    bars, at = _fixtures()
+    # Preserve the prior Friday DOL and current 03:00 MSS, but delete the
+    # completed current-day H1/M15 evidence. COG MUST NOT carry Friday H1.
+    stale = tuple(
+        b for b in bars
+        if b.opened_at.date() != at.date()
+        or b.opened_at.hour >= 8
+    )
+    engine = VT31CleanroomCognition()
+    for bar in stale:
+        engine.observe_closed_m1(bar)
+    result = engine.assess(session=SessionId.LONDON, as_of=at)
+    assert result.decision is None
+    assert "H1_CLOSED_CONTEXT" in result.missing
+    assert "M15_CLOSED_CONTEXT" in result.missing
+    assert result.verified_htf == ()
+
+
+def test_real_cognitive_decision_is_consumed_by_ops_same_session_fvg() -> None:
+    from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
+        MethodologyDecision,
+    )
+    from qore.infrastructure.traders.vt31_ict_cleanroom.trader import (
+        VT31Trader,
+    )
+
+    bars, _ = _fixtures()
+    last = bars[-1]
+    # Actual strictly directional FVG: the third 03:05 candle has low 105,
+    # above the 03:03 candle high 104. It also breaks the confirmed 105 MSS.
+    final = _bar(
+        last.opened_at, o="105", h="109", lo="105", c="108",
+    )
+    trader = VT31Trader()
+    last_out = None
+    for item in (*bars[:-1], final):
+        last_out = trader.on_closed_m1(item)
+    assert last_out is not None
+    assert last_out.cognition is not None
+    assert last_out.cognition.decision is not None
+    assert last_out.cognition.decision.draw_target == Decimal("150")
+    assert last_out.operational_phase is MethodologyDecision.RESEARCH_PENDING_CE
+    state = trader.snapshot()
+    assert state["registered_trader_count"] == 1
+    assert state["session_windows"][-1]["model"] == "LONDON"
+    assert state["live_authorized"] is False
