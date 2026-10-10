@@ -27,6 +27,12 @@ from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_int
 from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research import (
     A1MultiHypothesisBarrier,
 )
+from qore.infrastructure.trader_lab.capitalizer_a1_source_sensor_independent_attestation_v1 import (
+    A1SourceSensorAttestation,
+)
+from qore.infrastructure.trader_lab.capitalizer_a1_validated_sensor_overlay_v1 import (
+    apply_independent_source_sensor_witnesses,
+)
 from qore.infrastructure.trader_lab.capitalizer_scalper_entry_timing_sensors_shadow_v1 import (
     EntrySensorInput,
     observe_entry_timing_sensors,
@@ -43,6 +49,8 @@ class A1SensorizedPaperBridgeResult:
     source_cisd_identity_conflicts: int
     full_master_frame_invoked: bool
     sensors_reached_full_master_frame: bool
+    independently_validated_source_rows: int = 0
+    independently_observed_market_sensors: int = 0
     automatically_vetoed_cisd_conflicts: bool = False
     synthetic_nine_market_world_created: bool = False
     virtual_broker_quotes_created: bool = False
@@ -64,6 +72,7 @@ def run_sensorized_master_frame_paper(
     source_evidence: Mapping[str, EntrySensorInput],
     source_originals: tuple[A1PaperSource, ...],
     baseline_selected_source_ids: tuple[str, ...],
+    independent_source_witnesses: Mapping[str, A1SourceSensorAttestation] | None = None,
 ) -> A1SensorizedPaperBridgeResult:
     """Run 9-market A1 cognition with genuine A2 sensor observations per source."""
 
@@ -77,11 +86,18 @@ def run_sensorized_master_frame_paper(
         or set(source_evidence) != expected
     ):
         raise ValueError("A2 sensors must have exactly the original source IDs")
+    if (
+        independent_source_witnesses is not None
+        and set(independent_source_witnesses) != expected
+    ):
+        raise ValueError("all original source IDs need an independent sensor proof")
     source_table = {
         row.source_opportunity_id: row for row in source_originals
     }
     observed = 0
     conflicts = 0
+    independently_validated = 0
+    independently_upgraded_sensors = 0
     wrapped_barriers: list[A1MultiHypothesisBarrier] = []
     for barrier in barriers:
         alternatives = []
@@ -106,6 +122,18 @@ def run_sensorized_master_frame_paper(
             if (value.h1_direction == "BULLISH") != (historical.direction == "LONG"):
                 raise ValueError("sensor H1 bias conflicts with original trade direction")
             frame = observe_entry_timing_sensors(value)
+            if independent_source_witnesses is not None:
+                witness = independent_source_witnesses[sid]
+                upgraded = apply_independent_source_sensor_witnesses(
+                    frame=frame, source_opportunity_id=sid, witness=witness,
+                )
+                independently_validated += 1
+                old_by_name = {r.sensor: r for r in frame.sensors}
+                independently_upgraded_sensors += sum(
+                    r.status != old_by_name[r.sensor].status
+                    for r in upgraded.sensors
+                )
+                frame = upgraded
             binding = bind_scalper_sensors_into_master_context(frame)
             if binding.grants_entry_authority:
                 raise ValueError("read-only A2 sensor grant is illegal")
@@ -156,4 +184,6 @@ def run_sensorized_master_frame_paper(
         source_cisd_identity_conflicts=conflicts,
         full_master_frame_invoked=True,
         sensors_reached_full_master_frame=True,
+        independently_validated_source_rows=independently_validated,
+        independently_observed_market_sensors=independently_upgraded_sensors,
     )
