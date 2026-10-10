@@ -297,3 +297,37 @@ def test_long_and_short_protection_candidates_must_improve_not_widen_stops() -> 
             current_price=Decimal("1.350"),
             candidate_stop=Decimal("1.330"),
         )
+
+
+def test_material_thesis_invalidation_exits_even_when_h4_still_valid() -> None:
+    assessment = evaluate_in_trade_cognition(
+        situation=_situation(
+            h4_lifecycle_valid=True,
+            material_contradictions=("SOURCE:PROTECTED_SWING_BROKEN",),
+        ),
+        position=_position(),
+    )
+    assert assessment.journey.journey_state is Vt08JourneyState.INVALIDATED
+    assert assessment.position_decision.action is Vt08PositionAction.EXIT
+    assert "POSITION:EXIT_CAUSAL_THESIS_INVALIDATED" in (
+        assessment.position_decision.reason_codes
+    )
+    assert assessment.position_decision.execution_authorized is False
+
+
+def test_long_position_never_accepts_stop_past_current_or_invalid_geometry() -> None:
+    payload = {
+        "as_of": datetime(2026, 9, 23, 13, 15, tzinfo=UTC),
+        "side": "long",
+        "entry_price": Decimal("1.3400"),
+        "current_price": Decimal("1.3480"),
+        "initial_stop": Decimal("1.3340"),
+        "current_stop": Decimal("1.3340"),
+        "bound_destination": Decimal("1.3550"),
+    }
+    with pytest.raises(ValueError, match="long initial geometry invalid"):
+        Vt08PositionSnapshot(**{**payload, "bound_destination": Decimal("1.3300")})
+    with pytest.raises(ValueError, match="below current price"):
+        Vt08PositionSnapshot(**{**payload, "current_stop": Decimal("1.3500")})
+    with pytest.raises(ValueError, match="widened"):
+        Vt08PositionSnapshot(**{**payload, "current_stop": Decimal("1.3330")})
