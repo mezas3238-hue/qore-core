@@ -1,10 +1,10 @@
 # Scalper A1 — verificación GitHub CI / scientific replay
 
-Fecha: 2026-10-10. Rama `agent/scalper-architect-1-cognitive-cert-20261010`. Issue #754; PR DRAFT #760; PR padre #623. NO MERGE/NO VPS.
+Fecha: 2026-10-10. Rama `agent/scalper-architect-a-cognition-20261010`. Issue #756; PR DRAFT #758; PR padre #623. NO MERGE/NO VPS.
 
 ## Método de reproducibilidad
 
-El workflow global `.github/workflows/ci.yml` se activa con `pull_request: [main]`, no con PR a rama de integración. Para obtener un gate automático **sin fusionar**, #760 se dirigió TEMPORALMENTE a `main` conservando `draft=true`. Al cerrar el chequeo, **restaurar base a `agent/qore-capitalizer-cognitive-v1-001`**. Esto no es autorización de integración.
+El workflow global `.github/workflows/ci.yml` se activa con `pull_request: [main]`, no con PR a rama de integración. Un ensayo de CI se obtuvo mediante el PR temporal #760 hacia `main` y se restauró su base a `agent/qore-capitalizer-cognitive-v1-001`. **Run `38042441033` FAIL Mypy V53**, run de contrato `38042441069` SUCCESS. Este método no promueve ni fusiona; repetir contra integración final. Esto no es autorización de integración.
 
 El SHA concreto debe fijarse por cada run. No deducir PASS a partir de compilación estática, CI sin artefactos o resultados de otros commits.
 
