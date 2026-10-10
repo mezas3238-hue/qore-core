@@ -1,0 +1,52 @@
+name: VT31 ICT Cleanroom Core Import Migration P0
+
+on:
+  push:
+    branches:
+      - agent/vt31-ict-cleanroom-rebuild-20261009
+    paths:
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/**
+      - .github/workflows/vt31-ict-cleanroom-runtime-import-audit-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-no-imports-of-deleted-legacy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Detect indirect Python imports of deleted VT31 modules across Core
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          old_prefix = ('vt31_silver_bullet', 'vt31_nas100_', 'vt31_london_session_contract')
+          impacted = []
+          for file in sorted(Path("src").rglob("*.py")):
+              try:
+                  parsed=ast.parse(file.read_text(encoding="utf-8"))
+              except (UnicodeError, SyntaxError):
+                  continue
+              for node in ast.walk(parsed):
+                  if isinstance(node, ast.Import):
+                      paths = [x.name for x in node.names]
+                  elif isinstance(node, ast.ImportFrom):
+                      paths = [node.module or ""]
+                  else:
+                      continue
+                  for path in paths:
+                      if any(path.split(".")[-1].startswith(prefix) for prefix in old_prefix):
+                          impacted.append((str(file), node.lineno, path))
+          for file, line, module in impacted[:150]:
+              print(f"RETIRED VT31 IMPORT: {file}:{line}: {module}")
+          print("CORE_IMPORT_MIGRATION_BLOCKERS =",len(impacted))
+          if impacted:
+              raise SystemExit("P0 blocker: surviving runtime sources still depend on deleted VT31")
+          print("No remaining runtime direct imports of retired VT31: PASS")
+          PY
