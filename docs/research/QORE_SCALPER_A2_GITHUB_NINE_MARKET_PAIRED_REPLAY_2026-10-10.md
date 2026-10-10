@@ -48,3 +48,34 @@ Do not confuse the last two: a larger candidate reward does not erase how many o
 5. Follow-up scientific gate after proper nine-market results: maintain density above rejected 90 trades, winner_count≥80% and original positive winner R≥90%, net PF target, max-DD Owner≤6R, independent OOS and Monte Carlo. No live/funded account permission.
 
 **Status:** historical replay code and method verifiers in GitHub, preregistered. Results only after verifying successful artifacts on their exact run SHA.
+
+## Control V49: primeros resultados reales ya medidos, 9/9 SUCCESS
+
+**Oficial:** [GitHub Actions V49 control #38053946695](https://github.com/mezas3238-hue/qore-core/actions/runs/38053946695) 11/11 jobs SUCCESS: contract + nueve mercados + aggregate. **Artifact matriz:** [#11670728222](https://github.com/mezas3238-hue/qore-core/actions/runs/38053946695/artifacts/11670728222). Workflow SHA `e356e7a52541e99533b25ecfef0ab9c4e9ce03c0`; datos M1 como arriba.
+
+Resultados **GROSS sin broker physical costs**, ventana `2025-09-17T00:00:00+00:00` a `2026-09-17T00:00:00+00:00`, original MAX3 por sesión/día:
+
+| Medida | Resultado V49 control |
+|---|---:|
+| Operaciones reproducidas antes de MAX3 | 2,876 |
+| Ejecuciones seleccionadas después de MAX3 | 2,020 |
+| Ganadoras / perdedoras / planas | 1,167 / 852 / 1 |
+| Win rate | 57.7723% |
+| Gross Profit R | +461.9427618322288694336956228 |
+| Gross Loss R | −695.2120889085953793503048303 |
+| Net Total R antes de costes | −233.2693270763665099166092077 |
+| Profit Factor GROSS | **0.6644630742216047176197070525** |
+| Expectancy R | −0.1154798648892903514438659444 |
+| Máximo drawdown secuencial | **236.1342843563358706676497192 R** |
+| Máxima racha perdedora | 8 |
+| Mediana target plan R | 0.4426229508196721311475409836 |
+| Exits target / stop / session | 1,030 / 609 / 381 |
+| Intrabar ambiguo stop-first | 3 |
+| Cost stress 0.01R PF / DD | 0.6398362514599530389556800535 / 256.2842843563358706676497188 R |
+| Cost stress 0.05R PF / DD | 0.5482072784875563409542173475 / 336.8842843563358706676497190 R |
+
+**Interpretación:** la frecuencia del baseline V49 (2,020 selecciones) es sustancial, pero **el edge económico base es negativo**. El win rate positivo no supera la pérdida/R asimetría, mediana de recompensa planificada ~0.443R. Un filtro V50 que transforme 2,020 operaciones en ~90 a PF superior puede estar violando requisitos de ganador/masa; no usar como aprobación automática. Estos números pertenecen a un portafolio de R acumulados bajo reglas del replay y no representan drawdown % de una cuenta real con lotaje CIBO/QDLE.
+
+**Umbral pre-registrado aplicado a la población de control:** si el conjunto de operaciones y periodo quedan idénticos, se exige preservar **como mínimo 934 de las 1,167 winning source IDs** (80%) y **como mínimo 415.7484856490059824903260605R de masa ganadora BASE recuperada** (90% de 461.9427618322288694336956228R). Es un test de conservación calculado a partir del control medido, **no prueba de que V50 lo cumpla**. La versión de 90 trades histórica por definición no puede alcanzar un conteo de 934 ganadores con un máximo de 90 ejecuciones; de todos modos se exige el join exacto del ensayo de comparación, no solo conteos aproximados.
+
+**Importante:** 2,876 son **trade outputs ejecutados antes de MAX3**, no afirmar que sean toda la capacidad SOURCE si algunos setups carecen de velas de sesión; determinar denominador source exacto al agregar A1 trace. El PF 0.6645 y DD 236.13R son exclusivamente del brazo control. El brazo V50-G/traza A1 [run 38053723674](https://github.com/mezas3238-hue/qore-core/actions/runs/38053723674) **no había completado nueve mercados al registrar estos resultados**, por lo que NO hay comparación económica 9/9 ni certificación todavía. No usar este resultado para retunar retrospectivamente stops o admission.
