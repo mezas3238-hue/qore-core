@@ -6,6 +6,8 @@ on:
       - agent/vt31-ict-cleanroom-cognition-single-trader-20261009
     paths:
       - src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/cognitive_telemetry.py
+      - tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py
       - src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py
       - tests/infrastructure/test_vt31_ict_cleanroom_cognition.py
       - tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py
@@ -36,8 +38,10 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py \
+            src/qore/infrastructure/traders/vt31_ict_cleanroom/cognitive_telemetry.py \
             src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py \
             tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py \
             tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py
           ruff check \
             src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py \
