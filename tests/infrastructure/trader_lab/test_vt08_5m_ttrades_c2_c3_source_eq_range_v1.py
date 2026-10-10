@@ -30,13 +30,13 @@ def h4(o: str, h: str, low: str, c: str) -> Vt08B01Bar:
 @pytest.mark.parametrize(
     ("side", "o", "c", "expected_basis", "eq"),
     [
-        (DemoTradingSetupSide.LONG, "100", "106", EqRangeBasis.FULL_CANDLE_C2_WITH_SWING, "100"),
-        (DemoTradingSetupSide.SHORT, "106", "100", EqRangeBasis.FULL_CANDLE_C2_WITH_SWING, "100"),
-        (DemoTradingSetupSide.LONG, "106", "102", EqRangeBasis.CLOSE_TO_EXTREME_C2_AGAINST_SWING, "96"),
-        (DemoTradingSetupSide.SHORT, "94", "98", EqRangeBasis.CLOSE_TO_EXTREME_C2_AGAINST_SWING, "104"),
+        (DemoTradingSetupSide.LONG, "100", "106", EqRangeBasis.FULL_CANDLE_c2_WITH_SWING, "100"),
+        (DemoTradingSetupSide.SHORT, "106", "100", EqRangeBasis.FULL_CANDLE_c2_WITH_SWING, "100"),
+        (DemoTradingSetupSide.LONG, "106", "102", EqRangeBasis.CLOSE_TO_EXTREME_c2_AGAINST_SWING, "96"),
+        (DemoTradingSetupSide.SHORT, "94", "98", EqRangeBasis.CLOSE_TO_EXTREME_c2_AGAINST_SWING, "104"),
     ],
 )
-def test_C2_range_depends_on_direction_of_CLOSE(
+def test_c2_range_depends_on_direction_of_CLOSE(
     side: DemoTradingSetupSide, o: str, c: str, expected_basis: EqRangeBasis, eq: str,
 ) -> None:
     candle = h4(o, "110", "90", c)
@@ -50,7 +50,7 @@ def test_C2_range_depends_on_direction_of_CLOSE(
     assert actual.source_complete_entry is False
 
 
-def test_C3_always_uses_full_range_after_proven_closure() -> None:
+def test_c3_always_uses_full_range_after_proven_closure() -> None:
     candle = h4("106", "110", "90", "102")
     actual = source_eq_after_closure(
         candle, candle_label="C3", intended_side=DemoTradingSetupSide.LONG,
@@ -78,7 +78,7 @@ def test_unclosed_H4_cannot_compute_future_EQ() -> None:
         )
 
 
-def test_doji_C2_not_misclassified_bull_or_bear() -> None:
+def test_doji_c2_not_misclassified_bull_or_bear() -> None:
     candle = h4("100", "110", "90", "100")
     assert source_eq_after_closure(
         candle, candle_label="C2", intended_side=DemoTradingSetupSide.LONG,
