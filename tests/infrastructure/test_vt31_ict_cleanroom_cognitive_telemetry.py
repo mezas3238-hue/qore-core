@@ -4,12 +4,12 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
+    VT31CleanroomCognition,
+)
 from qore.infrastructure.traders.vt31_ict_cleanroom.cognitive_telemetry import (
     COMPONENT_ROLES,
     CognitiveTelemetry,
-)
-from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
-    VT31CleanroomCognition,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import M1Bar
 from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
