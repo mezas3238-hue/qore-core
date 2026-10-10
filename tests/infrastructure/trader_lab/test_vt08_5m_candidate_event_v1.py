@@ -130,7 +130,25 @@ def test_no_live_or_unapproved_market() -> None:
 
 def test_fingerprint_changes_with_source_known_information() -> None:
     event = golden()
-    assert event.fingerprint() != replace(event, evidence_sha256="c" * 64).fingerprint()
+    mutated = replace(event, evidence_sha256="c" * 64)
+    assert event.fingerprint() != mutated.fingerprint()
+    assert event.source_event_id() == mutated.source_event_id()
+    assert event.envelope()["source_event_id"] == mutated.envelope()["source_event_id"]
+    assert event.envelope()["event_id"] != mutated.envelope()["event_id"]
+
+
+def test_new_source_origin_has_new_identity_and_b_uses_stable_key() -> None:
+    event = golden()
+    second = replace(
+        event,
+        opposing_series_opened_at=event.opposing_series_opened_at - timedelta(minutes=15),
+    )
+    assert event.source_event_id() != second.source_event_id()
+    payload = event.envelope()
+    assert payload["methodology_status"] == "SOURCE_COMPLETE_EXECUTABLE"
+    assert payload["latest_available_bar_close"] == payload["decision_at"]
+    assert payload["bias_feature_cutoff"] == "UNATTESTED_IN_LEGACY_B01_CANDIDATE"
+    assert payload["feature_close_cutoffs"]["protected_swing"] <= payload["decision_at"]
 
 
 def test_naive_or_bad_provenance_is_rejected() -> None:
