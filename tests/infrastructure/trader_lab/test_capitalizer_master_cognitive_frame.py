@@ -26,6 +26,13 @@ from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research imp
     A1SourceHypothesisAlternative,
     replay_multi_hypothesis_evidence,
 )
+
+from qore.infrastructure.trader_lab.capitalizer_a1_trader_cognition_port import (
+    A1ExternallySettledExecution,
+    A1TraderCognitionState,
+    advance_trader_cognition,
+    prepare_trader_cognition_packet,
+)
 from qore.infrastructure.trader_lab.capitalizer_cognitive_explanation import (
     explain_all_candidates,
 )
@@ -953,3 +960,191 @@ def test_a1_joint_dense_burst_preserves_9_sources_and_36_pair_relations() -> Non
     )
     stable = assess_joint_competition_barrier(barrier=reordered, census=another)
     assert joint == stable
+
+
+def test_a1_trader_port_is_full_frame_handoff_not_execution_permission() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    barrier = _a1_multi_hypothesis_fixture(at)
+    packet = prepare_trader_cognition_packet(
+        barrier=barrier, settled_memory=A1CausalSettledMemory()
+    )
+    assert packet.nine_market_frame_called_for_each_source
+    assert packet.original_source_denominator_preserved
+    assert packet.settlement_history_reconciled
+    assert len(packet.candidates) == 3
+    assert set(packet.source_opportunity_ids) == set(barrier.expected_source_ids)
+    assert packet.remaining_session_slots == 1
+    assert packet.joint.capacity_competition_required
+    assert not packet.global_arbitration_complete
+    assert not packet.physical_risk_checked
+    assert not packet.economic_trades_executed
+    assert not packet.live_integration_authorized
+    assert all(row.trader_review_status == "SOURCE_METHOD_ARBITRATION_REQUIRED"
+               and not row.execution_authorized for row in packet.candidates)
+    assert all(row.why_tokens and row.h1_confirmed_at <= row.m15_confirmed_at
+               <= row.m1_confirmed_at == at for row in packet.candidates)
+    assert packet.candidates[0].joint_review_peer_ids
+    assert packet.candidates[0].unknown_relation_peer_ids
+
+
+def test_a1_trader_port_roll_forward_reuses_only_causally_confirmed_losses() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    state, first = advance_trader_cognition(
+        state=A1TraderCognitionState(), barrier=_a1_multi_hypothesis_fixture(at)
+    )
+    assert first.source_opportunity_ids == (
+        "SRC:AUDJPY:A", "SRC:AUDJPY:B", "SRC:USDJPY:C"
+    )
+    cause = CapitalizerLossCause(
+        loss_id="ORDER:1",
+        symbol="AUDJPY",
+        session=CapitalizerSession.ASIA,
+        hypothesis_id="H-A1",
+        failure_state_fingerprint="STATE-A",
+        realized_r=Decimal("-1"),
+        causes=("ACTUAL_CAUSAL_THESIS_INVALIDATION",),
+    )
+    receipt = A1ExternallySettledExecution(
+        execution_id="ORDER:1",
+        source_opportunity_id="SRC:AUDJPY:A",
+        risk_authority_receipt_id="EXTERNAL_RISK:1",
+        execution_provenance_id="EXTERNAL_ORDER:1",
+        entry_at=at,
+        exit_at=at + timedelta(seconds=10),
+        settlement_known_at=at + timedelta(seconds=30),
+        realized_r=Decimal("-1"),
+        loss_cause=cause,
+    )
+    later = at + timedelta(minutes=1)
+    next_barrier = _a1_multi_hypothesis_fixture(
+        later,
+        source_ids=("SRC:AUDJPY:D", "SRC:AUDJPY:E", "SRC:USDJPY:F"),
+    )
+    state2, second = advance_trader_cognition(
+        state=state, barrier=next_barrier, newly_settled=(receipt,)
+    )
+    by_id = {item.source_opportunity_id: item for item in second.candidates}
+    assert by_id["SRC:AUDJPY:D"].cognitive_gate == "ABSTAIN"
+    assert by_id["SRC:AUDJPY:D"].trader_review_status == "COGNITIVE_ABSTAIN_RESEARCH"
+    assert by_id["SRC:AUDJPY:D"].closed_chosen_history_count == 1
+    assert by_id["SRC:AUDJPY:D"].closed_chosen_failure_count == 1
+    assert by_id["SRC:AUDJPY:E"].cognitive_gate == "PASS_TO_STRATEGY"
+    assert by_id["SRC:USDJPY:F"].cognitive_gate == "PASS_TO_STRATEGY"
+    assert all(not row.execution_authorized for row in second.candidates)
+    assert len(state2.externally_settled_executions) == 1
+    assert len(state2.prior_candidates) == 6
+    assert state2.processed_barrier_count == 2
+    # Ablation: identical next barrier without chosen settlement changes ONLY
+    # the repeated-failure fingerprint, not the source strategy.
+    _, ablated = advance_trader_cognition(
+        state=state, barrier=next_barrier
+    )
+    assert all(row.cognitive_gate == "PASS_TO_STRATEGY"
+               for row in ablated.candidates)
+
+
+def test_a1_trader_port_fail_closed_for_unknown_unsettled_future_and_duplicates() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    source = _a1_multi_hypothesis_fixture(at)
+    state, _ = advance_trader_cognition(
+        state=A1TraderCognitionState(), barrier=source
+    )
+    later = at + timedelta(minutes=1)
+    bar = _a1_multi_hypothesis_fixture(
+        later,
+        source_ids=("SRC:AUDJPY:D", "SRC:AUDJPY:E", "SRC:USDJPY:F"),
+    )
+    receipt = A1ExternallySettledExecution(
+        "ORDER:1", "SRC:AUDJPY:A", "RISK:1", "FILL:1",
+        at, at + timedelta(seconds=10), at + timedelta(seconds=30),
+        Decimal("0.4"), None,
+    )
+    with pytest.raises(ValueError, match="strictly in time"):
+        advance_trader_cognition(state=state, barrier=source)
+    with pytest.raises(ValueError, match="reused across barriers"):
+        advance_trader_cognition(
+            state=state, barrier=_a1_multi_hypothesis_fixture(later)
+        )
+    with pytest.raises(ValueError, match="lacks prior observed PASS"):
+        advance_trader_cognition(
+            state=state, barrier=bar,
+            newly_settled=(replace(receipt, source_opportunity_id="NO_SOURCE"),),
+        )
+    with pytest.raises(ValueError, match="knowledge frontier"):
+        advance_trader_cognition(
+            state=state, barrier=bar,
+            newly_settled=(replace(receipt, settlement_known_at=later),),
+        )
+    with pytest.raises(ValueError, match="duplicate externally settled"):
+        advance_trader_cognition(
+            state=state, barrier=bar, newly_settled=(receipt, receipt)
+        )
+    new_state, packet = advance_trader_cognition(
+        state=state, barrier=bar, newly_settled=(receipt,)
+    )
+    assert all(row.closed_chosen_history_count == 1 for row in packet.candidates)
+    assert all(row.closed_chosen_failure_count == 0 for row in packet.candidates)
+    assert all(row.cognitive_gate == "PASS_TO_STRATEGY"
+               for row in packet.candidates)
+    with pytest.raises(ValueError, match="duplicate externally settled"):
+        advance_trader_cognition(
+            state=new_state,
+            barrier=_a1_multi_hypothesis_fixture(
+                later + timedelta(minutes=1),
+                source_ids=("SRC:AUDJPY:G", "SRC:AUDJPY:H", "SRC:USDJPY:I"),
+            ),
+            newly_settled=(receipt,),
+        )
+
+
+def test_a1_trader_port_rejects_loss_mismatch_and_unexplained_negative_r() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    good = A1ExternallySettledExecution(
+        "ORDER:1", "SRC:AUDJPY:A", "RISK:1", "FILL:1",
+        at, at + timedelta(seconds=10), at + timedelta(seconds=30),
+        Decimal("0.4"), None,
+    )
+    with pytest.raises(ValueError, match="negative settled R"):
+        replace(good, realized_r=Decimal("-1"))
+    cause = CapitalizerLossCause(
+        "ORDER:1", "AUDJPY", CapitalizerSession.ASIA,
+        "H-A1", "STATE-A", Decimal("-1"), ("ACTUAL_LOSS",)
+    )
+    with pytest.raises(ValueError, match="negative settled R"):
+        replace(good, loss_cause=cause)
+    with pytest.raises(ValueError, match="reconcile R"):
+        replace(good, realized_r=Decimal("-2"), loss_cause=cause)
+    with pytest.raises(ValueError, match="settlement receipt time"):
+        replace(good, settlement_known_at=at - timedelta(seconds=1))
+
+
+def test_a1_trader_port_nine_simultaneous_candidates_never_create_order() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    base = _a1_multi_hypothesis_fixture(at)
+    additional = tuple(
+        replace(
+            base.alternatives[0],
+            binding=A1SourceBinding(f"SRC:AUDJPY:{ordinal}", "AUDJPY", at),
+            hypothesis_id=f"H-AUDJPY-{ordinal}",
+            source_event_id=f"EVENT-AUDJPY-{ordinal}",
+        )
+        for ordinal in range(3, 9)
+    )
+    items = (*base.alternatives[:2], *additional, base.alternatives[2])
+    barrier = replace(
+        base, alternatives=items,
+        expected_source_ids=tuple(item.binding.source_opportunity_id for item in items),
+    )
+    _, packet = advance_trader_cognition(
+        state=A1TraderCognitionState(), barrier=barrier
+    )
+    assert len(packet.candidates) == 9
+    assert len(packet.joint.pair_rows) == 36
+    assert packet.remaining_session_slots == 1
+    assert not packet.global_arbitration_complete
+    assert not packet.economic_trades_executed
+    permuted = replace(barrier, alternatives=tuple(reversed(items)))
+    _, stable = advance_trader_cognition(
+        state=A1TraderCognitionState(), barrier=permuted
+    )
+    assert packet == stable
