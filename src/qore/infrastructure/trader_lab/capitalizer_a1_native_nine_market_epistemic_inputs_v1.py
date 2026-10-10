@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from itertools import combinations
 from pathlib import Path
