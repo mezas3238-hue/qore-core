@@ -70,7 +70,11 @@ def _source() -> V49Opportunity:
     )
 
 
-def _fixtures() -> tuple[\n    tuple[CapitalizerM1Bar, ...],\n    tuple[V48AggregatedBar, ...],\n    tuple[V48AggregatedBar, ...],\n]:
+def _fixtures() -> tuple[
+    tuple[CapitalizerM1Bar, ...],
+    tuple[V48AggregatedBar, ...],
+    tuple[V48AggregatedBar, ...],
+]:
     at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
     m1 = (
         _m1(at, open_="100", high="101", low="99", close="100"),
