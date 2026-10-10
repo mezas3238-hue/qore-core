@@ -17,7 +17,13 @@ from vt31_ict_cleanroom_cog_real_3y_fast_v1 import (
     BASE, FROZEN_SOURCE_SHA256, NY, WINDOW_HOURS, _bar,
     _completed_hour, _stream,
 )
-from vt31_shadow_opposite_pivot_ab_v1 import Shadow, TracedCognition
+from vt31_shadow_opposite_pivot_ab_v1 import (
+    Protected,
+    Shadow,
+    TracedCognition,
+    first_opposing_mss_then_fvg,
+    opposing_pivot,
+)
 
 SCHEMA = "qore.vt31.one_trader.source_AB_protected_pivot.v2"
 THRESHOLD_PRIMARY_SOURCE_PP = 5.0
@@ -322,6 +328,77 @@ def self_test():
     assert result["market_M1"] == 60
     assert result["cog_and_OPS_M1_calls"] == 60
     assert result["first_FVG_same_in_both"] == {}
+    assert not result["paired_candidate_records"]
+    assert result["guards"]["broker_fills_confirmed"] == 0
+    assert classify_a(
+        MethodologyDecision.SOURCE_INVALIDATED,
+        ce=False, ambiguous=False, target_before_ce=True
+    ) == "TARGET_BEFORE_CE"
+    assert classify_b("CE_AND_CANCELLATION_SAME_M1_UNKNOWN") == "INDETERMINATE"
+    assert classify_b("UNPROVEN_PROTECTED_SWING") == "INDETERMINATE"
+    assert classify_b("CE_OVERLAP_NOT_BROKER_FILL") == "VALID_CE"
+
+    # The original pivot price of 112 is broken by bullish MSS, but the
+    # genuinely protected OPPOSING low at 90 remains intact on retracement.
+    from datetime import UTC
+    from decimal import Decimal
+    from types import SimpleNamespace
+    from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
+        M1Bar, SessionId, Side
+    )
+    from vt31_shadow_opposite_pivot_ab_v1 import Shadow
+    t = datetime(2025, 7, 7, 7, 20, tzinfo=UTC)
+    def bar(i, o, high, low, close):
+        at = t + timedelta(minutes=i)
+        return M1Bar(at, at + timedelta(minutes=1),
+                     Decimal(o), Decimal(high),
+                     Decimal(low), Decimal(close))
+    sh = Shadow(
+        Side.LONG, Decimal("109"), Decimal("105"), Decimal("111"),
+        Decimal("130"),
+        Protected(Decimal("90"), t - timedelta(minutes=4),
+                  t - timedelta(minutes=2)), t,
+    )
+    sh.on_m1(bar(1, "113", "115", "108", "110"),
+             TracedCognition(), (), SessionId.LONDON)
+    assert sh.outcome == "CE_OVERLAP_NOT_BROKER_FILL"
+
+    # A displaced opposite MSS may appear BEFORE the first confirmed
+    # opposite FVG. The same-bar-only shortcut would miss this.
+    a = bar(0, "109", "112", "108", "110")
+    b = bar(1, "110", "120", "113", "119")
+    c = bar(2, "119", "119", "105", "106")
+    d = bar(3, "106", "107", "100", "104")
+    class Index:
+        def __init__(self):
+            self.shift_result = SimpleNamespace(
+                side=Side.SHORT, break_confirmed_at=c.closed_at
+            )
+        def shift(self):
+            return self.shift_result
+    index = Index()
+    stub = SimpleNamespace(_index=index)
+    was_ready, latched = first_opposing_mss_then_fvg(
+        stub, (a, b, c), SessionId.LONDON, Side.LONG, None
+    )
+    assert was_ready is False and latched == c.closed_at
+    index.shift_result = None
+    is_ready, unchanged = first_opposing_mss_then_fvg(
+        stub, (b, c, d), SessionId.LONDON, Side.LONG, latched
+    )
+    assert is_ready is True and unchanged == latched
+    # Strictly no acceptance of FVG confirmed AFTER the source hour.
+    assert opposing_pivot((a, b), Side.LONG, c.closed_at) is None
+    x = bar(37, "109", "112", "108", "110")
+    y = bar(38, "110", "120", "113", "119")
+    z = bar(39, "119", "119", "105", "106")
+    after = bar(40, "106", "107", "100", "104")
+    too_late, _ = first_opposing_mss_then_fvg(
+        stub, (y, z, after), SessionId.LONDON, Side.LONG,
+        z.closed_at
+    )
+    # At 08:01Z this FVG is past London 03:00-04:00 NY summer hour.
+    assert too_late is False
 
 
 def main():
