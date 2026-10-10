@@ -33,8 +33,8 @@ def _real_a_golden() -> object:
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    NY = ZoneInfo("America/New_York")
-    anchor = datetime(2026, 1, 5, 1, tzinfo=NY)
+    ny = ZoneInfo("America/New_York")
+    anchor = datetime(2026, 1, 5, 1, tzinfo=ny)
     return module.Vt08CandidateEventV1(
         market="EURJPY",
         source_family="positional-entry",
