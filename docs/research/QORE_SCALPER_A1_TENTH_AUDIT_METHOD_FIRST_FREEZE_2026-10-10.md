@@ -1,3 +1,5 @@
+> **CONTINUIDAD MAESTRA ACTUAL (10-oct-2026):** empezar por [HANDOFF MAESTRO A1+B, problemas y consulta DeepSeek](QORE_SCALPER_HANDOFF_MAESTRO_CONTINUIDAD_A1_B_METODOLOGIA_DEEPSEEK_2026-10-10.md). Reúne el estado después de las auditorías 12–14, 381 vs 1090, H1 C2/POI y las pruebas y decisiones del sucesor. Este documento conserva detalle histórico, pero NO sustituye el handoff maestro. Sin certificación/VPS/LIVE.
+
 # QORE Scalper | Décima auditoría — congelamiento METHOD-FIRST
 
 **Fecha:** 10 octubre 2026. **A1 cognitiva:** PR #758, branch agent/scalper-architect-a-cognition-20261010. **B metodología:** PR #759, branch agent/scalper-architect-b-methodology-20261010. **Principal:** PR #623. RESEARCH ONLY. No VPS, live, merges, certificación ni modificaciones de V49.
