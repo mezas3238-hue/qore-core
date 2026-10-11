@@ -6,12 +6,12 @@ import pytest
 
 from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
     aggregate,
-    earliest_clean_touch_per_market_day,
-    median_decimals,
     analyze_setup,
     closed_source_window,
+    earliest_clean_touch_per_market_day,
     eligible_owner_m30,
     gross_geometry,
+    median_decimals,
     retest_entry_opportunity,
     same_ohlc,
     source_m30_reversal,
