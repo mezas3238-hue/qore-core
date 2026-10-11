@@ -163,3 +163,17 @@ def test_reverifier_refuses_ohlc_mismatch_even_if_m3_valid():
     altered[at]=replace(altered[at],high=altered[at].high+Decimal("1"))
     with pytest.raises(ValueError,match="independent replay"):
         verify_record(record,m15_index=altered,m3_index=m3)
+
+
+def test_reverifier_refuses_forged_origin_id():
+    record,m15,m3=synthetic_verified_source()
+    altered=dict(record,origin_id="vt08-m30m3:forged")
+    with pytest.raises(ValueError,match="structural ID mismatch"):
+        verify_record(altered,m15_index=m15,m3_index=m3)
+
+
+def test_reverifier_refuses_wrong_opposing_series_time():
+    record,m15,m3=synthetic_verified_source()
+    altered=dict(record,c2_m3_opposing_series_start=T.isoformat())
+    with pytest.raises(ValueError,match="lineage mismatch"):
+        verify_record(altered,m15_index=m15,m3_index=m3)
