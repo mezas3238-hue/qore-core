@@ -35,6 +35,7 @@ def rule(key, *, method=SelectorMethod.DETERMINISTIC_ASOF, **kwargs):
         source_class="A_WRITTEN",
         selector_method=method,
         known_at=T, decision_at=T+timedelta(minutes=30),
+        c2_opened_at=T, c3_opened_at=T+timedelta(minutes=30),
         source_snapshot_sha256=HASH_A, verifier_sha256=HASH_B,
         **kwargs,
     )
@@ -204,7 +205,8 @@ def test_future_source_clock_cannot_be_past_verified():
     rules.append(RuleReceipt(
         key=k,source_uri="https://ttrades.com/relevant-swings-which-swing-highs-and-lows-matter-in-trading/",
         source_class="A_WRITTEN",selector_method=SelectorMethod.DETERMINISTIC_ASOF,
-        known_at=T+timedelta(hours=2),decision_at=T,
+        known_at=T+timedelta(hours=2),decision_at=T+timedelta(minutes=30),
+        c2_opened_at=T,c3_opened_at=T+timedelta(minutes=30),
         source_snapshot_sha256=HASH_A,verifier_sha256=HASH_B,
     ))
     d=final1_decision(
@@ -248,3 +250,43 @@ def test_invalid_broker_tick_fails_closed():
             eq=Decimal("101"),breaker_low=Decimal("100"),
             stop=Decimal("99"),broker_tick=Decimal("0"),
         )
+
+
+def test_prior_swing_confirmed_after_c2_open_is_rejected_even_if_before_c3():
+    k="RELEVANT_SWING_REFERENCE_PRE_C2"
+    rules=[r for r in source().receipts if r.key!=k]
+    rules.append(RuleReceipt(
+        key=k, source_uri="https://ttrades.com/relevant-swings-which-swing-highs-and-lows-matter-in-trading/",
+        source_class="A_WRITTEN",
+        selector_method=SelectorMethod.DETERMINISTIC_ASOF,
+        known_at=T+timedelta(minutes=3),
+        decision_at=T+timedelta(minutes=30),
+        c2_opened_at=T, c3_opened_at=T+timedelta(minutes=30),
+        source_snapshot_sha256=HASH_A,
+        verifier_sha256=HASH_B,
+    ))
+    d=final1_decision(
+        source=source(receipts=rules),source_adjudication_closed=True,
+        economic=econ(profit="900"),
+    )
+    assert d.status is FinalVerdict.NO_EVALUABLE
+    assert "UNRESOLVED_SOURCE_OR_CAUSAL_RELEVANT_SWING_REFERENCE_PRE_C2" in d.reasons
+
+
+def test_wrong_c3_open_anchor_cannot_fool_source_contract():
+    k="C3_POSITIONAL_OPEN_AND_ORDER_CLOCK"
+    rules=[r for r in source().receipts if r.key!=k]
+    rules.append(RuleReceipt(
+        key=k, source_uri="https://ttrades.com/positional-entries-enter-before-the-expansion/",
+        source_class="A_WRITTEN",
+        selector_method=SelectorMethod.DETERMINISTIC_ASOF,
+        known_at=T,
+        decision_at=T+timedelta(minutes=33),
+        c2_opened_at=T,c3_opened_at=T+timedelta(minutes=30),
+        source_snapshot_sha256=HASH_A,
+        verifier_sha256=HASH_B,
+    ))
+    d=final1_decision(
+        source=source(receipts=rules),source_adjudication_closed=True,economic=None,
+    )
+    assert d.status is FinalVerdict.NO_EVALUABLE
