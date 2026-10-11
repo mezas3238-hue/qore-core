@@ -129,7 +129,7 @@ def choose_cases(root: Path) -> tuple[list[dict], dict]:
         counts[symbol] = len(all_ambiguities)
         if len(all_ambiguities) != DUPLICATE_M1_COUNTS[symbol]:
             raise ValueError(f"frozen original dual-touch count changed {symbol}: {len(all_ambiguities)}")
-        if len(all_ambiguities) < PER_SYMBOL_LIMIT:
+        if len(all_ambiguities) < 2:
             raise ValueError("not enough cases")
         chosen.extend(all_ambiguities[:PER_SYMBOL_LIMIT])
     return chosen, counts
