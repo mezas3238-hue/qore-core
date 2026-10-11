@@ -9,6 +9,10 @@ import pytest
 from qore.infrastructure.trader_lab import (
     capitalizer_scalper_a2_fifteenth_native_forensics_v1 as forensic,
 )
+from qore.infrastructure.trader_lab.capitalizer_scalper_h1_direction_random_baseline_v1 import (
+    DRAWS,
+    MODES,
+)
 
 
 def test_missing_nine_market_replays_fail_closed(tmp_path:Path)->None:
@@ -23,6 +27,6 @@ def test_market_requires_original_source_and_current_max3(tmp_path:Path)->None:
 
 def test_constants_are_preexisting_h1_null_not_trading_controls()->None:
     assert forensic.HORIZONS == (15,30,60)
-    assert forensic.DRAWS == 32
-    assert len(forensic.MODES) == 2
+    assert DRAWS == 32
+    assert len(MODES) == 2
     assert "SELECTED_MAX3" in forensic.IDENTITY
