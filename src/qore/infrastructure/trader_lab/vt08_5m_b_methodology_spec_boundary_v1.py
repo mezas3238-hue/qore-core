@@ -236,6 +236,13 @@ def verify_causal_event(
         if not isinstance(proof, dict) or proof.get("confirmation") != "M15_CLOSED":
             raise BMethodologyBoundaryError(f"{role}: M15 close confirmation required")
         _closed_proof(proof.get("source_proof"), role, before=entry)
+        confirmation_available = _time(
+            proof["source_proof"]["available_at"], f"{role}.available_at"
+        )
+        if confirmation_available > decision:
+            raise BMethodologyBoundaryError(
+                f"{role}: confirmation was not available at source decision"
+            )
     c3_close: datetime | None = None
     if family == "C3_CLOSURE_TO_C4":
         c3_close = _time(event.get("c3_closed_at"), "c3.close")
@@ -246,7 +253,8 @@ def verify_causal_event(
         for role in ("cisd", "protected_swing"):
             proof = event[role]
             bar = _time(proof["source_proof"]["closed_at"], role)
-            if not c2_close < bar <= c3_close:
+            observed = _time(proof["source_proof"]["available_at"], role)
+            if not (c2_close < bar <= observed <= c3_close):
                 raise BMethodologyBoundaryError(
                     f"{role}: C3 proxy/source confirmation cannot consume C4"
                 )
