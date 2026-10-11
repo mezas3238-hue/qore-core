@@ -8,11 +8,9 @@ reported, never silently converted to a M15 win. All metrics are GROSS-R.
 from __future__ import annotations
 
 import argparse
-import bisect
 import json
-from collections import Counter, defaultdict
-from dataclasses import asdict, replace
-from datetime import datetime
+from collections import Counter
+from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -24,9 +22,9 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     iter_cibo_m1,
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
+    DEFAULT_LOOKBACK,
     DEV_WINDOW_END,
     DEV_WINDOW_START,
-    DEFAULT_LOOKBACK,
     V49Opportunity,
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_trader_v49 import (
@@ -42,7 +40,6 @@ from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 i
 )
 from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     V49EconomicTrade,
-    _metrics,
     _replay_one,
     _session_bars,
 )
