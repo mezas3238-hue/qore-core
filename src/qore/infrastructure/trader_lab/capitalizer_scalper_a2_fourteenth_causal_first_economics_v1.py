@@ -130,19 +130,16 @@ def replay_market(
         original_fill=_replay_one(orig_bars,orig_intent)
         if original_fill!=orig_base:
             raise ValueError("V49 native M1 gross economic source not reproduced")
+        new_fill:V49EconomicTrade|None=None
+        target:Decimal|None=None
         decision=aware(observation["online_discovered_at"])
         orig_at=aware(s.m1_trigger_confirmed_at)
         if decision>orig_at or decision<=aware(s.m15_setup_confirmed_at):
             raise ValueError("online event outside source-anchored M15 causal interval")
         if decision<aware(s.h1_state_from):
             raise ValueError("online event precedes established H1 state")
-        if decision>aware(observation["online_witness_confirmed_at"]):
-            # A retrospectively discovered event can have confirmed_at earlier,
-            # never later than the actual discovery.
-            pass
-        else:
-            if decision<aware(observation["online_witness_confirmed_at"]):
-                raise ValueError("online witness confirmed in unseen future")
+        if decision<aware(observation["online_witness_confirmed_at"]):
+            raise ValueError("online witness confirmed in unseen future")
         if observation["online_witness_backdated"]:
             raise ValueError("this paired source book declares no late discovery")
         ix=bisect.bisect_left(all_opened,decision)
@@ -150,7 +147,6 @@ def replay_market(
             raise ValueError("first-online discovery close absent from provider M1")
         price=m1[ix-1].close
         status="ELIGIBLE"
-        reason=""
         if capitalizer_session_at(decision) is not CapitalizerSession(s.session):
             status="OUTSIDE_SOURCE_SESSION"
         elif decision<DEV_WINDOW_START:
@@ -248,7 +244,9 @@ def aggregate(root:Path)->dict[str,Any]:
     trade_rows=[V49EconomicTrade(**x)
                 for f in sorted(root.rglob("scalper-audit14-candidates.jsonl"))
                 for x in _jsonl(f)]
-    original_trade_files=sorted(root.rglob("capitalizer-*-v49-development-economics-trades.jsonl"))
+    original_trade_files=sorted(
+        root.rglob("capitalizer-*-v49-development-economics-trades.jsonl")
+    )
     original_trades=tuple(V49EconomicTrade(**x)
                           for f in original_trade_files for x in _jsonl(f))
     if len(original_trades)!=2876:
