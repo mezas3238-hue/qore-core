@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, fields
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Final
 
 from qore.infrastructure.traders.vt08_cognitive_situation_model import (
@@ -81,7 +81,7 @@ class Vt08FiveMarketResearchSituation(Vt08ForexSituationModel):
         observed = self.latest_available_bar_close
         if observed is None or observed.tzinfo is None or observed.utcoffset() is None:
             raise ValueError("VT08 5M research situation requires bar close timezone")
-        if observed > self.as_of:
+        if observed.astimezone(UTC) > self.as_of.astimezone(UTC):
             raise ValueError("VT08 5M research situation cannot consume future bars")
         if not isinstance(self.source_cycle_id, str) or not self.source_cycle_id.strip():
             raise ValueError("VT08 research situation requires H4 source cycle id")
@@ -104,14 +104,14 @@ class Vt08FiveMarketResearchSituation(Vt08ForexSituationModel):
                 cutoff.tzinfo is None or cutoff.utcoffset() is None
             ):
                 raise ValueError("VT08 research feature cutoff must be timezone-aware")
-            if cutoff > self.as_of:
+            if cutoff.astimezone(UTC) > self.as_of.astimezone(UTC):
                 raise ValueError("VT08 research feature cutoff consumes future information")
             observed_fields.append(name)
-            if feature_max is None or cutoff > feature_max:
-                feature_max = cutoff
+            if feature_max is None or cutoff.astimezone(UTC) > feature_max:
+                feature_max = cutoff.astimezone(UTC)
         if tuple(observed_fields) != CAUSAL_FIELDS:
             raise ValueError("VT08 research feature cutoffs incomplete, duplicate or unordered")
-        if observed != feature_max:
+        if observed.astimezone(UTC) != feature_max:
             raise ValueError("VT08 latest closed bar must match maximum feature cutoff")
 
     def payload(self) -> dict[str, object]:
