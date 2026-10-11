@@ -81,5 +81,5 @@ def test_insufficient_group_capacity_rejected(tmp_path) -> None:
     data=Data(features,{}, {},frozenset(),frozenset())
     with pytest.raises(ValueError,match="cannot satisfy"):
         _valid_sample(data,list(features),3)
-    with pytest.raises(ValueError,match="nine native"):
+    with pytest.raises(ValueError,match="9 native"):
         source_data(tmp_path,tmp_path)
