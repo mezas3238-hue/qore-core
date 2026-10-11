@@ -54,3 +54,19 @@ Los 100 placebos aleatorios igualaron el número de B por sesión/fecha pero sus
 Mantener algoritmo de esta ronda **congelado**. Priorizar (1) completar bootstrap de bloques por día y revisión de placebos; (2) verificar fuga de calendario/fuente H1, cobertura M1 y razones `UNKNOWN`; (3) conseguir bid/ask comisiones reales; (4) construir universo verdaderamente causal first-online y M30→M3 independiente con fuentes TTrades; (5) conectar C Full Master Frame sin reemplazarlo por proxy; (6) conseguir OOS prospectivo no usado. **NO ajustar los 0.35/1.0/0.025/60/20 para hacer bonito PF** en esta cohorte.
 
 Artefacto de nueve mercados: [Run #38107014488](https://github.com/mezas3238-hue/qore-core/actions/runs/38107014488). Este dictamen no altera trading ni producción.
+
+---
+
+## Audit01b — incertidumbre por bloques de jornadas, completada posteriormente
+
+[GitHub Actions #38107458602](https://github.com/mezas3238-hue/qore-core/actions/runs/38107458602) **SUCCESS** en commit `133d5a3310afec0028ac2dcae1a598c88f17a2b5`. [Artefacto exacto #11690228760](https://github.com/mezas3238-hue/qore-core/actions/runs/38107458602/artifacts/11690228760). Reutilizó los 9 libros nativos y decisiones pre-registradas de run `38107014488` (no generó nuevas decisiones). **313 jornadas operativas distintas, 500 bootstrap paired moving blocks de 5 jornadas**, seed fija, coste supuesto `0.025R` por trade; agrupación simultánea de los nueve mercados.
+
+**Resultado observado con coste supuesto:** A PF `0.60416`, DD `286.5093R`, esperanza `-0.14048R`; B PF `0.76975`, DD `23.03844R`, esperanza `-0.06654R`.
+
+**Intervalos bootstrap 95% B−A (no confirmatorios):**
+- Delta PF: **[-0.01063, +0.51752]**: el intervalo incluye mejora cero; **PF incremental estadísticamente incierto**.
+- Delta expectancy por trade: **[+0.00867R, +0.17123R]**, pero la esperanza de ambas carteras sigue NEGATIVA con coste supuesto y el análisis es in-sample consumido.
+- Delta DD nominal R: **[-334.80R, -192.93R]**; reducción grande y esperable cuando el selector ejecuta 86.8% menos.
+- Delta DD B versus A con riesgo de A escalado a la fracción B/A: **[-28.77993R, +0.04331R]**: incluye **CERO**, por lo que no demuestra reducción DD adicional robusta por encima del mero recorte de exposición.
+
+Los intervalos son percentiles aproximados de bloques contiguos de cinco fechas con trades de toda la cartera. No modelan órdenes simultáneas, costes BID/ASK físicos, selección de mercado en shocks fuera de muestra ni un futuro verdadero. **Veredicto NEGATIVO SE MANTIENE; no tuneo y no certificación.**
