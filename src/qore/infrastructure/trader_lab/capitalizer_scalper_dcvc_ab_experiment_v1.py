@@ -311,7 +311,7 @@ def aggregate(root:Path,output:Path)->dict[str,Any]:
     for regime in sorted({f.regime for f in features}):
         rows=tuple(t for sid,t in selected if feature_by_id[sid].regime==regime)
         by_regime[regime]=summarize(rows)
-    quarter={}
+    quarter:dict[str,dict[str,dict[str,Any]]]={}
     for name,rows in (("A",baseline),("B",b)):
         quarter[name]={}
         for q in sorted({t.entry_at[:4]+"Q"+str((int(t.entry_at[5:7])-1)//3+1)
@@ -341,7 +341,7 @@ def aggregate(root:Path,output:Path)->dict[str,Any]:
     random_pf=[]
     for seed in range(100):
         rng=random.Random(20261010+seed)
-        placebo=[]
+        placebo:list[V49EconomicTrade]=[]
         for key,n in sorted(b_by_group.items()):
             draws=rng.sample(group[key],n)
             placebo.extend(trade_by_id[sid] for sid in draws)
