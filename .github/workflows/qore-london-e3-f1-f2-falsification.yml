@@ -8,6 +8,7 @@ on:
       - '.github/workflows/qore-london-e3-f1-f2-falsification.yml'
       - 'src/qore/infrastructure/trader_lab/qore_london_e3_f1_f2_falsification.py'
       - 'tests/infrastructure/trader_lab/test_qore_london_e3_f1_f2_falsification.py'
+      - 'docs/research/QORE_LONDON_E3_F1_F2_FALSIFICATION_PREREG_2026-10-11.md'
   workflow_dispatch:
 
 permissions:
