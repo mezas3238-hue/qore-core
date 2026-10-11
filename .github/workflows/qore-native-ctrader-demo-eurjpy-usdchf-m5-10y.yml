@@ -1,15 +1,13 @@
-name: QORE NATIVE cTrader DEMO EURJPY USDCHF M5 10Y Acquisition
+name: QORE NATIVE cTrader DEMO EURJPY USDCHF M5 10Y Acquisition (MANUAL EXTENSION ONLY)
 
 on:
-  push:
-    branches:
-      - research/qore-native-ctrader-demo-eurjpy-usdchf-m5-20261011
-    paths:
-      - '.github/workflows/qore-native-ctrader-demo-eurjpy-usdchf-m5-10y.yml'
-      - 'src/qore/infrastructure/trader_lab/qore_native_demo_eurjpy_usdchf_m5_10y_v1.py'
-      - 'tests/infrastructure/trader_lab/test_qore_native_demo_eurjpy_usdchf_m5_10y_v1.py'
-      - 'docs/research/QORE_NATIVE_CTRADER_DEMO_EURJPY_USDCHF_10Y_M5_PREREG_2026-10-11.md'
   workflow_dispatch:
+    inputs:
+      authorize_new_capture:
+        description: "Only for an expressly approved new 10Y capture; existing 7Y archives use the no-OAuth workflow"
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -42,6 +40,7 @@ jobs:
           pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_demo_eurjpy_usdchf_m5_10y_v1.py
 
   download_m5:
+    if: ${{ inputs.authorize_new_capture == true }}
     needs: frozen_contract
     runs-on: ubuntu-latest
     timeout-minutes: 240
