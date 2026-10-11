@@ -80,6 +80,8 @@ def scenario_qualifies(row: dict[str, Any], scenario: str) -> bool:
 def build_date_vectors(
     rows: list[dict[str, Any]], dates: list[str], scenario: str
 ) -> list[tuple[int, ...]]:
+    if scenario not in SCENARIOS:
+        raise ValueError("unexpected comparison scenario")
     indexes = {cell:i for i,cell in enumerate(CELLS)}
     day_idx = {day:i for i,day in enumerate(dates)}
     vectors = [[0]*VECTOR_LENGTH for _ in dates]
