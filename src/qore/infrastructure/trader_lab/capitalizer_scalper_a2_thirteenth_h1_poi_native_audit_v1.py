@@ -60,7 +60,12 @@ def choose_origin(
         prior=[e for e in events if e.confirmed_at.isoformat()<from_at]
         candidate=prior[-1] if prior else None
     else:
-        at=[e for e in events if e.confirmed_at.isoformat()==from_at]
+        at=[
+            e for e in events
+            if e.confirmed_at.isoformat()==from_at
+            and e.direction is direction
+            and f"{e.closure_kind}:{e.poi_kind}"==key
+        ]
         candidate=at[-1] if at else None
     if candidate is None:
         return None
