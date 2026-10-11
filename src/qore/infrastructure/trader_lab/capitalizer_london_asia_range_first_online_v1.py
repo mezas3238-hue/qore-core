@@ -10,7 +10,7 @@ import json
 import random
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -268,7 +268,7 @@ def analyse_market(root: Path, output: Path) -> dict[str, Any]:
             reverse_target = (
                 price - risk if reverse_side == "SHORT" else price + risk
             )
-            alt_at, alt_reason, alt_r, _ = exit_path(
+            alt_at, _, alt_r, _ = exit_path(
                 calendar, entry_at, reverse_stop, reverse_target, reverse_side, day
             )
             if (exit_at is None) != (alt_at is None):
