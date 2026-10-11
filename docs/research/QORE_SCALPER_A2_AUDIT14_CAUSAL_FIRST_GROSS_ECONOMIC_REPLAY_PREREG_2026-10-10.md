@@ -75,3 +75,8 @@ Al recrear los ORIGINALES con mismo exact `DEFAULT_LOOKBACK=14 días` de V49 y m
 La única serie M1 provider-native sellada aquí proporciona OPEN/HIGH/LOW/CLOSE y no pares BID/ASK sincronizados, swaps, comisión por volumen o fills MT5. **PF0.8425 y DD114.80R son brutos**, no PF/DD netos. No se puede deducir si un coste no-negativo arreglaría el PF bajo esta ruta; introducir costes de broker no mejora el resultado bruto ya negativo salvo cambios de ejecución físicos favorables no demostrados. La próxima etapa necesita evidencia real BID/ASK antes de certificar, no un spread supuesto.
 
 **PR #759 DRAFT, no merge, no VPS, no MT5 LIVE, World Model congelado; CIBO/Shared sin cambios.**
+
+
+## E. Fuente H1 con 14 días idénticos a V49
+
+La comprobación final de GitHub Actions #38102651079 terminó correctamente: 2.876/2.876 orígenes H1 reconstruidos; 2.372 con dos velas completas 60/60; 504 sin dicha cobertura. Se detectaron 152 cierres H1 fuera de HH:00, y en ninguno de esos 152 la confirmación M15 ni la entrada M1 precedieron al cierre horario programado. Las estadísticas anteriores de 111 eventos sin reconstruir y 151 cierres no horarios, obtenidas con 15 días de historial, quedan sustituidas por las cifras de esta ejecución con los 14 días originales. Sigue pendiente la fidelidad de POI HTF y el OHLC de velas incompletas.
