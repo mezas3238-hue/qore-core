@@ -50,7 +50,7 @@ jobs:
           path: frozen-london
           github-token: ${{ github.token }}
           run-id: ${{ env.FROZEN_LONDON_RUN }}
-      - name: Inspect first 2 frozen dual-touch cases per symbol against public historical bid/ask
+      - name: Inspect all 34 frozen London dual-touch cases against external BID ASK
         run: |
           python -m qore.infrastructure.trader_lab.qore_london_tick_t0_probe_v1 frozen-london tick-T0
           python - <<'PY'
@@ -58,7 +58,7 @@ jobs:
           import json
           x=json.loads(Path('tick-T0/issue777-london-t0-public-bidask-targeted-probe.json').read_text())
           assert x['frozen_original_ambiguous_count']=={'EURUSD':18,'GBPUSD':16}
-          assert x['cases_queried']==4
+          assert x['cases_queried']==34
           assert x['external_broker_not_verified']
           assert x['limited_to_London_EURUSD_GBPUSD']
           assert all(not row['adjudicated_broker_execution'] for row in x['cases'])
