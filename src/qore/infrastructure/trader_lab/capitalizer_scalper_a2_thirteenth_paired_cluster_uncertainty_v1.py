@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
+from datetime import datetime, timedelta
 from pathlib import Path
 from random import Random
 from typing import Any
@@ -97,9 +98,30 @@ def audit(stream_root:Path,h1_root:Path)->dict[str,Any]:
         witness=mapping[x["source_opportunity_id"]]
         if x["symbol"]!=witness["symbol"]:
             raise ValueError("symbol mismatch on source join")
+        origin=witness.get("origin_closed_at")
+        actual_h1_close:datetime|None=None
+        if isinstance(origin,str) and origin[14:16]!="00":
+            origin_dt=datetime.fromisoformat(origin)
+            if origin_dt.utcoffset() is None:
+                raise ValueError("H1 event close lacks timezone")
+            actual_h1_close=origin_dt.replace(
+                minute=0,second=0,microsecond=0
+            )+timedelta(hours=1)
+        h1_early_parent=(
+            datetime.fromisoformat(x["m15_confirmed_at"])<actual_h1_close
+            if actual_h1_close is not None else None
+        )
+        h1_early_m1=(
+            datetime.fromisoformat(x["v49_entry_at"])<actual_h1_close
+            if actual_h1_close is not None else None
+        )
         joined.append({
             **x,
             "original_basis":witness["original_basis"],
+            "h1_true_hourly_close_expected":
+                actual_h1_close.isoformat() if actual_h1_close else None,
+            "m15_parent_confirmed_before_real_H1_close":h1_early_parent,
+            "m1_source_decision_before_real_H1_close":h1_early_m1,
             "h1_event_reconstructed":witness["source_event_reconstructed"],
             "h1_exact_60_60":bool(witness.get("closure_geometrical_60_60",False)),
             "h1_event_close_is_clock_hour":(
@@ -144,6 +166,10 @@ def audit(stream_root:Path,h1_root:Path)->dict[str,Any]:
                 source_counts["RECONSTRUCTED_H1_EVENT_AT_CLOCK_HOUR"]+=1
             else:
                 source_counts["RECONSTRUCTED_H1_EVENT_NOT_AT_CLOCK_HOUR"]+=1
+                if x["m15_parent_confirmed_before_real_H1_close"]:
+                    source_counts["OFFCLOCK_H1_PARENT_M15_PREMATURE"]+=1
+                if x["m1_source_decision_before_real_H1_close"]:
+                    source_counts["OFFCLOCK_H1_M1_ENTRY_PREMATURE"]+=1
         else:
             source_counts["SOURCE_EVENT_UNRECONSTRUCTED"]+=1
             if x["original_basis"].startswith("SESSION_INHERITED:"):
@@ -157,6 +183,17 @@ def audit(stream_root:Path,h1_root:Path)->dict[str,Any]:
     return {
         "identity":IDENTITY,"sources":2876,"markets":9,
         "counts":dict(sorted(source_counts.items())),"strata":strata,
+        "offclock_causal_sequence_ledger":[
+            {
+                "source_opportunity_id":x["source_opportunity_id"],
+                "symbol":x["symbol"],"source_entry_at":x["v49_entry_at"],
+                "m15_confirmed_at":x["m15_confirmed_at"],
+                "true_h1_hour_boundary":x["h1_true_hourly_close_expected"],
+                "m15_before_true_H1":x["m15_parent_confirmed_before_real_H1_close"],
+                "m1_before_true_H1":x["m1_source_decision_before_real_H1_close"],
+            } for x in joined
+            if x["h1_true_hourly_close_expected"] is not None
+        ],
         "bootstrap_resamples":DRAWS,"fixed_seed":SEED,
         "paired_label_not_real_fill_economics":True,
         "no_veto_or_trade_admission_changes":True,
