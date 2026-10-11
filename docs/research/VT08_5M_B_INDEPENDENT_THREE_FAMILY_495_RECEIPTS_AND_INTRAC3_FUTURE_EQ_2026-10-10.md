@@ -48,3 +48,15 @@ While extending the B textual-rule acceptance contract, B found that the prior `
 **Action requested from A #762/#765:** deliver frozen **TEXT-ONLY** A/B/C/D spec by C2/C3-continuation/C3-closure family (REFERENCE_SWING, POI, EQ, CISD, PS, FAMILY_BOUNDARY), URL+date+brief exact quote for every A, raw bars/timestamps for pre-C2 reference swing, and source-supported choice of prior C2 EQ vs no EQ for an intracycle C3. Publish counts for source-confirmed CISD/PS separately from 129 proxies, 36 full-body QORE C, 105 double sweeps D. B will write independently spec-driven acceptance and revisit 488/495, NOT authorize via count.
 
 **Prohibited:** VPS, DEMO/LIVE, sealed 7Y, mock broker orders, signed manifest invention, fictional profitability, retrospective trade conversions. Priority is rules D→A, not greater unverified density.
+
+
+## 5. P0 corrective addendum: PRE-C2 reference is NOT a universal C3 prerequisite
+
+**Verifier blind spot found and corrected after the 495 receipt result:** the initial B textual rule guard applied `reference_swing.identified_at<C2.open` equally to `C2_COMPLETED`, `C3_CONTINUATION_FROM_C2`, and `C3_CLOSURE_TO_C4`. The auditor's pre-C2 requirement specifically addresses selecting the *intra-C2 WITH-vs-AGAINST EQ regime*, not all C3 methods. Extending it unconditionally would be an unreferenced QORE rule that can veto valid C3 situations and destroy density without author support.
+
+**Now in B code:**
+- **C2_COMPLETED with EQ:** pre-C2 reference swing and source POI must be available before C2 opens. For against-swing EQ, an A-supplied boolean is still not independent proof; raw historical reconstruction and primary-source adjudication remain blockers.
+- **C3_CONTINUATION_FROM_C2:** no artificial pre-C2 reference; instead `prior_c2_model_swing_proof` must show a real predecessor C2 confirmation with `source_bar_id+hash+closed_at+available_at <= C2.closed_at`, and must be independently audited. Missing proof creates `B_SOURCE:C3_PRIOR_C2_SWING_ASOF_UNATTESTED`; a producer-supplied shaped proof still leaves `B_SOURCE:C3_PRIOR_C2_SWING_PRIMARY_REVIEW_PENDING`. C3 final H4 full EQ remains invalid for intracycle entry.
+- **C3_CLOSURE_TO_C4:** confirmation belongs to completed C3 H4 and its causal M15 CISD/PS; pre-C2 reference is NOT a universal source prerequisite; `B_SOURCE:C3_CLOSURE_POI_AND_SWING_PRIMARY_REVIEW_PENDING` until independent source validation. C3 EQ full can be observed only at/after C3 close.
+
+**Exact CI:** [GitHub Actions #38103823100](https://github.com/mezas3238-hue/qore-core/actions/runs/38103823100) **SUCCESS**, code+tests SHA `6b331930d9a90d4e72c82c8174cc19c3cb40355d`; **21/21 adversarial tests PASS**, Ruff PASS, Mypy PASS; [artifact #11688154606](https://github.com/mezas3238-hue/qore-core/actions/runs/38103823100/artifacts/11688154606). Positive/negative tests distinguish pre-C2 regime reference from preceding completed C2 swing vs completed C3 closure; reject future or retro-confirmed C2 previous swing. **Not a new source A-promotion.** All orders/fills/cognitive approvals stay zero.
