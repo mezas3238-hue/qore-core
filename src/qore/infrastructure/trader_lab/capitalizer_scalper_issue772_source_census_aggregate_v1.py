@@ -202,7 +202,7 @@ def aggregate(root:Path,output:Path)->dict[str,Any]:
             count["TRIGGER_"+row["trigger_family"]]+=1
             for reason in row["causal_timestamp_failures"]:
                 count["FAULT_"+reason]+=1
-        if in_A:
+        if in_a:
             market_dir[row["symbol"]][row["h1_trend4_agreement"]]+=1
             session_dir[row["session"]][row["h1_trend4_agreement"]]+=1
             lag.append(float(row["m15_setup_to_entry_minutes"]))
