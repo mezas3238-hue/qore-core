@@ -45,3 +45,39 @@
 5. Sólo entonces diseñar replay físico coste BID/ASK y OOS antes de certificación; nueva cognitiva World Model sigue congelada.
 
 **STATUS:** NO CERTIFICABLE; fuente TTrades y rutas presentes pero requieren confirmación de causalidad conjunta. Sin nuevo PF/DD medido.
+
+
+## 5. Resultado final observado — GitHub Actions nueve mercados
+
+### 5.1 Test Candle 2/3 H1 POI [#38099880288 — 11/11 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38099880288)
+
+- Libro original fijo: **2638 CANDLE2** y **238 CANDLE3**, total 2876/2876 reconciliados.
+- **2538/2638 C2** y **227/238 C3** tienen evento original + geometría de closure + POI confirmado antes, compatible y tocado, reproducido por la infraestructura QORE; total **2765/2876** (96,14%).
+- **100 C2 y 11 C3** = **111 IDs** carecen de testigo reconstruido en esta nueva ejecución. **NO** son por ello casos de POI invalidado, ausencia de fuente o no causalidad; requieren explicaciones por origen/temporalidad y cobertura del dataset.
+- **2086 C2 y 181 C3 = 2267** muestran DOS velas H1 relevantes de **60/60** M1 nativos (78,82% del libro). Los otros **609** carecen de dicha prueba exacta: 498 reconstruidos con alguna hora parcial y 111 de evento de origen no reconstruido. La política V48 acepta agregación parcial >=45/60 M1. No usar 609 como veto ni como prueba de lag H1, pero nunca llamarlos velas completas sin evidencia.
+- Los **1604 estados SESSION_INHERITED** continúan presentes; el test enlaza el origen QORE con señal anterior, pero no demuestra vigencia económica del POI superior del autor ni que un H1 previo con historial incompleto sea ejecutable.
+
+**Conclusión:** C2/C3 no desaparece del H1 por ausencia de etiqueta. La mayoría tiene un POI QORE internamente reproducible; la fidelidad a POI **HTF fuente** (incluida vela contraria contextual), la calidad 60/60 y el protected swing permanecen **UNRESOLVED**.
+
+### 5.2 Streaming first-global y observacionales [#38099916845 — 11/11 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38099916845)
+
+- 2876/2876 oportunidades originales; **1786 (62,1%)** dan misma primera familia y mismo timestamp con un recorrido online en cada close; **1090 (37,9%)** cambian familia o primer instante detectado frente a V49.
+- Las 381 diferencias FULL-vs-PREFIX del estudio previo son **sólo una parte** de las 1090 diferencias al preguntar por el primer evento DETECTADO minuto a minuto. Un snapshot de prefijo una vez al cierre original NO sustituye streaming.
+- **0 descubrimientos retrofechados** registrados en el detector incremental sobre el libro source-anchored. Cada trade supuesto se observaría al close de detección, no en un timestamp posterior asignado ex-post.
+- MAX3 original **2020** y MAX3 anclado reordenando las decisiones online **2020**, pero sólo **1989 identidades** se conservan en la intersección y **31** sustituyen IDs. Esto es prueba de sensibilidad de orden, **no** replay completo, pues V49 POI/M15/SL/target de un nuevo tiempo no se revalidó causalmente.
+
+**Diferencia de favorable CLOSE+H (online menos V49), únicamente porcentajes de trayectorias ex-post, no win rate ejecutado:**
+
+| Cohorte fuente y cobertura efectiva | +15m | +30m | +60m |
+|---|---:|---:|---:|
+| 381 FULL/PREFIX previas (N=381/381/380) | +1.8373pp | +3.4121pp | +1.3158pp |
+| 1090 cambiadas en streaming (N=1087/1087/1083) | +10.3036pp | +9.4756pp | +6.5559pp |
+| 2876 oportunidades (N=2870/2868/2859) | +3.9024pp | +3.5914pp | +2.4834pp |
+| 2020 MAX3 original (N=2018/2016/2013) | +3.8157pp | +3.5218pp | +2.7819pp |
+
+- Son diferencias **apareadas con el mismo H1 direction**, pero entradas medidas a dos instantes potencialmente diferentes; la combinación STOP/TARGET e intrabar BID/ASK/COST no se reejecuta.
+- 381 originales muestran mejora observacional menor de 5pp; no concluir equivalencia estadística/real con este estimador de punto, especialmente por clustering de días. Los 1090 cambios muestran un diferencial más grande favorable al primer online, hipótesis económica de orden que exige replay causal completo.
+- MFE/MAE y signed-return/R de referencia original están disponibles en los **2876 recibos por ID** para cada horizonte, no utilizar su magnitud para elegir filtros o autorizar trades.
+- Nuevo estudio separado de intervalos por *operating-date cluster* `capitalizer_scalper_a2_thirteenth_paired_cluster_uncertainty_v1.py` usa exactamente estos dos libros congelados sin buscar nuevos parámetros. Sólo después de su ejecución correcta se interpretará robustez de bandas <5pp.
+
+**Estado después del ciclo 13: NO CERTIFICABLE, World Model sin expandir, cero vetos, cero modificaciones del baseline V49, PR #759 DRAFT, GitHub-only.**
