@@ -30,7 +30,7 @@ def _bars(n: int) -> tuple[CapitalizerM1Bar, ...]:
             symbol="EURUSD", opened_at=base+timedelta(minutes=i),
             closed_at=base+timedelta(minutes=i+1),
             open=Decimal("1.10"),high=Decimal("1.12"),
-            low=Decimal("1.08"),close=Decimal("1.11"),
+            low=Decimal("1.08"),close=Decimal("1.11"),\n            volume=None,digits=5,
         )
         for i in range(n)
     )
