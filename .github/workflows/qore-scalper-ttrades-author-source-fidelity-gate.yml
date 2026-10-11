@@ -1,0 +1,59 @@
+name: QORE Scalper TTrades Primary Author Fidelity Gate (No Economic Replay)
+
+on:
+  push:
+    branches:
+      - research/scalper-author-primary-source-certification-20261011
+    paths:
+      - '.github/workflows/qore-scalper-ttrades-author-source-fidelity-gate.yml'
+      - 'docs/research/QORE_SCALPER_TTRADES_2026_AUTHOR_SOURCE_CANON_AND_BLOCKERS_2026-10-11.md'
+      - 'docs/research/qore_scalper_ttrades_author_fidelity_contract_2026-10-11.json'
+      - 'src/qore/infrastructure/trader_lab/qore_ttrades_author_fidelity_gate_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_ttrades_author_fidelity_gate_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check_source_provenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 'Verify only primary source canon, not strategy performance'
+        run: |
+          test -s docs/research/QORE_SCALPER_TTRADES_2026_AUTHOR_SOURCE_CANON_AND_BLOCKERS_2026-10-11.md
+          test -s docs/research/qore_scalper_ttrades_author_fidelity_contract_2026-10-11.json
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_ttrades_author_fidelity_gate_v1.py
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure/trader_lab -p 'test_qore_ttrades_author_fidelity_gate_v1.py' -v
+      - name: 'Contract must remain BLOCKED; no author-exact first-online or economic replay'
+        run: |
+          PYTHONPATH=src python -m qore.infrastructure.trader_lab.qore_ttrades_author_fidelity_gate_v1 \
+            docs/research/qore_scalper_ttrades_author_fidelity_contract_2026-10-11.json \
+            --output source-gate/ttrades-author-fidelity-gate.json \
+            --assert-blocked
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          data=json.loads(Path('source-gate/ttrades-author-fidelity-gate.json').read_text())
+          assert not data['economic_replay_authorized']
+          assert data['author_source_gate']=='BLOCKED_SOURCE_FIDELITY'
+          assert data['blocking_reason_count']>=14
+          print('SCALPER_TTRADES_FIDELITY_GATE',json.dumps({
+            'status':data['author_source_gate'],
+            'blocking_reason_count':data['blocking_reason_count'],
+            'source_refs_checked':data['source_refs_checked'],
+            'rule_status_counts':data['rule_status_counts'],
+            'test_authorized':data['economic_replay_authorized'],
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scalper-ttrades-author-source-no-go-${{ github.sha }}
+          path: source-gate/
+          if-no-files-found: error
+          retention-days: 90

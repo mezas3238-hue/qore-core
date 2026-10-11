@@ -1,0 +1,286 @@
+{
+  "schema": "qore.scalper.ttrades.author_fidelity.v1",
+  "identity": "TTRADES_2026_02_07_SCALPING_MODEL_DAILY_CONTEXT_H1_BIAS_M15_SWING_M1_EXECUTION",
+  "created_utc_date": "2026-10-11",
+  "canonical_source": "A0",
+  "model_scope": "single dated TTrades Scalping Model; not M30-M3 or London SMT",
+  "sources": [
+    {
+      "id": "A0",
+      "url": "https://ttrades.com/ttrades-scalping-model-simple-day-trading-strategy/",
+      "primary_author": "TTrades",
+      "text_primary_accessed": true,
+      "video_full_timecoded_audit": false
+    },
+    {
+      "id": "A1",
+      "url": "https://ttrades.com/how-change-in-the-state-of-delivery-cisd-confirms-swing-points/",
+      "primary_author": "TTrades",
+      "text_primary_accessed": true,
+      "video_full_timecoded_audit": false
+    },
+    {
+      "id": "A2",
+      "url": "https://ttrades.com/understanding-the-change-in-state-of-delivery-cisd/",
+      "primary_author": "TTrades",
+      "text_primary_accessed": true,
+      "video_full_timecoded_audit": false
+    },
+    {
+      "id": "A3",
+      "url": "https://ttrades.com/market-structure-shifts-vs-change-in-the-state-of-delivery-a-clear-comparison/",
+      "primary_author": "TTrades",
+      "text_primary_accessed": true,
+      "video_full_timecoded_audit": false
+    },
+    {
+      "id": "A4",
+      "url": "https://ttrades.com/stop-loss-mastery-using-protected-swings-for-precise-invalidations/",
+      "primary_author": "TTrades",
+      "text_primary_accessed": true,
+      "video_full_timecoded_audit": false
+    },
+    {
+      "id": "A5",
+      "url": "https://ttrades.com/using-order-blocks-for-continuations/",
+      "primary_author": "TTrades",
+      "text_primary_accessed": true,
+      "video_full_timecoded_audit": false
+    },
+    {
+      "id": "A6",
+      "url": "https://ttrades.com/how-to-trade-candle-2-ttrades-fractal-model/",
+      "primary_author": "TTrades",
+      "text_primary_accessed": true,
+      "video_full_timecoded_audit": false
+    },
+    {
+      "id": "A7",
+      "url": "https://ttrades.com/how-to-trade-candle-3-in-the-fractal-model/",
+      "primary_author": "TTrades",
+      "text_primary_accessed": true,
+      "video_full_timecoded_audit": false
+    }
+  ],
+  "rules": [
+    {
+      "id": "TT01",
+      "name": "model_identity",
+      "source_ids": [
+        "A0"
+      ],
+      "status": "SOURCE_EXPLICIT",
+      "issue": "Unique dated scalping model A0 not mixed with other TTrades variants",
+      "blocks_author_exact_and_economic_test": false,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT02",
+      "name": "daily_context",
+      "source_ids": [
+        "A0"
+      ],
+      "status": "AUTHOR_UNRESOLVED",
+      "issue": "Daily context: required quantitative signal / veto or merely contextual observation?",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT03",
+      "name": "h1_bias_C2_C3",
+      "source_ids": [
+        "A0",
+        "A1"
+      ],
+      "status": "AUTHOR_UNRESOLVED",
+      "issue": "Disambiguate H1 C2/C3, simultaneous triggers, bias retention, available_at.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT04",
+      "name": "m15_swing",
+      "source_ids": [
+        "A0",
+        "A1"
+      ],
+      "status": "AUTHOR_UNRESOLVED",
+      "issue": "Define author-valid M15 swing and C2 without ex-post right candle.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT05",
+      "name": "m1_entry",
+      "source_ids": [
+        "A0",
+        "A5"
+      ],
+      "status": "AUTHOR_UNRESOLVED",
+      "issue": "FVG/CISD/protected swing OR vs AND, entry form and timestamp.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT06",
+      "name": "cisd_sequence",
+      "source_ids": [
+        "A1",
+        "A2"
+      ],
+      "status": "AUTHOR_UNRESOLVED",
+      "issue": "Opening of first opposing candle sequence and its exact causal membership.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT07",
+      "name": "mss_displacement",
+      "source_ids": [
+        "A3"
+      ],
+      "status": "AUTHOR_UNRESOLVED",
+      "issue": "Displacement precise criterion; whether MSS is mandatory for this model.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT08",
+      "name": "protected_swing_stop",
+      "source_ids": [
+        "A4",
+        "A5"
+      ],
+      "status": "AUTHOR_UNRESOLVED",
+      "issue": "Mandatory POI, wick vs body stop and protective buffer rule.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT09",
+      "name": "htf_target_selection",
+      "source_ids": [
+        "A0",
+        "A5"
+      ],
+      "status": "AUTHOR_UNRESOLVED",
+      "issue": "Order of target candidates, as-of validity, reached-before-entry rules.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT10",
+      "name": "C2_C3_wick_qualification",
+      "source_ids": [
+        "A6",
+        "A7"
+      ],
+      "status": "AUTHOR_UNRESOLVED",
+      "issue": "Wick 'small/large' author exact threshold absent.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT11",
+      "name": "universe_and_hours",
+      "source_ids": [
+        "A0"
+      ],
+      "status": "QORE_IMPLEMENTATION_REQUIRED",
+      "issue": "Research-market/session choice and timezone must be explicit, not labelled author original.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT12",
+      "name": "gap_intrabar_expiry_policy",
+      "source_ids": [
+        "A0"
+      ],
+      "status": "QORE_IMPLEMENTATION_REQUIRED",
+      "issue": "Deterministic gaps, expiry, same OHLC bar dual-touch recorded separately.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT13",
+      "name": "net_cost_contract",
+      "source_ids": [
+        "A0"
+      ],
+      "status": "QORE_IMPLEMENTATION_REQUIRED",
+      "issue": "Separate external realistic costs for chosen venue, no source author broker costs.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT14",
+      "name": "independent_OOS_holdout",
+      "source_ids": [
+        "A0"
+      ],
+      "status": "EVIDENCE_REQUIRED",
+      "issue": "Unseen test period with sealed independent source not formerly inspected.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    },
+    {
+      "id": "TT15",
+      "name": "source_example_fixtures",
+      "source_ids": [
+        "A0",
+        "A1",
+        "A4"
+      ],
+      "status": "EVIDENCE_REQUIRED",
+      "issue": "Full original video timecodes/figures and reviewed example ground-truth fixtures.",
+      "blocks_author_exact_and_economic_test": true,
+      "author_video_timecodes": [],
+      "reviewer_adjudication": null,
+      "evidence_test_ref": null
+    }
+  ],
+  "verification": {
+    "author_fidelity_certified": false,
+    "independent_first_online_engine_verified": false,
+    "author_example_fixtures_verified": false,
+    "independent_holdout_reserved": false,
+    "economic_replay_authorized": false,
+    "claimed_gross_edge_positive": null,
+    "claimed_net_edge_positive": null,
+    "no_v49_detectors_as_author_oracle": true,
+    "no_proxies_passed_off_as_author_exact": true,
+    "no_vps_mt5_prod": true
+  },
+  "requested_next_stage": "review official author primary video/example ambiguities, not execute economic test",
+  "expected_status": "BLOCKED_SOURCE_FIDELITY",
+  "economic_results_allowed": false
+}
