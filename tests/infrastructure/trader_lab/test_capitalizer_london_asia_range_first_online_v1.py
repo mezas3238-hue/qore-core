@@ -87,7 +87,7 @@ def test_first_london_breach_requires_unbroken_prefix() -> None:
 
 def test_both_extremes_same_M1_fail_closed() -> None:
     start = london_start(DAY, 8)
-    rows = asia() + [bar(start, h="1.10050", l="1.09950")]
+    rows = asia() + [bar(start, h="1.10050", low="1.09950")]
     assert asof_event("EURUSD", DAY, tuple(rows)).reason == "AMBIGUOUS_BOTH_EXTREMES"
 
 
