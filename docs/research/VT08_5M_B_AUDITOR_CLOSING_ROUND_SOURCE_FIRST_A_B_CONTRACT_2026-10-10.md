@@ -41,6 +41,12 @@ New B-only source-code-free consumer:
 
 **Architect A progress acknowledged:** A has a new `vt08_5m_ttrades_source_swing_asof_contract_v1.py` and prereg [`VT08_A_SOURCE_SWING_POINT_POI_AND_THREE_FAMILY_CLOCKS_PREREG_2026-10-10.md`](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-methodology-source-20261010/docs/research/VT08_A_SOURCE_SWING_POINT_POI_AND_THREE_FAMILY_CLOCKS_PREREG_2026-10-10.md), which itself correctly labels outputs `STRUCTURE_RESEARCH_NOT_SOURCE_COMPLETE`. This **does not itself demonstrate** that the *reference swing governing intra-C2 EQ* was knowable before C2, nor constitute spec-first independence. The new B consumer remains fail-closed on D until external adjudication.
 
+### Independent contract verification — EXECUTED
+
+[GitHub Actions **#38098820220**](https://github.com/mezas3238-hue/qore-core/actions/runs/38098820220) completed **SUCCESS**, tested source SHA `e52866d15ea3652241fc7499e3427ca5fe2af5d1`, **17/17 adversarial tests PASS**, Ruff PASS, Mypy PASS (isolated B source). The CI pulled the **already B-independent** C3/C4 census artifact `#11686722568`, not A methodology code, and published an independently labelled machine-readable policy report [artifact **#11686878726**](https://github.com/mezas3238-hue/qore-core/actions/runs/38098820220/artifacts/11686878726). Exact classifications: `C2_DUAL_SWEEP_D_UNRESOLVED=105`, `QORE_FULL_BODY_ENGULF_GEOMETRY_C_UNVERIFIED=36`, `m15_CISD_PS_FORMAL_PROXY_NOT_DENSITY=129`, `c4_outside_owner_QORE_CAPABILITY_GAP=81`, `source_complete=0`, `cognitive_ready=0`, `trades_executed=0`. B additionally proves that even if the producer sets `pre_c2_swing_regime_independently_attested=true` itself, **the independent raw review blocker remains set**.
+
+This is independent **implementation-level** test separation, NOT a claim that a previously inspected codebase can now be blind-reviewed retroactively. An actual A-produced textual rule manifest is **still pending**. The synthetic D fixtures are not methodology evidence, and all acceptance gates remain closed.
+
 ## 4. Mandatory provenance outputs / reporting
 
 - **C2 B01:** 488/488 historical M15 data provenance independently verified; **0 complete source rule adjudications**, 0 cognitive admission, 0 fills. Require rule-level verification of EQ, prior reference swing, source POI, CISD/PS separately before rerun; do not silently reclassify 488.
