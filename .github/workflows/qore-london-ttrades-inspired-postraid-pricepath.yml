@@ -48,7 +48,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
       - run: python -m pip install -e .
-      - name: Frozen provider-native M1: no V49, no tick, no BID/ASK
+      - name: 'Frozen provider-native M1 - no V49, no tick, no BID/ASK'
         uses: actions/download-artifact@v4
         with:
           name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.M1_SHA }}
