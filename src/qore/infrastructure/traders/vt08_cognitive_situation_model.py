@@ -59,7 +59,7 @@ class Vt08ForexSituationModel:
         if self.as_of.tzinfo is None or self.as_of.utcoffset() is None:
             raise ValueError("VT08 situation as_of must be timezone-aware")
         self._validate_market()
-        if self.anchor_hour_ny not in OWNER_FOREX_ANCHORS:
+        if type(self.anchor_hour_ny) is not int or self.anchor_hour_ny not in OWNER_FOREX_ANCHORS:
             raise ValueError("VT08 situation anchor outside Owner 01/05/09 scope")
         if self.side not in {"long", "short"}:
             raise ValueError("VT08 situation side must be long or short")
