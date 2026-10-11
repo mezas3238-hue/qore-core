@@ -268,7 +268,9 @@ def source_witness(
         ),
         "causal_timestamp_failures":violations,
         "causal_timestamp_pass":not violations,
-        "swing_right_candle_and_earliest_availability":"NOT_IN_SOURCE_NEEDS_INDEPENDENT_RECONSTRUCTION",
+        "swing_right_candle_and_earliest_availability":(
+            "NOT_IN_SOURCE_NEEDS_INDEPENDENT_RECONSTRUCTION"
+        ),
         "m1_sweep_series_CISD_first_online":"NOT_IN_SOURCE_NEEDS_INDEPENDENT_RECONSTRUCTION",
         "h1_original_events_used_as_independent_oracle":False,
         "feed_sha256_native_research_slice":native_feed_digest,
