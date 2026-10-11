@@ -47,6 +47,11 @@ from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_hf_bridge import (
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_opportunity import (
     build_v50_cognitive_snapshot,
 )
+from qore.infrastructure.trader_lab.capitalizer_v50_g_causal_decision_trace import (
+    V50GCausalDecisionTrace,
+    trace_json_line,
+    trace_v50_g_bridge,
+)
 
 IDENTITY = "QORE_CAPITALIZER_V50_G_COGNITIVE_GEOMETRY_ECONOMICS"
 MATRIX_IDENTITY = "QORE_CAPITALIZER_V50_G_COGNITIVE_GEOMETRY_MATRIX"
@@ -211,6 +216,7 @@ def build_market(
     *,
     capacity_root: Path,
     m1_root: Path,
+    trace_output: Path | None = None,
 ) -> tuple[dict[str, Any], tuple[V50GTrade, ...]]:
     opportunities = _load_opportunities(capacity_root)
     if not opportunities:
@@ -229,6 +235,7 @@ def build_market(
     h1 = _aggregate(bars, minutes=60)
 
     trades: list[V50GTrade] = []
+    cognitive_traces: list[V50GCausalDecisionTrace] = []
     geometry_counts: Counter[str] = Counter()
     disposition_counts: Counter[str] = Counter()
     missing_session_bars = 0
@@ -244,6 +251,16 @@ def build_market(
         disposition = snapshot.cognitive.disposition
         disposition_counts[disposition.value] += 1
         geometry = propose_v50_geometry(snapshot)
+        cognitive_traces.append(
+            trace_v50_g_bridge(
+                opportunity,
+                snapshot,
+                geometry,
+                cognitive_geometry_allowed=frozenset(
+                    item.value for item in COGNITIVE_GEOMETRY_ALLOWED
+                ),
+            )
+        )
         geometry_counts[geometry.decision.value] += 1
 
         if geometry.decision is not V50GeometryDecision.READY:
@@ -273,6 +290,12 @@ def build_market(
                 continue
             trades.append(trade)
 
+    if trace_output is not None:
+        trace_output.parent.mkdir(parents=True, exist_ok=True)
+        with trace_output.open("w", encoding="utf-8") as handle:
+            for trace in cognitive_traces:
+                handle.write(trace_json_line(trace))
+
     return {
         "identity": IDENTITY,
         "symbol": symbol,
@@ -281,6 +304,17 @@ def build_market(
         "window_end_exclusive": DEV_WINDOW_END.isoformat(),
         "context_lookback_start": lookback_start.isoformat(),
         "source_opportunities": len(opportunities),
+        "cognitive_trace_rows": len(cognitive_traces),
+        "cognitive_coverage": "PARTIAL_V50_BRIDGE_ONLY",
+        "master_frame_evaluated": False,
+        "global_world_model_evaluated": False,
+        "nine_market_competition_evaluated": False,
+        "experience_memory_scope": "PER_CANDIDATE_EMPTY_EXPERIENCE",
+        "readiness_origin": "LEGACY_STATIC_WELL_SUPPORTED",
+        "readiness_verified": False,
+        "cognitive_trace_artifact": (
+            trace_output.name if trace_output is not None else None
+        ),
         "geometry_decisions": sorted(geometry_counts.items()),
         "cognitive_dispositions": sorted(disposition_counts.items()),
         "geometry_ready": geometry_counts[V50GeometryDecision.READY.value],
@@ -482,6 +516,7 @@ def main() -> None:
         report, trades = build_market(
             capacity_root=args.capacity_root,
             m1_root=args.m1_root,
+            trace_output=args.output / "capitalizer-v50-g-cognitive-trace.jsonl",
         )
         write_market(report, trades, args.output)
         print(json.dumps(report, sort_keys=True))

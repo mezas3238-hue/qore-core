@@ -1,0 +1,333 @@
+"""ACTUAL A2 as-of M1 sensors -> A1 nine-market full frame -> PAPER trades.
+
+No fabricated epistemic readiness, nine-market data, broker quotes or as-of
+target witnesses. A1 externally attested world/H1/M15 hypotheses remain
+authoritative. A2 sensor evidence is bound to EVERY source hypothesis and
+forwarded as source-tagged cognitive observation tokens; the sensor-to-original
+CISD family/time mismatch is a provenance warning, NOT an automatic veto.
+
+A1 full frame then decides PASS/WAIT/ABSTAIN before PAPER intent selection.
+This file does NOT synthesize the nine-market barrier inputs from source
+opportunities; an upstream evidence collector must provide observed native
+M1, world, nine perceptions/regimes/causal graph/pressure and actual causal
+H1/M15 hypothesis witnesses.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
+from datetime import timedelta
+from decimal import Decimal
+
+from qore.infrastructure.trader_lab import (
+    capitalizer_a1_native_source_session_clock_attestation_v1 as native_clock,
+)
+from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
+    A1M1ProtectedRouteReview,
+    M1ProtectionClass,
+    SourceRouteClass,
+)
+from qore.infrastructure.trader_lab.capitalizer_a1_m1_second_pivot_forensics_v3 import (
+    A1SecondPivotReview,
+    SecondaryPivotClass,
+)
+from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
+    A1PaperSource,
+    A1PaperTraderReport,
+    run_real_master_frame_paper_trader,
+)
+from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research import (
+    A1MultiHypothesisBarrier,
+)
+from qore.infrastructure.trader_lab.capitalizer_a1_source_sensor_independent_attestation_v1 import (
+    A1SourceSensorAttestation,
+)
+from qore.infrastructure.trader_lab.capitalizer_a1_validated_sensor_overlay_v1 import (
+    apply_independent_source_sensor_witnesses,
+)
+from qore.infrastructure.trader_lab.capitalizer_scalper_entry_timing_sensors_shadow_v1 import (
+    EntrySensorInput,
+    observe_entry_timing_sensors,
+)
+from qore.infrastructure.trader_lab.capitalizer_scalper_sensor_master_frame_bridge_v1 import (
+    bind_scalper_sensors_into_master_context,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class A1SensorizedPaperBridgeResult:
+    report: A1PaperTraderReport
+    observed_sensor_frames: int
+    source_cisd_identity_conflicts: int
+    full_master_frame_invoked: bool
+    sensors_reached_full_master_frame: bool
+    independently_validated_source_rows: int = 0
+    independently_observed_market_sensors: int = 0
+    causal_m1_route_reviews_received: int = 0
+    prior_intact_m1_context_count: int = 0
+    secondary_m1_route_reviews_received: int = 0
+    newly_intact_second_m1_context_count: int = 0
+    independently_attested_source_clocks: int = 0
+    source_methodology_windows_unresolved: int = 0
+    automatically_vetoed_cisd_conflicts: bool = False
+    synthetic_nine_market_world_created: bool = False
+    virtual_broker_quotes_created: bool = False
+    live_authorized: bool = False
+
+    def __post_init__(self) -> None:
+        if (
+            self.automatically_vetoed_cisd_conflicts
+            or self.synthetic_nine_market_world_created
+            or self.virtual_broker_quotes_created
+            or self.live_authorized
+        ):
+            raise ValueError("sensorized research bridge cannot fake observations or order")
+
+
+def run_sensorized_master_frame_paper(
+    *,
+    barriers: tuple[A1MultiHypothesisBarrier, ...],
+    source_evidence: Mapping[str, EntrySensorInput],
+    source_originals: tuple[A1PaperSource, ...],
+    baseline_selected_source_ids: tuple[str, ...],
+    independent_source_witnesses: Mapping[str, A1SourceSensorAttestation] | None = None,
+    m1_route_reviews: Mapping[str, A1M1ProtectedRouteReview] | None = None,
+    m1_secondary_reviews: Mapping[str, A1SecondPivotReview] | None = None,
+    source_clock_witnesses: Mapping[
+        str, native_clock.A1V49SourceClockEvidence
+    ] | None = None,
+) -> A1SensorizedPaperBridgeResult:
+    """Run 9-market A1 cognition with genuine A2 sensor observations per source."""
+
+    if not barriers:
+        raise ValueError("observed nine-market barriers missing")
+    expected = {
+        row.source_opportunity_id for row in source_originals
+    }
+    if (
+        len(expected) != len(source_originals)
+        or set(source_evidence) != expected
+    ):
+        raise ValueError("A2 sensors must have exactly the original source IDs")
+    if (
+        independent_source_witnesses is not None
+        and set(independent_source_witnesses) != expected
+    ):
+        raise ValueError("all original source IDs need an independent sensor proof")
+    if m1_route_reviews is not None and set(m1_route_reviews) != expected:
+        raise ValueError("all original source IDs need M1 causal route reviews")
+    if m1_secondary_reviews is not None and (
+        m1_route_reviews is None or set(m1_secondary_reviews) != expected
+    ):
+        raise ValueError("all second-pivot native M1 witnesses need original V2 lineage")
+    if source_clock_witnesses is not None and set(source_clock_witnesses) != expected:
+        raise ValueError("all original source IDs need clock provenance")
+    source_table = {
+        row.source_opportunity_id: row for row in source_originals
+    }
+    observed = 0
+    conflicts = 0
+    independently_validated = 0
+    independently_upgraded_sensors = 0
+    route_reviews_received = 0
+    prior_intact_count = 0
+    second_route_review_count = 0
+    second_intact_count = 0
+    clock_provenance_count = 0
+    source_clock_methodology_unresolved = 0
+    wrapped_barriers: list[A1MultiHypothesisBarrier] = []
+    for barrier in barriers:
+        alternatives = []
+        for alt in barrier.alternatives:
+            sid = alt.binding.source_opportunity_id
+            if sid not in source_evidence:
+                raise ValueError("M1 source missing from complete as-of source feed")
+            value = source_evidence[sid]
+            if (
+                value.symbol != alt.binding.symbol
+                or value.decision_at != barrier.observed_at
+                or value.h1_confirmed_at != alt.h1_confirmed_at
+                or value.m15_confirmed_at != alt.m15_confirmed_at
+                or alt.context.observed_at != barrier.observed_at
+            ):
+                raise ValueError("sensor does not match exact H1/M15/M1 decision frontier")
+            historical = source_table[sid].trade
+            if value.m15_protected_stop != Decimal(historical.stop_price):
+                raise ValueError("M15 stop from sensor differs from original V49")
+            if value.m1_bars[-1].close != Decimal(historical.entry_price):
+                raise ValueError("M1 decision close differs from original V49 fill")
+            if (value.h1_direction == "BULLISH") != (historical.direction == "LONG"):
+                raise ValueError("sensor H1 bias conflicts with original trade direction")
+            frame = observe_entry_timing_sensors(value)
+            if independent_source_witnesses is not None:
+                witness = independent_source_witnesses[sid]
+                upgraded = apply_independent_source_sensor_witnesses(
+                    frame=frame, source_opportunity_id=sid, witness=witness,
+                )
+                independently_validated += 1
+                old_by_name = {r.sensor: r for r in frame.sensors}
+                independently_upgraded_sensors += sum(
+                    r.status != old_by_name[r.sensor].status
+                    for r in upgraded.sensors
+                )
+                frame = upgraded
+            binding = bind_scalper_sensors_into_master_context(frame)
+            if binding.grants_entry_authority:
+                raise ValueError("read-only A2 sensor grant is illegal")
+            match = (
+                frame.first_source_cisd_confirmed_at == barrier.observed_at.isoformat()
+                and frame.first_source_cisd_family == historical.trigger_family
+            )
+            conflict = not match
+            conflicts += int(conflict)
+            observed += 1
+            # Never alter A1's independently proven H1/M15/HTF target truths:
+            # the A2 frame only carries what is observable from its own M1
+            # and honestly marks raw-M15/HTF target proof as unavailable.
+            # Prematurely treating those missing sensor fields as disproving
+            # a separately attested A1 source would reject nearly all trades.
+            if not alt.context.evidence_provenance_complete:
+                raise ValueError("A1 native H1/M15 provenance independently incomplete")
+            if alt.context.symbol != frame.symbol:
+                raise ValueError("A1 source symbol differs from as-of sensor")
+            route_tokens: tuple[str, ...] = ()
+            if m1_route_reviews is not None:
+                review = m1_route_reviews[sid]
+                if (
+                    review.source_opportunity_id != sid
+                    or review.symbol != frame.symbol
+                    or review.decision_at != frame.decision_at
+                    or review.source_family != historical.trigger_family
+                    or review.route_class is not SourceRouteClass.SOURCE_ROUTE_CONFIRMED_AT_ENTRY
+                    or review.own_route_first_confirmed_at != frame.decision_at
+                ):
+                    raise ValueError("M1 route forensic contradicts original source identity")
+                if (
+                    review.protection_class is M1ProtectionClass.PRIOR_CONFIRMED_INTACT
+                    and (
+                        review.protection_confirmed_at is None
+                        or review.protected_price is None
+                        or review.protection_confirmed_at >= frame.decision_at
+                    )
+                ):
+                    raise ValueError("prior protected swing requires a genuine earlier witness")
+                route_tokens = (
+                    "SCALPER_A1_NATIVE_M1_PROTECTION_REVIEW="
+                    + review.protection_class.value,
+                    "SCALPER_A1_NATIVE_SOURCE_ROUTE_REPRODUCED=YES",
+                    "SCALPER_A1_NATIVE_M1_ROUTE_REVIEW_NOT_TRADE_VETO=YES",
+                    "SCALPER_A1_NATIVE_M1_PROTECTED_PIVOT_CONFIRMED_AT="
+                    + (review.protection_confirmed_at or "NOT_AVAILABLE"),
+                    "SCALPER_A1_NATIVE_M1_PROTECTED_PIVOT_PRICE="
+                    + (review.protected_price or "NOT_AVAILABLE"),
+                )
+                prior_intact_count += int(
+                    review.protection_class is M1ProtectionClass.PRIOR_CONFIRMED_INTACT
+                )
+                route_reviews_received += 1
+            second_tokens: tuple[str, ...] = ()
+            if m1_secondary_reviews is not None:
+                second = m1_secondary_reviews[sid]
+                prior = m1_route_reviews[sid] if m1_route_reviews is not None else None
+                if (
+                    prior is None
+                    or second.source_opportunity_id != sid
+                    or second.symbol != historical.symbol
+                    or second.source_family != historical.trigger_family
+                    or second.decision_at != frame.decision_at
+                    or second.previous_class != prior.protection_class
+                    or (
+                        second.finding is SecondaryPivotClass.PREVIOUS_V2_PROOF
+                    ) != prior.structurally_protected_at_entry
+                ):
+                    raise ValueError("V3 secondary pivot has false source/V2 ancestry")
+                if second.later_intact and (
+                    second.protected_price is None
+                    or second.confirmed_at is None
+                    or second.swing_at is None
+                    or second.confirmed_at > frame.decision_at
+                    or second.swing_at >= second.confirmed_at
+                ):
+                    raise ValueError("V3 second protected pivot lacks causal confirmation")
+                second_tokens = (
+                    "SCALPER_A1_NATIVE_M1_SECOND_PIVOT_REVIEW="
+                    + second.finding.value,
+                    "SCALPER_A1_SECOND_PIVOT_CAUSAL_CONFIRMED_AT="
+                    + (second.confirmed_at or "NOT_AVAILABLE"),
+                    "SCALPER_A1_SECOND_PIVOT_PRICE="
+                    + (second.protected_price or "NOT_AVAILABLE"),
+                    "SCALPER_A1_SECOND_PIVOT_INFORMATION_NOT_TRADE_VETO=YES",
+                )
+                second_route_review_count += 1
+                second_intact_count += int(second.later_intact)
+            clock_tokens: tuple[str, ...] = ()
+            if source_clock_witnesses is not None:
+                clock = source_clock_witnesses[sid]
+                if (
+                    clock.source_opportunity_id != sid
+                    or clock.symbol != historical.symbol
+                    or clock.source_session.value != historical.session
+                    or clock.source_operating_date != historical.operating_date
+                    or clock.observed_at != frame.decision_at
+                    or clock.m1_opened_at != (
+                        barrier.observed_at - timedelta(minutes=1)
+                    ).isoformat()
+                ):
+                    raise ValueError("source clock witness cannot cross V49 ancestry")
+                clock_tokens = (
+                    "SCALPER_A1_QORE_OPERATIONAL_BUCKET="
+                    + clock.qore_bucket_reconfirmed.value,
+                    "SCALPER_A1_SOURCE_CLOCK_NY_UTC_OFFSET_MINUTES="
+                    + str(clock.new_york_utc_offset_minutes),
+                    "SCALPER_A1_SOURCE_METHOD_WINDOW="
+                    + clock.methodology_window_resolution.value,
+                    "SCALPER_A1_SOURCE_CLOCK_NOT_TTRADE_AUTHOR_GATE=YES",
+                )
+                clock_provenance_count += 1
+                source_clock_methodology_unresolved += int(
+                    clock.methodology_window_resolution.value == "REVIEW_REQUIRED"
+                )
+            tokens = (
+                *alt.context.observation_tokens,
+                *binding.context.observation_tokens,
+                *route_tokens,
+                *second_tokens,
+                *clock_tokens,
+                f"SCALPER_SENSOR_SOURCE_CISD_MATCH={not conflict}",
+                "SCALPER_SENSOR_DIFFERENCE_NOT_A_GATE=YES",
+            )
+            alternatives.append(replace(
+                alt, context=replace(alt.context, observation_tokens=tokens),
+            ))
+        wrapped_barriers.append(replace(
+            barrier, alternatives=tuple(alternatives),
+        ))
+    if observed != len(expected):
+        raise ValueError("some original source IDs were never cognitively evaluated")
+    result = run_real_master_frame_paper_trader(
+        barriers=tuple(wrapped_barriers),
+        original_sources=source_originals,
+        baseline_selected_source_ids=baseline_selected_source_ids,
+    )
+    if (
+        not result.all_sensor_inputs_evidenced
+        or not result.nine_market_frame_per_candidate
+        or result.source_candidates_seen != observed
+    ):
+        raise ValueError("A2 sensors never reached full A1 frame for every source")
+    return A1SensorizedPaperBridgeResult(
+        report=result,
+        observed_sensor_frames=observed,
+        source_cisd_identity_conflicts=conflicts,
+        full_master_frame_invoked=True,
+        sensors_reached_full_master_frame=True,
+        independently_validated_source_rows=independently_validated,
+        independently_observed_market_sensors=independently_upgraded_sensors,
+        causal_m1_route_reviews_received=route_reviews_received,
+        prior_intact_m1_context_count=prior_intact_count,
+        secondary_m1_route_reviews_received=second_route_review_count,
+        newly_intact_second_m1_context_count=second_intact_count,
+        independently_attested_source_clocks=clock_provenance_count,
+        source_methodology_windows_unresolved=source_clock_methodology_unresolved,
+    )

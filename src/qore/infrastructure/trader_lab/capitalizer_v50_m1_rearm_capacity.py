@@ -596,9 +596,9 @@ def _portfolio_ready(
         grouped[(item.session, item.operating_date)].append(item)
 
     selected: list[V50RearmAttempt] = []
-    for key in sorted(grouped):
+    for session_key in sorted(grouped):
         candidates = sorted(
-            grouped[key],
+            grouped[session_key],
             key=lambda item: (
                 datetime.fromisoformat(item.trigger_confirmed_at),
                 item.symbol,

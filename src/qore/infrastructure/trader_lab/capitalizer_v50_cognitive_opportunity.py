@@ -18,7 +18,7 @@ specialist has causal work to do before competition. It never executes or grants
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 from statistics import median
@@ -138,6 +138,22 @@ def _recent_range_ticks(
     return value
 
 
+def _as_of_source_opportunity(
+    opportunity: V49Opportunity, *, decision_at: datetime
+) -> V49Opportunity:
+    """Right-censor the retrospective H1 terminal date before cognition sees V49.
+
+    The V49 census learns a state's final active_until from the full H1 history.
+    That terminal event may be later than the current M1 decision, so it must
+    not be carried into any pre-entry cognitive snapshot. Right censoring is
+    a visibility frontier, NOT an assertion that the H1 state ended now.
+    The underlying source opportunity and geometry rules remain unchanged.
+    """
+    if decision_at.tzinfo is None or decision_at.utcoffset() is None:
+        raise ValueError("as-of source projection requires aware decision time")
+    return replace(opportunity, h1_state_until=decision_at.isoformat())
+
+
 def build_v50_cognitive_snapshot(
     opportunity: V49Opportunity,
     *,
@@ -218,7 +234,7 @@ def build_v50_cognitive_snapshot(
         symbol=opportunity.symbol,
         session=session,
         observed_at=entry_at,
-        source_opportunity=opportunity,
+        source_opportunity=_as_of_source_opportunity(opportunity, decision_at=entry_at),
         cognitive=cognitive,
         target_ladder=ladder,
         dual_invalidation=dual,

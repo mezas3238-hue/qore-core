@@ -1,0 +1,43 @@
+name: QORE Scalper Cognition A1 Audit
+
+on:
+  push:
+    branches:
+      - agent/scalper-architect-a-cognition-20261010
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scalper-a1-cognition-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cognitive_source_quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff complete repository
+        run: ruff check .
+      - name: Mypy complete source and tests
+        run: mypy src tests
+      - name: Causal cognition and multi-era focused regressions
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v50_cognitive_opportunity.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v50_g_causal_decision_trace.py \
+            tests/infrastructure/trader_lab/test_capitalizer_master_cognitive_frame.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v50_cognitive_geometry_economics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v51_multi_era_repair.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v54_structural_partial_runner.py
