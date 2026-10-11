@@ -237,11 +237,7 @@ def inspect_bullish_m30_example(
     # We expressly DO NOT select between them without an author-valid
     # swing identified pre-C2. Neither is a valid actionable EQ.
     return M30BullishExampleAuthority(
-        status=(
-            AuthorCheckStatus.BREAKER_LOW_UNADJUDICATED
-            if past_relevant else
-            AuthorCheckStatus.BOTH_EQ_AND_BREAKER_UNADJUDICATED
-        ),
+        status=AuthorCheckStatus.BOTH_EQ_AND_BREAKER_UNADJUDICATED,
         decision_at=decision_at,
         candidate_eq_full_c2=eq_full,
         candidate_eq_close_to_low_c2=eq_wick,
