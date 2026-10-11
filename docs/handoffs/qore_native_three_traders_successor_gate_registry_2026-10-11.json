@@ -124,7 +124,7 @@
       "priority": 0,
       "scope": "all",
       "depends_on": [],
-      "status": "HANDOFF_IN_PROGRESS",
+      "status": "HANDOFF_PUBLISHED_VERIFIED_ON_GITHUB",
       "deliverable": "verified PR/Issue pointers and baseline commit; claim no economic tests"
     },
     {
@@ -255,5 +255,7 @@
     "preliminary_PF_target_not_official": "1.30 net, to be frozen as policy before economic experiment",
     "oos_integrity_state": "NOT_VERIFIED",
     "handoff_document": "docs/handoffs/QORE_NATIVE_THREE_TRADERS_MASTER_HANDOFF_2026-10-11.md"
-  }
+  },
+  "handoff_pull_request": "https://github.com/mezas3238-hue/qore-core/pull/795",
+  "handoff_document_url": "https://github.com/mezas3238-hue/qore-core/blob/research/qore-native-three-traders-master-handoff-20261011/docs/handoffs/QORE_NATIVE_THREE_TRADERS_MASTER_HANDOFF_2026-10-11.md"
 }
