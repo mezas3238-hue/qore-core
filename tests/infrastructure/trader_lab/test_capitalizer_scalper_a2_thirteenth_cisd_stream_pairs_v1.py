@@ -12,11 +12,11 @@ import pytest
 from qore.infrastructure.trader_lab import (
     capitalizer_scalper_a2_thirteenth_cisd_stream_pairs_v1 as forensic,
 )
-from qore.infrastructure.trader_lab.capitalizer_scalper_a2_cisd_prefix_causality_v1 import (
-    RouteWitness,
-)
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
+)
+from qore.infrastructure.trader_lab.capitalizer_scalper_a2_cisd_prefix_causality_v1 import (
+    RouteWitness,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerSourceDirection,
