@@ -9,6 +9,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/qore_native_reset_ctrader_tick_g0_v1.py'
       - 'tests/infrastructure/trader_lab/test_qore_native_reset_ctrader_tick_g0_v1.py'
       - 'docs/research/QORE_NATIVE_RESET_CTRADER_DEMO_TICK_G0_PREREG_2026-10-11.md'
+      - 'docs/research/QORE_NATIVE_RESET_CTRADER_DEMO_TICK_G0B_2015_AND_DUAL_SECRET_PATH_ADDENDUM_2026-10-11.md'
   workflow_dispatch:
 
 permissions:
@@ -32,6 +33,7 @@ jobs:
       - name: Official provider only and causal contract
         run: |
           test -s docs/research/QORE_NATIVE_RESET_CTRADER_DEMO_TICK_G0_PREREG_2026-10-11.md
+          test -s docs/research/QORE_NATIVE_RESET_CTRADER_DEMO_TICK_G0B_2015_AND_DUAL_SECRET_PATH_ADDENDUM_2026-10-11.md
           python - <<'PY'
           from pathlib import Path
           p=Path("src/qore/infrastructure/trader_lab/qore_native_reset_ctrader_tick_g0_v1.py").read_text()
@@ -49,10 +51,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID || secrets.QORE_CTRADER_CLIENT_ID }}
-      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET || secrets.QORE_CTRADER_CLIENT_SECRET }}
-      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN || secrets.QORE_CTRADER_ACCESS_TOKEN }}
-      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+      # Keep each OAuth app+token bundle matched; do not mix DEMO tokens
+      # with generic app credentials. Earlier CIBO used generic-first.
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+      QORE_CTRADER_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -67,6 +75,32 @@ jobs:
           run-id: '35166210458'
           github-token: ${{ github.token }}
           path: cibo-eurusd-source
+      - name: Restore CIBO 2014–2016 SEALED M1 INVENTORY METADATA ONLY (no OHLC)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-pre2016-sealed-m1-inventory-660881acc008593eb04b7be2c4e2e60f06950a4d
+          run-id: '36367221571'
+          github-token: ${{ github.token }}
+          path: cibo-pre2016-inventory
+      - name: Verify metadata witness for added 2015 date; never open sealed data
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.qore_native_reset_ctrader_tick_g0_v1 import probe_dates
+          witness=json.loads(Path("cibo-pre2016-inventory/pre2016-sealed-m1-inventory.json").read_text())
+          assert witness["identity"]=="QORE_CAPITALIZER_PRE2016_SEALED_M1_INVENTORY_V1"
+          assert witness["freeze"]["holdout_start"]=="2014-09-17T00:00:00+00:00"
+          assert witness["freeze"]["holdout_end_exclusive"]=="2016-09-17T00:00:00+00:00"
+          assert witness["economics_opened"] is False
+          eur=[item for item in witness["markets"] if item["symbol"]=="EURUSD"]
+          assert len(eur)==1 and eur[0]["provider_native_m1"] is True
+          assert eur[0]["retained_m1"]==762455
+          assert eur[0]["holdout_economics_evaluated"] is False
+          assert str(probe_dates()[0])=="2015-09-15"
+          assert len(probe_dates())==12
+          print("CIBO_2015_METADATA_WITNESS_ONLY_PASS")
+          PY
       - name: Fetch actual BID and ASK ticks from cTrader DEMO
         id: capture
         shell: bash
@@ -107,9 +141,9 @@ jobs:
           assert x["oauth_refresh_performed"] is False
           assert x["demo_account_verified"] is True
           assert x["g2_economic_test_performed"] is False
-          assert x["post2015_years_sampled"]==11
+          assert x["post2015_years_sampled"]==12
           print("CTRADER_NATIVE_TICK_G0", x["status"],
-                x["complete_bid_ask_dates"],"of 11")
+                x["complete_bid_ask_dates"],"of 12")
           PY
       - name: Upload native tick and source-gate artifacts whether complete or blocked
         if: always()
