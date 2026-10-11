@@ -230,6 +230,7 @@ def main() -> None:
         "symbol": result["symbol"],
         "m1": result["retained_m1_in_window"],
         "utc_bins": result["utc_bins"],
+        "ny_h4_hypothesis_bins": result["ny_h4_hypothesis_bins"],
         "data_gate_b_certified": result["data_gate_b_certified"],
         "fresh_holdout_eligible": result["fresh_holdout_eligible"],
     }, sort_keys=True))
