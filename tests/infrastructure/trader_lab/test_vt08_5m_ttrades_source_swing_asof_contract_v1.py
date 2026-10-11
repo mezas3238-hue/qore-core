@@ -156,7 +156,7 @@ def test_closed_m15_cannot_hide_gap_or_out_of_order() -> None:
     data = prefix(b.opened_at)
     with pytest.raises(ValueError, match="missing or reordered"):
         evaluate(ltf=(data[0], replace(data[1], opened_at=data[1].opened_at + timedelta(minutes=15),
-                                          closed_at=data[1].closed_at + timedelta(minutes=15)))
+                                          closed_at=data[1].closed_at + timedelta(minutes=15))))
 
 
 def test_c3_closure_never_uses_c4_full_h4_to_confirm_early() -> None:
