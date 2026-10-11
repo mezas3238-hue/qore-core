@@ -99,10 +99,11 @@ def audit(stream_root:Path,h1_root:Path)->dict[str,Any]:
             raise ValueError("symbol mismatch on source join")
         joined.append({
             **x,
+            "original_basis":witness["original_basis"],
             "h1_event_reconstructed":witness["source_event_reconstructed"],
             "h1_exact_60_60":bool(witness.get("closure_geometrical_60_60",False)),
             "h1_event_close_is_clock_hour":(
-                witness["origin_closed_at"][11:16]=="00:00"
+                witness["origin_closed_at"][14:16]=="00"
                 if witness.get("origin_closed_at") else None
             ),
         })
