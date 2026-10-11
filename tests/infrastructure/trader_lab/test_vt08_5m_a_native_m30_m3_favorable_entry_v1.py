@@ -6,6 +6,8 @@ import pytest
 
 from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
     aggregate,
+    earliest_clean_touch_per_market_day,
+    median_decimals,
     analyze_setup,
     closed_source_window,
     eligible_owner_m30,
@@ -170,3 +172,43 @@ def test_c3_m3_later_data_cannot_be_bought_at_c3_open():
     )
     assert retest["status"]=="CLEAN_OHLC_TOUCH_NOT_PHYSICAL_FILL"
     assert datetime.fromisoformat(retest["observed_after_close"])>c2.closed_at
+
+
+def test_one_event_per_ny_day_is_first_closed_touch_not_best_rr() -> None:
+    t = datetime(2026, 1, 14, 14, 0, tzinfo=UTC)
+
+    def receipt(origin: str, at_minutes: int, retest_rr: str):
+        return {
+            "origin_id": origin,
+            "market_ny_date": "2026-01-14",
+            "entry_positional_proposed_at": t.isoformat(),
+            "positional": {"risk": "10", "rr": "0.6"},
+            "retest": {
+                "status": "CLEAN_OHLC_TOUCH_NOT_PHYSICAL_FILL",
+                "observed_after_close": (
+                    t + timedelta(minutes=at_minutes)
+                ).isoformat(),
+                "gross_geometry": {"risk": "5", "rr": retest_rr},
+            },
+        }
+
+    first = receipt("event-lower-rr", 3, "1.1")
+    later = receipt("event-higher-rr", 6, "3.8")
+    selected = earliest_clean_touch_per_market_day([later, first])
+    assert len(selected) == 1
+    assert selected[0]["origin_id"] == "event-lower-rr"
+    assert selected[0]["risk_reduction_percent_gross"] == "50.0"
+    assert selected[0]["trade_authorized"] is False
+
+
+def test_absent_retest_does_not_promote_or_count_as_order() -> None:
+    record = {
+        "origin_id": "unfilled",
+        "market_ny_date": "2026-01-14",
+        "entry_positional_proposed_at": T.isoformat(),
+        "positional": {"risk": "10", "rr": "1.0"},
+        "retest": {"status": "NO_CISD_LEVEL_RETEST_IN_C3"},
+    }
+    assert earliest_clean_touch_per_market_day([record]) == []
+    assert median_decimals([]) is None
+    assert median_decimals([Decimal("2"), Decimal("4")]) == "3"
