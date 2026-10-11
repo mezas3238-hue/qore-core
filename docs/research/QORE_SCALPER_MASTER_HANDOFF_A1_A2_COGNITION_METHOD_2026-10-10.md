@@ -551,3 +551,24 @@ Geometría nueva: media de ganancia por ganador **0.395838R→0.505603R**, media
 - **P0 restante:** ablation stops M15 vs M1 pivot y veto ruido 2x2 **exclusivamente PAPER** sobre población 1997 fija, sin volver a MAX3 y sin buscar arm post-hoc. NO certificar, PF del motor principal sigue 0.8425 BRUTO.
 
 **Informe autónomo de esta ronda**: [QORE_SCALPER_A2_FIFTEENTH_RESIDUAL_MAX3_NATIVE_SUITE_2026-10-10.md](QORE_SCALPER_A2_FIFTEENTH_RESIDUAL_MAX3_NATIVE_SUITE_2026-10-10.md). A1 World Model congelado, sin utilizar MFE/MAE futuro; A2 necesita regeneración completa H1/M15/M1 y fidelidad POI/swing antes de reabrir certificación.
+
+### 17.4 FACTORIAL STOP M15 vs M1 pivot (same 1997 MAX3) [GH Actions #38105126886 SUCCESS 11/11](https://github.com/mezas3238-hue/qore-core/actions/runs/38105126886)
+
+**Ya ejecutado, sin cambios de trade/producción, no es propuesta pendiente.** Reaplica mecanismo original 2x2 (stop M15 o pivote causal M1, ruido M1 4–8× predefinido ON/OFF) a las **MISMAS 1997 posiciones y targets H1**, sin reordenar MAX3 ni recompensar oportunidades faltantes. Resultados brutos sin spread/commission:
+
+- M15_NOISE_OFF n **1997**, PF **0.842524**, total **-109.055389R** (control EXACTO).
+- M1_NOISE_OFF n **1778** con stop M1 validado, PF **0.914294**, total **-99.363079R**; **219** sin pivote causal y quedan NO COVERED, no pérdidas imputadas 0.
+- M15_NOISE_VETO n **52**, PF **1.180295**, total **+1.845016R**, excluye 1945 de 1997.
+- M1_NOISE_VETO n **52**, PF **1.786036**, total **+11.831383R**, excluye 1945 de 1997.
+
+**Dictamen restrictivo:** el único brazo M1 de densidad alta sigue perdiendo; los brazos n52 son cohortes seleccionadas del DEVELOPMENT con cobertura **2.6%** y NO recomputan el universo/portfolio: NI filtrarlos, NI desplegar stop M1, NI proclamar edge o certificación por PF>1 aislado. Cualquier propuesta de avanzar sobre n52 requiere preregistro externo y fuente autor, masa preservada/estrategia reejecutada y holdout verificado sin reutilización de dev, no HARKing. No hay BID/ASK ni comisiones en este reporte. Código y recibos en `capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1.py`, workflow `qore-scalper-a2-fifteenth-online-stop-factorial.yml`.
+
+### 17.5 Prioridad de siguiente arquitecto (NO expansión cognitiva)
+
+1. Regenerar verdadero universo H1→M15→M1 de forma online incremental sin condicionar a los 2876 parents V49 originales. Separar causalidad H1/POI HTF/M15 swing y densidad source-real antes de atribuir PF a CISD.
+2. El benchmark de H1 nulo SAME STATE sigue superando favorabilidad de las 1997 entradas online; no equivale a estrategia ejecutable. La pérdida de eficacia Sweep→CISD (de -13.69pp +15m) persiste. Resolver fuente exacta de timing ICT/TTrades y M1/CISD en streaming ANTES de formular otro filtro.
+3. Comparar perfiles R, stop M15 y fractal autor, sin seleccionar a posteriori un n52 profitable en dev. Considerar eficiencia frente al costo de oportunidad y preservar 1137 ganadores/449.71R originales si surge una hipótesis nueva preregistrada.
+4. Sólo cuando la cartera causal-first regenerada obtenga PF bruto >1 y suficiente densidad, hacer replay BID/ASK sincronizado y comisión por activo/lote para obtener PF neto, luego OOS sellado/monte carlo y certificación. No usar PF/DD de los 52 como calificación de CORE.
+5. **World Model congelado**, código research GH PR #759 DRAFT, no LIVE, no VPS/MT5/merge. Todos los estudios son PAPER scientific. Documento audit XV completo incluye los valores, las limitaciones y GH run success.
+
+**ACTUALIZACIÓN SOBRE REPO QUALITY:** los workflows específicos han sido GREEN, pero se detectó fallo global Mypy por imports no explícitos de constantes de los nuevos tests; tests corregidos en rama, exigir volver a ver full_quality + methodology_quality ambos GREEN en el SHA final. Nunca inferir FULL CI GREEN porque un subworkflow pasó.
