@@ -1,6 +1,8 @@
 """QORE-alpha frozen 96-space/source window/outcome screening tests."""
 
+import json
 from datetime import UTC, datetime
+from pathlib import Path
 from decimal import Decimal
 
 import pytest
@@ -221,3 +223,16 @@ def test_wrong_segment_or_winner_cannot_advance():
         internal_test_decision(
             metrics(d.winner_id,"VALIDATE"),d,
         )
+
+
+def test_registry_committed_in_github_matches_exact_manifest_no_hidden_97th():
+    root=Path(__file__).resolve().parents[3]
+    file=root / (
+        "docs/research/"
+        "QORE_ALPHA_V1_FROZEN96_VARIANT_REGISTRY_2026-10-11.json"
+    )
+    registry=json.loads(file.read_text(encoding="utf-8"))
+    manifest=frozen_manifest()
+    assert registry["variants"]==manifest["variants"]
+    assert registry["frozen_manifest_sha256"]==manifest["sha256"]
+    assert registry["holdout"]=="SEALED_NOT_ACCESSIBLE"
