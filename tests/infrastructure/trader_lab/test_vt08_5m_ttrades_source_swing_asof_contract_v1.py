@@ -171,10 +171,11 @@ def test_c3_closure_never_uses_c4_full_h4_to_confirm_early() -> None:
         Family.C3_CLOSURE_TO_C4, c1=a, c2=b, c3=c3,
         ltf=data, poi=poi, at=at,
     )
-    assert s.status is ProofStatus.CONFIRMED_STRUCTURE_ONLY
+    assert s.status is ProofStatus.C3_HTF_CISD_NOT_ATTESTED
     assert s.htf_closure_known_at == c3.closed_at
-    assert s.cisd_confirmed_at == at
-    assert s.swing_point_confirmed_at == at
+    assert s.cisd_confirmed_at is None
+    assert s.swing_point_confirmed_at is None
+    assert s.orders_authorized is False
 
 
 def test_c3_closure_cannot_confirm_before_c3_h4_close() -> None:
