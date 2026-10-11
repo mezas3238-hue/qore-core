@@ -471,3 +471,43 @@ El auditor acepta H17 fuerte RETIRADA: 2638/2876 H1 origen C2, 238/2876 origen C
 ### 15.2 151 CIERRES H1 NO HH:00 — SECUENCIA M15/M1 FINALMENTE REFUTADA COMO PREMATURA
 
 [Run #38100413220 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38100413220) reutiliza los recibos source H1 y STREAM M1 de 2876 IDs y publica ledger para los **151** cuya vela H1 previa se etiquetó cerrada antes de HH:00. Refiere el verdadero fin del candle a siguiente HH:00 y compara `M15 setup confirmed_at` y `V49 original M1 trigger confirmed_at`. Resultado **0/151 M15 anterior a real HH:00, 0/151 M1 anterior a real HH:00**: la secuencia de estas 151 operaciones se cerró después de verdadero final H1, no se demuestra premature-order lookahead. Es un diagnóstico de cronología, NO verificación de OHLC exacto cuando faltan M1 ni prueba de POI fiel. 60/60 y 111 source unmatched siguen UNRESOLVED. No veto, no reescritura de reglas, baseline original intacto. Ver informe sección 7 con artefacto per-ID.
+
+---
+
+# 16. AUDITORÍA DECIMOCUARTA: PRIMER REPLAY ECONÓMICO FIRST-ONLINE GROSS — 10 OCT 2026
+
+**Documento obligatorio:** [QORE_SCALPER_A2_AUDIT14_CAUSAL_FIRST_GROSS_ECONOMIC_REPLAY_PREREG_2026-10-10.md](QORE_SCALPER_A2_AUDIT14_CAUSAL_FIRST_GROSS_ECONOMIC_REPLAY_PREREG_2026-10-10.md) contiene metodología PREREGISTRADA, resultados reales, limitaciones y links GH Actions. Estas mediciones **SUPERSEDEN las inferencias económicas previas**, pero NO confieren certificación y NO reemplazan V49 original.
+
+## 16.1 9/9 mercados: LONG/SHORT replay de operaciones verdaderamente cerradas, STOP_FIRST y MAX3
+
+**[GH Actions #38102352779 11/11 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38102352779)**. **2876/2876** operaciones baseline V49 reproducidas EXACTAMENTE contra libro económico congelado con provider-native M1. Primer evento M1 incremental source-anchored (sin future H1.until ni retrofechar) + stop original M15 + objetivo H1 V49 recalculado causalmente as-of nuevo cierre + exit STOP_FIRST/TARGET/SESSION_EXIT, después MAX3 global cronológico.
+
+| Concepto | V49 congelado | FIRST-ONLINE source-anchored |
+|---|---:|---:|
+| Candidatas previas MAX3 | 2876 | 2816 elegibles (36 stop inválido, 24 sin objetivo) |
+| MAX3 ejecutadas | 2020 | 1997 |
+| Wins / losses / flats | 1167 / 852 / 1 | 1154 / 841 / 2 |
+| PF bruto | **0.6644630742** | **0.8425240505** |
+| Max DD bruto R | **236.134284R** | **114.799099R** |
+| Neto R bruto | **-233.269327R** | **-109.055389R** |
+| Masa de beneficio bruto R | +461.942762 | +583.465531 |
+
+**RESULTADO:** +0.178 PF (+26.8% relativo), **-51.4% DD**, +124.213938R gross versus V49. Sigue PF por debajo 1 y **se pierden 109.06R**; NO hay modelo certificado ni rentabilidad económica neta. No inventar costes BID/ASK: solo OHLC nativo, no hay quote bid/ask y comisiones sincronizadas. La población alternativa NO reconstruye nuevos H1/M15 setups no presentes en V49; re-eligibilidad 60 fuentes y 23 menos en MAX3 confunden atribución pura de prioridad CISD. Reportar siempre como **source-anchored gross paired replay**, nunca 'full author-causal streaming replay físico'.
+
+## 16.2 Ganadores originales preservados por IDs, [GH Actions #38102633581 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38102633581)
+
+De 2020 identidades originales, alternativa conserva **1947**; salen **73**, entran **50**. De 1167 ganadoras originales, **1137** se siguen seleccionando y conservan **449.711269R** de **461.942762R** de beneficio original (97.35% de masa ganadora histórica). En nueva simulación 1105 de las 1137 siguen ganando, 32 pasan a perder. Owner threshold original IDs >=934 y mass >=415.74848565R se cumplen, pero SON GATES OWNER, NO source autor ni rentabilidad.
+
+## 16.3 Importantísima autocorrección de la auditoría del H1 — 111 desapariciones NO fueron defectos del autor
+
+**[GH Actions #38102351044 SUCCESS 11/11](https://github.com/mezas3238-hue/qore-core/actions/runs/38102351044)**, misma fuente nativa, mismo mecanismo V48/V49, pero auditor ahora usa **EXACTAMENTE 14 días de lookback** (DEFAULT_LOOKBACK original), no el snapshot anterior con 15 días. Source H1 ahora **2638/2638 Candle2** y **238/238 Candle3** concilian POI/closure intrínseca; total **2876/2876**. Los **111 no reconstruidos** eran ARTEFACTO de usar una ventana de auditoría diferente cuando los POI históricos persisten. Por tanto §15.1/15.2 con 111 UNKNOWN/609 no-60 es SUPERSEDIDO. Exactamente **2372/2876** tienen testigos H1 60/60 de ambas velas, **504/2876** carecen de esa atestación. La congruencia del POI QORE se prueba; AUTOR HTF POI y protected swing M15 siguen UNRESOLVED. La variante de POI opuesta podría descubrir señales NUEVAS ausentes de V49, pero NO explica estos 111 false-negatives de la auditoría.
+
+## 16.4 Bloqueos actuales y orden correcto
+
+1. Revalidar POI HTF con definición completa TTrades (15 Nov 2025), C2 reversal, swing M15 y herencia H1, sin hardcodear filtros posthoc.
+2. Reconstruir generación ENTERA H1/M15/M1 en streaming, no sólo cambiar cierre en fuente original; incluir oportunidades adicionales no observadas y densidad total real.
+3. Reejecutar BID/ASK sincronizado y comisión por mercado/lote para PF/DD NETOS, junto con ejecución y MAX3, antes de certificar. Los signos gross negativos impiden ya tratar esta variante como rentable.
+4. Recalcular destrozo Sweep→CISD, H1 random, MFE/MAE, target y factorial stop bajo nueva población ONLINE sin filtros. Separar investigación H1 from resultados.
+5. Mantener World Model ampliación congelada, V49 original intacto, PR #759 DRAFT, no VPS/MT5/live/merge.
+
+**IMPORTANTE:** rubrica "robusto positivo a +15/+30" del ensayo de 1090 (CLOSE forward) sigue válida como diagnóstico original, NO equivale a PF>1. El primer replay económicamente estructurado real muestra mejora +26.8% PF pero PF0.8425 y -109.06R. Nunca cambiar selección mirando PnL de estos 9 mercados.
