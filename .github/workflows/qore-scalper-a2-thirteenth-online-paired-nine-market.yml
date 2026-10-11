@@ -19,6 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  CISD_RUN: '38095562104'
+  CISD_SHA: 'a442a0d844b13cb4d013107b1b3721624abf574d'
   CONTROL_RUN: '38053946695'
   CONTROL_SHA: 'e356e7a52541e99533b25ecfef0ab9c4e9ce03c0'
   NATIVE_RUN: '35548099334'
@@ -67,6 +69,12 @@ jobs:
           path: native
           github-token: ${{ github.token }}
           run-id: ${{ env.NATIVE_RUN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: scalper-a2-cisd-prefix-${{ matrix.symbol }}-${{ env.CISD_SHA }}
+          path: cisd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CISD_RUN }}
       - name: Verify independent native M1, zero synthetic interpolation
         env:
           SYMBOL: ${{ matrix.symbol }}
@@ -82,7 +90,7 @@ jobs:
           PY
       - name: Emit first event on discovery bar, measure paired forward horizons
         run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_scalper_a2_thirteenth_cisd_stream_pairs_v1 market original native market-output
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_a2_thirteenth_cisd_stream_pairs_v1 market original cisd native market-output
       - name: Verify ledger and no fictitious trade economics
         env:
           SYMBOL: ${{ matrix.symbol }}
@@ -93,6 +101,7 @@ jobs:
           x=json.loads(Path("market-output/scalper-thirteenth-stream-market.json").read_text())
           assert x["symbol"]==os.environ["SYMBOL"] and x["sources"]>0
           assert x["admission_changes"]==0 and x["trades_reexecuted"]==0
+          assert x["frozen_381_window_disagreement"]>=0
           assert not x["author_certified"] and x["paper_pf"] is None
           print("AUDIT13 ONLINE PAIRS",x)
           PY
@@ -127,6 +136,8 @@ jobs:
           x=json.loads(Path("nine-market-output/scalper-thirteenth-stream-nine-market.json").read_text())
           assert x["markets"]==9 and x["sources"]==2876
           assert x["original_max3"]==2020 and x["admissions_changed"]==0
+          assert x["cohorts"]["FROZEN_381"]["source_opportunities"]==381
+          assert x["cohorts"]["FROZEN_2495"]["source_opportunities"]==2495
           assert x["paper_pf"] is None and x["paper_dd"] is None
           print("AUDIT13 PAIRED ONLINE 9MARKET",x)
           PY
