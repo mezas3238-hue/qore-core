@@ -26,6 +26,9 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
     iter_cibo_m1,
 )
+from qore.infrastructure.trader_lab.capitalizer_contract import (
+    CapitalizerSession,
+)
 from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import (
     _aggregate,
 )
@@ -42,14 +45,11 @@ from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 i
     _jsonl,
     source_id,
 )
-from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
-    CapitalizerSourceDirection,
-)
 from qore.infrastructure.trader_lab.capitalizer_session_clock import (
     capitalizer_session_at,
 )
-from qore.infrastructure.trader_lab.capitalizer_contract import (
-    CapitalizerSession,
+from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerSourceDirection,
 )
 from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     V49EconomicTrade,
