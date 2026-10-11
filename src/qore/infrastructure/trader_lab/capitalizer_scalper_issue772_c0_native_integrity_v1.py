@@ -39,7 +39,6 @@ from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v
     _slice,
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_issue772_direction_source_forensic_v1 import (  # noqa: E501
-    independently_closed_h1,
     load_sources,
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 import source_id
@@ -213,6 +212,7 @@ def diagnose(
         for x in strict_events
     }
     old_end=tuple(x.closed_at for x in old_h)
+    strict_times=tuple(x.closed_at for x in strict_h)
     old_q_timed=tuple(
         V48TimedSourceBar(x.opened_at,x.closed_at,x.source) for x in old_q
     )
@@ -354,11 +354,8 @@ def diagnose(
         # Exact original H1 context state is frozen; this strict-H1 test
         # never regenerates states/sessions/M1. It is a sensitivity only.
         n_events=5
-        h_strict_bars=independently_closed_h1(m1)
-        # Avoid recomputing by using strict H1 directly for benchmark:
-        strict_times=tuple(x.closed_at for x in h_strict_bars)
         zz=bisect.bisect_right(strict_times,dec)
-        last5=h_strict_bars[max(0,zz-n_events):zz]
+        last5=strict_h[max(0,zz-n_events):zz]
         continuous5=(
             len(last5)==5 and all(
                 (b.closed_at-a.closed_at)==timedelta(hours=1)
