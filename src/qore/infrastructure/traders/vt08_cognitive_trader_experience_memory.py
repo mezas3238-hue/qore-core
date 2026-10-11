@@ -122,7 +122,8 @@ def trader_experience_payload() -> dict[str, object]:
 
 
 def trader_experience_runtime_view() -> dict[str, object]:
-    return _payload_cached()
+    """Return isolated context; consumers cannot poison frozen cached memory."""
+    return deepcopy(_payload_cached())
 
 
 @lru_cache(maxsize=1)
