@@ -9,7 +9,6 @@ No unproven HTF POI, daily EQ or author-valid protected swing assertion.
 from __future__ import annotations
 
 import hashlib
-import json
 from collections import Counter, defaultdict
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
