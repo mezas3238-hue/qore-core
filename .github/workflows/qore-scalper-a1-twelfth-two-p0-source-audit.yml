@@ -1,0 +1,173 @@
+name: QORE Scalper A1 12th Audit - CISD Prefix Set versus H1 C2 C3 2876 Sources
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/scalper-architect-a-cognition-20261010]
+    paths:
+      - '.github/workflows/qore-scalper-a1-twelfth-two-p0-source-audit.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  A2_PREFIX_RUN: '38096548896'
+  A2_PREFIX_SHA: 'aff644d548558749c47cda7fb4062a538f00845c'
+  A2_H1_RUN: '38096345552'
+  A2_H1_SHA: '56b3c3b9970e1b02e9b5337a06a40c2bdf98cd06'
+  V49_RUN: '38053946695'
+  V49_SHA: 'e356e7a52541e99533b25ecfef0ab9c4e9ce03c0'
+
+jobs:
+  frozen_2876_per_id_methodology_audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Fetch A2 independently reconstructed 9 market own-route M1 prefix witnesses
+        uses: actions/download-artifact@v4
+        with:
+          pattern: scalper-a2-eleventh-cisd-membership-*-${{ env.A2_PREFIX_SHA }}
+          path: pinned-a2-cisd
+          run-id: ${{ env.A2_PREFIX_RUN }}
+          github-token: ${{ github.token }}
+          merge-multiple: false
+      - name: Fetch A2 H1 origin C2 and C3 and session inheritance source audit
+        uses: actions/download-artifact@v4
+        with:
+          pattern: scalper-a2-eleventh-h1-origin-*-${{ env.A2_H1_SHA }}
+          path: pinned-a2-h1
+          run-id: ${{ env.A2_H1_RUN }}
+          github-token: ${{ github.token }}
+          merge-multiple: false
+      - name: Fetch original unmodified V49 2876 source identities
+        uses: actions/download-artifact@v4
+        with:
+          pattern: scalper-a2-v49-control-*-${{ env.V49_SHA }}
+          path: pinned-v49
+          run-id: ${{ env.V49_RUN }}
+          github-token: ${{ github.token }}
+          merge-multiple: false
+      - name: 381 per-ID causal set membership vs H1 C2/C3 and inherited origin
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import V49Opportunity
+          from qore.infrastructure.trader_lab.capitalizer_v50_g_causal_decision_trace import source_opportunity_id
+          def load(pattern, root):
+              paths=sorted(Path(root).rglob(pattern))
+              assert len(paths)==9, (root, pattern, len(paths))
+              rows=[json.loads(line) for file in paths for line in file.read_text().splitlines() if line.strip()]
+              ids=[r["source_opportunity_id"] for r in rows] if root!="pinned-v49" else []
+              if ids:
+                  assert len(ids)==len(set(ids))==2876, (root,len(ids),len(set(ids)))
+              return rows
+          source_files=sorted(Path("pinned-v49").rglob("capitalizer-*-v49-hf-capacity-opportunities.jsonl"))
+          assert len(source_files)==9
+          originals={}
+          for file in source_files:
+              for line in file.read_text().splitlines():
+                  if not line.strip(): continue
+                  item=V49Opportunity(**json.loads(line))
+                  sid=source_opportunity_id(item)
+                  assert sid not in originals
+                  originals[sid]=item
+          assert len(originals)==2876
+          prefix=load("scalper-eleventh-cisd-membership-ids.jsonl","pinned-a2-cisd")
+          h1=load("scalper-eleventh-h1-ids.jsonl","pinned-a2-h1")
+          by_h1={r["source_opportunity_id"]:r for r in h1}
+          assert set(originals)==set(by_h1)=={r["source_opportunity_id"] for r in prefix}
+          statuses=Counter()
+          h1_basis=Counter()
+          inherited=Counter()
+          cross=Counter()
+          records=[]
+          for row in sorted(prefix,key=lambda r:r["source_opportunity_id"]):
+              sid=row["source_opportunity_id"]
+              src=originals[sid]
+              origin=by_h1[sid]
+              assert row["symbol"]==origin["symbol"]==src.symbol
+              assert row["source_family"]==src.m1_trigger_family
+              assert row["source_entry_at"]==src.m1_trigger_confirmed_at
+              assert origin["h1_state_basis"]==src.h1_state_basis
+              assert origin["h1_state_from"]==src.h1_state_from
+              expected=("CANDLE2_REVERSAL" if src.h1_state_basis.removeprefix("SESSION_INHERITED:").startswith("CANDLE2_REVERSAL:") else "CANDLE3_CONFIRMATION" if src.h1_state_basis.removeprefix("SESSION_INHERITED:").startswith("CANDLE3_CONFIRMATION:") else "UNRESOLVED_SOURCE_BASIS")
+              assert origin["h1_source_closure_kind"]==expected
+              assert origin["session_inherited"]==src.h1_state_basis.startswith("SESSION_INHERITED:")
+              # Existing A2 route observer is a constructive AS-OF member witness:
+              # own-route first CISD confirmation is a candidate, whether or not
+              # the global first-selector chooses it. Not author-source certification.
+              witness=row["original_route_first_at_source_close"]
+              selected=row["original_is_first_online_candidate"]
+              assert witness is True, (sid,witness)
+              assert isinstance(selected,bool),sid
+              assert row["original_route_prefix_first_at"]==src.m1_trigger_confirmed_at
+              assert row["original_absent_from_all_asof_candidates"] is None
+              assert row["future_dependent_offline_first_selection"] is (not selected)
+              assert row["not_first_route_is_not_lookahead_event_proof"] is True
+              assert row["changes_admission"] is False
+              assert origin["h1_poi_provenance_independently_attested"] is False
+              assert origin["author_fidelity_certified"] is False
+              tag="GLOBAL_FIRST_PREFIX_MATCH" if selected else "GLOBAL_FIRST_OFFLINE_NOT_PREFIX_INVARIANT"
+              statuses[tag]+=1
+              h1_basis[expected]+=1
+              inherited["SESSION_INHERITED" if origin["session_inherited"] else "H1_STATE_BEGAN_AT_EVENT"]+=1
+              cross[tag,expected,origin["session_inherited"]]+=1
+              records.append({
+                  "source_opportunity_id":sid,"symbol":src.symbol,
+                  "original_cisd_family":src.m1_trigger_family,
+                  "original_entry_at":src.m1_trigger_confirmed_at,
+                  "v49_cisd_in_qore_own_route_prefix_set":True,
+                  "v49_cisd_not_in_qore_own_route_prefix_set":False,
+                  "v49_cisd_is_global_first_in_prefix":selected,
+                  "offline_global_first_noncausal_selection":not selected,
+                  "author_poi_swing_cisd_alignment_proven":False,
+                  "h1_source_basis":expected,
+                  "h1_source_session_inherited":origin["session_inherited"],
+                  "h1_poi_source_independently_attested":False,
+                  "author_candle3_ab_complete":False,
+                  "source_trade_admission_changed":False,
+                  "profit_factor":None,"drawdown_r":None,
+              })
+          assert statuses=={"GLOBAL_FIRST_PREFIX_MATCH":2495,"GLOBAL_FIRST_OFFLINE_NOT_PREFIX_INVARIANT":381}
+          assert h1_basis=={"CANDLE2_REVERSAL":2638,"CANDLE3_CONFIRMATION":238}
+          assert inherited=={"SESSION_INHERITED":1604,"H1_STATE_BEGAN_AT_EVENT":1272}
+          assert all(x["v49_cisd_in_qore_own_route_prefix_set"] for x in records)
+          assert sum(x["offline_global_first_noncausal_selection"] for x in records)==381
+          result={
+              "identity":"QORE_SCALPER_A1_TWELFTH_TWO_P0_INDEPENDENT_2876_ID_ATTESTATION",
+              "original_source_ids":2876,"markets":9,
+              "own_route_asof_observable":2876,
+              "own_route_asof_not_observable":0,
+              "global_first_offline_not_prefix_invariant":381,
+              "global_first_prefix_invariant":2495,
+              "h1_basis_counts":dict(sorted(h1_basis.items())),
+              "session_origin_counts":dict(sorted(inherited.items())),
+              "joint_count_by_first_selection_h1_basis_inheritance":{
+                  "|".join(map(str,k)):v for k,v in sorted(cross.items())
+              },
+              "source_event_author_poi_swing_certified":False,
+              "v49_global_first_selection_causally_certified":False,
+              "full_author_c3_ab_complete":False,
+              "full_brain_replayed":False,"new_vetoes":0,"trades_modified":0,
+              "cognitive_pf":None,"cognitive_dd_r":None,
+              "live_authorized":False,
+          }
+          out=Path("a1-twelfth-audit");out.mkdir(exist_ok=True)
+          (out/"source-id-cisd-prefix-h1-joint-audit.jsonl").write_text("".join(json.dumps(x,sort_keys=True)+"\n" for x in records))
+          (out/"nine-market-cisd-prefix-h1-joint-summary.json").write_text(json.dumps(result,indent=2,sort_keys=True)+"\n")
+          print("TWELFTH 2876 ID DUAL P0 INDEPENDENT VERIFICATION",json.dumps(result,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scalper-a1-twelfth-2876-cisd-prefix-vs-h1-source-origin-${{ github.sha }}
+          path: a1-twelfth-audit/
+          retention-days: 90
+          if-no-files-found: error
