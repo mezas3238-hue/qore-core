@@ -1,0 +1,63 @@
+name: QORE Scalper A2 Audit14 Original Winners Retention 9Market
+
+on:
+  push:
+    branches:
+      - agent/scalper-architect-b-methodology-20261010
+    paths:
+      - '.github/workflows/qore-scalper-a2-fourteenth-winner-retention-nine-market.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  ECON_RUN: '38102352779'
+  ECON_SHA: 'b4d35fe99b99a96dac3728610258fe5a4ab20c15'
+
+jobs:
+  contract-and-reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Exact identity and original winner mass guards
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1.py tests/infrastructure/trader_lab/test_capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1.py
+          mypy src/qore/infrastructure/trader_lab/capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: scalper-a2-audit14-gross-*-${{ env.ECON_SHA }}
+          path: market-books
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ECON_RUN }}
+      - name: Retention from same source-ID original MAX3 and alt executed full lifecycle
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1 market-books output
+      - name: Original 1167 winning IDs and no physical-economy claims
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("output/scalper-audit14-winner-preservation-nine-market.json").read_text())
+          assert x["sources"]==2876
+          assert x["baseline_max3"]==2020 and x["baseline_winners"]==1167
+          assert x["owner_gates_not_TTrades_source_rules"] is True
+          assert x["gross_only_no_physical_bid_ask"] is True
+          assert not x["author_fidelity_certified"]
+          print("AUDIT14 WINNER IDENTITY MASS",x)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scalper-a2-audit14-winning-identity-nine-market-${{ github.sha }}
+          path: output/
+          retention-days: 90
+          if-no-files-found: error

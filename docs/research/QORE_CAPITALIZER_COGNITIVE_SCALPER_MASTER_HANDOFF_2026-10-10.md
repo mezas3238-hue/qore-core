@@ -1,3 +1,7 @@
+> **CONTINUIDAD ACTUALIZADA (10-10-2026):** ESTE ES EL HANDOFF HISTÓRICO. El handoff maestro **FINAL** y vigente de las ramas A1 cognitiva y B metodología es [QORE_SCALPER_MASTER_HANDOFF_A1_A2_COGNITION_METHOD_2026-10-10.md](https://github.com/mezas3238-hue/qore-core/blob/agent/scalper-architect-b-methodology-20261010/docs/research/QORE_SCALPER_MASTER_HANDOFF_A1_A2_COGNITION_METHOD_2026-10-10.md) en PR #759, commit f46936c643f3c5a7fa31731d13c994e3db5b6fb0 (y commits de erratas posteriores). Este documento antiguo sirve para historia, pero **NO** debe utilizarse como el estado vivo del replay Master Frame. El sucesor empieza en ese documento canónico. Sin certificación / VPS / LIVE.
+
+---
+
 # QORE CAPITALIZER COGNITIVE SCALPER — MASTER HANDOFF
 
 **Date:** 2026-10-10  

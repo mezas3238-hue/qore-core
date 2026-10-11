@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
+
+import pytest
 
 from qore.infrastructure.trader_lab import (
     capitalizer_scalper_certification_standard_v2 as standard,
@@ -14,7 +17,7 @@ def _passing_era(name: str) -> standard.OosEraEvidence:
         expectancy_r_per_trade=Decimal("0.20"),
         sharpe_annualized=Decimal("1.75"),
         sortino_annualized=Decimal("2.40"),
-        observed_max_drawdown_r=Decimal("7.5"),
+        observed_max_drawdown_r=Decimal("5.5"),
         payoff_ratio=Decimal("1.35"),
     )
 
@@ -26,6 +29,8 @@ def _passing_evidence() -> standard.CertificationEvidence:
             _passing_era("OOS_B"),
         ),
         combined_oos_profit_factor=Decimal("1.85"),
+        owner_observed_max_drawdown_r=Decimal("5.5"),
+        author_fidelity_audit_passed=True,
         monte_carlo_positive_probability=Decimal("0.96"),
         monte_carlo_p95_drawdown_r=Decimal("11"),
         post_cost_profit_factor=Decimal("1.55"),
@@ -241,6 +246,8 @@ def test_winner_r_preservation_may_exceed_one() -> None:
     evidence = standard.CertificationEvidence(
         oos_eras=passing.oos_eras,
         combined_oos_profit_factor=passing.combined_oos_profit_factor,
+        owner_observed_max_drawdown_r=Decimal("5.5"),
+        author_fidelity_audit_passed=True,
         monte_carlo_positive_probability=passing.monte_carlo_positive_probability,
         monte_carlo_p95_drawdown_r=passing.monte_carlo_p95_drawdown_r,
         post_cost_profit_factor=passing.post_cost_profit_factor,
@@ -271,3 +278,51 @@ def test_winner_r_preservation_may_exceed_one() -> None:
         gate for gate in decision.gates if gate.gate == "winner_r_preservation"
     )
     assert winner_r.status is standard.GateStatus.PASS
+
+
+def test_missing_author_fidelity_must_block_certification() -> None:
+    candidate = replace(_passing_evidence(), author_fidelity_audit_passed=None)
+    decision = standard.evaluate_certification(candidate)
+    assert not decision.accepted
+    assert decision.classification is standard.CertificationClassification.INTERVENTION
+    matching = [gate for gate in decision.gates if gate.gate == "author_fidelity_audit"]
+    assert len(matching) == 1
+    assert matching[0].status is standard.GateStatus.MISSING
+
+
+def test_failed_author_fidelity_must_block_certification() -> None:
+    candidate = replace(_passing_evidence(), author_fidelity_audit_passed=False)
+    decision = standard.evaluate_certification(candidate)
+    assert not decision.accepted
+    assert any(
+        gate.gate == "author_fidelity_audit" and gate.status is standard.GateStatus.FAIL
+        for gate in decision.gates
+    )
+
+
+def test_owner_six_r_acceptance_requires_explicit_evidence() -> None:
+    missing = standard.evaluate_certification(
+        replace(_passing_evidence(), owner_observed_max_drawdown_r=None)
+    )
+    failed = standard.evaluate_certification(
+        replace(_passing_evidence(), owner_observed_max_drawdown_r=Decimal("6.01"))
+    )
+    boundary = standard.evaluate_certification(
+        replace(_passing_evidence(), owner_observed_max_drawdown_r=Decimal("6.00"))
+    )
+    assert not missing.accepted
+    assert not failed.accepted
+    assert boundary.accepted
+    assert any(
+        gate.gate == "owner_acceptance_drawdown" and gate.status is standard.GateStatus.MISSING
+        for gate in missing.gates
+    )
+    assert any(
+        gate.gate == "owner_acceptance_drawdown" and gate.status is standard.GateStatus.FAIL
+        for gate in failed.gates
+    )
+
+
+def test_negative_owner_dd_evidence_rejected() -> None:
+    with pytest.raises(ValueError, match="Owner observed drawdown"):
+        replace(_passing_evidence(), owner_observed_max_drawdown_r=Decimal("-0.1"))

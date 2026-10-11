@@ -1,0 +1,149 @@
+name: QORE Scalper A2 Audit15 Fixed MAX3 M15 M1 Stop Factorial
+
+on:
+  push:
+    branches:
+      - agent/scalper-architect-b-methodology-20261010
+    paths:
+      - '.github/workflows/qore-scalper-a2-fifteenth-online-stop-factorial.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: scalper-a2-fifteenth-stop-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SELECTION_RUN: '38104905157'
+  SELECTION_SHA: '58a726b059872459f5430fdb6fce61aad6e2e5cf'
+  ECON_RUN: '38102352779'
+  ECON_SHA: 'b4d35fe99b99a96dac3728610258fe5a4ab20c15'
+  CONTROL_RUN: '38053946695'
+  CONTROL_SHA: 'e356e7a52541e99533b25ecfef0ab9c4e9ce03c0'
+  NATIVE_RUN: '35548099334'
+  NATIVE_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check src/qore/infrastructure/trader_lab/capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1.py tests/infrastructure/trader_lab/test_capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1.py
+          mypy src/qore/infrastructure/trader_lab/capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1.py
+
+  market:
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [USDJPY, AUDJPY, AUDUSD, GBPJPY, EURUSD, GBPUSD, XAUUSD, USDCAD, NAS100]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: scalper-a2-audit15-residual-nine-market-${{ env.SELECTION_SHA }}
+          path: selection
+          run-id: ${{ env.SELECTION_RUN }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: scalper-a2-v49-control-${{ matrix.symbol }}-${{ env.CONTROL_SHA }}
+          path: source
+          run-id: ${{ env.CONTROL_RUN }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: scalper-a2-audit14-gross-${{ matrix.symbol }}-${{ env.ECON_SHA }}
+          path: economics
+          run-id: ${{ env.ECON_RUN }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.NATIVE_SHA }}
+          path: native
+          run-id: ${{ env.NATIVE_RUN }}
+          github-token: ${{ github.token }}
+      - name: Provider-native M1 no synthetic no interpolated
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          m=json.loads(Path("native/m1-clone-manifest.json").read_text())
+          assert m["canonical_symbol"]==os.environ["SYMBOL"]
+          assert m["provider_native_m1"] and not m["synthetic_m1"]
+          assert not m["interpolated_m1"] and m["contradictory_m1"]==0
+          assert m["read_only"]
+          PY
+      - name: Fixed-source MAX3 hypothetical stop/noise 2x2, no selection recompute
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1 market selection source economics native market-output
+      - name: All M15 stops source-reconciled
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("market-output/audit15-factorial-market.json").read_text())
+          assert x["fixed_selected"]>0
+          assert x["no_new_trade_or_filter_authority"] and x["costs_bid_ask_missing"]
+          print("AUDIT15 STOP FACTORIAL MARKET",x)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scalper-a2-audit15-stop-${{ matrix.symbol }}-${{ github.sha }}
+          path: market-output/
+          retention-days: 90
+          if-no-files-found: error
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: scalper-a2-audit15-stop-*-${{ github.sha }}
+          path: markets
+      - run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1 matrix markets out
+      - run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("out/audit15-factorial-nine-market.json").read_text())
+          assert x["markets"]==9 and x["fixed_online_MAX3"]==1997
+          assert x["arms"]["M15_NOISE_OFF"]["covered"]==1997
+          assert not x["broker_costs_applied"] and not x["trader_certified"]
+          print("AUDIT15 FIXED M15 M1 STOP NOISE FACTORIAL",x)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scalper-a2-audit15-stop-nine-market-${{ github.sha }}
+          path: out/
+          retention-days: 90
+          if-no-files-found: error

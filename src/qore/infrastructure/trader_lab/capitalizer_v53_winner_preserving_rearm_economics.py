@@ -40,6 +40,8 @@ from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics import (
     COGNITIVE_GEOMETRY_ALLOWED,
     COST_STRESS_R,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics import (
     _replay as replay_v50,
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_specialist import (
@@ -414,9 +416,9 @@ def _portfolio(rows: tuple[V53TradeRecord, ...]) -> tuple[V53TradeRecord, ...]:
         grouped[(item.session, item.operating_date)].append(item)
 
     selected: list[V53TradeRecord] = []
-    for key in sorted(grouped):
+    for session_key in sorted(grouped):
         candidates = sorted(
-            grouped[key],
+            grouped[session_key],
             key=lambda item: (
                 datetime.fromisoformat(item.entry_at),
                 item.symbol,

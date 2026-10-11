@@ -20,6 +20,7 @@ EXPECTANCY_MIN_EXCLUSIVE = Decimal("0")
 SHARPE_OOS_MIN = Decimal("1.50")
 SORTINO_OOS_MIN = Decimal("2.00")
 OBSERVED_DD_MAX_R = Decimal("10")
+OWNER_ACCEPTANCE_DD_MAX_R = Decimal("6")
 PAYOFF_MIN = Decimal("1.20")
 MC_POSITIVE_MIN = Decimal("0.90")
 MC_P95_DD_MAX_R = Decimal("15")
@@ -82,6 +83,8 @@ class OosEraEvidence:
 class CertificationEvidence:
     oos_eras: tuple[OosEraEvidence, ...]
     combined_oos_profit_factor: Decimal | None = None
+    owner_observed_max_drawdown_r: Decimal | None = None
+    author_fidelity_audit_passed: bool | None = None
     monte_carlo_positive_probability: Decimal | None = None
     monte_carlo_p95_drawdown_r: Decimal | None = None
     post_cost_profit_factor: Decimal | None = None
@@ -111,6 +114,7 @@ class CertificationEvidence:
             raise ValueError("OOS era names must be unique")
         for field_name in (
             "combined_oos_profit_factor",
+            "owner_observed_max_drawdown_r",
             "monte_carlo_positive_probability",
             "monte_carlo_p95_drawdown_r",
             "post_cost_profit_factor",
@@ -123,6 +127,11 @@ class CertificationEvidence:
                 not isinstance(value, Decimal) or not value.is_finite()
             ):
                 raise ValueError(f"{field_name} must be finite Decimal or None")
+        if (
+            self.owner_observed_max_drawdown_r is not None
+            and self.owner_observed_max_drawdown_r < 0
+        ):
+            raise ValueError("Owner observed drawdown must be non-negative")
         for field_name in (
             "monte_carlo_positive_probability",
             "winner_count_preservation",
@@ -312,6 +321,30 @@ def evaluate_certification(
 
     gates.extend(
         [
+            _boolean_gate(
+                "author_fidelity_audit",
+                evidence.author_fidelity_audit_passed,
+            ),
+            _numeric_gate(
+                name="owner_acceptance_drawdown",
+                value=evidence.owner_observed_max_drawdown_r,
+                predicate=(
+                    None
+                    if evidence.owner_observed_max_drawdown_r is None
+                    else (
+                        evidence.owner_observed_max_drawdown_r
+                        <= OWNER_ACCEPTANCE_DD_MAX_R
+                    )
+                ),
+                detail_when_present=(
+                    "unknown"
+                    if evidence.owner_observed_max_drawdown_r is None
+                    else (
+                        f"{evidence.owner_observed_max_drawdown_r} "
+                        f"<= {OWNER_ACCEPTANCE_DD_MAX_R}R (Owner acceptance)"
+                    )
+                ),
+            ),
             _numeric_gate(
                 name="combined_oos_profit_factor",
                 value=evidence.combined_oos_profit_factor,

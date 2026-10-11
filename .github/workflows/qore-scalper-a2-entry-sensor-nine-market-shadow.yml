@@ -1,0 +1,154 @@
+name: QORE Scalper A2 9-Market Entry Timing Sensors Shadow Census
+
+on:
+  push:
+    branches:
+      - agent/scalper-architect-b-methodology-20261010
+    paths:
+      - '.github/workflows/qore-scalper-a2-entry-sensor-nine-market-shadow.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_entry_timing_sensors_census_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_entry_timing_sensors_shadow_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_entry_timing_sensors_shadow_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: scalper-a2-sensor-nine-market-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CONTROL_V49_RUN: '38053946695'
+  CONTROL_V49_SHA: 'e356e7a52541e99533b25ecfef0ab9c4e9ce03c0'
+  NATIVE_M1_RUN: '35548099334'
+  NATIVE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Verify all pretrade sensors are as-of only and never execute
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/capitalizer_scalper_entry_timing_sensors_shadow_v1.py src/qore/infrastructure/trader_lab/capitalizer_scalper_entry_timing_sensors_census_v1.py tests/infrastructure/trader_lab/test_capitalizer_scalper_entry_timing_sensors_shadow_v1.py
+          mypy src/qore/infrastructure/trader_lab/capitalizer_scalper_entry_timing_sensors_shadow_v1.py src/qore/infrastructure/trader_lab/capitalizer_scalper_entry_timing_sensors_census_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_capitalizer_scalper_entry_timing_sensors_shadow_v1.py
+
+  market:
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [USDJPY, AUDJPY, AUDUSD, GBPJPY, EURUSD, GBPUSD, XAUUSD, USDCAD, NAS100]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Read immutable V49 source originals
+        uses: actions/download-artifact@v4
+        with:
+          name: scalper-a2-v49-control-${{ matrix.symbol }}-${{ env.CONTROL_V49_SHA }}
+          path: original-v49
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CONTROL_V49_RUN }}
+      - name: Read provider-native M1 physical historical bars
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.NATIVE_M1_SHA }}
+          path: original-m1
+          github-token: ${{ github.token }}
+          run-id: ${{ env.NATIVE_M1_RUN }}
+      - name: Reject wrong symbol or synthetic candles
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          a=json.loads(Path("original-m1/m1-clone-manifest.json").read_text())
+          assert a["canonical_symbol"]==os.environ["SYMBOL"]
+          assert a["provider_native_m1"] is True
+          assert a["synthetic_m1"] is False and a["interpolated_m1"] is False
+          assert a["contradictory_m1"] == 0 and a["read_only"] is True
+          PY
+      - name: Read all original V49 as-of CISD signal evidence, with 20+ shadow sensors
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_entry_timing_sensors_census_v1 market original-v49 original-m1 market-output
+      - name: Prove zero signal edits and source trigger identity
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          a=json.loads(Path("market-output/scalper-entry-sensors-market.json").read_text())
+          assert a["symbol"]==os.environ["SYMBOL"]
+          assert a["original_source_opportunities"] == (a["source_cisd_identical"] + a["source_cisd_mismatch"])
+          assert a["source_cisd_mismatch"] >= 0
+          assert a["modified_original_entries"]==0
+          assert a["full_master_frame_attested"] is False
+          assert a["physical_broker_costs_attested"] is False
+          assert a["new_entry_filter_applied"] is False
+          assert a["trader_certified"] is False and a["live_authorized"] is False
+          print("SCALPER SENSOR CENSUS MARKET",a)
+          PY
+      - name: Upload individually attributable source sensor frames
+        uses: actions/upload-artifact@v4
+        with:
+          name: scalper-a2-entry-sensor-${{ matrix.symbol }}-${{ github.sha }}
+          path: market-output/
+          retention-days: 90
+          if-no-files-found: error
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download nine independently validated original source sensor ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: scalper-a2-entry-sensor-*-${{ github.sha }}
+          path: source-sensors
+          merge-multiple: false
+      - name: Reconcile 2876 source IDs and no new signal gates
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_entry_timing_sensors_census_v1 matrix source-sensors matrix-output
+      - name: Confirm all observed sensor panels are non-trading research
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("matrix-output/scalper-entry-sensors-nine-market.json").read_text())
+          assert a["markets"]==9 and a["original_source_opportunities"]==2876
+          assert a["source_cisd_identical"]+a["source_cisd_mismatch"]==2876
+          assert a["entries_changed"]==0 and a["new_hard_gates"]==0
+          assert a["full_cognitive_master_frame_wired"] is False
+          assert a["physical_bid_ask_costs_wired"] is False
+          assert not a["trader_certified"] and not a["live_authorized"]
+          print("NINE MARKET SCALPER SENSOR CENSUS",a)
+          PY
+      - name: Upload auditable instrument-by-instrument no-filter source atlas
+        uses: actions/upload-artifact@v4
+        with:
+          name: scalper-a2-entry-sensor-nine-market-${{ github.sha }}
+          path: matrix-output/
+          retention-days: 90
+          if-no-files-found: error

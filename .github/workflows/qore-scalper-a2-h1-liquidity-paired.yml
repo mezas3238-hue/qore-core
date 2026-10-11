@@ -1,0 +1,152 @@
+name: QORE Scalper A2 H1 Liquidity Target-Only Paired Research
+
+on:
+  push:
+    branches:
+      - agent/scalper-architect-b-methodology-20261010
+    paths:
+      - '.github/workflows/qore-scalper-a2-h1-liquidity-paired.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_h1_liquidity_target_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_h1_liquidity_paired_replay_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_liquidity_target_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: scalper-a2-h1-liquidity-paired-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ORIGINAL_V49_RUN: '38053946695'
+  ORIGINAL_V49_SHA: 'e356e7a52541e99533b25ecfef0ab9c4e9ce03c0'
+  RAW_M1_RUN: '35548099334'
+  RAW_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Verify target-only engine and causal source reconciliation
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/capitalizer_scalper_h1_liquidity_target_v1.py src/qore/infrastructure/trader_lab/capitalizer_scalper_h1_liquidity_paired_replay_v1.py tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_liquidity_target_v1.py
+          mypy src/qore/infrastructure/trader_lab/capitalizer_scalper_h1_liquidity_target_v1.py src/qore/infrastructure/trader_lab/capitalizer_scalper_h1_liquidity_paired_replay_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_capitalizer_scalper_h1_liquidity_target_v1.py
+
+  market:
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [USDJPY, AUDJPY, AUDUSD, GBPJPY, EURUSD, GBPUSD, XAUUSD, USDCAD, NAS100]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Load frozen original V49 source and economics
+        uses: actions/download-artifact@v4
+        with:
+          name: scalper-a2-v49-control-${{ matrix.symbol }}-${{ env.ORIGINAL_V49_SHA }}
+          path: original-v49
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ORIGINAL_V49_RUN }}
+      - name: Load identical original provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.RAW_M1_SHA }}
+          path: raw-m1
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RAW_M1_RUN }}
+      - name: Verify provider-native M1 identity and no synthetic bars
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          m=json.loads(Path("raw-m1/m1-clone-manifest.json").read_text())
+          assert m["canonical_symbol"]==os.environ["EXPECTED_SYMBOL"]
+          assert m["provider_native_m1"] is True and m["synthetic_m1"] is False
+          assert m["interpolated_m1"] is False and m["contradictory_m1"]==0
+          assert m["read_only"] is True
+          PY
+      - name: Independently rebuild original H1 witness and replay target-only variant
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_h1_liquidity_paired_replay_v1 market original-v49 raw-m1 market-output
+      - name: Verify market source preservation and no silent signals dropped
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads(Path("market-output/scalper-h1-liquidity-market.json").read_text())
+          assert r["symbol"]==os.environ["EXPECTED_SYMBOL"]
+          assert r["source_opportunities"]==r["original_v49_replays_reconciled"]
+          assert r["target_changed"]+r["target_unchanged"]==r["source_opportunities"]
+          assert r["no_trade_removed"] is True
+          assert r["trader_certified"] is False and r["live_authorized"] is False
+          print("TARGET MARKET",r)
+          PY
+      - name: Archive target source identities and both complete replays
+        uses: actions/upload-artifact@v4
+        with:
+          name: scalper-a2-h1-liquidity-${{ matrix.symbol }}-${{ github.sha }}
+          path: market-output/
+          retention-days: 90
+          if-no-files-found: error
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download all original-source matched arms
+        uses: actions/download-artifact@v4
+        with:
+          pattern: scalper-a2-h1-liquidity-*-${{ github.sha }}
+          path: paired
+          merge-multiple: false
+      - name: Compare nine-market stop/entry/MAX3-fixed original versus H1 pivot target
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_h1_liquidity_paired_replay_v1 matrix paired matrix-output
+      - name: Verify economic and frequency certification barriers
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("matrix-output/scalper-h1-liquidity-nine-market.json").read_text())
+          assert r["market_count"]==9 and r["source_opportunities"]==2876
+          assert r["post_max3_control_and_candidate"]==2020
+          assert r["target_only_ablation"] is True
+          assert r["source_selection_changed"] is False
+          assert r["stop_location_changed"] is False
+          assert r["no_outcome_selected_target"] is True
+          assert r["trader_certified"] is False and r["live_authorized"] is False
+          print("H1 TARGET ONLY 9-MARKET RESULT",r)
+          PY
+      - name: Publish reproducible paired matrices and winner IDs
+        uses: actions/upload-artifact@v4
+        with:
+          name: scalper-a2-h1-liquidity-nine-market-${{ github.sha }}
+          path: matrix-output/
+          retention-days: 90
+          if-no-files-found: error
