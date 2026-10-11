@@ -70,6 +70,12 @@ IDENTITY="QORE_SCALPER_A2_FIFTEENTH_SELECTED_MAX3_NATIVE_M1_FORENSICS_V1"
 HORIZONS=(15,30,60)
 
 
+def market_trade_key(
+    row:V49EconomicTrade|ExcursionRow,
+)->tuple[str,...]:
+    return row.symbol,row.session,row.operating_date,row.entry_at,row.trigger_family
+
+
 def market(
     selection_root:Path,source_root:Path,economic_root:Path,native_root:Path,
 )->tuple[dict[str,Any],tuple[dict[str,Any],...]]:
@@ -140,8 +146,8 @@ def market(
     alternative_mfe=observe_market_excursions(
         tuple(t for _,t in alt_selected),bars
     ) if alt_selected else ()
-    old_mfe_by_key={keys.original_key(t):t for t in original_mfe}
-    alt_mfe_by_key={keys.original_key(t):t for t in alternative_mfe}
+    old_mfe_by_key={market_trade_key(t):t for t in original_mfe}
+    alt_mfe_by_key={market_trade_key(t):t for t in alternative_mfe}
     # ExcursionRow and economic trade share source keys except exit metadata.
     if len(old_mfe_by_key)!=len(old_selected) or len(alt_mfe_by_key)!=len(alt_selected):
         raise ValueError("MFE/MAE lifecycle did not reconcile")
