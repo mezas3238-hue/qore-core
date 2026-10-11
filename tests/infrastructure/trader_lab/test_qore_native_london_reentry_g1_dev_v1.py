@@ -15,8 +15,8 @@ def dt(iso: str) -> datetime:
 
 
 def bar(opened: datetime, o: float = 100.0, h: float = 100.2,
-        l: float = 99.8, c: float = 100.0) -> g.Bar:
-    return g.Bar(opened=opened, o=o, h=h, l=l, c=c)
+        low: float = 99.8, c: float = 100.0) -> g.Bar:
+    return g.Bar(opened=opened, o=o, h=h, low=low, c=c)
 
 
 def test_frozen_study_contract_and_no_tuning() -> None:
@@ -35,21 +35,21 @@ def test_london_0800_local_tracks_bst_transition() -> None:
 
 def test_reentry_short_long_and_both_sides_exclusion() -> None:
     now = dt("2021-06-01T07:00:00Z")
-    ref = [bar(now + i * timedelta(minutes=5), h=101, l=99, c=100)
+    ref = [bar(now + i * timedelta(minutes=5), h=101, low=99, c=100)
            for i in range(96)]
-    event = [bar(now, h=101.4, l=99.5, c=100) for _ in range(12)]
+    event = [bar(now, h=101.4, low=99.5, c=100) for _ in range(12)]
     assert g.setup_direction(ref, event, 1.0) == "SHORT"
-    reverse = [bar(now, h=100.5, l=98.6, c=100) for _ in range(12)]
+    reverse = [bar(now, h=100.5, low=98.6, c=100) for _ in range(12)]
     assert g.setup_direction(ref, reverse, 1.0) == "LONG"
-    both = [bar(now, h=101.4, l=98.6, c=100) for _ in range(12)]
+    both = [bar(now, h=101.4, low=98.6, c=100) for _ in range(12)]
     assert g.setup_direction(ref, both, 1.0) is None
-    no_return = [bar(now, h=101.4, l=99.5, c=102.0) for _ in range(12)]
+    no_return = [bar(now, h=101.4, low=99.5, c=102.0) for _ in range(12)]
     assert g.setup_direction(ref, no_return, 1.0) is None
 
 
 def test_atr_is_14_completed_m15_not_current() -> None:
     now = dt("2022-11-01T00:00:00Z")
-    series = [bar(now + i * timedelta(minutes=15), o=100, h=101, l=99, c=100)
+    series = [bar(now + i * timedelta(minutes=15), o=100, h=101, low=99, c=100)
               for i in range(15)]
     assert g.true_range_atr(series) == pytest.approx(2.0)
     with pytest.raises(ValueError, match="15 completed"):
@@ -59,7 +59,7 @@ def test_atr_is_14_completed_m15_not_current() -> None:
 def test_same_m5_sl_and_tp_must_stop_first() -> None:
     now = dt("2021-06-01T08:00:00Z")
     period = [bar(now + timedelta(minutes=5 * i),
-                  o=100, h=102, l=98, c=100) for i in range(24)]
+                  o=100, h=102, low=98, c=100) for i in range(24)]
     exit_bar = bar(now + timedelta(minutes=120))
     t = g.execute_proxy("EURJPY", date(2021, 6, 1), "LONDON",
                         "LONG", 1.0, period, exit_bar)
@@ -70,12 +70,12 @@ def test_same_m5_sl_and_tp_must_stop_first() -> None:
 def test_target_and_time_exit() -> None:
     now = dt("2021-06-01T08:00:00Z")
     period = [bar(now + timedelta(minutes=5 * i),
-                  o=100, h=101.6, l=99.7, c=100) for i in range(24)]
+                  o=100, h=101.6, low=99.7, c=100) for i in range(24)]
     t = g.execute_proxy("USDCHF", date(2021, 6, 1), "PLACEBO",
                         "LONG", 1.0, period, bar(now + timedelta(minutes=120)))
     assert t.exit_kind == "TARGET" and t.gross_r == 1.0
     flat_period = [bar(now + timedelta(minutes=5 * i),
-                       o=100, h=100.2, l=99.8, c=100) for i in range(24)]
+                       o=100, h=100.2, low=99.8, c=100) for i in range(24)]
     t = g.execute_proxy("USDCHF", date(2021, 6, 1), "PLACEBO",
                         "LONG", 1.0, flat_period,
                         bar(now + timedelta(minutes=120), o=100.75))
