@@ -47,6 +47,14 @@ Los DENOMINADORES CAMBIAN al modificar el reloj; **no son una comparación causa
 
 **Conclusión:** elegir ancla horaria solo porque produce un porcentaje mayor equivale a selección por calidad aparentemente favorable y NO adjudica el H4 del autor. Se necesita confirmación del reloj en la fuente y comparación con velas H4 nativas si se dispone de ellas. La métrica de cobertura NY, incluso si difiere de UTC, **no puede seleccionar el reloj autoral por maximización de la cobertura o del PF**.
 
+## 3B. Diagnóstico diferencial del 0 Daily completas — novedad verificada
+
+El censo de presencia M1 por minuto y régimen horario `America/New_York` identifica **224/224 fechas densas EURUSD** y **224/224 GBPUSD** con ausencia del minuto **17:00 NY** y el inmediatamente anterior. La partición por estación es **137/137** en verano (20:59–21:00 UTC), y **87/87** en invierno (21:59–22:00 UTC), en ambos pares. La coincidencia es consistente con un rollover/corte de publicación en torno a las 17:00 NY, **no demuestra definitivamente cuál es la causa**.
+
+Fuente ejecutada: [CI #38173764426](https://github.com/mezas3238-hue/qore-core/actions/runs/38173764426), 3 jobs SUCCESS, **18/18** tests de calendario; artefactos [EURUSD](https://github.com/mezas3238-hue/qore-core/actions/runs/38173764426/artifacts/11714563748) y [GBPUSD](https://github.com/mezas3238-hue/qore-core/actions/runs/38173764426/artifacts/11715351190). Informe complementario con método, límites y próximos pasos: [auditoría NY 17:00](https://github.com/mezas3238-hue/qore-core/blob/research/london-lona-gate-a-primary-evidence-20261011/docs/research/QORE_LONDON_LONA_GATE_B_NY1700_ROLLOVER_DIAGNOSTIC_2026-10-11.md).
+
+No autoriza `1438/1440 == D1 válida`. **Gate B sigue sin certificación D1/H4 nativas** y los históricos siguen consumidos, no OOS.
+
 ## 4. Trabajo restante obligatorio
 
 - Resolver zona horaria, NY DST, anchor Daily/H4 y cronología first-known del autor antes de permitir motor.
