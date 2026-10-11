@@ -145,7 +145,7 @@ def aggregate(root:Path,manifest_path:Path,output:Path)->dict[str,Any]:
         "".join(json.dumps(x,sort_keys=True)+"\n" for x in sample_c0),
         encoding="utf-8",
     )
-    result={
+    result:dict[str,Any]={
         "identity":IDENTITY,"sources":len(all_rows),
         "original_A":len(a),
         "sample20_source_IDs_identical":True,
