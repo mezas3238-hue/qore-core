@@ -230,8 +230,16 @@ def test_c3_and_c4_two_clocks_and_ps_must_not_reach_future_m15() -> None:
     assert ok.chronology_valid and not ok.cognitive_ready
     too_early = deepcopy(e)
     too_early["decision_at"] = clock(465)
-    with pytest.raises(v.BMethodologyBoundaryError, match="C3 closure cannot"):
+    with pytest.raises(
+        v.BMethodologyBoundaryError, match="not available at source decision"
+    ):
         v.verify_causal_event(too_early, spec())
+    # Even with earlier LTF confirmations, H4 C3 has not yet closed.
+    closure_early = deepcopy(too_early)
+    closure_early["cisd"]["source_proof"] = proof(450, 465)
+    closure_early["protected_swing"]["source_proof"] = proof(450, 465)
+    with pytest.raises(v.BMethodologyBoundaryError, match="C3 closure cannot"):
+        v.verify_causal_event(closure_early, spec())
     future = deepcopy(e)
     future["protected_swing"]["source_proof"] = proof(480, 485)
     with pytest.raises(v.BMethodologyBoundaryError, match="not available at source decision"):
