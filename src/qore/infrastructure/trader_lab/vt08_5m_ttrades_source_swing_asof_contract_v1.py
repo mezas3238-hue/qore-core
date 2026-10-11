@@ -204,6 +204,8 @@ def evaluate_source_swing_asof(
         raise ValueError("C1/C2 are not contiguous")
     if _utc(c2.closed_at) != _utc(c2.opened_at) + timedelta(hours=4):
         raise ValueError("requires complete 4H C2")
+    if family is Family.C3_CONTINUATION_INTRAC3 and c3 is not None:
+        raise ValueError("never supply completed C3 H4 to an intra-C3 decision")
     if c3 is not None and _utc(c3.opened_at) != _utc(c2.closed_at):
         raise ValueError("C3 cannot precede end of C2")
     if family is Family.C3_CLOSURE_TO_C4:
