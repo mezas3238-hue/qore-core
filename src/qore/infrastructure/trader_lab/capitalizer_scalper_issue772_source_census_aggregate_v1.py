@@ -10,7 +10,8 @@ from typing import Any
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     V49Opportunity,
 )
-from qore.infrastructure.trader_lab.capitalizer_scalper_issue772_direction_source_forensic_v1 import (
+from qore.infrastructure.trader_lab.capitalizer_scalper_issue772_direction_source_forensic_v1 import (  # noqa"
+f":E501
     load_sources,
     sample_hash,
 )
@@ -85,18 +86,24 @@ def mk_trace(rank:int,row:dict[str,Any])->str:
         f"V49 direction: {row['m1_direction']} / H1 {row['h1_direction']}",
         f"M1 trigger family: {row['trigger_family']}",
         f"H1 basis: {row['h1_state_basis']}",
-        f"H1 inherited: {row['h1_state_inherited']}; state active-from original: {row['original_state_from']}",
-        f"H1 true original event as recoverable from ORIGINAL V48 observer: {row['original_source_origin_at']}",
+        f"H1 inherited: {row['h1_state_inherited']}"
+        f";state active-from original: {row['original_state_from']}",
+        f"H1 true original event as recoverable from ORIGINAL V48 observer"
+        f":{row['original_source_origin_at']}",
         f"H1 event recovery status: {row['original_source_origin_status']}",
         f"H1 original event age in minutes: {row['h1_source_age_minutes']}",
-        f"Independently computed 4-bar completed H1 price slope: {row['h1_trend4_completed_native']} / agreement {row['h1_trend4_agreement']}, descriptive NOT TTrades",
+        f"Independently computed 4-bar completed H1 price slope: {row['h1_trend4_completed_native']}"
+        f" / agreement {row['h1_trend4_agreement']}, descriptive NOT TTrades",
         f"M15 setup confirmed source at: {row['m15_setup_confirmed_at']}",
-        f"M15 timestamp matches closed native aggregated candle: {row['m15_confirmed_in_closed_native']}",
+        f"M15 timestamp matches closed native aggregated candle"
+        f":{row['m15_confirmed_in_closed_native']}",
         f"M15→M1 delay: {row['m15_setup_to_entry_minutes']} minutes",
-        f"Entry at: {row['decision_at']} close price {row['entry_price']}; native exact match: {row['entry_matches_native_m1_close']}",
+        f"Entry at: {row['decision_at']} close price {row['entry_price']}"
+        f";native exact match: {row['entry_matches_native_m1_close']}",
         f"M15 protected swing stop: {row['m15_swing_stop_price']}",
         f"H1 target source witness: {row['structural_h1_target_price']}",
-        f"M15 pivot-right candle causal witness: {row['swing_right_candle_and_earliest_availability']}",
+        f"M15 pivot-right candle causal witness"
+        f":{row['swing_right_candle_and_earliest_availability']}",
         f"M1 sweep/opposing series/first CISD: {row['m1_sweep_series_CISD_first_online']}",
         f"Source timestamp/price violations: {row['causal_timestamp_failures']}",
         f"Native provider slice SHA256: {row['feed_sha256_native_research_slice']}",
@@ -183,8 +190,8 @@ def aggregate(root:Path,output:Path)->dict[str,Any]:
     errors:dict[str,list[str]]=defaultdict(list)
     for row in rows:
         sid=row["source_opportunity_id"]
-        in_A=sid in a_ids
-        groups=[full,a] if in_A else [full]
+        in_a=sid in a_ids
+        groups=[full,a] if in_a else [full]
         for count in groups:
             count["N"]+=1
             count["INHERITED" if row["h1_state_inherited"] else "FRESH"]+=1
