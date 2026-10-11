@@ -1,8 +1,6 @@
 """Fail-closed frozen identities and common NY day-block bootstrap tests."""
 from __future__ import annotations
 
-from random import Random
-
 import pytest
 
 from qore.infrastructure.trader_lab.qore_london_e3_f1_f2_falsification import (
