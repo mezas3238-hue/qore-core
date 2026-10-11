@@ -337,7 +337,8 @@ def aggregate(root:Path,output:Path)->dict[str,Any]:
     for f in features:
         group[(f.session,f.operating_date)].append(f.source_opportunity_id)
     b_by_group=Counter((t.session,t.operating_date) for t in b)
-    random_dd=[];random_pf=[]
+    random_dd=[]
+    random_pf=[]
     for seed in range(100):
         rng=random.Random(20261010+seed)
         placebo=[]
