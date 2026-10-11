@@ -76,7 +76,7 @@ def comparative(
     rng=random.Random(20261011)
     bootstrap=[]
     for _ in range(REPS):
-        days=[]
+        days:list[str]=[]
         while len(days)<len(dates):
             i=rng.randrange(len(dates)-BLOCK+1)
             days.extend(dates[i:i+BLOCK])
@@ -87,7 +87,7 @@ def comparative(
     signs=random.Random(20261111)
     clustered_sign=[]
     for _ in range(REPS):
-        val=[]
+        val:list[float]=[]
         for date in dates:
             sign=-1 if signs.getrandbits(1) else 1
             val.extend(sign*x for x in by_date[date])
