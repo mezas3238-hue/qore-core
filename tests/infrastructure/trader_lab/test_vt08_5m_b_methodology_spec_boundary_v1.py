@@ -340,3 +340,31 @@ def test_intrac3_rejects_completed_h4_and_post_c3_close_entry() -> None:
         v.BMethodologyBoundaryError, match="must precede final H4 close"
     ):
         v.verify_causal_event(late, spec())
+
+
+def test_prior_c2_reference_not_universally_required_for_other_c3_families() -> None:
+    for family in ("C3_CONTINUATION_FROM_C2", "C3_CLOSURE_TO_C4"):
+        e = event(family)
+        e.pop("reference_swing")
+        result = v.verify_causal_event(e, spec())
+        assert result.chronology_valid
+        assert not result.cognitive_ready and not result.source_complete
+        assert "B_SOURCE:JOINT_MANIFEST_NOT_SIGNED" in result.blockers
+
+
+def test_c3_continuation_prior_c2_model_swing_must_be_known_by_c2_h4_close() -> None:
+    e = event("C3_CONTINUATION_FROM_C2")
+    e.pop("reference_swing")
+    first = v.verify_causal_event(e, spec())
+    assert "B_SOURCE:C3_PRIOR_C2_SWING_ASOF_UNATTESTED" in first.blockers
+    with_receipt = deepcopy(e)
+    with_receipt["prior_c2_model_swing_proof"] = proof(225, 240)
+    found = v.verify_causal_event(with_receipt, spec())
+    assert "B_SOURCE:C3_PRIOR_C2_SWING_PRIMARY_REVIEW_PENDING" in found.blockers
+    assert not found.cognitive_ready
+    fake = deepcopy(e)
+    fake["prior_c2_model_swing_proof"] = proof(240, 245)
+    with pytest.raises(
+        v.BMethodologyBoundaryError, match="not confirmed by C2 H4 close"
+    ):
+        v.verify_causal_event(fake, spec())
