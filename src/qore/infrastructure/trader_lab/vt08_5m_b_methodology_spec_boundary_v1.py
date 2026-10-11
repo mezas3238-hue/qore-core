@@ -300,9 +300,10 @@ def verify_causal_event(
         if basis != expected_basis and op != close:
             raise BMethodologyBoundaryError("C2 full/wick EQ branch wrong")
         if not with_swing and op != close:
-            # Additional pre-C2 witness is mandatory even though C2 OHLC is known.
-            if not reference.get("pre_c2_swing_regime_independently_attested"):
-                blockers += ("B_SOURCE:PRE_C2_SWING_REGIME_NOT_ATTESTED",)
+            # A's own boolean cannot verify a swing using raw pre-C2 prices.
+            # Independent B/source reviewer must rederive the reference point
+            # from the original earlier candle stream, not a producer assertion.
+            blockers += ("B_SOURCE:PRE_C2_SWING_RAW_INDEPENDENT_REVIEW_PENDING",)
     else:
         if basis != "C3_FULL_WICK_TO_WICK_AFTER_CLOSURE":
             raise BMethodologyBoundaryError("C3 must use full wick-to-wick EQ")
