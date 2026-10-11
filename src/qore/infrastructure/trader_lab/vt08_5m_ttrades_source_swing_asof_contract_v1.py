@@ -267,6 +267,10 @@ def evaluate_source_swing_asof(
             return result(ProofStatus.NOT_FAMILY_CLOSURE)
         if _side_matches_c2(c1, c2, side):
             return result(ProofStatus.NOT_FAMILY_CLOSURE)
+        # C3 closure follows an earlier FAILED C2 SWEEP (not a generic
+        # no-sweep body close), as stated by the 2026-05 author model.
+        if not (c2.low < c1.low or c2.high > c1.high):
+            return result(ProofStatus.NOT_FAMILY_CLOSURE)
 
     if family is Family.C2_CLOSURE_TO_C3:
         expected_open, expected_end = _utc(c2.opened_at), _utc(c2.closed_at)
@@ -297,6 +301,12 @@ def evaluate_source_swing_asof(
         return result(ProofStatus.POI_NOT_ATTESTED)
     if poi.side is not side:
         return result(ProofStatus.POI_NOT_ATTESTED)
+    # This V1 authenticates only preexisting M15 FVGs; it does not yet
+    # certify priority among several FVGs or HTF swing relevance.
+    if family is Family.C3_CONTINUATION_INTRAC3:
+        if not (_utc(c2.opened_at) <= _utc(poi.sources[0].opened_at)
+                and _utc(poi.formed_at) <= _utc(c2.closed_at)):
+            return result(ProofStatus.POI_NOT_ATTESTED)
     touches = [
         bar for bar in ltf_bars
         if _utc(bar.opened_at) >= _utc(poi.formed_at)
