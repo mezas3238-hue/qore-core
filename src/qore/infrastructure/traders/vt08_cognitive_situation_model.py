@@ -64,6 +64,13 @@ class Vt08ForexSituationModel:
         if self.side not in {"long", "short"}:
             raise ValueError("VT08 situation side must be long or short")
         for name in (
+            "methodology_valid",
+            "source_identity_complete",
+            "h4_lifecycle_valid",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise ValueError(f"VT08 situation {name} must be exact bool")
+        for name in (
             "ltf_profile",
             "bias_state",
             "scenario_state",
@@ -98,14 +105,17 @@ class Vt08ForexSituationModel:
                 raise ValueError(f"{collection_name} must contain non-empty strings")
             if len(set(values)) != len(values):
                 raise ValueError(f"{collection_name} must not contain duplicates")
-        for value in (
-            self.current_path_efficiency,
-            self.current_overlap_rate,
-            self.displacement_strength,
-            self.destination_distance_r,
+        for name in (
+            "current_path_efficiency",
+            "current_overlap_rate",
+            "displacement_strength",
+            "destination_distance_r",
         ):
-            if value is not None and not value.is_finite():
-                raise ValueError("VT08 situation Decimal values must be finite")
+            value = getattr(self, name)
+            if value is not None and (
+                not isinstance(value, Decimal) or not value.is_finite()
+            ):
+                raise ValueError(f"VT08 situation {name} must be finite Decimal")
         if self.terminal_pnl is not None or self.post_outcome_label is not None:
             raise ValueError("VT08 situation cannot contain post-outcome information")
 
