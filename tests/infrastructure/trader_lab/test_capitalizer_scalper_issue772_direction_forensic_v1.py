@@ -10,7 +10,7 @@ import pytest
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
 )
-from qore.infrastructure.trader_lab.capitalizer_scalper_issue772_direction_source_forensic_v1 import (
+from qore.infrastructure.trader_lab.capitalizer_scalper_issue772_direction_source_forensic_v1 import (  # noqa: E501
     independently_closed_h1,
     sample_hash,
 )
@@ -41,7 +41,7 @@ def test_completed_h1_uses_60_native_minutes_and_prefix_is_invariant() -> None:
     assert independently_closed_h1(altered)==h1
 
 
-def test_missing_minute_refuses_partial_H1_close() -> None:
+def test_missing_minute_refuses_partial_h1_close() -> None:
     m=tuple(native(i) for i in range(120) if i!=35)
     hourly=independently_closed_h1(m)
     assert len(hourly)==1
@@ -50,7 +50,7 @@ def test_missing_minute_refuses_partial_H1_close() -> None:
     assert hourly[0].closed_at==AT+timedelta(hours=2)
 
 
-def test_nonuniform_second_clock_does_not_create_synthetic_H1() -> None:
+def test_nonuniform_second_clock_does_not_create_synthetic_h1() -> None:
     m=tuple(native(i) for i in range(60))
     wrong=replace(m[20],opened_at=m[20].opened_at+timedelta(seconds=5),
                   closed_at=m[20].closed_at+timedelta(seconds=5))
