@@ -216,7 +216,7 @@ def block_bootstrap(
     rng=random.Random(20267011)
     values=[]
     for _ in range(BOOT_N):
-        sampled_dates=[]
+        sampled_dates:list[str]=[]
         while len(sampled_dates)<len(dates):
             i=rng.randrange(0,len(dates)-BLOCK_DAYS+1)
             sampled_dates.extend(dates[i:i+BLOCK_DAYS])
