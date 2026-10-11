@@ -11,8 +11,9 @@ from qore.infrastructure.trader_lab import qore_native_reset_ctrader_tick_g0_v1 
 
 def test_fixed_only_provider_post2015_dates() -> None:
     dates = g.probe_dates()
-    assert len(dates) == 11
-    assert [v.year for v in dates] == list(range(2016, 2027))
+    assert len(dates) == 12
+    assert [v.year for v in dates] == list(range(2015, 2027))
+    assert dates[0] == date(2015, 9, 15)
     assert all(v.weekday() == 1 and v.day >= 15 and v.month == 9 for v in dates)
     assert g.QUOTE_TYPES == {"BID": 1, "ASK": 2}
 
@@ -102,3 +103,42 @@ def test_no_unauthorized_request_surface() -> None:
     assert "unapproved request type" in method
     assert "ProtoOAGetTickDataReq" in method
     assert "ProtoOARefreshTokenReq" not in method
+
+
+def test_complete_oauth_aliases_prefer_cibo_generic_and_no_cross_wiring() -> None:
+    env = {
+        "QORE_CTRADER_CLIENT_ID": "generic-app",
+        "QORE_CTRADER_CLIENT_SECRET": "generic-secret",
+        "QORE_CTRADER_ACCESS_TOKEN": "generic-access",
+        "QORE_CTRADER_DEMO_CLIENT_ID": "demo-app",
+        "QORE_CTRADER_DEMO_CLIENT_SECRET": "demo-secret",
+        "QORE_CTRADER_DEMO_ACCESS_TOKEN": "demo-access",
+    }
+    bundles = g.candidate_auth_bundles(env)
+    assert [b.source_alias for b in bundles] == [
+        "GENERIC_SECRET_ALIAS", "DEMO_SECRET_ALIAS"
+    ]
+    assert bundles[0].client_id == "generic-app"
+    assert bundles[0].access_token == "generic-access"
+    assert bundles[1].client_id == "demo-app"
+    assert bundles[1].access_token == "demo-access"
+    assert not any(
+        token in repr(b)
+        for b in bundles for token in ("generic-secret", "demo-access")
+    )
+
+
+def test_duplicate_secrets_are_tried_once_and_partial_bundles_ignored() -> None:
+    full = {
+        "QORE_CTRADER_CLIENT_ID": "id",
+        "QORE_CTRADER_CLIENT_SECRET": "secret",
+        "QORE_CTRADER_ACCESS_TOKEN": "access",
+        "QORE_CTRADER_DEMO_CLIENT_ID": "id",
+        "QORE_CTRADER_DEMO_CLIENT_SECRET": "secret",
+        "QORE_CTRADER_DEMO_ACCESS_TOKEN": "access",
+    }
+    assert len(g.candidate_auth_bundles(full)) == 1
+    full.pop("QORE_CTRADER_ACCESS_TOKEN")
+    bundles = g.candidate_auth_bundles(full)
+    assert len(bundles) == 1
+    assert bundles[0].source_alias == "DEMO_SECRET_ALIAS"
