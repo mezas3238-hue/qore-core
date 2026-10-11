@@ -16,10 +16,6 @@ from pathlib import Path
 from typing import Final
 from zoneinfo import ZoneInfo
 
-from qore.infrastructure.trader_lab.vt08_5m_c3_delayed_closure_c4_shape_census_v1 import (
-    c2_reversal_closure,
-    c3_body_closure,
-)
 from qore.infrastructure.trader_lab.vt08_5m_source_bias_asof_attestation_v1 import (
     SOURCE_SHA,
     attest_bias,
