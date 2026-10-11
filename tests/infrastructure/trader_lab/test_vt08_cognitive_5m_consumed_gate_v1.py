@@ -951,3 +951,75 @@ def test_fill_and_terminal_input_price_types_and_authority_must_be_exact() -> No
         replace(terminal, exit_price=100.1)
     with pytest.raises(ValueError, match="authority flags must be exact bool"):
         replace(terminal, broker_order_authorized="false")
+
+
+def _apparently_valid_a_to_b_source() -> dict[str, object]:
+    return {
+        "schema": "VT08_5M_CANDIDATE_EVENT_V1",
+        "source_event_id": "vt08-5m-source:" + "a" * 64,
+        "event_fingerprint": "b" * 64,
+        "event_id": "vt08-5m:" + "b" * 64,
+        "market": "EURJPY",
+        "anchor_ny_hour": 9,
+        "source_family": "positional-entry",
+        "ltf_profile": "M15_STANDARD",
+        "methodology_status": "SOURCE_COMPLETE_EXECUTABLE",
+        "decision_at": T0.isoformat(),
+        "evidence_as_of": T0.isoformat(),
+        "pending_expiry_at": (T0 + timedelta(hours=4)).isoformat(),
+        "bias_feature_cutoff": T0.isoformat(),
+        "feature_close_cutoffs": {
+            "source_h4": T0.isoformat(),
+            "cisd": T0.isoformat(),
+            "protected_swing": T0.isoformat(),
+        },
+        "cognitive_feature_cutoffs": {
+            name: T0.isoformat() for name in CAUSAL_FIELDS
+        },
+        "research_only": True,
+        "execution_authorized": False,
+        "live_authorized": False,
+    }
+
+
+def test_real_source_ingress_requires_actual_frozen_joint_manifest_not_claim() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    source = _apparently_valid_a_to_b_source()
+    hypothetical = _snapshot(
+        source="vt08-5m-source:" + "a" * 64,
+        ltf_profile="M15_STANDARD",
+    )
+    with pytest.raises(ValueError, match="CONTRACT_NOT_JOINTLY_FROZEN"):
+        gate.evaluate_provenanced(source, hypothetical)
+    with pytest.raises(ValueError, match="CONTRACT_NOT_JOINTLY_FROZEN"):
+        gate.evaluate_provenanced(
+            source, hypothetical, joint_contract_manifest_sha256="c" * 64,
+        )
+    assert gate.decisions == () and gate.fills == () and gate.positions == ()
+
+
+def test_real_source_ingress_rejects_future_causal_field_before_reasoning() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    source = _apparently_valid_a_to_b_source()
+    source["cognitive_feature_cutoffs"] = {
+        name: (T0 + timedelta(minutes=3)).isoformat() if name == "bias_state"
+        else T0.isoformat()
+        for name in CAUSAL_FIELDS
+    }
+    with pytest.raises(ValueError, match="future cognitive feature"):
+        gate.evaluate_provenanced(
+            source,
+            _snapshot(
+                source="vt08-5m-source:" + "a" * 64,
+                ltf_profile="M15_STANDARD",
+            ),
+        )
+    assert gate.decisions == ()
+
+
+def test_research_execute_is_only_intention_not_authorized_source_fill() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    hypothetical = gate.evaluate(_snapshot())
+    assert hypothetical.action is Vt08CognitiveAction.EXECUTE
+    assert hypothetical.research_only and not hypothetical.broker_order_authorized
+    assert gate.fills == () and gate.terminals == ()
