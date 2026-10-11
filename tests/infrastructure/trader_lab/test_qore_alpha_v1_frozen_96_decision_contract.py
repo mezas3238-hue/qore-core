@@ -1,6 +1,6 @@
 """QORE-alpha frozen 96-space/source window/outcome screening tests."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -8,14 +8,13 @@ import pytest
 from qore.infrastructure.trader_lab.qore_alpha_v1_frozen_96_decision_contract import (
     BONFERRONI_PER_TEST_ALPHA,
     ENTRIES,
-    MARKETS,
     MAX_DD_PCT,
     PF_TEST,
     SESSIONS,
     STOPS,
     TARGETS,
-    VARIANTS,
     VARIANT_IDS,
+    VARIANTS,
     ScreeningStatus,
     SegmentMetrics,
     frozen_manifest,
