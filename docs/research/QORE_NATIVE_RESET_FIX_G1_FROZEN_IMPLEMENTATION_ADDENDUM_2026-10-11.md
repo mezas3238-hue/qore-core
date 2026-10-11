@@ -1,0 +1,14 @@
+# RESET G1 — addendum de ambigüedad NUMÉRICA, fijado PRE-RETORNO
+
+Fecha: 2026-10-11. Conserva sin alteración el [prerregistro G1 original](QORE_NATIVE_RESET_FIX_G1_CIBO_M5_PREREG_2026-10-11.md), commit `2e1742bcfc3186084886b04c63e091aa3256bf12`. Este addendum se escribe ANTES de ejecutar análisis económico.
+
+1. **Percentil 75:** interpolación lineal del rango ordenado para 120 observaciones; índice `(N-1)*0.75`, con interpolación entre vecinos. La ventana de 120 es por **formaciones válidas anteriores** a la fecha observada para **cada brazo**; los retornos/entry-exit **jamás** influyen en el historial. Pueden existir fechas calendario no observadas.
+2. **Alta vs baja:** `abs(pressure)>=p75` califica ALTA. El resto BAJA. La presión exactamente cero no tiene dirección y no se incluye en ninguna celda; sí puede ocupar una observación de formación en el historial causal. No deshacer empates.
+3. **Fechas comunes:** solo computar retornos/strata cuando **ambos** brazos tienen formación, historia previa 120, entry y exit M5 completas. La presión cero en cualquiera de ambos brazos excluye la fecha de la tabla primaria. No usar un brazo aislado para ajustar reglas de control.
+4. **Timestamp/escala:** las magnitudes provider-relative de CIBO se dividen por `10**digits` (EURUSD `digits=5`); exigir `low<=open,close<=high`, monotonía de `opened_at` M5 UTC y aberturas alineadas a múltiplos de 5min. Timestamps de source son aperturas; última vela de formación 15:50 se conoce al cierre 15:55.
+5. **Bootstrap:** ISO calendar weeks por fecha `Europe/London`, muestreadas con reemplazo en bloque conjunto (ambos brazos de un mismo día siempre permanecen juntos). Semilla `941102` usando `random.Random`, exactamente `2000` réplicas. Intervalo percentil lineal 2.5% y 97.5%, sin filtrar repeticiones desfavorables. Rechazar CI si replica no tiene las cuatro celdas.
+6. **Censura:** actividad lunes-viernes local, sin decisión sobre cierres festivos sin manifiesto de sesiones. Todos los motivos `INCOMPLETE_FORMATION`, `INSUFFICIENT_HISTORY`, `MISSING_ENTRY_OR_EXIT`, `ZERO_PRESSURE`, `USABLE` separados. Reportar fracción de ventanas incompletas.
+7. **Guardias de promoción:** M5 OHLC no es mid/BID/ASK real ni benchmark de fixing WMR, por lo tanto no emitir PF/Sharpe/Sortino/drawdown ejecutable, ni señales transaccionales, ni validar propiedades causales del flujo de órdenes. `DEV_GROSS_POTENTIAL` no es GO para Trader. No reutilizar el test para elegir mercado ganador si falla.
+8. **Invariancia:** código/versión/prereg grabados en artifact de Actions. El source EURUSD, run `35166210458`, artifact `10475354631`, no puede sustituirse con otro. Sumatorios SHA256 raw por año y conteo total `745458` son puertas fail-closed.
+
+No se modificarán estas elecciones tras mirar resultados.
