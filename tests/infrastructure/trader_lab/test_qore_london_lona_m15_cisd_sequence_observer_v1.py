@@ -129,7 +129,8 @@ class CISDObserverTests(unittest.TestCase):
 
     def test_non_m15_grid_fails_closed(self):
         broken = replace(UP[0], bar_open_utc="2026-10-10T08:01:00Z",
-                         bar_close_utc="2026-10-10T08:16:00Z")
+                         bar_close_utc="2026-10-10T08:16:00Z",
+                         first_known_utc="2026-10-10T08:16:01Z")
         self.assertTrue(any("M15_GRID_MISALIGNED" in x for x in observe((broken,))["blockers"]))
 
     def test_nondecimal_and_nan_prices_fail_closed(self):
