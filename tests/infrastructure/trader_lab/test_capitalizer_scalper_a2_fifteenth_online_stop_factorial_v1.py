@@ -26,5 +26,5 @@ def test_not_nine_markets_not_valid_factorial(tmp_path:Path)->None:
 
 def test_four_prespecified_arms_not_tuned()->None:
     assert len(Arm)==4
-    assert audit.Arm.M15_NOISE_OFF.value=="M15_NOISE_OFF"
+    assert Arm.M15_NOISE_OFF.value=="M15_NOISE_OFF"
     assert "FIXED_MAX3" in audit.IDENTITY
