@@ -286,8 +286,12 @@ def run_all(root: Path) -> dict[str, object]:
         )
         for symbol in MARKETS
     ]
-    c2 = sum(int(x["c2_fvg_ps_shapes"]) for x in result)
-    c3 = sum(int(x["c3_intracycle_fvg_ps_shapes"]) for x in result)
+    source_c2 = [row["c2_fvg_ps_shapes"] for row in result]
+    source_c3 = [row["c3_intracycle_fvg_ps_shapes"] for row in result]
+    if not all(type(n) is int for n in source_c2 + source_c3):
+        raise BSourceReceiptError("per-market source census must be integer")
+    c2 = sum(n for n in source_c2 if isinstance(n, int))
+    c3 = sum(n for n in source_c3 if isinstance(n, int))
     if c2 != 237 or c3 != 258:
         raise BSourceReceiptError("A research count not reproduced independently")
     return {
