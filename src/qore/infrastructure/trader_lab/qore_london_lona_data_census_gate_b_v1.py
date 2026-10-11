@@ -147,13 +147,30 @@ def summarize_coverage(observed: Iterable[datetime]) -> dict[str, object]:
     # threshold is a descriptive coverage cohort, NOT a trading filter,
     # NOT an author rule, and does not establish that a missing minute
     # equals an exchange feed outage rather than an empty activity bar.
-    dense = [minutes for minutes in daily_presence.values() if len(minutes) >= 1300]
+    dense = [(day, minutes) for day, minutes in daily_presence.items()
+             if len(minutes) >= 1300]
     missing_slots: Counter[int] = Counter()
     missing_count_distribution: Counter[int] = Counter()
-    for seen in dense:
+    rollover_slots: dict[str, Counter[str]] = {
+        "21:00": Counter(), "22:00": Counter()
+    }
+    for day, seen in dense:
         missing = set(range(1440)) - seen
         missing_slots.update(missing)
         missing_count_distribution[len(missing)] += 1
+        midnight_utc = datetime.combine(day, time(0), tzinfo=UTC)
+        expected = [
+            minute for minute in (21 * 60, 22 * 60)
+            if (midnight_utc + timedelta(minutes=minute)).astimezone(NY).hour == 17
+        ]
+        if len(expected) != 1:
+            raise ValueError("NY_17H_SESSION_CLOCK_AMBIGUOUS")
+        slot = expected[0]
+        stats = rollover_slots[f"{slot // 60:02d}:00"]
+        stats["dense_days_in_timezone_regime"] += 1
+        stats["expected_1700_NY_slot_missing"] += int(slot in missing)
+        stats["minute_before_1700_NY_missing"] += int(slot - 1 in missing)
+        stats["both_slots_missing"] += int(slot in missing and slot - 1 in missing)
     missing_by_minute = sorted(missing_slots.items(), key=lambda x: (-x[1], x[0]))
     dense_day_diagnostic = {
         "exploratory_QORE_threshold_m1_per_utc_day": 1300,
@@ -169,6 +186,9 @@ def summarize_coverage(observed: Iterable[datetime]) -> dict[str, object]:
              "days_missing": missing_count}
             for minute, missing_count in missing_by_minute[:15]
         ],
+        "new_york_1700_rollover_clock_comparison": {
+            name: dict(counts) for name, counts in rollover_slots.items()
+        },
         "missing_minute_cause_unclassified": True,
         "no_forward_fill": True,
         "not_native_daily_validation": True,
