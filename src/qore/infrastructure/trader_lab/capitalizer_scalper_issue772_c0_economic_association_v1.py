@@ -7,12 +7,10 @@ The preregistered source-only MAX3 is the only selection authority.
 from __future__ import annotations
 
 import argparse
-import bisect
 import json
 import random
 from collections import defaultdict
 from dataclasses import asdict
-from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -97,6 +95,9 @@ def market(frozen: Path, native: Path, c0: Path, out: Path) -> dict[str, Any]:
             raise ValueError("C0 and V49 economics not aligned")
         output.append({
             "source_opportunity_id": sid,
+            "symbol": src.symbol,
+            "session": src.session,
+            "operating_date": src.operating_date,
             "source": asdict(src),
             "trade": asdict(trade),
             "partial": bool(c["h1_local_closure_has_non_strict_bucket"] or
