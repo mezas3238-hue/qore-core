@@ -51,7 +51,7 @@ def test_london_dst_uses_local_clock() -> None:
 def test_archive_precutoff_census_does_not_parse_sealed_values(tmp_path) -> None:
     open_utc = _utc("2023-03-27T07:00:00+00:00")
     # Second (cutoff) record valid, followed by malformed data that MUST NOT be touched.
-    cutoff = _utc("2023-03-27T07:05:00+00:00")
+    cutoff = _utc("2023-03-28T00:00:00+00:00")
     root = _make_source(tmp_path, [
         (open_utc, open_utc + timedelta(minutes=5)),
         (cutoff, cutoff + timedelta(minutes=5))],
