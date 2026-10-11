@@ -75,7 +75,7 @@ def test_b_rejects_unavailable_source_files_instead_of_inventing_poi(
         b.audit_market(tmp_path / "missing-a.json", tmp_path / "missing-raw.json")
 
 
-def test_c4_missing_first_M15_cannot_be_counted_as_observed() -> None:
+def test_c4_missing_first_m15_cannot_be_counted_as_observed() -> None:
     parent: dict[str, object] = {
         "origin_id": "id",
         "snapshot_fingerprint": "abc",
