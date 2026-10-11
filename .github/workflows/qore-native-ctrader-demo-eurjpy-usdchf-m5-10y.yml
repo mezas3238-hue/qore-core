@@ -1,0 +1,132 @@
+name: QORE NATIVE cTrader DEMO EURJPY USDCHF M5 10Y Acquisition
+
+on:
+  push:
+    branches:
+      - research/qore-native-ctrader-demo-eurjpy-usdchf-m5-20261011
+    paths:
+      - '.github/workflows/qore-native-ctrader-demo-eurjpy-usdchf-m5-10y.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_demo_eurjpy_usdchf_m5_10y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_demo_eurjpy_usdchf_m5_10y_v1.py'
+      - 'docs/research/QORE_NATIVE_CTRADER_DEMO_EURJPY_USDCHF_10Y_M5_PREREG_2026-10-11.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-native-demo-eurjpy-usdchf-m5-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  frozen_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: 'No credential leaks, 2 frozen symbols, fixed UTC source range'
+        run: |
+          test -s docs/research/QORE_NATIVE_CTRADER_DEMO_EURJPY_USDCHF_10Y_M5_PREREG_2026-10-11.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_demo_eurjpy_usdchf_m5_10y_v1.py tests/infrastructure/trader_lab/test_qore_native_demo_eurjpy_usdchf_m5_10y_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_demo_eurjpy_usdchf_m5_10y_v1.py
+
+  download_m5:
+    needs: frozen_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        symbol: [EURJPY, USDCHF]
+    env:
+      QORE_SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Verify configured DEMO token inputs exist without outputting values
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO credential name: $name" >&2; exit 2; }
+          done
+      - name: 'Fail closed: discover and bind exactly one actual non-live DEMO account'
+        shell: bash
+        run: |
+          set -euo pipefail
+          discovered="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+          [[ "$discovered" =~ ^[1-9][0-9]*$ ]] || { echo 'invalid DEMO discovery result' >&2; exit 3; }
+          echo "::add-mask::$discovered"
+          if [ -n "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ] && [ "$discovered" != "$QORE_CTRADER_DEMO_ACCOUNT_ID" ]; then
+            echo 'configured account differs from explicitly DEMO-discovered account' >&2
+            exit 3
+          fi
+          echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$discovered" >> "$GITHUB_ENV"
+      - name: 'Download EURJPY or USDCHF cTrader DEMO provider-native M5 in strict seven-day windows'
+        id: capture
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "research-data/$QORE_SYMBOL"
+          python -m qore.infrastructure.trader_lab.qore_native_demo_eurjpy_usdchf_m5_10y_v1 "$QORE_SYMBOL" "research-data/$QORE_SYMBOL" > "research-data/$QORE_SYMBOL/manifest.stdout.json"
+      - name: 'Bind immutable acquisition SHA and manifest hashes'
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "research-data/$QORE_SYMBOL"
+          printf '%s\n' "$GITHUB_SHA" > "research-data/$QORE_SYMBOL/git-sha.txt"
+          if [ -f "research-data/$QORE_SYMBOL/symbol-consumption-manifest.json" ]; then
+            cd "research-data/$QORE_SYMBOL"
+            sha256sum symbol-consumption-manifest.json MANIFEST_SHA256SUMS.txt git-sha.txt > CAPTURE_SHA256SUMS.txt
+          fi
+      - name: Upload independent research artifact (never credentials)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-ctrader-demo-10y-M5-${{ matrix.symbol }}-${{ github.sha }}
+          path: research-data/${{ matrix.symbol }}
+          retention-days: 90
+          if-no-files-found: error
+      - name: 'Enforce clean DEMO research source, no trading authority'
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ steps.capture.outcome }}' = 'success'
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=Path("research-data")/os.environ["QORE_SYMBOL"]/"symbol-consumption-manifest.json"
+          j=json.loads(p.read_text())
+          assert j["identity"]=="QORE_NATIVE_CTRADER_DEMO_FOREX_M5_10Y_V1"
+          assert j["canonical_symbol"]==os.environ["QORE_SYMBOL"]
+          assert j["provider_symbol"]==os.environ["QORE_SYMBOL"]
+          assert j["target_start"]=="2016-09-17T00:00:00+00:00"
+          assert j["target_end_exclusive"]=="2026-09-17T00:00:00+00:00"
+          assert j["raw_integrity_status"]=="CLEAN_PROVIDER_PAYLOAD"
+          assert j["read_only"] and j["research_evidence_consumed"]
+          assert not j["live_authorized"] and not j["real_capital_authorized"]
+          assert not j["production_authorized"] and not j["demo_eligible"]
+          assert j["retained_bars"]>0
+          print("QORE_RESEARCH_ONLY_CAPTURE",json.dumps({
+            "symbol":j["canonical_symbol"],"bars":j["retained_bars"],
+            "first":j["earliest_observed_m5"],"last":j["latest_observed_m5"],
+            "status":j["raw_integrity_status"]},sort_keys=True))
+          PY
