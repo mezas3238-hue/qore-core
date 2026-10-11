@@ -511,3 +511,8 @@ De 2020 identidades originales, alternativa conserva **1947**; salen **73**, ent
 5. Mantener World Model ampliación congelada, V49 original intacto, PR #759 DRAFT, no VPS/MT5/live/merge.
 
 **IMPORTANTE:** rubrica "robusto positivo a +15/+30" del ensayo de 1090 (CLOSE forward) sigue válida como diagnóstico original, NO equivale a PF>1. El primer replay económicamente estructurado real muestra mejora +26.8% PF pero PF0.8425 y -109.06R. Nunca cambiar selección mirando PnL de estos 9 mercados.
+
+
+### 16.5 Corrección final de cronología H1 con ventana original (14 días)
+
+GitHub Actions #38102651079 SUCCESS cruzó por ID las auditorías H1 y CISD usando exactamente los 14 días de historial de V49: 2876/2876 eventos H1 con testigo interno; 2372 con dos velas completas 60/60, 504 sin doble testigo completo. Hubo 152 orígenes con cierre de H1 registrado fuera de HH:00 UTC, pero CERO confirmaciones M15 o entradas M1 previas al verdadero final horario en esas 152. Las cifras anteriores de 111 sin origen, 609 sin 60/60 y 151 offclock fueron producto del ensayo con 15 días de lookback y quedan sustituidas. Aún falta certificar OHLC de las velas parciales, POI de temporalidad superior y protected swing frente a la fuente original. Este resultado no cambia los PF/DD brutos de la sección 16.1 ni autoriza LIVE.
