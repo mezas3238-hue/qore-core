@@ -69,6 +69,7 @@ jobs:
               "schema","market","base_source_fingerprint","base_software_sha",
               "m3_native_source_run","m15_base_source_run","counts",
               "unique_ny_days_per_stage","per_year_counts",
+              "daily_retest_selection",
               "m30_m3_author_timeframe_pair_source_verified",
               "m30_m3_setup_poi_source_adjudicated","gross_rr_only_no_bid_ask",
               "zero_execution_or_pnl","broker_orders","fills",
