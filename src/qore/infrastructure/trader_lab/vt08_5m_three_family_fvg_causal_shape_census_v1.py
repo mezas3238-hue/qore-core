@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter, defaultdict
-from datetime import UTC, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Final
 from zoneinfo import ZoneInfo
@@ -66,7 +66,11 @@ def available_unique_fvg(
         if lower >= upper:
             continue
         invalidated = any(
-            later.low < lower if side is DemoTradingSetupSide.LONG else later.high > upper
+            (
+                later.low < lower
+                if side is DemoTradingSetupSide.LONG
+                else later.high > upper
+            )
             for later in bars[i + 1 :]
         )
         if not invalidated:
@@ -173,7 +177,8 @@ def audit_market(path: Path) -> dict[str, object]:
         if side is not None:
             stage("C2_SINGLE_SWEEP_REVERSED", year)
             c1poi, c1n = available_unique_fvg(old_c1, side)
-            stage(f"C2_FVG_PRIOR_COUNT_{'ZERO' if c1n == 0 else 'ONE' if c1n == 1 else 'MULTIPLE_D'}", year)
+            c1_kind = "ZERO" if c1n == 0 else "ONE" if c1n == 1 else "MULTIPLE_D"
+            stage(f"C2_FVG_PRIOR_COUNT_{c1_kind}", year)
             if c1poi is not None:
                 row = first_source_swing_prefix(
                     market=market, family=Family.C2_CLOSURE_TO_C3,
@@ -183,7 +188,8 @@ def audit_market(path: Path) -> dict[str, object]:
                 if row:
                     add(Family.C2_CLOSURE_TO_C3, row, year, anchor)
             c2poi, c2n = available_unique_fvg(old_c2, side)
-            stage(f"C3_FVG_PRIOR_COUNT_{'ZERO' if c2n == 0 else 'ONE' if c2n == 1 else 'MULTIPLE_D'}", year)
+            c2_kind = "ZERO" if c2n == 0 else "ONE" if c2n == 1 else "MULTIPLE_D"
+            stage(f"C3_FVG_PRIOR_COUNT_{c2_kind}", year)
             if c2poi is not None:
                 c3_ltf = _window_bars(
                     index,
@@ -226,7 +232,8 @@ def audit_market(path: Path) -> dict[str, object]:
             stage("C3_M15_MISSING_AFTER_H4", year)
             continue
         poi, npoi = available_unique_fvg(c3_ltf, side)
-        stage(f"C4_FVG_PRIOR_COUNT_{'ZERO' if npoi == 0 else 'ONE' if npoi == 1 else 'MULTIPLE_D'}", year)
+        c3_kind = "ZERO" if npoi == 0 else "ONE" if npoi == 1 else "MULTIPLE_D"
+        stage(f"C4_FVG_PRIOR_COUNT_{c3_kind}", year)
         if poi is None:
             continue
         c4_ltf = _window_bars(
