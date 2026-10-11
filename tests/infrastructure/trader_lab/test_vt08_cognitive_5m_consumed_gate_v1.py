@@ -19,6 +19,7 @@ from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     Vt08FiveMarketResearchSituation,
 )
 from qore.infrastructure.traders.vt08_cognitive_position_intelligence import (
+    Vt08PositionPolicy,
     Vt08PositionSnapshot,
 )
 from qore.infrastructure.traders.vt08_cognitive_v1_contracts import (
@@ -894,3 +895,59 @@ def test_replay_position_accepts_same_instant_in_ny_and_utc_after_dst() -> None:
     )
     assert result.fill_id == "dst-fill"
     assert result.action is Vt08PositionAction.HOLD
+
+
+@pytest.mark.parametrize("field", (
+    "methodology_valid", "source_identity_complete", "h4_lifecycle_valid",
+))
+def test_string_false_cannot_become_truthy_cognitive_source_authority(field: str) -> None:
+    with pytest.raises(ValueError, match="must be exact bool"):
+        _snapshot(**{field: "false"})
+
+
+@pytest.mark.parametrize(("field", "raw", "match"), (
+    ("anchor_hour_ny", True, "anchor outside"),
+    ("research_only", "true", "authority flags must be exact bool"),
+    ("operational_authority", "false", "authority flags must be exact bool"),
+    ("current_overlap_rate", 0.3, "finite Decimal"),
+    ("displacement_strength", float("nan"), "finite Decimal"),
+))
+def test_malformed_source_snapshot_types_rejected_before_reasoning(
+    field: str, raw: object, match: str,
+) -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    with pytest.raises(ValueError, match=match):
+        gate.evaluate(_snapshot(**{field: raw}))
+    assert gate.decisions == () and gate.positions == ()
+
+
+def test_position_policy_and_candidate_boolean_values_must_be_exact() -> None:
+    with pytest.raises(ValueError, match="exact bool"):
+        Vt08PositionPolicy(
+            allow_confirmed_structural_protection="false",  # type: ignore[arg-type]
+            allow_reduce_on_causal_exhaustion=False,
+        )
+    with pytest.raises(ValueError, match="exact bool"):
+        replace(_position(T0), protection_candidate_confirmed="false")
+    with pytest.raises(ValueError, match="positive finite Decimal"):
+        replace(_position(T0), current_price=100.2)
+    with pytest.raises(ValueError, match="positive finite Decimal"):
+        replace(_position(T0), protection_candidate=100.1)
+
+
+def test_fill_and_terminal_input_price_types_and_authority_must_be_exact() -> None:
+    fill = Vt08ResearchFillEvidence(
+        source_event_id="synthetic-source-01", market="EURJPY",
+        side="long", source_cycle_id="synthetic-h4-cycle-09",
+        fill_id="safe-fill", filled_at=T0,
+        entry_price=Decimal("100"), evidence_sha256="a" * 64,
+    )
+    with pytest.raises(ValueError, match="positive finite Decimal"):
+        replace(fill, entry_price=100.1)
+    with pytest.raises(ValueError, match="authority flags must be exact bool"):
+        replace(fill, research_only="true")
+    terminal = _terminal()
+    with pytest.raises(ValueError, match="positive finite Decimal"):
+        replace(terminal, exit_price=100.1)
+    with pytest.raises(ValueError, match="authority flags must be exact bool"):
+        replace(terminal, broker_order_authorized="false")
