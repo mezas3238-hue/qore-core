@@ -2,6 +2,7 @@
 
 No price-path economic replay and no historical source-entry authority is claimed.
 """
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -11,6 +12,7 @@ import pytest
 from qore.infrastructure.trader_lab.vt08_cognitive_5m_consumed_gate_v1 import (
     Vt08FiveMarketCognitiveGate,
     Vt08ResearchFillEvidence,
+    Vt08ResearchTerminalEvidence,
 )
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     CAUSAL_FIELDS,
@@ -588,3 +590,222 @@ def test_fill_evidence_never_confers_broker_authority_or_weak_digest() -> None:
         Vt08ResearchFillEvidence(
             **{**e, "entry_price": Decimal("NaN")}
         )
+
+
+def _terminal(
+    *, source: str = "synthetic-source-01",
+    fill_id: str = "fixture-fill-synthetic-source-01",
+    when: datetime = T0 + timedelta(minutes=9),
+    market: str = "EURJPY",
+    fill_digest: str = "a" * 64,
+) -> Vt08ResearchTerminalEvidence:
+    return Vt08ResearchTerminalEvidence(
+        source_event_id=source,
+        market=market,
+        fill_id=fill_id,
+        fill_evidence_sha256=fill_digest,
+        closed_at=when,
+        exit_price=Decimal("101"),
+        terminal_reason="EXTERNAL_CLOSE",
+        evidence_sha256="c" * 64,
+    )
+
+
+def test_cognitive_position_trace_attaches_physical_fill_and_risk_terms() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    _ack(gate)
+    later = T0 + timedelta(minutes=3)
+    state = gate.evaluate_position(
+        _snapshot(when=later, entry_state="FILLED", position_state="OPEN"),
+        _position(later),
+    )
+    assert state.fill_id == "fixture-fill-synthetic-source-01"
+    assert state.fill_evidence_sha256 == "a" * 64
+    assert state.original_initial_stop == Decimal("99")
+    assert state.original_bound_destination == Decimal("103")
+    assert state.observed_current_stop == Decimal("99")
+    assert state.research_only and not state.broker_order_authorized
+
+
+@pytest.mark.parametrize(("changed", "value"), [
+    ("initial_stop", Decimal("98.5")),
+    ("bound_destination", Decimal("105")),
+])
+def test_cognitive_position_rejects_initial_risk_and_target_mutation(
+    changed: str, value: Decimal,
+) -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    _ack(gate)
+    t1 = T0 + timedelta(minutes=3)
+    t2 = T0 + timedelta(minutes=6)
+    gate.evaluate_position(
+        _snapshot(when=t1, entry_state="FILLED", position_state="OPEN"),
+        _position(t1),
+    )
+    altered = replace(_position(t2), **{changed: value})
+    with pytest.raises(ValueError, match="initial SL and destination cannot drift"):
+        gate.evaluate_position(
+            _snapshot(when=t2, entry_state="FILLED", position_state="OPEN"),
+            altered,
+        )
+    assert len(gate.positions) == 1
+    valid = gate.evaluate_position(
+        _snapshot(when=t2, entry_state="FILLED", position_state="OPEN"),
+        _position(t2),
+    )
+    assert valid.original_initial_stop == Decimal("99")
+
+
+@pytest.mark.parametrize("side", ["long", "short"])
+def test_cognitive_position_rejects_widening_stops_between_snapshots(
+    side: str,
+) -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot(side=side))
+    if side == "long":
+        _ack(gate)
+    else:
+        gate.record_fill(Vt08ResearchFillEvidence(
+            source_event_id="synthetic-source-01",
+            market="EURJPY",
+            side="short",
+            source_cycle_id="synthetic-h4-cycle-09",
+            fill_id="short-fill",
+            filled_at=T0,
+            entry_price=Decimal("100"),
+            evidence_sha256="a" * 64,
+        ))
+    t1, t2 = T0 + timedelta(minutes=3), T0 + timedelta(minutes=6)
+    if side == "long":
+        first = replace(_position(t1), current_stop=Decimal("99.7"))
+        widen = replace(_position(t2), current_stop=Decimal("99.2"))
+        safe = replace(_position(t2), current_stop=Decimal("99.8"))
+    else:
+        first = Vt08PositionSnapshot(
+            as_of=t1, side="short",
+            entry_price=Decimal("100"), current_price=Decimal("99"),
+            initial_stop=Decimal("101"), current_stop=Decimal("100.3"),
+            bound_destination=Decimal("97"),
+        )
+        widen = replace(first, as_of=t2, current_stop=Decimal("100.8"))
+        safe = replace(first, as_of=t2, current_stop=Decimal("100.2"))
+    gate.evaluate_position(
+        _snapshot(when=t1, side=side, entry_state="FILLED", position_state="OPEN"),
+        first,
+    )
+    with pytest.raises(ValueError, match="observed stop cannot widen"):
+        gate.evaluate_position(
+            _snapshot(when=t2, side=side, entry_state="FILLED", position_state="OPEN"),
+            widen,
+        )
+    accepted = gate.evaluate_position(
+        _snapshot(when=t2, side=side, entry_state="FILLED", position_state="OPEN"),
+        safe,
+    )
+    assert accepted.observed_current_stop == safe.current_stop
+    assert len(gate.positions) == 2
+
+
+def test_terminal_external_evidence_blocks_all_future_position_cognition() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    _ack(gate)
+    t1 = T0 + timedelta(minutes=3)
+    t2 = T0 + timedelta(minutes=9)
+    p = gate.evaluate_position(
+        _snapshot(when=t1, entry_state="FILLED", position_state="OPEN"),
+        _position(t1),
+    )
+    assert gate.terminals == ()
+    result = gate.record_terminal(_terminal(when=t2))
+    assert result.fill_id == p.fill_id
+    assert result.related_fill_evidence_sha256 == p.fill_evidence_sha256
+    assert result.last_position_fingerprint == p.position_fingerprint
+    assert result.research_only and not result.broker_order_authorized
+    assert len(gate.terminals) == 1
+    with pytest.raises(ValueError, match="already terminal"):
+        gate.record_terminal(_terminal(when=t2 + timedelta(minutes=3)))
+    with pytest.raises(ValueError, match="terminal-closed position"):
+        gate.evaluate_position(
+            _snapshot(
+                when=t2 + timedelta(minutes=3),
+                entry_state="FILLED",
+                position_state="OPEN",
+            ),
+            _position(t2 + timedelta(minutes=3)),
+        )
+    assert len(gate.positions) == 1
+
+
+@pytest.mark.parametrize(("changed", "expected"), [
+    ({"fill_id": "another-fill"}, "contradicts fill lineage"),
+    ({"market": "CADJPY"}, "contradicts fill lineage"),
+    ({"fill_digest": "d" * 64}, "contradicts fill lineage"),
+    ({"when": T0}, "must follow original fill"),
+])
+def test_terminal_evidence_wrong_lineage_or_clock_cannot_mutate_state(
+    changed: dict[str, object], expected: str,
+) -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    _ack(gate)
+    data: dict[str, object] = {
+        "source": "synthetic-source-01",
+        "market": "EURJPY",
+        "fill_id": "fixture-fill-synthetic-source-01",
+        "fill_digest": "a" * 64,
+        "when": T0 + timedelta(minutes=9),
+    }
+    data.update(changed)
+    with pytest.raises(ValueError, match=expected):
+        gate.record_terminal(_terminal(**data))  # type: ignore[arg-type]
+    assert gate.terminals == ()
+    assert gate.record_terminal(_terminal()).terminal_reason == "EXTERNAL_CLOSE"
+
+
+def test_terminal_requires_external_fill_and_explicit_research_authority() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    with pytest.raises(ValueError, match="requires registered research fill"):
+        gate.record_terminal(_terminal())
+    with pytest.raises(ValueError, match="SHA256"):
+        replace(_terminal(), evidence_sha256="not-a-sha")
+    with pytest.raises(ValueError, match="research-only"):
+        replace(_terminal(), broker_order_authorized=True)
+    with pytest.raises(ValueError, match="positive finite"):
+        replace(_terminal(), exit_price=Decimal("NaN"))
+    with pytest.raises(ValueError, match="terminal reason"):
+        replace(_terminal(), terminal_reason="PROFIT")
+
+
+def test_cognitive_exit_advice_is_not_external_terminal_settlement() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    _ack(gate)
+    at = T0 + timedelta(hours=4)
+    proposed = gate.evaluate_position(
+        _snapshot(
+            when=at, entry_state="FILLED", position_state="OPEN",
+            h4_lifecycle_valid=False,
+        ),
+        _position(at),
+    )
+    assert proposed.action is Vt08PositionAction.EXIT
+    assert gate.terminals == ()
+    trace = gate.record_terminal(_terminal(
+        when=at + timedelta(minutes=3),
+    ))
+    assert trace.last_position_fingerprint == proposed.position_fingerprint
+    assert len(gate.terminals) == 1
+
+
+def test_terminal_global_clock_never_regresses_after_another_market_event() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    _ack(gate)
+    later = T0 + timedelta(minutes=12)
+    gate.evaluate(_snapshot(source="second-source", market="CADJPY", when=later))
+    with pytest.raises(ValueError, match="terminal replay clock"):
+        gate.record_terminal(_terminal(when=T0 + timedelta(minutes=9)))
+    assert gate.terminals == ()
