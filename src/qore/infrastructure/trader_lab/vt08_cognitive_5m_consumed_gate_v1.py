@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Final
 from zoneinfo import ZoneInfo
@@ -34,6 +34,11 @@ from qore.infrastructure.traders.vt08_cognitive_v1_contracts import (
 )
 
 GATE_SCHEMA: Final = "qore.vt08.cognitive_5m.consumed_gate.research.v1"
+
+
+def _instant(timestamp: datetime) -> datetime:
+    """UTC ordering: same-ZoneInfo NY wall-time comparison ignores fold."""
+    return timestamp.astimezone(UTC)
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,15 +246,15 @@ class Vt08FiveMarketCognitiveGate:
         event_id, source_identity = self._check_source_identity(situation)
         if (
             self._last_global_as_of is not None
-            and situation.as_of < self._last_global_as_of
+            and _instant(situation.as_of) < self._last_global_as_of
         ):
             raise ValueError("VT08 global replay clock cannot move backwards")
         if situation.cycle_expires_at is None or (
-            situation.as_of >= situation.cycle_expires_at
+            _instant(situation.as_of) >= _instant(situation.cycle_expires_at)
         ):
             raise ValueError("VT08 WAIT/entry event expired at H4 source cycle end")
         earlier = self._last_decision_at.get(event_id)
-        if earlier is not None and situation.as_of <= earlier:
+        if earlier is not None and _instant(situation.as_of) <= earlier:
             raise ValueError("VT08 replay source decision timestamp must advance")
         if event_id in self._executed:
             raise ValueError("VT08 same source event may execute only once")
@@ -259,9 +264,9 @@ class Vt08FiveMarketCognitiveGate:
             hypothesis=self._hypotheses.get(event_id),
         )
         self._hypotheses[event_id] = assessed.hypothesis
-        self._last_decision_at[event_id] = situation.as_of
+        self._last_decision_at[event_id] = _instant(situation.as_of)
         self._event_identity[event_id] = source_identity
-        self._last_global_as_of = situation.as_of
+        self._last_global_as_of = _instant(situation.as_of)
         if assessed.decision.action is Vt08CognitiveAction.EXECUTE:
             self._executed.add(event_id)
         d = assessed.decision
@@ -303,13 +308,13 @@ class Vt08FiveMarketCognitiveGate:
             or evidence.source_cycle_id != identity[4]
         ):
             raise ValueError("VT08 fill evidence contradicts source identity")
-        if evidence.filled_at < self._last_decision_at[event_id]:
+        if _instant(evidence.filled_at) < self._last_decision_at[event_id]:
             raise ValueError("VT08 fill cannot precede cognitive decision")
-        if evidence.filled_at >= datetime.fromisoformat(identity[5]):
+        if _instant(evidence.filled_at) >= _instant(datetime.fromisoformat(identity[5])):
             raise ValueError("VT08 pending fill after H4 expiry")
         if (
             self._last_global_as_of is not None
-            and evidence.filled_at < self._last_global_as_of
+            and _instant(evidence.filled_at) < self._last_global_as_of
         ):
             raise ValueError("VT08 fill global replay clock cannot move backwards")
         source_decision = next(
@@ -329,7 +334,7 @@ class Vt08FiveMarketCognitiveGate:
         self._filled[event_id] = trace
         self._fill_ids.add(evidence.fill_id)
         self._fills.append(trace)
-        self._last_global_as_of = evidence.filled_at
+        self._last_global_as_of = _instant(evidence.filled_at)
         return trace
 
     def record_terminal(
@@ -352,11 +357,11 @@ class Vt08FiveMarketCognitiveGate:
             or evidence.fill_evidence_sha256 != fill.evidence_sha256
         ):
             raise ValueError("VT08 terminal evidence contradicts fill lineage")
-        if evidence.closed_at <= fill.filled_at:
+        if _instant(evidence.closed_at) <= _instant(fill.filled_at):
             raise ValueError("VT08 terminal close must follow original fill")
         if (
             self._last_global_as_of is not None
-            and evidence.closed_at < self._last_global_as_of
+            and _instant(evidence.closed_at) < self._last_global_as_of
         ):
             raise ValueError("VT08 terminal replay clock cannot move backwards")
         latest = next(
@@ -378,7 +383,7 @@ class Vt08FiveMarketCognitiveGate:
         )
         self._terminal[event_id] = trace
         self._terminals.append(trace)
-        self._last_global_as_of = evidence.closed_at
+        self._last_global_as_of = _instant(evidence.closed_at)
         return trace
 
     def evaluate_position(
@@ -390,7 +395,7 @@ class Vt08FiveMarketCognitiveGate:
         event_id, _ = self._check_source_identity(situation)
         if (
             self._last_global_as_of is not None
-            and situation.as_of < self._last_global_as_of
+            and _instant(situation.as_of) < self._last_global_as_of
         ):
             raise ValueError("VT08 global replay clock cannot move backwards")
         if event_id not in self._executed:
@@ -402,9 +407,9 @@ class Vt08FiveMarketCognitiveGate:
         fill = self._filled[event_id]
         if position.entry_price != fill.entry_price:
             raise ValueError("VT08 position entry price differs from recorded fill")
-        if situation.as_of <= fill.filled_at:
+        if _instant(situation.as_of) <= _instant(fill.filled_at):
             raise ValueError("VT08 position assessment must follow recorded fill")
-        if situation.as_of != position.as_of:
+        if _instant(situation.as_of) != _instant(position.as_of):
             raise ValueError("VT08 position and Situation as_of must match")
         if situation.side != position.side:
             raise ValueError("VT08 in-trade source/position side mismatch")
@@ -413,10 +418,10 @@ class Vt08FiveMarketCognitiveGate:
         if situation.entry_state != "FILLED":
             raise ValueError("VT08 in-trade cognition requires filled entry state")
         initial = self._last_decision_at[event_id]
-        if situation.as_of <= initial:
+        if _instant(situation.as_of) <= initial:
             raise ValueError("VT08 in-trade cognition requires post-admission bar")
         previous = self._last_position_at.get(event_id)
-        if previous is not None and situation.as_of <= previous:
+        if previous is not None and _instant(situation.as_of) <= previous:
             raise ValueError("VT08 in-trade assessment timestamp must advance")
         # First observed position terms become immutable within THIS research
         # replay. This is continuity, not independent external risk provenance:
@@ -436,10 +441,10 @@ class Vt08FiveMarketCognitiveGate:
             position=position,
             policy=RESEARCH_UNCALIBRATED_POSITION_POLICY,
         )
-        self._last_position_at[event_id] = situation.as_of
+        self._last_position_at[event_id] = _instant(situation.as_of)
         self._position_terms.setdefault(event_id, terms)
         self._last_observed_stops[event_id] = position.current_stop
-        self._last_global_as_of = situation.as_of
+        self._last_global_as_of = _instant(situation.as_of)
         trace = Vt08CognitivePositionTrace(
             market=situation.market,
             source_event_id=event_id,
