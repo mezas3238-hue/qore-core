@@ -260,7 +260,7 @@ def diagnose(
             "old_window":old_window,
         }
     rows_out=[]
-    c=Counter()
+    c:Counter[str]=Counter()
     for row in sources:
         sid=source_id(row)
         dec=datetime.fromisoformat(row.m1_trigger_confirmed_at)
