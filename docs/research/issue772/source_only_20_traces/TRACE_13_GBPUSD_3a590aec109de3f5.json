@@ -1,0 +1,217 @@
+{
+  "author_semantics_certified": false,
+  "causal_timestamp_failures": [],
+  "causal_timestamp_pass": true,
+  "decision_at": "2026-08-18T09:22:00+00:00",
+  "entry_distance_from_stored_swing_R": "1",
+  "entry_matches_native_m1_close": true,
+  "entry_price": "1.35306",
+  "feed_sha256_native_research_slice": "45f4fe821d8504ce31478d37a901566327cb15ad05e847b5c974ad8ac85038bb",
+  "first_online_independently_complete": false,
+  "h1_direction": "BULLISH",
+  "h1_last_5_closed_candles": [
+    {
+      "close": "1.35352",
+      "closed_at": "2026-08-18T05:00:00+00:00",
+      "high": "1.35380",
+      "low": "1.35310",
+      "native_minutes_aggregated": 60,
+      "open": "1.35352",
+      "opened_at": "2026-08-18T04:00:00+00:00"
+    },
+    {
+      "close": "1.35359",
+      "closed_at": "2026-08-18T06:00:00+00:00",
+      "high": "1.35392",
+      "low": "1.35329",
+      "native_minutes_aggregated": 60,
+      "open": "1.35352",
+      "opened_at": "2026-08-18T05:00:00+00:00"
+    },
+    {
+      "close": "1.35268",
+      "closed_at": "2026-08-18T07:00:00+00:00",
+      "high": "1.35415",
+      "low": "1.35212",
+      "native_minutes_aggregated": 60,
+      "open": "1.35351",
+      "opened_at": "2026-08-18T06:00:00+00:00"
+    },
+    {
+      "close": "1.35286",
+      "closed_at": "2026-08-18T08:00:00+00:00",
+      "high": "1.35313",
+      "low": "1.35196",
+      "native_minutes_aggregated": 60,
+      "open": "1.35269",
+      "opened_at": "2026-08-18T07:00:00+00:00"
+    },
+    {
+      "close": "1.35320",
+      "closed_at": "2026-08-18T09:00:00+00:00",
+      "high": "1.35336",
+      "low": "1.35235",
+      "native_minutes_aggregated": 60,
+      "open": "1.35284",
+      "opened_at": "2026-08-18T08:00:00+00:00"
+    }
+  ],
+  "h1_last_closed_at": "2026-08-18T09:00:00+00:00",
+  "h1_original_events_used_as_independent_oracle": false,
+  "h1_source_age_minutes": 82.0,
+  "h1_state_basis": "CANDLE2_REVERSAL:BULLISH_FVG",
+  "h1_state_inherited": false,
+  "h1_trend4_agreement": "OPPOSE",
+  "h1_trend4_completed_native": "DOWN",
+  "m15_confirmed_in_closed_native": true,
+  "m15_last_closed_at": "2026-08-18T09:15:00+00:00",
+  "m15_recent_candles": [
+    {
+      "close": "1.35256",
+      "closed_at": "2026-08-18T08:15:00+00:00",
+      "high": "1.35286",
+      "low": "1.35237",
+      "native_minutes_aggregated": 15,
+      "open": "1.35284",
+      "opened_at": "2026-08-18T08:00:00+00:00"
+    },
+    {
+      "close": "1.35281",
+      "closed_at": "2026-08-18T08:30:00+00:00",
+      "high": "1.35281",
+      "low": "1.35235",
+      "native_minutes_aggregated": 15,
+      "open": "1.35255",
+      "opened_at": "2026-08-18T08:15:00+00:00"
+    },
+    {
+      "close": "1.35295",
+      "closed_at": "2026-08-18T08:45:00+00:00",
+      "high": "1.35305",
+      "low": "1.35265",
+      "native_minutes_aggregated": 15,
+      "open": "1.35280",
+      "opened_at": "2026-08-18T08:30:00+00:00"
+    },
+    {
+      "close": "1.35320",
+      "closed_at": "2026-08-18T09:00:00+00:00",
+      "high": "1.35336",
+      "low": "1.35283",
+      "native_minutes_aggregated": 15,
+      "open": "1.35294",
+      "opened_at": "2026-08-18T08:45:00+00:00"
+    },
+    {
+      "close": "1.35289",
+      "closed_at": "2026-08-18T09:15:00+00:00",
+      "high": "1.35318",
+      "low": "1.35285",
+      "native_minutes_aggregated": 15,
+      "open": "1.35318",
+      "opened_at": "2026-08-18T09:00:00+00:00"
+    }
+  ],
+  "m15_setup_confirmed_at": "2026-08-18T09:00:00+00:00",
+  "m15_setup_to_entry_minutes": 22.0,
+  "m15_swing_stop_price": "1.35235",
+  "m1_direction": "LONG",
+  "m1_recent_closed_candles": [
+    {
+      "close": "1.35296",
+      "closed_at": "2026-08-18T09:13:00+00:00",
+      "high": "1.35296",
+      "low": "1.35285",
+      "open": "1.35286",
+      "opened_at": "2026-08-18T09:12:00+00:00"
+    },
+    {
+      "close": "1.35292",
+      "closed_at": "2026-08-18T09:14:00+00:00",
+      "high": "1.35297",
+      "low": "1.35287",
+      "open": "1.35297",
+      "opened_at": "2026-08-18T09:13:00+00:00"
+    },
+    {
+      "close": "1.35289",
+      "closed_at": "2026-08-18T09:15:00+00:00",
+      "high": "1.35297",
+      "low": "1.35288",
+      "open": "1.35291",
+      "opened_at": "2026-08-18T09:14:00+00:00"
+    },
+    {
+      "close": "1.35266",
+      "closed_at": "2026-08-18T09:16:00+00:00",
+      "high": "1.35288",
+      "low": "1.35266",
+      "open": "1.35288",
+      "opened_at": "2026-08-18T09:15:00+00:00"
+    },
+    {
+      "close": "1.35278",
+      "closed_at": "2026-08-18T09:17:00+00:00",
+      "high": "1.35278",
+      "low": "1.35264",
+      "open": "1.35265",
+      "opened_at": "2026-08-18T09:16:00+00:00"
+    },
+    {
+      "close": "1.35277",
+      "closed_at": "2026-08-18T09:18:00+00:00",
+      "high": "1.35281",
+      "low": "1.35272",
+      "open": "1.35277",
+      "opened_at": "2026-08-18T09:17:00+00:00"
+    },
+    {
+      "close": "1.35281",
+      "closed_at": "2026-08-18T09:19:00+00:00",
+      "high": "1.35292",
+      "low": "1.35277",
+      "open": "1.35277",
+      "opened_at": "2026-08-18T09:18:00+00:00"
+    },
+    {
+      "close": "1.35285",
+      "closed_at": "2026-08-18T09:20:00+00:00",
+      "high": "1.35286",
+      "low": "1.35278",
+      "open": "1.35280",
+      "opened_at": "2026-08-18T09:19:00+00:00"
+    },
+    {
+      "close": "1.35287",
+      "closed_at": "2026-08-18T09:21:00+00:00",
+      "high": "1.35290",
+      "low": "1.35284",
+      "open": "1.35286",
+      "opened_at": "2026-08-18T09:20:00+00:00"
+    },
+    {
+      "close": "1.35306",
+      "closed_at": "2026-08-18T09:22:00+00:00",
+      "high": "1.35309",
+      "low": "1.35286",
+      "open": "1.35286",
+      "opened_at": "2026-08-18T09:21:00+00:00"
+    }
+  ],
+  "m1_sweep_series_CISD_first_online": "NOT_IN_SOURCE_NEEDS_INDEPENDENT_RECONSTRUCTION",
+  "operating_date": "2026-08-18",
+  "original_h1_basis": "CANDLE2_REVERSAL:BULLISH_FVG",
+  "original_source_origin_at": "2026-08-18T08:00:00+00:00",
+  "original_source_origin_status": "ORIGINAL_V48_BIAS_EVENT_MATCH",
+  "original_state_from": "2026-08-18T08:00:00+00:00",
+  "original_state_until_RETROSPECTIVE_NOT_ASOF": "2026-08-18T12:30:00+00:00",
+  "outcomes_accessed": false,
+  "selection_rank_sha256": "01ed1c1c40117c4d3858e131e1eff503bb711cc71fd13918605813b24e7fbabc",
+  "session": "LONDON",
+  "source_opportunity_id": "3a590aec109de3f5ee4c96dd2e5ba54f2e2a5c1109076cb064b013668e363a5d",
+  "stop_geometry_valid": true,
+  "structural_h1_target_price": "1.35336",
+  "swing_right_candle_and_earliest_availability": "NOT_IN_SOURCE_NEEDS_INDEPENDENT_RECONSTRUCTION",
+  "symbol": "GBPUSD",
+  "trigger_family": "FVG_RETRACE_CISD"
+}
