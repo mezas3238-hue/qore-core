@@ -20,13 +20,13 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
+    SCHEMA as ORIGINAL_M30_SCHEMA,
+)
+from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
     aggregate,
     closed_source_window,
     same_ohlc,
     source_m30_reversal,
-)
-from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
-    SCHEMA as ORIGINAL_M30_SCHEMA,
 )
 from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
     evaluate as audit_existing_m30_m3,
