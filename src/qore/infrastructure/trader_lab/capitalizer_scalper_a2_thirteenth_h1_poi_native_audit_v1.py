@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +27,7 @@ from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import 
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     DEV_WINDOW_END,
     DEV_WINDOW_START,
+    DEFAULT_LOOKBACK,
     V49Opportunity,
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 import (
@@ -166,7 +166,7 @@ def market(
         raise ValueError("mixed native source market")
     native=tuple(
         b for b in iter_cibo_m1(native_root)
-        if DEV_WINDOW_START-timedelta(days=15)<=b.opened_at<DEV_WINDOW_END
+        if DEV_WINDOW_START-DEFAULT_LOOKBACK<=b.opened_at<DEV_WINDOW_END
     )
     if not native or any(x.symbol!=symbol for x in native):
         raise ValueError("missing or contradictory native M1")
