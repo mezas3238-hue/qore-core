@@ -98,8 +98,8 @@ def verify_c3_shape(
     bullish = side == "long"
     if event.get("c3_m15_sha256") != _sha_m15(c3_rows):
         raise ValueError("C3 immutable constituent M15 SHA mismatch")
-    if Decimal(str(event.get("c3_full_low"))) != c3["low"] or Decimal(
-        str(event.get("c3_full_high"))
+    if Decimal(str(event.get("c3_full_range_low"))) != c3["low"] or Decimal(
+        str(event.get("c3_full_range_high"))
     ) != c3["high"]:
         raise ValueError("C3 full OHLC extreme mismatch")
 
