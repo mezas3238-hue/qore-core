@@ -109,10 +109,16 @@ class Vt08ResearchFillEvidence:
             raise ValueError("VT08 fill requires valid market/side")
         if self.filled_at.tzinfo is None or self.filled_at.utcoffset() is None:
             raise ValueError("VT08 fill time must be timezone-aware")
-        if not self.entry_price.is_finite() or self.entry_price <= 0:
-            raise ValueError("VT08 fill entry price must be positive finite")
+        if (
+            not isinstance(self.entry_price, Decimal)
+            or not self.entry_price.is_finite()
+            or self.entry_price <= 0
+        ):
+            raise ValueError("VT08 fill entry price must be positive finite Decimal")
         if re.fullmatch(r"[0-9a-f]{64}", self.evidence_sha256) is None:
             raise ValueError("VT08 fill requires SHA256 evidence digest")
+        if type(self.research_only) is not bool or type(self.broker_order_authorized) is not bool:
+            raise ValueError("VT08 fill authority flags must be exact bool")
         if not self.research_only or self.broker_order_authorized:
             raise ValueError("VT08 cognitive fill is research-only")
 
@@ -150,8 +156,12 @@ class Vt08ResearchTerminalEvidence:
             raise ValueError("VT08 terminal settlement needs source/market/fill identity")
         if self.closed_at.tzinfo is None or self.closed_at.utcoffset() is None:
             raise ValueError("VT08 terminal settlement requires timezone-aware close")
-        if not self.exit_price.is_finite() or self.exit_price <= 0:
-            raise ValueError("VT08 terminal exit price must be positive finite")
+        if (
+            not isinstance(self.exit_price, Decimal)
+            or not self.exit_price.is_finite()
+            or self.exit_price <= 0
+        ):
+            raise ValueError("VT08 terminal exit price must be positive finite Decimal")
         if self.terminal_reason not in {
             "STOP", "TARGET", "H4_LIFECYCLE", "EXTERNAL_CLOSE", "OTHER",
         }:
@@ -161,6 +171,8 @@ class Vt08ResearchTerminalEvidence:
             or re.fullmatch(r"[0-9a-f]{64}", self.fill_evidence_sha256) is None
         ):
             raise ValueError("VT08 terminal evidence requires SHA256 lineage")
+        if type(self.research_only) is not bool or type(self.broker_order_authorized) is not bool:
+            raise ValueError("VT08 terminal authority flags must be exact bool")
         if not self.research_only or self.broker_order_authorized:
             raise ValueError("VT08 terminal settlement is research-only")
 
