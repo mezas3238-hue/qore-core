@@ -433,7 +433,7 @@ def report(root: Path, output: Path) -> dict[str, Any]:
         "no_new_trader_or_PF": True,
     }
     output.mkdir(parents=True,exist_ok=True)
-    (output/"qore-london-issue775-E2-eurgbp-H4-divergence-results.json").write_text(
+    (output/"qore-london-issue775-E2-eurgbp-H4-observed-results.json").write_text(
         json.dumps(out,indent=2,sort_keys=True)+"\n",encoding="utf-8"
     )
     print("E2_LONDON_H4_INTERACTION",json.dumps(out,sort_keys=True))
