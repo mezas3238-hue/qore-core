@@ -228,7 +228,8 @@ def verify_causal_event(
     poi = event.get("poi")
     if not isinstance(poi, dict):
         raise BMethodologyBoundaryError("missing source-family POI")
-    if poi.get("type") not in own["POI"]["poi_allowed_for_this_family"]:
+    allowed = own["POI"]["poi_allowed_for_this_family"]
+    if not isinstance(allowed, list) or poi.get("type") not in allowed:
         raise BMethodologyBoundaryError("POI not sourced for this exact family")
     _closed_proof(poi.get("source_proof"), "family_poi", before=entry)
     for role in ("cisd", "protected_swing"):
@@ -266,7 +267,7 @@ def verify_causal_event(
         "dual_sweep_adjudicated"
     ) is not True:
         # Explicit exclusion, not a silent Model A or Model B classification.
-        blockers = ("B_SOURCE:C2_DUAL_SWEEP_UNADJUDICATED",)
+        blockers: tuple[str, ...] = ("B_SOURCE:C2_DUAL_SWEEP_UNADJUDICATED",)
     else:
         blockers = ()
     if event.get("body_engulf_strong_proxy") is True and event.get(
