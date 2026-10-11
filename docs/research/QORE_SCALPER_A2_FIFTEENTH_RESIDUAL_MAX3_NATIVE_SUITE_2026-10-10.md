@@ -46,3 +46,56 @@ Pre-registro de métricas de investigación:
 5. **Familias y mercados**: todos los anteriores se reportan sin filtros, con n exacto y coverage, para no presentar un sesgo de supervivencia o etiquetar mejora económica positiva como rentable.
 
 **Estado**: MFE/MAE, aleatorio H1 y etapa Sweep/CISD son experimentos de nueva run; no escribir métricas inventadas hasta que el workflow complete 11/11. Cada limitación documentada NO CERTIFICABLE. Fuente POI HTF de TTrades, 504 H1 sin testigo 60/60 y el swing M15 siguen sujetos a certificación independiente.
+
+---
+
+## 4. Resultados del recálculo sobre MAX3 real, [GitHub Actions #38104940494 SUCCESS 11/11](https://github.com/mezas3238-hue/qore-core/actions/runs/38104940494)
+
+**Conciliación**: 9 mercados, 2020 V49, 1997 causal-first (ninguna operación sintética nueva), y 1997/1997 recibos causales de etapa CISD reconstruidos desde M1 nativo. Las etiquetas MFE/MAE y +H son EX-POST, no decisiones.
+
+### MFE/MAE desde entrada hasta vela previa al cierre
+
+| Métrica R o N | V49 n2020 | Causal-first n1997 |
+|---|---:|---:|
+| MFE media preterminal | **0.3436439303R** | **0.4492380416R** |
+| MAE media preterminal | 0.4655322672R | 0.4739126085R |
+| MFE media de ganadoras | 0.3692437538R | 0.4792047209R |
+| MFE media de perdedoras | 0.3079751033R | 0.4084761432R |
+| Perdedores con MFE preterminal >=0.5R | 138 | **189** |
+| Perdedores con MFE preterminal >=1R | 39 | **59** |
+| Media neta realizada por trade | -0.1154798649R | -0.0546096091R |
+
+La MFE tiene mayor recorrido favorable, pero el mayor número de perdedoras que ANTES mostraron +0.5/+1R demuestra que retorno disponible ex-post no garantiza salida capturable. MFE/MAE terminal incluían máximos y mínimos intrabar de última vela solo como **cotas**, no se infiere orden secuencial real de hits; 3 casos de empate stop/target STOP-FIRST en ambos libros.
+
+### Nulo temporal H1 mismo estado (sin H1.until futuro)
+
+Para cada trade causal-first elegido realmente MAX3 se compara precio firmado CLOSE+H con **32 muestras deterministas por ID** de instantes M1 permitidos por el mismo estado H1/sesión, antes de conocer cada outcome. Dos nulos: instantes uniformes y mismo tercio de 20 min del reloj. No son fills ni arriesgan dinero; los denominadores son observaciones con cobertura completa y no 1997*32 necesariamente.
+
+| H | Causal-first favorable | H1 nulo uniforme favorable | H1 nulo tercio de 20 min |
+|---|---:|---:|---:|
+| +15m | 942/1961 = **48.04%** | 33208/62565 = **53.08%** | 33234/62671 = 53.03% |
+| +30m | 894/1909 = **46.83%** | 33432/61136 = **54.68%** | 34661/61258 = 56.58% |
+| +60m | 878/1815 = **48.37%** | 33520/58113 = **57.68%** | 34217/58115 = 58.88% |
+
+El nulo H1 supera al selector causal-first todavía, **no** es un nulo de rentabilidad y está condicionado a selección fuente V49 de su estado H1. No usar su ventaja para colocar trades al azar ni aprobar un filtro optimizado.
+
+### Punto de destrucción de Sweep/FVG hacia CISD (nuevo dataset, NO V49)
+
+No se interpolaron precios, ni se aceptó un stage faltante. Para cada source-ID se mide POSITIVO de CLOSE+H del bar de barrido/FVG inicial y del bar final CISD, y se empareja sólo si ambos horizontes están completos. **1997 de 1997** entradas online tienen etapa reconstruida.
+
+| Familia | H | Emparejados | Stage temprano positivos | CISD positivos | CISD - temprano |
+|---|---:|---:|---:|---:|---:|
+| Sweep+CISD | 15 | 1096 | 670 | 520 | **-13.6861pp** |
+| Sweep+CISD | 30 | 1068 | 623 | 506 | **-10.9551pp** |
+| Sweep+CISD | 60 | 1017 | 563 | 486 | **-7.5713pp** |
+| FVG+CISD | 15 | 864 | 445 | 422 | **-2.6620pp** |
+| FVG+CISD | 30 | 840 | 422 | 388 | **-4.0476pp** |
+| FVG+CISD | 60 | 797 | 406 | 392 | **-1.7566pp** |
+
+La degradación Sweep sigue siendo material tras corregir la primera selección (comparar con fenómeno histórico de ~12.56 pp sin asumir mismo n); el grupo FVG tiene degradación menor. Esto NO demuestra que entrar prematuramente en un sweep sea causalmente ejecutable ni que un nuevo stop/target con coste real sobreviva. Debe evitarse optimización post-outcome de entrada temprana.
+
+### Diagnóstico residual y condiciones de paso
+
+- **PF0.8425 y -109.055R BRUTO**; no rentable/certificable, tampoco BID/ASK físico. Las dos familias contribuyen; la ganancia media aumentó por timing+target+composición.
+- No se puede afirmar que el problema de los stops haya desaparecido: stop original M15 conserva riesgo -1R al hit, y hay 189 perdedoras que antes tuvieron excursion >=0.5R. Hace falta factorial stop M15/M1 sin hard-veto nuevo.
+- La generación H1/M15 original y el POI autor siguen condicionando el universo 2876; no reconstruir fuera de esas fuentes hasta tener suite completa. World Model congelado.
