@@ -408,7 +408,7 @@ def combine(root: Path, output: Path) -> dict[str, Any]:
     for sym, pat in pairs:
         key = f"{sym}:{pat}"
         trade_rows = [x for x in all_events
-                      if x.symbol == sym and x.pattern == pat and x.entry_at is not None]
+                      if x.symbol == sym and x.pattern == pat and x.reason == "SIGNAL_CONFIRMED"]
         reports[key] = {
             "gross": metrics(trade_rows, COSTS[0]),
             "cost_0p025R_hypothetical": metrics(trade_rows, COSTS[1]),
