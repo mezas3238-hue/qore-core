@@ -9,14 +9,14 @@ import pytest
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
 )
-from qore.infrastructure.trader_lab.capitalizer_scalper_issue770_1to1_market_v1 import (
-    barrier_prices,
-    scan,
-)
 from qore.infrastructure.trader_lab.capitalizer_scalper_issue770_1to1_aggregate_v1 import (
     COSTS,
     cohort_metrics,
     quantile,
+)
+from qore.infrastructure.trader_lab.capitalizer_scalper_issue770_1to1_market_v1 import (
+    barrier_prices,
+    scan,
 )
 
 AT=datetime(2026,1,2,14,0,tzinfo=UTC)
