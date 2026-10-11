@@ -56,7 +56,7 @@ class Bar:
     opened: datetime
     o: float
     h: float
-    l: float
+    low: float
     c: float
 
 
@@ -82,7 +82,7 @@ def archive_validation(symbol: str, source: Path) -> None:
     cutoff = datetime.fromisoformat(str(metadata.get("fresh_cutoff"))).astimezone(UTC)
     if cutoff != RESERVED_CUTOFF:
         raise ValueError("VT08 reserved cutoff changed")
-    if not original["account_is_live"] is False:
+    if original["account_is_live"] is not False:
         raise ValueError("source not verified DEMO")
     if original["environment"] != "demo":
         raise ValueError("source environment differs from DEMO")
@@ -121,13 +121,13 @@ def iter_pre_cutoff(source: Path, period: str) -> Iterator[Bar]:
                 prev = opened
                 c = float(match.group(1))
                 h = float(match.group(3))
-                l = float(match.group(4))
+                low = float(match.group(4))
                 o = float(match.group(5))
-                if not all(isfinite(v) and v > 0 for v in (c, h, l, o)):
+                if not all(isfinite(v) and v > 0 for v in (c, h, low, o)):
                     raise ValueError("nonpositive/nonfinite OHLC")
-                if l > min(o, c) or h < max(o, c) or h < l:
+                if low > min(o, c) or h < max(o, c) or h < low:
                     raise ValueError("invalid OHLC extrema")
-                yield Bar(opened=opened, o=o, h=h, l=l, c=c)
+                yield Bar(opened=opened, o=o, h=h, low=low, c=c)
                 pos = match.end()
                 if view[pos:pos+1] == b",":
                     pos += 1
@@ -158,7 +158,7 @@ def true_range_atr(m15: list[Bar]) -> float:
     if len(m15) != 15:
         raise ValueError("ATR needs 15 completed M15 bars")
     ranges = [
-        max(b.h - b.l, abs(b.h - a.c), abs(b.l - a.c))
+        max(b.h - b.low, abs(b.h - a.c), abs(b.low - a.c))
         for a, b in zip(m15, m15[1:])
     ]
     return mean(ranges)
@@ -168,9 +168,9 @@ def setup_direction(reference: list[Bar], event: list[Bar], atr: float) -> str |
     if len(reference) != 96 or len(event) != 12 or atr <= 0:
         return None
     hi = max(bar.h for bar in reference)
-    lo = min(bar.l for bar in reference)
+    lo = min(bar.low for bar in reference)
     upper = max(b.h for b in event) > hi + 0.10 * atr
-    lower = min(b.l for b in event) < lo - 0.10 * atr
+    lower = min(b.low for b in event) < lo - 0.10 * atr
     if upper and lower:
         return None
     if not (lo <= event[-1].c <= hi):
@@ -197,8 +197,8 @@ def execute_proxy(
     exit_kind = "TIME"
     gross_r = sign * (exit_price - entry) / risk
     for bar in period:
-        stop_hit = bar.l <= stop if sign == 1 else bar.h >= stop
-        target_hit = bar.h >= target if sign == 1 else bar.l <= target
+        stop_hit = bar.low <= stop if sign == 1 else bar.h >= stop
+        target_hit = bar.h >= target if sign == 1 else bar.low <= target
         if stop_hit:
             exit_kind, exit_price, gross_r = "STOP_FIRST", stop, -1.0
             break
