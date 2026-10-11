@@ -75,6 +75,7 @@ def summarize_coverage(observed: Iterable[datetime]) -> dict[str, object]:
     bins: dict[str, Counter[datetime]] = {key: Counter() for key, _ in CLOCKS}
     ny_counts: dict[str, Counter[datetime]] = {key: Counter() for key in H4_NY_HYPOTHESES}
     count = 0
+    daily_presence: dict[date, set[int]] = {}
     previous: datetime | None = None
     missing_minutes_inside_span = 0
     gap_events = 0
@@ -98,6 +99,7 @@ def summarize_coverage(observed: Iterable[datetime]) -> dict[str, object]:
             first = at
         last = at
         count += 1
+        daily_presence.setdefault(at.date(), set()).add(at.hour * 60 + at.minute)
         for key, minutes in CLOCKS:
             bins[key][bucket_start(at, minutes)] += 1
         for name, hours in H4_NY_HYPOTHESES.items():
@@ -141,7 +143,39 @@ def summarize_coverage(observed: Iterable[datetime]) -> dict[str, object]:
             "complete_fraction_of_observed_nonempty_bins": round(completed / len(cc), 6) if cc else None,
             "not_an_author_clock_certification": True,
         }
+    # Source-only diagnosis of the Daily 1440/1440 issue. The 1300
+    # threshold is a descriptive coverage cohort, NOT a trading filter,
+    # NOT an author rule, and does not establish that a missing minute
+    # equals an exchange feed outage rather than an empty activity bar.
+    dense = [minutes for minutes in daily_presence.values() if len(minutes) >= 1300]
+    missing_slots: Counter[int] = Counter()
+    missing_count_distribution: Counter[int] = Counter()
+    for seen in dense:
+        missing = set(range(1440)) - seen
+        missing_slots.update(missing)
+        missing_count_distribution[len(missing)] += 1
+    missing_by_minute = sorted(missing_slots.items(), key=lambda x: (-x[1], x[0]))
+    dense_day_diagnostic = {
+        "exploratory_QORE_threshold_m1_per_utc_day": 1300,
+        "days_meeting_threshold": len(dense),
+        "observed_daily_bins_total": len(daily_presence),
+        "days_with_1438_m1": sum(len(x) == 1438 for x in daily_presence.values()),
+        "days_with_1440_m1": sum(len(x) == 1440 for x in daily_presence.values()),
+        "missing_minutes_per_dense_day_counts": {
+            str(missing): count for missing, count in sorted(missing_count_distribution.items())
+        },
+        "most_frequent_missing_utc_minute_slots": [
+            {"minute_of_utc_day": minute, "utc_hhmm": f"{minute // 60:02d}:{minute % 60:02d}",
+             "days_missing": missing_count}
+            for minute, missing_count in missing_by_minute[:15]
+        ],
+        "missing_minute_cause_unclassified": True,
+        "no_forward_fill": True,
+        "not_native_daily_validation": True,
+    }
+
     return {
+        "dense_utc_day_missing_minute_diagnostic": dense_day_diagnostic,
         "ny_h4_hypothesis_bins": ny_results,
         "retained_m1_in_window": count,
         "first_observed_m1_utc": first.isoformat() if first else None,
@@ -231,6 +265,7 @@ def main() -> None:
         "m1": result["retained_m1_in_window"],
         "utc_bins": result["utc_bins"],
         "ny_h4_hypothesis_bins": result["ny_h4_hypothesis_bins"],
+        "dense_utc_day_missing_minute_diagnostic": result["dense_utc_day_missing_minute_diagnostic"],
         "data_gate_b_certified": result["data_gate_b_certified"],
         "fresh_holdout_eligible": result["fresh_holdout_eligible"],
     }, sort_keys=True))
