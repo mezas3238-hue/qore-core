@@ -1,7 +1,7 @@
 """QORE Native G0: source-only integrity & paired M1 clock, no financial outcomes."""
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 import pytest
