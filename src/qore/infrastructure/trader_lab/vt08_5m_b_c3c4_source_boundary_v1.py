@@ -6,7 +6,6 @@ A owns methodology/source rules. B owns non-lookahead admission boundary.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 from collections import Counter
 from datetime import UTC, datetime, timedelta
