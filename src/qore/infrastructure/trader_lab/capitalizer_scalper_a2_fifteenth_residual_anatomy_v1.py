@@ -8,17 +8,15 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
 from typing import Any
 
-from qore.infrastructure.trader_lab.capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1 import (
-    candidate_key,
-    original_key,
-    source_key,
+from qore.infrastructure.trader_lab import (
+    capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1 as original_keys,
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 import (
     _jsonl,
@@ -32,7 +30,9 @@ from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import
 IDENTITY = "QORE_SCALPER_A2_FIFTEENTH_FROZEN_1997_RESIDUAL_ANATOMY_V1"
 
 
-def read(root: Path) -> tuple[list[dict[str, Any]], tuple[V49EconomicTrade, ...], tuple[V49EconomicTrade, ...]]:
+def read(
+    root: Path,
+) -> tuple[list[dict[str, Any]], tuple[V49EconomicTrade, ...], tuple[V49EconomicTrade, ...]]:
     rows = [x for p in sorted(root.rglob("scalper-audit14-ids.jsonl")) for x in _jsonl(p)]
     old = tuple(V49EconomicTrade(**x) for p in sorted(
         root.rglob("capitalizer-*-v49-development-economics-trades.jsonl")
@@ -44,9 +44,9 @@ def read(root: Path) -> tuple[list[dict[str, Any]], tuple[V49EconomicTrade, ...]
         raise ValueError("frozen Audit14 nine-market population changed")
     if len({x["source_opportunity_id"] for x in rows}) != 2876:
         raise ValueError("duplicate source ID")
-    if len({source_key(x) for x in rows}) != 2876:
+    if len({original_keys.source_key(x) for x in rows}) != 2876:
         raise ValueError("original source trade key collided")
-    if len({candidate_key(x) for x in rows if x["status"] == "ELIGIBLE"}) != len(new):
+    if len({original_keys.candidate_key(x) for x in rows if x["status"] == "ELIGIBLE"}) != len(new):
         raise ValueError("eligible source candidate key collided")
     return rows, old, new
 
@@ -82,18 +82,18 @@ def partition(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def anatomy(root: Path) -> dict[str, Any]:
     rows, old, new = read(root)
-    source_by_old = {source_key(x): x for x in rows}
-    source_by_new = {candidate_key(x): x for x in rows if x["status"] == "ELIGIBLE"}
-    if ({original_key(t) for t in old} != set(source_by_old)
-            or {original_key(t) for t in new} != set(source_by_new)):
+    source_by_old = {original_keys.source_key(x): x for x in rows}
+    source_by_new = {original_keys.candidate_key(x): x for x in rows if x["status"] == "ELIGIBLE"}
+    if ({original_keys.original_key(t) for t in old} != set(source_by_old)
+            or {original_keys.original_key(t) for t in new} != set(source_by_new)):
         raise ValueError("source-ID joins incomplete; never infer IDs from PnL")
     old_selected = tuple(t for _, t in _portfolio_select(old))
     new_selected = tuple(t for _, t in _portfolio_select(new))
     if len(old_selected) != 2020 or len(new_selected) != 1997:
         raise ValueError("frozen MAX3 selection changed")
-    old_map = {source_by_old[original_key(t)]["source_opportunity_id"]: t
+    old_map = {source_by_old[original_keys.original_key(t)]["source_opportunity_id"]: t
                for t in old_selected}
-    new_map = {source_by_new[original_key(t)]["source_opportunity_id"]: t
+    new_map = {source_by_new[original_keys.original_key(t)]["source_opportunity_id"]: t
                for t in new_selected}
     if len(old_map) != 2020 or len(new_map) != 1997:
         raise ValueError("MAX3 IDs collided")
@@ -143,8 +143,12 @@ def anatomy(root: Path) -> dict[str, Any]:
     metrics_old=_metrics(old_selected)
     metrics_new=_metrics(new_selected)
     if (
-        abs(Decimal(metrics_old.profit_factor or "0")-Decimal("0.6644630742216047"))>Decimal("0.000001")
-        or abs(Decimal(metrics_new.profit_factor or "0")-Decimal("0.8425240504779709"))>Decimal("0.000001")
+        abs(
+            Decimal(metrics_old.profit_factor or "0")-Decimal("0.6644630742216047")
+        )>Decimal("0.000001")
+        or abs(
+            Decimal(metrics_new.profit_factor or "0")-Decimal("0.8425240504779709")
+        )>Decimal("0.000001")
     ):
         raise ValueError("primary Audit14 P&L must reproduce exactly")
     def summarize_trades(trades:tuple[V49EconomicTrade,...])->dict[str,Any]:
