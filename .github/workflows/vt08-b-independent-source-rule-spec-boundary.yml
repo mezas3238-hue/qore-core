@@ -1,0 +1,74 @@
+name: VT08 B Independent Source Rule Spec Boundary
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_5m_b_methodology_spec_boundary_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_5m_b_methodology_spec_boundary_v1.py
+      - .github/workflows/vt08-b-independent-source-rule-spec-boundary.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  contract-without-producer-source-code:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      # No checkout of Architect A's branch or import of A methodology modules.
+      # This is an independent B-owned textual-contract/chronology consumer.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Independent Ruff Mypy and adversarial B source-contract tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_5m_b_methodology_spec_boundary_v1.py tests/infrastructure/trader_lab/test_vt08_5m_b_methodology_spec_boundary_v1.py
+          mypy src/qore/infrastructure/trader_lab/vt08_5m_b_methodology_spec_boundary_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_5m_b_methodology_spec_boundary_v1.py
+      - name: Read B-only frozen C3/C4 source census, never producer code
+        uses: actions/download-artifact@v4
+        with:
+          repository: mezas3238-hue/qore-core
+          run-id: 38098119759
+          github-token: ${{ github.token }}
+          name: vt08-b-c3c4-m15-real-source-independent-90c5337cbb30b4ccb73459143cb1275f6accfada
+          path: input
+      - name: Adjudicate 129 proxies 36 QORE engulf and 105 D sweeps separately
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_5m_b_methodology_spec_boundary_v1 import audit_proxy_metrics
+          source = json.loads(Path("input/vt08-b-independent-real-c3c4-294-source-verification.json").read_text())
+          expected = {
+              "c3_shapes": source["verified_source_shapes"],
+              "c4_owner": source["c4_owner_permitted"],
+              "outside_qore_owner": source["c4_outside_owner"],
+              "c2_dual_sweep_unadjudicated": source["c2_dual_sweep_unadjudicated"],
+              "cisd_ps_m15_formal_proxy": source["c3_internal_ps_proxy"],
+              "qore_strict_full_body_engulf_geometry": source["c3_body_engulf_strong_proxy"],
+              "source_confirmed_cisd_ps": source["source_complete"],
+              "executed_trades": source["fills"],
+              "proxy_density_extrapolation": None,
+              "qore_body_engulf_rule_tag": "C",
+              "body_engulf_source_verified": False,
+              "dual_sweep_rule_tag": "D",
+          }
+          report = audit_proxy_metrics(expected)
+          path = Path("artifacts/vt08-b-failclosed-spec-proxy-taxonomy-v1.json")
+          path.write_text(json.dumps(report, indent=2, sort_keys=True))
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-independent-source-spec-no-producer-${{ github.sha }}
+          path: artifacts/*.json
+          if-no-files-found: error
+          retention-days: 30
