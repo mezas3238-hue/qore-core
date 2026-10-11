@@ -25,9 +25,9 @@ from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import 
     _poi_direction_compatible,
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
+    DEFAULT_LOOKBACK,
     DEV_WINDOW_END,
     DEV_WINDOW_START,
-    DEFAULT_LOOKBACK,
     V49Opportunity,
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 import (
