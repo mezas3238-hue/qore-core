@@ -1,6 +1,6 @@
 """Native cTrader DEMO EURUSD historical BID/ASK tick acquisition — G0 source audit.
 
-Official Spotware ProtoOAGetTickDataReq only. Not Dukascopy, bar interpolation,
+Official Spotware ProtoOAGetTickDataReq only. No external quote sources, bar interpolation,
 order flow or trading. No refresh token consumed: unsafe rotation fails closed.
 """
 from __future__ import annotations
