@@ -31,7 +31,7 @@ La variable es **reversión del cierre a +60m ≥0,25×AsiaRange** a partir de c
 | H4 desconocido por cobertura M1 | 76 | 77 |
 | Total checkpoints previos | **227** | **231** |
 
-305/458 obtuvieron H4 proxy válido (**66,6%**), pero al restringir a los 2 estados `RECLAIM/ACCEPTED` empleados por la interacción hay **282 casos con H4 válido** (136 EUR y 146 GBP), de un total de 424? CORRECCIÓN: **430 casos R/A** en el ledger inmutable (EUR 94+115=209; GBP 92+123=215; **424**), por tanto 282/424=66,5%. El número 430 no debe usarse: denominador real 424. No imputar los 142 restantes; advertir sesgo de selección por disponibilidad de H4.
+305/458 obtuvieron H4 proxy válido (**66,6%**). Al restringir a los dos estados `RECLAIM/ACCEPTED` empleados por la interacción hay **282 casos con H4 válido** (136 EUR y 146 GBP), de **424 casos R/A originales** (EUR: 94+115=209; GBP: 92+123=215): **282/424=66,5%**. No imputar los 142 restantes; advertir sesgo de selección por disponibilidad de H4.
 
 | Célula E2, H4 válido | RECLAIM — reversión | ACCEPTED — reversión |
 |---|---:|---:|
