@@ -117,7 +117,9 @@ jobs:
           import json
           from pathlib import Path
           out=Path("native-tick-g0/source-gate-unavailable.json")
-          if not (Path("native-tick-g0/source-coverage-manifest.json")).is_file():
+          # Keep the runner's detailed, sanitized account-list diagnostic.
+          # Only create a generic witness when the Python process emitted none.
+          if not (Path("native-tick-g0/source-coverage-manifest.json")).is_file() and not out.is_file():
               out.write_text(json.dumps({
                   "identity":"QORE_NATIVE_RESET_CTRADER_DEMO_TICK_G0_V1",
                   "status":"SOURCE_G0_AUTH_OR_PROVIDER_BLOCKED",
