@@ -1,0 +1,78 @@
+name: QORE London T0 External BidAsk Tick Probe EURUSD GBPUSD
+
+on:
+  push:
+    branches:
+      - research/london-tick-bidask-t0-targeted-20261011
+    paths:
+      - '.github/workflows/qore-london-t0-public-bidask-tick-probe.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_london_tick_t0_probe_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_london_tick_t0_probe_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FROZEN_LONDON_RUN: '38146670174'
+  FROZEN_LONDON_SHA: '8f358f80bcc18ff9bafea75a95d111404de57537'
+
+jobs:
+  test_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_london_tick_t0_probe_v1.py
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_london_tick_t0_probe_v1.py tests/infrastructure/trader_lab/test_qore_london_tick_t0_probe_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_london_tick_t0_probe_v1.py
+
+  probe_public_quotes:
+    needs: test_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download ONLY frozen original London M1 case ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: issue775-LONDON-*-${{ env.FROZEN_LONDON_SHA }}
+          path: frozen-london
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FROZEN_LONDON_RUN }}
+      - name: Inspect all 34 frozen London dual-touch cases against external BID ASK
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_london_tick_t0_probe_v1 frozen-london tick-T0
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          x=json.loads(Path('tick-T0/issue777-london-t0-public-bidask-targeted-probe.json').read_text())
+          assert x['frozen_original_ambiguous_count']=={'EURUSD':18,'GBPUSD':16}
+          assert x['cases_queried']==34
+          assert x['external_broker_not_verified']
+          assert x['limited_to_London_EURUSD_GBPUSD']
+          assert all(not row['adjudicated_broker_execution'] for row in x['cases'])
+          assert x['no_pnl_certification_or_execution_claim']
+          print('T0_INSTRUMENTATION_RESULT',json.dumps({
+            'cases_queried':x['cases_queried'],
+            'source_states':[r['quote_status'] for r in x['cases']],
+            'source_first_touches':[r['tick_first_touch_status'] for r in x['cases']],
+            'fixture':x['provider_fixture_2025_11_12_09utc'],
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: issue777-LONDON-T0-targeted-tick-evidence-${{ github.sha }}
+          path: tick-T0/
+          if-no-files-found: error
+          retention-days: 90
