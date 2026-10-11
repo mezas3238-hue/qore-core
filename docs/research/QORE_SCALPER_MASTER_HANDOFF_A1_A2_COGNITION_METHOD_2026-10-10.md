@@ -516,3 +516,26 @@ De 2020 identidades originales, alternativa conserva **1947**; salen **73**, ent
 ### 16.5 Corrección final de cronología H1 con ventana original (14 días)
 
 GitHub Actions #38102651079 SUCCESS cruzó por ID las auditorías H1 y CISD usando exactamente los 14 días de historial de V49: 2876/2876 eventos H1 con testigo interno; 2372 con dos velas completas 60/60, 504 sin doble testigo completo. Hubo 152 orígenes con cierre de H1 registrado fuera de HH:00 UTC, pero CERO confirmaciones M15 o entradas M1 previas al verdadero final horario en esas 152. Las cifras anteriores de 111 sin origen, 609 sin 60/60 y 151 offclock fueron producto del ensayo con 15 días de lookback y quedan sustituidas. Aún falta certificar OHLC de las velas parciales, POI de temporalidad superior y protected swing frente a la fuente original. Este resultado no cambia los PF/DD brutos de la sección 16.1 ni autoriza LIVE.
+
+---
+
+# 17. AUDITORÍA DECIMOQUINTA — RESIDUALES MAX3 PRIMER ONLINE, SIN FILTROS NI EXPANSIÓN
+
+**Documento principal:** [QORE_SCALPER_A2_FIFTEENTH_RESIDUAL_MAX3_NATIVE_SUITE_2026-10-10.md](QORE_SCALPER_A2_FIFTEENTH_RESIDUAL_MAX3_NATIVE_SUITE_2026-10-10.md).
+
+### 17.1 Clasificación por ID completada ([GH Actions #38104619725 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38104619725))
+
+El replay bruto causal-first source-anchored sigue **PF0.842524**, **DD114.799099R**, **-109.055389R**; no es rentable ni certificable. Nueva clasificación reconcilia 2876 sources, 2020 MAX3 V49 y 1997 MAX3 primera detección, sin cambio de admisiones. **36** candidatas con SL M15 inviable se reparten Asia/Londres/Nueva York 13/11/12; **24** sin objetivo H1 se reparten 8/4/12. Las 60 tienen instante online cambiado; NO son nuevos vetos a la política original.
+
+MAX3 original pierde 73 IDs (Asia 28, Londres 17, NY 28) y suma 50 (Asia 22, Londres 6, NY 22); de las 50 entrantes **32 Sweep+CISD** y **18 FVG+CISD**. **32 ganadores originales** que siguen en MAX3 pasan a perdedores; todos entraron temprano (adelanto mediano **33 min**), ninguno cambió su M15 stop price y **20** cambiaron el objetivo H1. **25** transiciones TARGET→STOP; 4 TARGET→SESSION_EXIT; 2 SESSION_EXIT→STOP; 1 SESSION_EXIT→SESSION_EXIT. Esto descarta que 'entry antes siempre gana' y advierte que nuevas variantes no pueden vetar estos 32 por conocer outcome.
+
+Geometría nueva: media de ganancia por ganador **0.395838R→0.505603R**, media pérdida **0.815977R→0.823449R**, mediana target previsto **0.442623R→0.537037R**, cantidad de targets previstos >=1R **451→549**, cantidad con targets <0.5R **1104→935**. Son cambios conjuntos en timing, familia, target e identidades MAX3; atribuir toda la mejora a un mecanismo único requiere ablation aislada. PF por familia (cohorte variable) Sweep **0.5924→0.8531**, FVG **0.7480→0.8236**; NO usar para seleccionar familia. Por mercado mejora el PF en los nueve, pero sólo AUDUSD PF bruto **1.028** de 170 ops cruzó ligeramente 1 y NO se recomienda aislarlo a posteriori.
+
+### 17.2 Suite científica preregistrada sobre 1997 MAX3
+
+- `capitalizer_scalper_a2_fifteenth_residual_anatomy_v1.py` + workflow `qore-scalper-a2-fifteenth-residual-anatomy.yml`: ledger por ID 60/73/50/32, target/stop y PF por mercado y familia, artefacto SUCCESS.
+- `capitalizer_scalper_a2_fifteenth_native_forensics_v1.py` + `qore-scalper-a2-fifteenth-native-reaudit-nine-market.yml`: lectura independiente M1 nativa en los nueve mercados, reconstruye excursiones **MFE/MAE** preterminal y terminal, **H1 random same-state** 32 draws semilla fija por ID, y **Sweep/FVG→CISD** de cada entrada realmente seleccionada online; guarda coverage y excepciones as-of. Compara contra 2020 V49. Toda prueba queda sin autorización hasta CI nueve mercados GREEN.
+- `capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1.py` + `qore-scalper-a2-fifteenth-online-stop-factorial.yml`: M15/M1 causal pivot + ruido 2×2 sobre las mismas 1997 identidades; cuatro alternativas estrictamente fijas sin recomponer MAX3 ni escoger best por outcomes, sin BID/ASK. Cualquier fallo de test/CI BLOCKED, NO efectuar cambio a stop en V49/producción.
+- La fuente TTrades Candle2 exige barrido extremo previo y cierre dentro del rango contra POI HTF; aunque 2876/2876 C2/C3 reproducen POI QORE con lookback correcto de 14d, fidelidad HTF autor y swing M15 todavía UNRESOLVED, 504 sin dos testigos H1 60/60.
+- Regenerar posteriormente universo H1→M15→M1 completo SIN ancla de 2876 originales; no optimizar usando el dev ya observado. BID/ASK/comisiones reales únicamente son test físico después de PF bruto >1; no falsear spreads de provider.
+- **World Model sigue congelado.** PR #759 DRAFT, no LIVE, no VPS, no merge.
