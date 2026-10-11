@@ -18,6 +18,9 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab import (
+    capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1 as keys,
+)
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     iter_cibo_m1,
 )
@@ -33,9 +36,6 @@ from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v
     DEV_WINDOW_START,
     V49Opportunity,
 )
-from qore.infrastructure.trader_lab import (
-    capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1 as keys,
-)
 from qore.infrastructure.trader_lab.capitalizer_scalper_h1_direction_random_baseline_v1 import (
     DRAWS,
     MODES,
@@ -50,8 +50,10 @@ from qore.infrastructure.trader_lab.capitalizer_scalper_m1_stage_chain_forensic_
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_mfe_mae_v1 import (
     ExcursionRow,
-    _summary as excursion_summary,
     observe_market_excursions,
+)
+from qore.infrastructure.trader_lab.capitalizer_scalper_mfe_mae_v1 import (
+    _summary as excursion_summary,
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 import (
     _jsonl,
