@@ -150,10 +150,46 @@ class LondonFirstOnlineChronology(unittest.TestCase):
         result = check(D1, replace(H4, source_id=""), M15)
         self.assertIn("INVALID_EVIDENCE:h4-closed-1:MISSING_EVENT_OR_SOURCE_ID", result["blockers"])
 
-    def test_out_of_sequence_h4_vs_m15_fails(self):
+    def test_late_h4_delivery_waits_until_it_is_known(self):
         late_h4 = replace(H4, first_known_utc="2026-10-10T08:15:30Z")
-        result = check(D1, late_h4, M15)
-        self.assertIn("DAILY_H4_M15_CHAIN_NOT_FIRST_ONLINE", result["blockers"])
+        early = check(D1, late_h4, M15, at="2026-10-10T08:15:20Z")
+        self.assertIn("MISSING_CONFIRMED_ROLE:H4_SWING_CLOSED", early["blockers"])
+        later = check(D1, late_h4, M15)
+        self.assertTrue(later["chronology_pass"])
+        self.assertEqual(later["chronology_ready_not_before_utc_not_a_fill"],
+                         "2026-10-10T08:15:30+00:00")
+
+    def test_cisd_inside_unclosed_h4_is_retrospective_only_after_h4_close(self):
+        inside = replace(
+            M15, bar_open_utc="2026-10-10T07:30:00Z",
+            bar_close_utc="2026-10-10T07:45:00Z",
+            observed_until_utc="2026-10-10T07:45:00Z",
+            first_known_utc="2026-10-10T07:45:01Z",
+        )
+        premature = check(D1, H4, inside, at="2026-10-10T07:46:00Z")
+        self.assertFalse(premature["chronology_pass"])
+        self.assertIn("MISSING_CONFIRMED_ROLE:H4_SWING_CLOSED", premature["blockers"])
+        mature = check(D1, H4, inside, at="2026-10-10T08:00:05Z")
+        self.assertTrue(mature["chronology_pass"])
+        self.assertEqual(mature["m15_h4_relation"], "INTRA_H4_RETROSPECTIVE_ONLY")
+        self.assertEqual(mature["chronology_ready_not_before_utc_not_a_fill"],
+                         "2026-10-10T08:00:01+00:00")
+        self.assertFalse(mature["economic_replay_authorized"])
+
+    def test_old_m15_outside_h4_context_cannot_be_relabelled(self):
+        wrong = replace(
+            M15, bar_open_utc="2026-10-10T03:15:00Z",
+            bar_close_utc="2026-10-10T03:30:00Z",
+            observed_until_utc="2026-10-10T03:30:00Z",
+            first_known_utc="2026-10-10T03:30:01Z",
+        )
+        result = check(D1, H4, wrong)
+        self.assertIn("M15_OUTSIDE_H4_CONFIRMATION_WINDOW", result["blockers"])
+
+    def test_daily_bias_late_to_existing_structure_blocks(self):
+        late_daily = replace(D1, first_known_utc="2026-10-10T08:15:05Z")
+        result = check(late_daily, H4, M15)
+        self.assertIn("DAILY_BIAS_NOT_KNOWN_BEFORE_LOWER_STRUCTURE", result["blockers"])
 
     def test_naive_decision_timestamp_rejected(self):
         with self.assertRaisesRegex(ValueError, "EXPLICIT_UTC_REQUIRED"):
