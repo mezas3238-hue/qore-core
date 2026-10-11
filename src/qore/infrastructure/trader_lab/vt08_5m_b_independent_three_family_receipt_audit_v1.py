@@ -6,7 +6,6 @@ keeps reference-swing pre-C2, POI significance, and SOURCE_COMPLETE unproven.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 from collections import Counter
 from datetime import UTC, datetime, timedelta
@@ -254,9 +253,10 @@ def audit_market(a_file: Path, raw_file: Path) -> dict[str, object]:
     count: Counter[str] = Counter()
     for e in events:
         v = verify_receipt(e, market, indexes)
-        if v["source_event_id"] in seen:
+        identity = str(v["source_event_id"])
+        if identity in seen:
             raise BSourceReceiptError("duplicate structural source identity")
-        seen.add(str(v["source_event_id"]))
+        seen.add(identity)
         count[str(v["family"])] += 1
     if (count[C2], count[C3]) != COUNTS[market] or any(
         name not in (C2, C3) for name in count
