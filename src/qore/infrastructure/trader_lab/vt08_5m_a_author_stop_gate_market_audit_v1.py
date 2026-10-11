@@ -10,6 +10,8 @@ from pathlib import Path
 from qore.infrastructure.trader_lab.vt08_5m_a_m30m3_h1_liquidity_swing_asof_verifier_v1 import (
     ClosedExternalPivot,
     ExternalPivotKind,
+)
+from qore.infrastructure.trader_lab.vt08_5m_a_m30m3_h1_liquidity_swing_asof_verifier_v1 import (
     evaluate as independently_verify_m30m3,
 )
 from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
