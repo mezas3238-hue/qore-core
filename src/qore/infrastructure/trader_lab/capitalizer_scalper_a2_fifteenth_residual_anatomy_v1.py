@@ -104,7 +104,10 @@ def anatomy(root: Path) -> dict[str, Any]:
         raise ValueError("frozen MAX3 churn identities mismatch")
     transitions=partition(rows)
     def cohort(ids:set[str])->dict[str,Any]:
-        return partition([all_by_id[sid] for sid in sorted(ids)])["ALL"]
+        value: dict[str, Any] = partition(
+            [all_by_id[sid] for sid in sorted(ids)]
+        )
+        return dict(value["ALL"])
     changed_winners={sid for sid in kept
                      if Decimal(old_map[sid].realized_gross_r)>0
                      and Decimal(new_map[sid].realized_gross_r)<0}
@@ -236,7 +239,9 @@ def main()->None:
         json.dumps(report,indent=2,sort_keys=True)+"\n",encoding="utf-8"
     )
     print(json.dumps({key:value for key,value in report.items()
-                      if key!="winner_to_loser_receipts"},sort_keys=True))
+                      if key not in ("winner_to_loser_receipts",
+                                     "baseline_max3_source_ids",
+                                     "online_max3_source_ids")},sort_keys=True))
 
 
 if __name__=="__main__":
