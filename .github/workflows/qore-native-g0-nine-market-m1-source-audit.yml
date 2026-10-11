@@ -1,0 +1,112 @@
+name: QORE NATIVE G0 - Nine Market Provider Native M1 Integrity Audit
+
+on:
+  push:
+    branches:
+      - research/qore-native-g0-native-m1-coverage-20261011
+    paths:
+      - '.github/workflows/qore-native-g0-nine-market-m1-source-audit.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g0_m1_integrity_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g0_m1_integrity_v1.py'
+      - 'docs/research/QORE_NATIVE_G0_M1_SOURCE_INTEGRITY_PREREG_2026-10-11.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  NATIVE_M1_RUN: '35548099334'
+  NATIVE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  source_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: 'Frozen pre-data source quality contract, causal tests and lint'
+        run: |
+          test -s docs/research/QORE_NATIVE_G0_M1_SOURCE_INTEGRITY_PREREG_2026-10-11.md
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_native_g0_m1_integrity_v1.py
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g0_m1_integrity_v1.py tests/infrastructure/trader_lab/test_qore_native_g0_m1_integrity_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g0_m1_integrity_v1.py
+
+  per_market:
+    needs: source_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        symbol: [EURUSD, GBPUSD, USDJPY, AUDUSD, AUDJPY, GBPJPY, XAUUSD, USDCAD, NAS100]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: 'Download original provider native M1, no clone interpolation or substituted provider'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.NATIVE_M1_SHA }}
+          path: native
+          github-token: ${{ github.token }}
+          run-id: ${{ env.NATIVE_M1_RUN }}
+      - name: 'G0 observation only - verify raw partition digests, manifest, M15/H1 and clock coverage'
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_g0_m1_integrity_v1 market native ${{ matrix.symbol }} G0-market
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G0-${{ matrix.symbol }}-${{ github.sha }}
+          path: G0-market/
+          retention-days: 90
+          if-no-files-found: error
+
+  cross_market:
+    needs: per_market
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-native-G0-*-${{ github.sha }}
+          path: G0-markets
+      - name: 'Pair UTC minute intersections, native integrity and no OOS certification'
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_g0_m1_integrity_v1 aggregate G0-markets G0-aggregate
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("G0-aggregate/qore-native-G0-nine-market-integrity-and-pair-synchrony.json")
+          j=json.loads(p.read_text())
+          assert j["symbol_count"]==9 and j["all_source_integrity_pass"]
+          assert set(j["pair_minute_alignment"])=={
+            "EURUSD|GBPUSD","AUDUSD|GBPUSD","AUDJPY|GBPJPY"
+          }
+          assert j["G1_economics_and_signal_unopened"]
+          assert not j["fresh_unseen_OOS_accredited"]
+          assert j["live_and_production_untouched"]
+          print("QORE_NATIVE_G0_ASSERT",json.dumps({
+            "status":j["G0_status"],
+            "symbols":j["symbol_count"],
+            "pair_synchrony":j["pair_minute_alignment"],
+            "fresh_OOS":j["fresh_unseen_OOS_accredited"],
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G0-nine-market-aggregate-${{ github.sha }}
+          path: G0-aggregate/
+          retention-days: 90
+          if-no-files-found: error
