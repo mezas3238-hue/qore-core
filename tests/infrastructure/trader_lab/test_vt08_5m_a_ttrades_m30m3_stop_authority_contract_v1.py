@@ -10,9 +10,9 @@ from qore.infrastructure.trader_lab.vt08_5m_a_m30m3_h1_liquidity_swing_asof_veri
     ExternalPivotKind,
 )
 from qore.infrastructure.trader_lab.vt08_5m_a_ttrades_m30m3_stop_authority_contract_v1 import (
-    AuthorCheckStatus,
     POI_AUTHOR_ADDITIONAL_CONTEXT,
     POI_AUTHOR_CONTINUATION_HIERARCHY,
+    AuthorCheckStatus,
     inspect_bullish_m30_example,
     observed_bullish_breaker_shapes,
     stop_below_eq_and_breaker,
@@ -89,9 +89,9 @@ def test_author_stop_relation_cannot_invent_nonpositive_quote():
         )
 
 
-def test_written_rule_A_still_requires_d_swing_reference():
+def test_written_rule_a_still_requires_d_swing_reference():
     result = inspect()
-    assert result.stop_condition_written_A is True
+    assert result.stop_condition_written_a is True
     assert result.pre_c2_external_pivot_known is True
     assert result.source_eq_reference_swing_valid is False
     assert result.source_breaker_low_adjudicated is False
