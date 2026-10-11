@@ -51,6 +51,7 @@ class ProofStatus(StrEnum):
     DUAL_SWEEP_UNADJUDICATED = "DUAL_SWEEP_UNADJUDICATED"
     MULTIPLE_PS_UNADJUDICATED = "MULTIPLE_PS_UNADJUDICATED"
     NOT_FAMILY_CLOSURE = "NOT_FAMILY_CLOSURE"
+    C3_HTF_CISD_NOT_ATTESTED = "C3_HTF_CISD_NOT_ATTESTED"
 
 
 def _utc(t: datetime) -> datetime:
@@ -273,6 +274,12 @@ def evaluate_source_swing_asof(
         # no-sweep body close), as stated by the 2026-05 author model.
         if not (c2.low < c1.low or c2.high > c1.high):
             return result(ProofStatus.NOT_FAMILY_CLOSURE)
+        # Author 2026-01-10: C3 swing itself needs CISD INSIDE C3.
+        # A brand-new CISD during C4 CANNOT retroactively validate C3.
+        # Until a separately attested C3-internal PS/POI arrives, fail
+        # closed; C4 observation is only independent subsequent evidence.
+        if not ltf_bars or _utc(ltf_bars[0].opened_at) >= _utc(c3.closed_at):
+            return result(ProofStatus.C3_HTF_CISD_NOT_ATTESTED)
 
     if family is Family.C2_CLOSURE_TO_C3:
         expected_open, expected_end = _utc(c2.opened_at), _utc(c2.closed_at)
