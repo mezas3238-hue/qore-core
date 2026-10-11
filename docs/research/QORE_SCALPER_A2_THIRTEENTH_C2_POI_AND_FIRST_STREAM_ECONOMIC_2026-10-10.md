@@ -107,3 +107,16 @@ Las ventanas 15/30 tienen CI completamente por encima de +5pp en favorable **CLO
 - Regla actual de ingeniería **>=45 M1 por H1** y cierre tomado del último M1 presente contrasta con concepto de vela de H1 cerrada en su timeframe real. Se requiere refutar/confirmar si esto permite activar sesgo sin cierre HTF causal en 151 ID, **no se impone veto ni se reescriben V49**.
 
 **Próximo orden exacto:** (i) explicar 57+54 originales no reconstruidos; (ii) verificar cada H1 no-HH:00 contra entrada M1 as-of y HTF close real; (iii) confirmar POI del autor y M15 swing; (iv) reconstruir oportunidad raíz completa con first incremental + targets/stop y MAX3, y reejecutar su economía con fees/BID/ASK, fecha/mercado OOS sellado. Mientras tanto NO CERTIFICABLE.
+
+
+## 7. Verificación de secuencia H1 off-clock por ID — [#38100413220 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38100413220)
+
+Se comparó, para CADA uno de los **151 source IDs cuyo evento H1 QORE se marcó cerrado fuera de HH:00**, el cierre realmente programado de la vela (`siguiente HH:00 UTC`) contra:
+1. el timestamp de confirmación del M15 parent original, y
+2. el timestamp de la decisión M1 original.
+
+**Resultado exacto 151/151:** **0 M15 parent** anteriores al verdadero HH:00 y **0 decisiones M1** anteriores al verdadero HH:00. El nuevo ledger per-ID `offclock_causal_sequence_ledger` conserva los 151 con ambos timestamps, el límite H1 horario calculado y ambos bools para refutar este P0 específico.
+
+**Adjudicación:** las 151 etiquetas de cierre H1 técnicamente fuera de HH:00 **NO prueban que estas 151 oportunidades se activaran antes de la clausura H1 real**, pues ambas confirmaciones M15/M1 ocurrieron después del límite. La agregación 45/60 sigue siendo una desviación respecto de 60 M1 completos y una incertidumbre de calidad del candle/POI, no un caso confirmado de lookahead de entrada. No filtrar, no declarar PASS autor-fiel sin comparar OHLC oficial HTF o series completas, y no borrar el mecanismo.
+
+Run usa las mismas dos poblaciones inmutables y CI 95% de la sección 6, sin nuevos trades, optimización por outcomes ni autorización.
