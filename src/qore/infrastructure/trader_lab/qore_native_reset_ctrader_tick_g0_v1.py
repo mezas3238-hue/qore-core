@@ -9,10 +9,12 @@ import argparse
 import hashlib
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from importlib import import_module
 from pathlib import Path
+import re
 from time import sleep
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -29,7 +31,7 @@ SOURCE_RUN = 35166210458
 SOURCE_ARTIFACT = 10475354631
 QUOTE_TYPES = {"BID": 1, "ASK": 2}
 LONDON = ZoneInfo("Europe/London")
-START_YEAR = 2016
+START_YEAR = 2015
 END_YEAR = 2026
 MAX_WINDOW_MS = 604_800_000
 MIN_SECONDS_BETWEEN_REQUESTS = 0.30
@@ -44,6 +46,42 @@ class TickSourceError(RuntimeError):
 class NativeTick:
     timestamp_ms: int
     integer_price: int
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class AuthBundle:
+    """Full matching app/token alias; its secret values must never reach logs."""
+
+    source_alias: str
+    client_id: str
+    client_secret: str
+    access_token: str
+
+    def __repr__(self) -> str:
+        return "AuthBundle(source_alias=" + self.source_alias + ", secrets=<redacted>)"
+
+
+def candidate_auth_bundles(env: Mapping[str, str]) -> tuple[AuthBundle, ...]:
+    """Try 2026-09 CIBO generic secret priority then DEMO-prefixed fallback.
+
+    Never combine a token from one client application with another application
+    client id. Empty/partial bundles are ignored, identical bundles deduped.
+    """
+    bundles: list[AuthBundle] = []
+    seen: set[tuple[str, str, str]] = set()
+    for label, prefix in (
+        ("GENERIC_SECRET_ALIAS", "QORE_CTRADER_"),
+        ("DEMO_SECRET_ALIAS", "QORE_CTRADER_DEMO_"),
+    ):
+        fields = (
+            env.get(prefix + "CLIENT_ID", ""),
+            env.get(prefix + "CLIENT_SECRET", ""),
+            env.get(prefix + "ACCESS_TOKEN", ""),
+        )
+        if all(fields) and fields not in seen:
+            bundles.append(AuthBundle(label, *fields))
+            seen.add(fields)
+    return tuple(bundles)
 
 
 def probe_dates() -> tuple[date, ...]:
@@ -196,7 +234,14 @@ class ReadOnlyNativeTickSession:
             timeout_seconds=18.0,
         )
         if isinstance(result, Failure):
-            raise TickSourceError("official cTrader DEMO request refused: " + name)
+            # Propagate only allowlisted uppercase provider error codes or the
+            # sanitized error type. NEVER log token/exception free text.
+            raw = str(result.error)
+            match = re.search(r"cTrader request rejected: ([A-Z][A-Z0-9_]{0,63})", raw)
+            reason = match.group(1) if match else type(result.error).__name__
+            raise TickSourceError(
+                "official cTrader DEMO request refused: " + name + ":" + reason
+            )
         return result.value
 
     def authenticate(self, frozen_symbol_id: int) -> None:
@@ -275,16 +320,57 @@ class ReadOnlyNativeTickSession:
 
 def collect(root: Path, out_dir: Path) -> dict[str, Any]:
     frozen_symbol_id = validate_symbol_manifest(root)
-    session = ReadOnlyNativeTickSession(
-        client_id=os.getenv("QORE_CTRADER_CLIENT_ID", ""),
-        client_secret=os.getenv("QORE_CTRADER_CLIENT_SECRET", ""),
-        access_token=os.getenv("QORE_CTRADER_ACCESS_TOKEN", ""),
-        expected_account_id=os.getenv("QORE_CTRADER_DEMO_ACCOUNT_ID", ""),
-    )
     out_dir.mkdir(parents=True, exist_ok=True)
+    bundles = candidate_auth_bundles(os.environ)
+    if not bundles:
+        raise TickSourceError("no complete authorized cTrader OAuth secret bundles")
+    pinned_account_id = (
+        os.getenv("QORE_CTRADER_DEMO_ACCOUNT_ID", "")
+        or os.getenv("QORE_CTRADER_ACCOUNT_ID", "")
+    )
+    attempts: list[dict[str, str]] = []
+    session: ReadOnlyNativeTickSession | None = None
+    selected_source = ""
+    for credentials in bundles:
+        candidate: ReadOnlyNativeTickSession | None = None
+        try:
+            candidate = ReadOnlyNativeTickSession(
+                client_id=credentials.client_id,
+                client_secret=credentials.client_secret,
+                access_token=credentials.access_token,
+                expected_account_id=pinned_account_id,
+            )
+            candidate.authenticate(frozen_symbol_id)
+            session = candidate
+            selected_source = credentials.source_alias
+            attempts.append({"source_alias": selected_source, "status": "AUTHENTICATED"})
+            break
+        except TickSourceError as error:
+            # Our exception contains exclusively fixed field names/error types
+            # and uppercase provider enum codes, never credential contents.
+            attempts.append({
+                "source_alias": credentials.source_alias,
+                "status": "BLOCKED",
+                "reason": str(error),
+            })
+            if candidate is not None:
+                candidate.close()
+    if session is None:
+        (out_dir / "source-gate-unavailable.json").write_text(
+            json.dumps({
+                "identity": IDENTITY,
+                "status": "SOURCE_G0_AUTH_BLOCKED",
+                "source": "CTRADER_OPEN_API_DEMO",
+                "native_ticks_fetched": 0,
+                "attempts": attempts,
+                "secrets_disclosed": False,
+                "oauth_refresh_performed": False,
+            }, indent=2, sort_keys=True) + "\n"
+        )
+        raise TickSourceError("all configured cTrader DEMO auth aliases are blocked")
+
     results = []
     try:
-        session.authenticate(frozen_symbol_id)
         for day in probe_dates():
             from_ms, stop_ms = fixing_range_utc(day)
             by_side = {}
@@ -334,6 +420,8 @@ def collect(root: Path, out_dir: Path) -> dict[str, Any]:
         "g2_economic_test_performed": False, "broker_fills_claimed": False,
         "post2015_years_sampled": len(probe_dates()),
         "complete_bid_ask_dates": complete,
+        "selected_credential_alias": selected_source,
+        "sanitized_auth_attempts": attempts,
         "status": ("SOURCE_G0_CANDIDATE" if complete == len(probe_dates())
                    else "SOURCE_G0_PARTIAL"),
         "results": results,
