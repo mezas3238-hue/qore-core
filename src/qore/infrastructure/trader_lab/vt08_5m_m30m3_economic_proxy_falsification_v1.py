@@ -179,13 +179,15 @@ def simulate_m30_window(
                     }
                     break
                 continue
-            if not activated:
+            first_fill_in_this_bar = not activated
+            if first_fill_in_this_bar:
                 activated = True
-            if stopped or (touched and targeted):
+            if stopped or (first_fill_in_this_bar and touched and targeted):
                 ret = {
                     "status": (
                         "AMBIGUOUS_TOUCH_STOP_FIRST"
-                        if touched and (stopped or targeted) else "STOP"
+                        if first_fill_in_this_bar and (stopped or targeted)
+                        else "STOP"
                     ),
                     "gross_r": "-1", "filled": True,
                     "closed_at": bar.closed_at.isoformat(),
