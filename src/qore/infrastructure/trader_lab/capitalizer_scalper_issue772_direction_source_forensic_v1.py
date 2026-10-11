@@ -25,9 +25,6 @@ from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import 
     _aggregate,
     _build_h1_bias_events,
 )
-from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
-    CapitalizerSourceBar,
-)
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     DEFAULT_LOOKBACK,
     DEV_WINDOW_END,
@@ -36,6 +33,9 @@ from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 import (
     source_id,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerSourceBar,
 )
 
 IDENTITY="QORE_SCALPER_ISSUE772_P0_DIRECTION_CAUSAL_SOURCE_FORENSICS_V1"
@@ -263,7 +263,9 @@ def source_witness(
         "structural_h1_target_price":item.structural_target_witness_price,
         "entry_matches_native_m1_close":reference_ok,
         "stop_geometry_valid":valid_geometry,
-        "entry_distance_from_stored_swing_R":str(displacement) if displacement is not None else None,
+        "entry_distance_from_stored_swing_R":(
+            str(displacement) if displacement is not None else None
+        ),
         "causal_timestamp_failures":violations,
         "causal_timestamp_pass":not violations,
         "swing_right_candle_and_earliest_availability":"NOT_IN_SOURCE_NEEDS_INDEPENDENT_RECONSTRUCTION",
