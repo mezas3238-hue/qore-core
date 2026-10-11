@@ -1,0 +1,76 @@
+name: QORE London E3 F1 H4 Coverage and F2 Leave Five Days Out
+
+on:
+  push:
+    branches:
+      - research/london-e3-f1-f2-falsification-20261011
+    paths:
+      - '.github/workflows/qore-london-e3-f1-f2-falsification.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_london_e3_f1_f2_falsification.py'
+      - 'tests/infrastructure/trader_lab/test_qore_london_e3_f1_f2_falsification.py'
+      - 'docs/research/QORE_LONDON_E3_F1_F2_FALSIFICATION_PREREG_2026-10-11.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FROZEN_E3_RUN: '38153593288'
+  FROZEN_E3_SHA: '45516e1ea7ba54f1a13f9e81a877abe906c6c480'
+
+jobs:
+  preregistered_falsification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e '.[dev]'
+      - name: 'Fail-closed preregistration, tests and lint before economic statistics'
+        run: |
+          test -s docs/research/QORE_LONDON_E3_F1_F2_FALSIFICATION_PREREG_2026-10-11.md
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_london_e3_f1_f2_falsification.py
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_london_e3_f1_f2_falsification.py tests/infrastructure/trader_lab/test_qore_london_e3_f1_f2_falsification.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_london_e3_f1_f2_falsification.py
+      - name: 'Fetch original immutable E3 EURUSD ledgers'
+        uses: actions/download-artifact@v4
+        with:
+          name: issue775-LONDON-E3-EURUSD-${{ env.FROZEN_E3_SHA }}
+          path: frozen-e3/EURUSD
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FROZEN_E3_RUN }}
+      - name: 'Fetch original immutable E3 GBPUSD ledgers'
+        uses: actions/download-artifact@v4
+        with:
+          name: issue775-LONDON-E3-GBPUSD-${{ env.FROZEN_E3_SHA }}
+          path: frozen-e3/GBPUSD
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FROZEN_E3_RUN }}
+      - name: 'F1 H4 known and unknown vs full, F2 53 leave-one-block-out with 1000 block bootstraps each'
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_london_e3_f1_f2_falsification frozen-e3 E3-F1-F2
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("E3-F1-F2/qore-london-E3-F1-F2-falsification-results.json").read_text())
+          assert x["frozen_source_checkpoints"]==458 and x["original_dates"]==261
+          assert len(x["F2_53_fixed_chronological_blocks"])==53
+          assert x["already_inspected_history"] and x["SMT_not_tested"]
+          assert x["no_trader_or_production"]
+          assert x["E3_FULL_KNOWN_UNKNOWN"]["FULL"]["bootstrap"]["requested"]==2000
+          assert x["F2_53_fixed_chronological_blocks"][-1]["days_in_block"]==1
+          print("E3_F1_F2_VALIDATION",json.dumps({
+            "baseline":x["E3_FULL_KNOWN_UNKNOWN"],
+            "f2":x["F2_leave_one_block_summary"],
+            "two_blocks":x["F2_two_most_effect_reducing_full_blocks"],
+            "gate":x["falsification_gates"],
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: issue775-LONDON-E3-F1-F2-full-falsification-${{ github.sha }}
+          path: E3-F1-F2/
+          retention-days: 90
+          if-no-files-found: error
