@@ -1,0 +1,261 @@
+{
+  "schema": "qore.native.three_traders.handoff_gate_registry.v1",
+  "recorded_on": "2026-10-11",
+  "directive": "Investigate and certify up to three genuinely distinct QORE-native trading edges; no profit guarantees.",
+  "issue_master": "https://github.com/mezas3238-hue/qore-core/issues/789",
+  "handoff_branch": "research/qore-native-three-traders-master-handoff-20261011",
+  "live_authorized": false,
+  "production_changed": false,
+  "verified_completed": {
+    "research_charter": {
+      "status": "PUBLISHED_DRAFT",
+      "pull_request": "https://github.com/mezas3238-hue/qore-core/pull/790",
+      "scientific_result": false
+    },
+    "candidates": {
+      "status": "DEFINED_UNCERTIFIED",
+      "issues": {
+        "DRIVE": 792,
+        "RESET": 793,
+        "RELATIVE": 794
+      }
+    },
+    "G0": {
+      "status": "EXECUTED_SOURCE_INTEGRITY_PASS_WITH_PARTIAL_COVERAGE",
+      "pull_request": "https://github.com/mezas3238-hue/qore-core/pull/791",
+      "run_url": "https://github.com/mezas3238-hue/qore-core/actions/runs/38166675573",
+      "run_conclusion": "success",
+      "actions_jobs_success": 11,
+      "observed_native_M1": 3297154,
+      "number_markets": 9,
+      "data_window_utc_start": "2025-09-17T00:00:00+00:00",
+      "data_window_utc_end_exclusive": "2026-09-17T00:00:00+00:00",
+      "source_original_run": 35548099334,
+      "source_sha": "18c338aedd5013ce65a6cb6408ffbc2e904a6217",
+      "code_run_commit": "fb22970798a2bd93f097f1327ce9c864eec0bb9c",
+      "prereg_commit": "1e14b4480c6f9f0e83563604282864004377300f",
+      "report_commit": "5d90dcd1fd33eb4d344ae9decbb4398b46967777",
+      "aggregate_artifact": "https://github.com/mezas3238-hue/qore-core/actions/runs/38166675573/artifacts/11712187623",
+      "partial_M15_active_buckets_by_market": {
+        "EURUSD": 1131,
+        "GBPUSD": 942,
+        "USDJPY": 991,
+        "AUDUSD": 1205,
+        "AUDJPY": 677,
+        "GBPJPY": 604,
+        "XAUUSD": 534,
+        "USDCAD": 1248,
+        "NAS100": 221
+      },
+      "shared_M1_timestamp_counts": {
+        "EURUSD|GBPUSD": 368289,
+        "AUDUSD|GBPUSD": 367835,
+        "AUDJPY|GBPJPY": 370858
+      },
+      "OOS_genuinely_unseen": false,
+      "forward_returns_measured": false,
+      "market_schedule_certified": false,
+      "broker_costs_certified": false
+    }
+  },
+  "programs": [
+    {
+      "trader": "DRIVE",
+      "issue": "https://github.com/mezas3238-hue/qore-core/issues/792",
+      "market_candidates": [
+        "NAS100",
+        "XAUUSD",
+        "EURUSD",
+        "GBPUSD"
+      ],
+      "G1_status": "NOT_STARTED",
+      "G2_strategy_engine_status": "NOT_STARTED",
+      "G3_net_economics_status": "NOT_STARTED",
+      "G4_fresh_OOS_status": "NOT_STARTED",
+      "G5_portfolio_status": "NOT_STARTED",
+      "G6_paper_status": "NOT_STARTED",
+      "scientifically_certified": false
+    },
+    {
+      "trader": "RESET",
+      "issue": "https://github.com/mezas3238-hue/qore-core/issues/793",
+      "market_candidates": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "G1_status": "NOT_STARTED",
+      "G2_strategy_engine_status": "NOT_STARTED",
+      "G3_net_economics_status": "NOT_STARTED",
+      "G4_fresh_OOS_status": "NOT_STARTED",
+      "G5_portfolio_status": "NOT_STARTED",
+      "G6_paper_status": "NOT_STARTED",
+      "scientifically_certified": false
+    },
+    {
+      "trader": "RELATIVE",
+      "issue": "https://github.com/mezas3238-hue/qore-core/issues/794",
+      "market_pairs": [
+        [
+          "EURUSD",
+          "GBPUSD"
+        ],
+        [
+          "AUDUSD",
+          "GBPUSD"
+        ],
+        [
+          "AUDJPY",
+          "GBPJPY"
+        ]
+      ],
+      "G1_status": "NOT_STARTED",
+      "G2_strategy_engine_status": "NOT_STARTED",
+      "G3_net_economics_status": "NOT_STARTED",
+      "G4_fresh_OOS_status": "NOT_STARTED",
+      "G5_portfolio_status": "NOT_STARTED",
+      "G6_paper_status": "NOT_STARTED",
+      "scientifically_certified": false
+    }
+  ],
+  "mandatory_next_tasks": [
+    {
+      "id": "P0-HANDOFF",
+      "priority": 0,
+      "scope": "all",
+      "depends_on": [],
+      "status": "HANDOFF_PUBLISHED_VERIFIED_ON_GITHUB",
+      "deliverable": "verified PR/Issue pointers and baseline commit; claim no economic tests"
+    },
+    {
+      "id": "G0B-SESSION-CALENDAR",
+      "priority": 0,
+      "scope": "all",
+      "depends_on": [
+        "G0"
+      ],
+      "status": "NOT_STARTED",
+      "deliverable": "source-backed venue, DST, market sessions, eligible M1 windows and missingness with Actions"
+    },
+    {
+      "id": "G0B-DATA-PRESERVATION",
+      "priority": 0,
+      "scope": "all",
+      "depends_on": [
+        "G0"
+      ],
+      "status": "NOT_STARTED",
+      "deliverable": "preserve lawful archived manifests/hash; plan GitHub 90-day artifact expiry"
+    },
+    {
+      "id": "G1-DRIVE-PREREG",
+      "priority": 1,
+      "scope": "DRIVE",
+      "depends_on": [
+        "G0B-SESSION-CALENDAR"
+      ],
+      "status": "NOT_STARTED",
+      "deliverable": "one precommitted primary conditional continuation hypothesis and matched-hour/vol controls"
+    },
+    {
+      "id": "G1-RESET-PREREG",
+      "priority": 1,
+      "scope": "RESET",
+      "depends_on": [
+        "G0B-SESSION-CALENDAR"
+      ],
+      "status": "NOT_STARTED",
+      "deliverable": "one economic anchor fixing & counterfactual controls, DST and no ex-post entry"
+    },
+    {
+      "id": "G1-RELATIVE-PREREG",
+      "priority": 1,
+      "scope": "RELATIVE",
+      "depends_on": [
+        "G0B-SESSION-CALENDAR"
+      ],
+      "status": "NOT_STARTED",
+      "deliverable": "one primary pair, past-only hedge ratio, factor-neutral baseline and pair cost model"
+    },
+    {
+      "id": "G1-INDEPENDENT-FALSIFICATION",
+      "priority": 2,
+      "scope": "all",
+      "depends_on": [
+        "G1-DRIVE-PREREG",
+        "G1-RESET-PREREG",
+        "G1-RELATIVE-PREREG"
+      ],
+      "status": "NOT_STARTED",
+      "deliverable": "3 separate Actions with conditional forward distribution, baseline and CI, explicit GO/STOP"
+    },
+    {
+      "id": "G2-FIRST-ONLINE",
+      "priority": 3,
+      "scope": "only G1_GO traders",
+      "depends_on": [
+        "G1-INDEPENDENT-FALSIFICATION"
+      ],
+      "status": "BLOCKED_ON_G1",
+      "deliverable": "individual causal engines & prefix-invariant event ledgers"
+    },
+    {
+      "id": "G3-NET-COSTS",
+      "priority": 4,
+      "scope": "only G2_PASS traders",
+      "depends_on": [
+        "G2-FIRST-ONLINE"
+      ],
+      "status": "BLOCKED_ON_G2",
+      "deliverable": "per-symbol realistic-cost net EV PF DD and double-touch bounds"
+    },
+    {
+      "id": "G4-OOS-ROBUSTNESS",
+      "priority": 5,
+      "scope": "only G3_PASS traders",
+      "depends_on": [
+        "G3-NET-COSTS"
+      ],
+      "status": "BLOCKED_NO_VIRGIN_OOS",
+      "deliverable": "genuinely unseen chronological dataset, prereg walk-forward, adverse-regime and multiplicity controls"
+    },
+    {
+      "id": "G5-PORTFOLIO",
+      "priority": 6,
+      "scope": "only G4_PASS traders",
+      "depends_on": [
+        "G4-OOS-ROBUSTNESS"
+      ],
+      "status": "BLOCKED_ON_G4",
+      "deliverable": "same-risk portfolio comparisons, tail loss dependence, factors, capacity"
+    },
+    {
+      "id": "G6-COGNITIVE-CORE-PAPER",
+      "priority": 7,
+      "scope": "only G5_PASS traders",
+      "depends_on": [
+        "G5-PORTFOLIO"
+      ],
+      "status": "BLOCKED_ON_G5",
+      "deliverable": "traceable trader cognitives, Shared/CIBO/QDLE contracts, controlled paper runs, no live"
+    }
+  ],
+  "decisions": {
+    "required_work_environment": "GitHub / Trader Lab ONLY",
+    "no_live_or_vps_or_mt5_changes": true,
+    "no_reuse_V49_TTrades_as_signals": true,
+    "expected_qualified_traders_range": [
+      0,
+      3
+    ],
+    "measured_profit_factor_by_trader": null,
+    "measured_sharpe_by_trader": null,
+    "measured_sortino_by_trader": null,
+    "measured_drawdown_by_trader": null,
+    "preliminary_PF_target_not_official": "1.30 net, to be frozen as policy before economic experiment",
+    "oos_integrity_state": "NOT_VERIFIED",
+    "handoff_document": "docs/handoffs/QORE_NATIVE_THREE_TRADERS_MASTER_HANDOFF_2026-10-11.md"
+  },
+  "handoff_pull_request": "https://github.com/mezas3238-hue/qore-core/pull/795",
+  "handoff_document_url": "https://github.com/mezas3238-hue/qore-core/blob/research/qore-native-three-traders-master-handoff-20261011/docs/handoffs/QORE_NATIVE_THREE_TRADERS_MASTER_HANDOFF_2026-10-11.md"
+}
