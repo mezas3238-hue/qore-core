@@ -22,9 +22,14 @@ from zoneinfo import ZoneInfo
 from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
     aggregate,
     closed_source_window,
-    evaluate as audit_existing_m30_m3,
     same_ohlc,
     source_m30_reversal,
+)
+from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
+    SCHEMA as ORIGINAL_M30_SCHEMA,
+)
+from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
+    evaluate as audit_existing_m30_m3,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import (
     load_market_evidence,
@@ -200,6 +205,23 @@ def verify_record(
         or ps.opposing_series_opened_at.astimezone(UTC) < c2.opened_at.astimezone(UTC)
     ):
         raise ValueError("CISD/PS historical provenance mismatch")
+    if (
+        record.get("c1_closed_at") != c1.closed_at.isoformat()
+        or record.get("c2_closed_at") != c2.closed_at.isoformat()
+        or record.get("c2_m3_opposing_series_start") != ps.opposing_series_opened_at.isoformat()
+    ):
+        raise ValueError("C1/C2/CISD opposing series source lineage mismatch")
+    original_market = record.get("market")
+    if not isinstance(original_market, str):
+        raise ValueError("record missing mother market")
+    expected_id = "vt08-m30m3:" + hashlib.sha256(
+        (
+            f"{ORIGINAL_M30_SCHEMA}|{original_market}|{c2.opened_at.isoformat()}|"
+            f"{side.value}|{ps.confirmed_at.isoformat()}"
+        ).encode()
+    ).hexdigest()
+    if record.get("origin_id") != expected_id:
+        raise ValueError("mother structural ID mismatch")
     evidence = prior_h1_liquidity_context(
         m15_index, before_c2_open=c2.opened_at,
     )
@@ -273,9 +295,18 @@ def evaluate(base_path: Path, m3_path: Path) -> dict[str, object]:
         if verified["status"] == "INDEPENDENT_M3_CISD_VERIFIED_HTF_POI_STILL_D":
             for label, exists in (
                 ("H1_PRE_C2_FVG_TOUCHED_C2", verified["prior_h1_fvg_touched_by_c2"]),
-                ("H1_PRE_C2_RELEVANT_PIVOT_EXISTS", verified["prior_h1_external_pivot_relevant_found"]),
-                ("H1_PRE_C2_RELEVANT_PIVOT_SWEPT_C2", verified["prior_h1_relevant_pivot_swept_c2"]),
-                ("C2_BODY_CLOSED_WITH_SIDE", verified["c2_directional_close_with_reversal"]),
+                (
+                    "H1_PRE_C2_RELEVANT_PIVOT_EXISTS",
+                    verified["prior_h1_external_pivot_relevant_found"],
+                ),
+                (
+                    "H1_PRE_C2_RELEVANT_PIVOT_SWEPT_C2",
+                    verified["prior_h1_relevant_pivot_swept_c2"],
+                ),
+                (
+                    "C2_BODY_CLOSED_WITH_SIDE",
+                    verified["c2_directional_close_with_reversal"],
+                ),
             ):
                 if exists:
                     stages[label] += 1
