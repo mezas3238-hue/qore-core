@@ -128,7 +128,7 @@ def reconcile(root:Path)->dict[str,Any]:
         "gross_only_no_physical_bid_ask":True,
         "author_fidelity_certified":False,
     }
-    if result["candidate_max3"]>2020:
+    if len(new)>2020:
         raise ValueError("MAX3 can never exceed original frozen ceiling")
     return result
 
