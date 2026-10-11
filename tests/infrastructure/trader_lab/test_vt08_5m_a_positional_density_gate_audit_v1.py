@@ -63,7 +63,11 @@ def test_no_future_c2_m15_can_be_used():
 
 def test_missing_or_reordered_c2_m15_fails_closed():
     _, _, ltf, _ = base()
-    delayed = replace(ltf[1], opened_at=ltf[1].opened_at+timedelta(minutes=15))
+    delayed = replace(
+        ltf[1],
+        opened_at=ltf[1].opened_at + timedelta(minutes=15),
+        closed_at=ltf[1].closed_at + timedelta(minutes=15),
+    )
     with pytest.raises(ValueError, match="gap/reorder"):
         audit(ltf=(ltf[0], delayed) + ltf[2:])
 
