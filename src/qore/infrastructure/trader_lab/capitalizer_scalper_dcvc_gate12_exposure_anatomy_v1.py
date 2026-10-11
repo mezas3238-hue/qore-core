@@ -202,6 +202,12 @@ def outcome(data:Data,ids:tuple[str,...]|frozenset[str],
     }
 
 
+def required_float(value: float | int | None) -> float:
+    if value is None:
+        raise ValueError("cannot calculate on missing economic result")
+    return float(value)
+
+
 def percentile(values:list[float],q:float)->float:
     ordered=sorted(values)
     if not ordered:
@@ -245,7 +251,7 @@ def null_distribution(
         distribution=[row[metric] for row in observations]
         if any(not isinstance(v,float) for v in distribution):
             raise ValueError("placebo needs finite losses and all metrics")
-        series=[float(v) for v in distribution]
+        series=[required_float(v) for v in distribution]
         tail_count=sum(
             v>=x if metric!="max_drawdown_R" else v<=x for v in series
         )
@@ -280,12 +286,12 @@ def power_diagnostic(data:Data,global_null:dict[str,Any])->dict[str,Any]:
         global_null["metrics_assumed_cost_0p025R"]["expectancy_R"]["placebo_p975"]
     )
     # One-sided 5% threshold must be p95, not upper 97.5%.
-    values=[float(x["expectancy_R"]) for x in global_null["null_distribution"]]
+    values=[required_float(x["expectancy_R"]) for x in global_null["null_distribution"]]
     threshold=percentile(values,0.95)
     scenario_counts={str(x):0 for x in SHIFTS}
     for seed in range(20263000,20263000+N_POWER):
         ids=global_sample(data,seed)
-        r=float(outcome(data,ids)["expectancy_R"])
+        r=required_float(outcome(data,ids)["expectancy_R"])
         for shift in SHIFTS:
             if r+shift>threshold:
                 scenario_counts[str(shift)]+=1
@@ -312,7 +318,7 @@ def anatomy(data:Data)->dict[str,Any]:
     selected_reasons:Counter[str]=Counter()
     after_reason:Counter[str]=Counter()
     regime_selected:Counter[str]=Counter()
-    details=[]
+    details:list[dict[str,Any]]=[]
     ordered=sorted(data.features.values(),key=lambda f:(
         f.decision_at,f.symbol,
         data.trades[f.source_opportunity_id].trigger_family,
@@ -370,19 +376,20 @@ def anatomy(data:Data)->dict[str,Any]:
     cross:dict[str,dict[str,Any]]={}
     # Exclusive effective reason × actual regime × symbol × month.
     for d in details:
-        key="|".join((
-            d["decision_reason_after_capacity"],d["regime"],d["symbol"],d["month"]
+        pivot_key="|".join((
+            str(d["decision_reason_after_capacity"]),str(d["regime"]),
+            str(d["symbol"]),str(d["month"])
         ))
-        if key not in cross:
-            cross[key]={"opportunities":0,"A_trades":0,"B_trades":0}
-        cross[key]["opportunities"]+=1
-        cross[key]["A_trades"]+=int(d["A_original_member"])
-        cross[key]["B_trades"]+=int(d["selected_original_v01"])
+        if pivot_key not in cross:
+            cross[pivot_key]={"opportunities":0,"A_trades":0,"B_trades":0}
+        cross[pivot_key]["opportunities"]+=1
+        cross[pivot_key]["A_trades"]+=int(d["A_original_member"])
+        cross[pivot_key]["B_trades"]+=int(d["selected_original_v01"])
     b_ids=data.b_ids
     a_ids=data.a_ids
     summaries={}
     for reason in sorted(reasons):
-        ids=frozenset(d["source_opportunity_id"] for d in details
+        ids=frozenset(str(d["source_opportunity_id"]) for d in details
                       if d["selected_original_v01"]
                       and d["decision_reason_before_capacity"]==reason)
         summaries[reason]={
@@ -438,11 +445,11 @@ def run(source:Path,original:Path,output:Path)->dict[str,Any]:
     b_metric=outcome(data,data.b_ids)
     a_gross=outcome(data,data.a_ids,0.0)
     b_gross=outcome(data,data.b_ids,0.0)
-    if abs(float(a_gross["max_drawdown_R"])-236.1342843563)>0.0001:
+    if abs(required_float(a_gross["max_drawdown_R"])-236.1342843563)>0.0001:
         raise ValueError("drawdown baseline changed")
-    if abs(float(b_gross["max_drawdown_R"])-19.93243852075)>0.0001:
+    if abs(required_float(b_gross["max_drawdown_R"])-19.93243852075)>0.0001:
         raise ValueError("DCVC baseline changed")
-    result={
+    result:dict[str,Any]={
         "identity":IDENTITY,"source_ids_reconciled":SOURCE_N,
         "original_A_trades":len(data.a_ids),
         "frozen_B_trades":len(data.b_ids),
@@ -458,7 +465,7 @@ def run(source:Path,original:Path,output:Path)->dict[str,Any]:
         },
         "exposure_A_B_count_fraction":len(data.b_ids)/len(data.a_ids),
         "exposure_normalized_A_DD_assumed_cost_0p025R_heuristic":(
-            float(a_metric["max_drawdown_R"])*len(data.b_ids)/len(data.a_ids)
+            required_float(a_metric["max_drawdown_R"])*len(data.b_ids)/len(data.a_ids)
         ),
         "prior_500x5day_bootstrap_exposure_adjusted_DD_includes_zero":True,
         "is_source_anchored_V49_not_online_regenerated":True,
