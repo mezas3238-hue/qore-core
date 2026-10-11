@@ -9,7 +9,6 @@ No trades or source admissions change.
 from __future__ import annotations
 
 import argparse
-import bisect
 import json
 from collections import Counter
 from datetime import timedelta
