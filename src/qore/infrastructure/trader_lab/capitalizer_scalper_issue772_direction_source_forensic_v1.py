@@ -10,7 +10,8 @@ import argparse
 import bisect
 import hashlib
 import json
-from collections import Counter
+from collections import Counter, defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -24,6 +25,9 @@ from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import 
     _aggregate,
     _build_h1_bias_events,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerSourceBar,
+)
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     DEFAULT_LOOKBACK,
     DEV_WINDOW_END,
@@ -36,6 +40,43 @@ from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 i
 
 IDENTITY="QORE_SCALPER_ISSUE772_P0_DIRECTION_CAUSAL_SOURCE_FORENSICS_V1"
 SAMPLE_PREFIX="QORE_SCALPER_H1_M15_M1_AUDIT_20261011|"
+
+
+@dataclass(frozen=True,slots=True)
+class NativeStrictH1:
+    opened_at:datetime
+    closed_at:datetime
+    source:CapitalizerSourceBar
+    minute_count:int
+
+
+def independently_closed_h1(bars:tuple[CapitalizerM1Bar,...])->tuple[NativeStrictH1,...]:
+    """Independent from _aggregate: exact 60 closed consecutive native minutes.
+
+    Partial hour or missing minute is UNKNOWN; never classify it from a
+    synthetic close. This is a strict PRICE SLOPE benchmark, NOT Candle2/3.
+    """
+    buckets:dict[int,list[CapitalizerM1Bar]]=defaultdict(list)
+    for b in bars:
+        buckets[int(b.opened_at.timestamp())//3600].append(b)
+    result=[]
+    for bucket,chunk in sorted(buckets.items()):
+        if len(chunk)!=60:
+            continue
+        start=datetime.fromtimestamp(bucket*3600,tz=chunk[0].opened_at.tzinfo)
+        # The native source is chronologically sorted before this call.
+        if any(b.opened_at!=start+timedelta(minutes=i) for i,b in enumerate(chunk)):
+            continue
+        result.append(NativeStrictH1(
+            opened_at=start,
+            closed_at=start+timedelta(hours=1),
+            source=CapitalizerSourceBar(
+                open=chunk[0].open,high=max(b.high for b in chunk),
+                low=min(b.low for b in chunk),close=chunk[-1].close,
+            ),
+            minute_count=60,
+        ))
+    return tuple(result)
 
 
 def load_sources(root:Path)->tuple[V49Opportunity,...]:
@@ -257,11 +298,12 @@ def market(frozen_root:Path,native_root:Path,output:Path)->dict[str,Any]:
             for b in bars
         ).encode()
     ).hexdigest()
-    h1=_aggregate(bars,minutes=60)
+    original_h1=_aggregate(bars,minutes=60)
+    h1=independently_closed_h1(bars)
     m15=_aggregate(bars,minutes=15)
     h1_times=tuple(x.closed_at for x in h1)
     m15_times=tuple(x.closed_at for x in m15)
-    events=_build_h1_bias_events(h1)
+    events=_build_h1_bias_events(original_h1)
     event_times=tuple(x.confirmed_at for x in events)
     traces=tuple(source_witness(
         x,bars,m1_times,h1,h1_times,m15,m15_times,
@@ -292,6 +334,8 @@ def market(frozen_root:Path,native_root:Path,output:Path)->dict[str,Any]:
         "native_feed_sha256":native_feed_digest,
         "outcomes_not_loaded":True,
         "original_bias_detector_only_as_comparator":True,
+        "price_slope_benchmark_independent_strict_60_native_minutes":True,
+        "independently_closed_h1_bars":len(h1),
         "independent_first_online_full_route_complete":False,
         "v49_or_production_changed":False,
     }
