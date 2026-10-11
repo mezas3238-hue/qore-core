@@ -10,7 +10,7 @@ import argparse
 import json
 import random
 from collections import Counter, defaultdict
-from datetime import datetime
+from dataclasses import asdict
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
