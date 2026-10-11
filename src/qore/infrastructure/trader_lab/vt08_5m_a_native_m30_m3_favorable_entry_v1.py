@@ -23,7 +23,11 @@ from qore.infrastructure.trader_lab.vt08_5m_source_bias_asof_attestation_v1 impo
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import (
     load_market_evidence,
 )
+from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_evaluator_v1 import (
+    evaluate_expansion_at_entry_indexed,
+)
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_v1 import (
+    ANCHORS_NY,
     EXPANSION_MARKETS,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_m3_fractal_density_recovery_v1 import (
@@ -446,11 +450,48 @@ def evaluate(base_path: Path, m3_path: Path) -> dict[str, object]:
         result["cognitive_ready"] = False
         evidence.append(result)
 
+    # Post-census descriptive overlap only; never compare PnL or
+    # selectively reject a M30/M3 setup based on old B01 membership.
+    b01_per_day: Counter[str] = Counter()
+    for bar in m15:
+        ny = bar.opened_at.astimezone(_NY)
+        if (
+            ny.hour not in ANCHORS_NY
+            or ny.minute != 0
+            or ny.second != 0
+            or ny.microsecond != 0
+        ):
+            continue
+        evaluation = evaluate_expansion_at_entry_indexed(
+            symbol=market, bars_by_open=i15, decision_at=bar.opened_at,
+        )
+        if evaluation.candidate is not None:
+            b01_per_day[ny.date().isoformat()] += 1
+    old_executable_days = {d for d, n in b01_per_day.items() if n == 1}
+    all_b01_days = set(b01_per_day)
     if len(evidence) != counts["M30_M3_SOURCE_GEOMETRY_ONLY"]:
         raise AssertionError("M30/M3 geometry receipt mismatch")
     if len({r["origin_id"] for r in evidence}) != len(evidence):
         raise AssertionError("duplicate mother event origin ID")
     first_daily = earliest_clean_touch_per_market_day(evidence)
+    m3_retest_days = {str(x["market_ny_date"]) for x in first_daily}
+    cross_family_day_overlap = {
+        "m15_b01_precardinality_candidates": sum(b01_per_day.values()),
+        "m15_b01_candidate_days_including_conflicts": len(all_b01_days),
+        "m15_b01_exactly_one_candidate_day_count": len(old_executable_days),
+        "m30_m3_earliest_clean_retest_market_days": len(m3_retest_days),
+        "overlap_with_m15_b01_selected_days": len(m3_retest_days & old_executable_days),
+        "m30_m3_shape_days_absent_from_m15_b01": len(
+            m3_retest_days - old_executable_days
+        ),
+        "m15_b01_days_without_m30_m3_clean_shape": len(
+            old_executable_days - m3_retest_days
+        ),
+        "union_hypothetical_market_day_slots": len(
+            old_executable_days | m3_retest_days
+        ),
+        "comparison_status": "STRUCTURAL_RESEARCH_ONLY_NO_ADDITIVE_TRADES",
+    }
     if len(first_daily) != len(daysets["CLEAN_OHLC_TOUCH_NOT_PHYSICAL_FILL"]):
         raise AssertionError("daily first touch count not reconciled")
     median_improvement = median_decimals([
@@ -481,6 +522,7 @@ def evaluate(base_path: Path, m3_path: Path) -> dict[str, object]:
         "per_year_counts": {k: dict(sorted(v.items())) for k, v in sorted(years.items())},
         "research_observations": evidence,
         "earliest_clean_retest_one_per_ny_day": first_daily,
+        "cross_family_day_overlap": cross_family_day_overlap,
         "daily_retest_selection": {
             "market_days_with_first_clean_m3_retest": len(first_daily),
             "first_clean_retests_gross_rr_ge_1_5": first_daily_rr_1_5,
