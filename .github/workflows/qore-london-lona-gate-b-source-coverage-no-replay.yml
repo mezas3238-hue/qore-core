@@ -1,0 +1,87 @@
+name: QORE London LON-A Gate B Native M1 Coverage (Read Only - NO Replay)
+
+on:
+  push:
+    branches:
+      - research/london-lona-gate-a-primary-evidence-20261011
+    paths:
+      - '.github/workflows/qore-london-lona-gate-b-source-coverage-no-replay.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_london_lona_data_census_gate_b_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_london_lona_data_census_gate_b_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN: '35548099334'
+  SOURCE_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  synthetic_data_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify source-only data census by synthetic tests
+        run: |
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_london_lona_data_census_gate_b_v1.py
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure/trader_lab -p 'test_qore_london_lona_data_census_gate_b_v1.py' -v
+
+  native_source_census:
+    needs: synthetic_data_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        symbol: [EURUSD, GBPUSD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download immutable ten-year provider M1 clone (no network broker, no live)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_SHA }}
+          path: native-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN }}
+      - name: Verify source SHA and reconstruct UTC data-quality buckets (already-consumed dates)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p gate-b-report
+          PYTHONPATH=src python -m qore.infrastructure.trader_lab.qore_london_lona_data_census_gate_b_v1 \
+            native-source "${{ matrix.symbol }}" "gate-b-report/lona-gate-b-${{ matrix.symbol }}.json"
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+          symbol = os.environ['EXPECTED_SYMBOL']
+          output = json.loads(Path(f'gate-b-report/lona-gate-b-{symbol}.json').read_text())
+          assert output['symbol'] == symbol
+          assert output['retained_m1_in_window'] > 0
+          assert output['existing_research_period_consumed'] is True
+          assert output['fresh_holdout_eligible'] is False
+          assert output['data_gate_b_certified'] is False
+          assert output['author_fidelity_certified'] is False
+          assert output['economic_replay_authorized'] is False
+          assert output['live_authorized'] is False
+          assert set(output['verified_year_partition_sha256']) == {'2025','2026'}
+          print('LONA_GATE_B_FAIL_CLOSED_VERIFIED',symbol)
+          PY
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: london-lona-gate-b-native-M1-census-NO-REPLAY-${{ matrix.symbol }}-${{ github.sha }}
+          path: gate-b-report/
+          if-no-files-found: error
+          retention-days: 90
