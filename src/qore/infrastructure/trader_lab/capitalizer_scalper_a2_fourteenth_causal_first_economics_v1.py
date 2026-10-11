@@ -17,7 +17,7 @@ import bisect
 import json
 from collections import Counter
 from dataclasses import asdict, replace
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -34,6 +34,7 @@ from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import 
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     DEV_WINDOW_END,
     DEV_WINDOW_START,
+    DEFAULT_LOOKBACK,
     V49Opportunity,
     _untouched_h1_target_fast,
 )
@@ -95,7 +96,7 @@ def replay_market(
         raise ValueError("duplicate online source identity")
     m1=tuple(
         x for x in iter_cibo_m1(native_root)
-        if DEV_WINDOW_START-timedelta(days=15)<=x.opened_at<DEV_WINDOW_END
+        if DEV_WINDOW_START-DEFAULT_LOOKBACK<=x.opened_at<DEV_WINDOW_END
     )
     if not m1 or any(x.symbol!=symbol for x in m1):
         raise ValueError("independent native M1 missing/mixed")
