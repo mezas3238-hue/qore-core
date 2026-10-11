@@ -135,10 +135,29 @@ def evaluate_chronology(
     for role in REQUIRED:
         if role not in visible:
             problems.append(f"MISSING_CONFIRMED_ROLE:{role}")
+    relation = "NOT_EVALUATED"
+    ready_not_before = None
     if len(visible) == len(REQUIRED):
-        order = [ _utc(visible[role].first_known_utc) for role in REQUIRED ]
-        if order != sorted(order):
-            problems.append("DAILY_H4_M15_CHAIN_NOT_FIRST_ONLINE")
+        daily = visible["DAILY_BIAS_CLOSED"]
+        h4 = visible["H4_SWING_CLOSED"]
+        m15 = visible["M15_CISD_CLOSED"]
+        daily_known = _utc(daily.first_known_utc)
+        h4_known = _utc(h4.first_known_utc)
+        m15_known = _utc(m15.first_known_utc)
+        ready_not_before = max(daily_known, h4_known, m15_known).isoformat()
+        if daily_known > min(h4_known, m15_known):
+            problems.append("DAILY_BIAS_NOT_KNOWN_BEFORE_LOWER_STRUCTURE")
+        h4_start, h4_end = _utc(h4.bar_open_utc), _utc(h4.bar_close_utc)
+        m15_start, m15_end = _utc(m15.bar_open_utc), _utc(m15.bar_close_utc)
+        if h4_start <= m15_start and m15_end <= h4_end:
+            # M15 CISD occurred INSIDE H4. It can only inform a decision
+            # AFTER the H4 close became known. Never use old M15 fill prices.
+            relation = "INTRA_H4_RETROSPECTIVE_ONLY"
+        elif m15_start >= h4_end:
+            relation = "POST_H4_CONFIRMED_M15"
+        else:
+            relation = "INVALID_M15_H4_ALIGNMENT"
+            problems.append("M15_OUTSIDE_H4_CONFIRMATION_WINDOW")
     return {
         "model_id": MODEL_ID,
         "policy": SAFE_POLICY,
@@ -150,6 +169,8 @@ def evaluate_chronology(
         "required_evidence_ids": {role: visible[role].event_id for role in REQUIRED if role in visible},
         "context_observation_ids_not_completion_proof": sorted(context_visible),
         "future_evidence_ignored": ignored_future,
+        "m15_h4_relation": relation,
+        "chronology_ready_not_before_utc_not_a_fill": ready_not_before,
         "wick_completion_certified": False,
         "cisd_geometry_certified": False,
         "author_fidelity_certified": False,
