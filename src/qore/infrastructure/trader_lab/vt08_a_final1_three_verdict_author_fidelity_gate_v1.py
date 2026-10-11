@@ -11,7 +11,7 @@ have separate names, no performance inference.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 
@@ -70,6 +70,8 @@ class RuleReceipt:
     selector_method: SelectorMethod
     known_at: datetime | None
     decision_at: datetime | None
+    c2_opened_at: datetime | None
+    c3_opened_at: datetime | None
     source_snapshot_sha256: str | None
     verifier_sha256: str | None
     reviewer1_id: str | None = None
@@ -88,13 +90,35 @@ class RuleReceipt:
         if not all((
             self.known_at,
             self.decision_at,
+            self.c2_opened_at,
+            self.c3_opened_at,
             _sha256(self.source_snapshot_sha256),
             _sha256(self.verifier_sha256),
         )):
             return False
-        if self.known_at.utcoffset() is None or self.decision_at.utcoffset() is None:
+        if any(
+            at.utcoffset() is None
+            for at in (
+                self.known_at, self.decision_at,
+                self.c2_opened_at, self.c3_opened_at,
+            )
+        ):
             return False
-        if self.known_at.astimezone(UTC) > self.decision_at.astimezone(UTC):
+        source_at = self.known_at.astimezone(UTC)
+        c2_at = self.c2_opened_at.astimezone(UTC)
+        c3_at = self.c3_opened_at.astimezone(UTC)
+        decision_at = self.decision_at.astimezone(UTC)
+        if c3_at - c2_at != timedelta(minutes=30):
+            return False
+        if decision_at != c3_at:
+            return False
+        if source_at > decision_at:
+            return False
+        if self.key in {
+            "HTF_BIAS_KNOWN_PRE_C2",
+            "RELEVANT_SWING_REFERENCE_PRE_C2",
+            "RELEVANT_POI_PRE_C2",
+        } and source_at > c2_at:
             return False
         if self.selector_method == SelectorMethod.DETERMINISTIC_ASOF:
             return True
