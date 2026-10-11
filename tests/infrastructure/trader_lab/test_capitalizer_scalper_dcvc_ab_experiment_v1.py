@@ -97,7 +97,7 @@ def test_no_m1_future_decision_or_mutated_frozen_fill() -> None:
                 bars,tuple(x.closed_at for x in bars))
 
 
-def test_classifier_depends_only_on_predecision_features_and_settled_B() -> None:
+def test_classifier_depends_only_on_predecision_features_and_settled_b() -> None:
     bars=_bars()
     item=observe(_source(),bars,tuple(x.closed_at for x in bars))
     state=DCVCState()
