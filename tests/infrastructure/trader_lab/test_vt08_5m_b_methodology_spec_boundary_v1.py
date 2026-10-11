@@ -216,10 +216,12 @@ def test_causal_failures_never_qualify_as_source_complete(
 def test_valid_prec2_swing_boolean_does_not_become_source_proof_or_signature() -> None:
     e = event(against=True)
     first = v.verify_causal_event(e, spec())
-    assert "B_SOURCE:PRE_C2_SWING_REGIME_NOT_ATTESTED" in first.blockers
+    blocker = "B_SOURCE:PRE_C2_SWING_RAW_INDEPENDENT_REVIEW_PENDING"
+    assert blocker in first.blockers
     e["reference_swing"]["pre_c2_swing_regime_independently_attested"] = True
     later = v.verify_causal_event(e, spec())
-    assert "B_SOURCE:PRE_C2_SWING_REGIME_NOT_ATTESTED" not in later.blockers
+    # A's self-attested boolean MUST NOT clear a methodological blocker.
+    assert blocker in later.blockers
     assert not later.cognitive_ready and not later.source_complete
     assert "B_SOURCE:INDEPENDENT_SOURCE_ADJUDICATION_PENDING" in later.blockers
 
