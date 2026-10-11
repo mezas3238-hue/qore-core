@@ -129,6 +129,7 @@ def post_entry_labels(
 
 def market(
     original_root: Path,
+    cisd_root: Path,
     native_root: Path,
 ) -> tuple[dict[str, Any], tuple[dict[str, Any], ...]]:
     files = sorted(original_root.rglob(
@@ -139,6 +140,13 @@ def market(
     sources = tuple(V49Opportunity(**x) for x in _jsonl(files[0]))
     if not sources:
         raise ValueError("no source opportunity")
+    cisd_files=sorted(cisd_root.rglob("scalper-cisd-prefix-rows.jsonl"))
+    if len(cisd_files)!=1:
+        raise ValueError("requires frozen full/prefix contradiction ledger")
+    cisd_rows=tuple(_jsonl(cisd_files[0]))
+    frozen={x["source_opportunity_id"]:x for x in cisd_rows}
+    if len(frozen)!=len(sources) or len(cisd_rows)!=len(sources):
+        raise ValueError("frozen CISD source-ID ledger missing or duplicated")
     symbol = sources[0].symbol
     if any(s.symbol != symbol for s in sources):
         raise ValueError("mixed source symbols")
@@ -157,9 +165,18 @@ def market(
     ids: set[str] = set()
     for s in sources:
         sid = source_id(s)
-        if sid in ids:
-            raise ValueError("duplicate source ID")
+        if sid in ids or sid not in frozen:
+            raise ValueError("duplicate or missing frozen CISD source ID")
         ids.add(sid)
+        forensic=frozen[sid]
+        if (forensic["source_entry_at"]!=s.m1_trigger_confirmed_at
+                or forensic["source_family"]!=s.m1_trigger_family):
+            raise ValueError("frozen contradiction ledger diverges from source")
+        classification=forensic["classification"]
+        if classification not in (
+            "MATCHED_BOTH_WINDOWS","RECONSTRUCTED_FULL_VS_PREFIX_SELECTION"
+        ):
+            raise ValueError("unexpected per-ID reconstructed classification")
         thesis = dt(s.m15_setup_confirmed_at)
         at = dt(s.m1_trigger_confirmed_at)
         if not thesis < at:
@@ -197,6 +214,10 @@ def market(
             }
         rows.append({
             "source_opportunity_id": sid, "symbol": symbol,
+            "frozen_full_prefix_disagreement":
+                classification=="RECONSTRUCTED_FULL_VS_PREFIX_SELECTION",
+            "frozen_prefix_sensor_at":forensic["sensor_first_at"],
+            "frozen_prefix_sensor_family":forensic["sensor_family"],
             "session": s.session, "operating_date": s.operating_date,
             "m15_confirmed_at": s.m15_setup_confirmed_at,
             "direction": s.h1_state_direction,
@@ -220,6 +241,9 @@ def market(
     return {
         "identity": IDENTITY, "symbol": symbol, "sources": len(rows),
         "classification": dict(sorted(counts.items())),
+        "frozen_381_window_disagreement":sum(
+            x["frozen_full_prefix_disagreement"] for x in rows
+        ),
         "online_late_witness": sum(x["online_witness_backdated"] for x in rows),
         "admission_changes": 0,"trades_reexecuted": 0,
         "uses_forward_labels_for_selection": False, "paper_pf": None,
@@ -262,12 +286,21 @@ def aggregate(root: Path) -> dict[str, Any]:
         raise ValueError("original global MAX3 source book changed")
     groupings = {
         "ALL_ORIGINAL":rows,
+        "FROZEN_381":[x for x in rows if x["frozen_full_prefix_disagreement"]],
+        "FROZEN_2495":[x for x in rows
+                       if not x["frozen_full_prefix_disagreement"]],
+        "FROZEN_381_ORIGINAL_MAX3":[x for x in rows
+                                   if x["frozen_full_prefix_disagreement"]
+                                   and x["source_opportunity_id"] in original_max3],
         "FIRST_ONLINE_IDENTICAL":[x for x in rows if
                                   not (x["close_changed"] or x["family_changed"])],
         "FIRST_ONLINE_DIFFERENT":[x for x in rows if
                                   x["close_changed"] or x["family_changed"]],
         "ORIGINAL_MAX3":[x for x in rows if x["source_opportunity_id"] in original_max3],
     }
+    if (len(groupings["FROZEN_381"])!=381
+            or len(groupings["FROZEN_2495"])!=2495):
+        raise ValueError("frozen 381/2495 identity partition not preserved")
     comparison: dict[str,Any] = {}
     for name,cohort in groupings.items():
         hrows: dict[str, Any] = {}
@@ -317,6 +350,7 @@ def main() -> None:
     sub=p.add_subparsers(dest="mode",required=True)
     m=sub.add_parser("market")
     m.add_argument("original",type=Path)
+    m.add_argument("cisd",type=Path)
     m.add_argument("native",type=Path)
     m.add_argument("output",type=Path)
     a=sub.add_parser("matrix")
@@ -325,7 +359,7 @@ def main() -> None:
     args=p.parse_args()
     args.output.mkdir(parents=True,exist_ok=True)
     if args.mode=="market":
-        report,rows=market(args.original,args.native)
+        report,rows=market(args.original,args.cisd,args.native)
         (args.output/"scalper-thirteenth-stream-market.json").write_text(
             json.dumps(report,indent=2,sort_keys=True)+"\n",encoding="utf-8"
         )
