@@ -10,7 +10,7 @@ import hashlib
 import json
 import os
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from importlib import import_module
 from pathlib import Path
 from time import sleep
