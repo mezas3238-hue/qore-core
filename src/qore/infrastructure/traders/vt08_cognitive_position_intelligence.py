@@ -37,6 +37,17 @@ class Vt08PositionPolicy:
     exit_on_material_thesis_invalidation: bool = True
     exit_on_bound_destination_reached: bool = True
 
+    def __post_init__(self) -> None:
+        for name in (
+            "allow_confirmed_structural_protection",
+            "allow_reduce_on_causal_exhaustion",
+            "exit_on_h4_lifecycle_end",
+            "exit_on_material_thesis_invalidation",
+            "exit_on_bound_destination_reached",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise ValueError(f"VT08 position policy {name} must be exact bool")
+
     @property
     def calibrated(self) -> bool:
         return bool(
@@ -68,6 +79,8 @@ class Vt08PositionSnapshot:
             raise ValueError("VT08 position as_of must be timezone-aware")
         if self.side not in {"long", "short"}:
             raise ValueError("VT08 position side must be long or short")
+        if type(self.protection_candidate_confirmed) is not bool:
+            raise ValueError("VT08 protection confirmation must be exact bool")
         for name in (
             "entry_price",
             "current_price",
@@ -76,13 +89,14 @@ class Vt08PositionSnapshot:
             "bound_destination",
         ):
             value = getattr(self, name)
-            if not value.is_finite() or value <= 0:
-                raise ValueError(f"VT08 position {name} must be positive finite")
+            if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
+                raise ValueError(f"VT08 position {name} must be positive finite Decimal")
         if self.protection_candidate is not None and (
-            not self.protection_candidate.is_finite()
+            not isinstance(self.protection_candidate, Decimal)
+            or not self.protection_candidate.is_finite()
             or self.protection_candidate <= 0
         ):
-            raise ValueError("VT08 protection candidate must be positive finite")
+            raise ValueError("VT08 protection candidate must be positive finite Decimal")
         if self.side == "long":
             if not self.initial_stop < self.entry_price < self.bound_destination:
                 raise ValueError("VT08 long initial geometry invalid")

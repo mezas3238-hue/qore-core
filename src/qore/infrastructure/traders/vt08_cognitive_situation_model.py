@@ -58,12 +58,18 @@ class Vt08ForexSituationModel:
     def __post_init__(self) -> None:
         if self.as_of.tzinfo is None or self.as_of.utcoffset() is None:
             raise ValueError("VT08 situation as_of must be timezone-aware")
-        if self.market not in AUTHORIZED_MARKETS:
-            raise ValueError("VT08 situation market outside Forex authority")
-        if self.anchor_hour_ny not in OWNER_FOREX_ANCHORS:
+        self._validate_market()
+        if type(self.anchor_hour_ny) is not int or self.anchor_hour_ny not in OWNER_FOREX_ANCHORS:
             raise ValueError("VT08 situation anchor outside Owner 01/05/09 scope")
         if self.side not in {"long", "short"}:
             raise ValueError("VT08 situation side must be long or short")
+        for name in (
+            "methodology_valid",
+            "source_identity_complete",
+            "h4_lifecycle_valid",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise ValueError(f"VT08 situation {name} must be exact bool")
         for name in (
             "ltf_profile",
             "bias_state",
@@ -99,16 +105,25 @@ class Vt08ForexSituationModel:
                 raise ValueError(f"{collection_name} must contain non-empty strings")
             if len(set(values)) != len(values):
                 raise ValueError(f"{collection_name} must not contain duplicates")
-        for value in (
-            self.current_path_efficiency,
-            self.current_overlap_rate,
-            self.displacement_strength,
-            self.destination_distance_r,
+        for name in (
+            "current_path_efficiency",
+            "current_overlap_rate",
+            "displacement_strength",
+            "destination_distance_r",
         ):
-            if value is not None and not value.is_finite():
-                raise ValueError("VT08 situation Decimal values must be finite")
+            value = getattr(self, name)
+            if value is not None and (
+                not isinstance(value, Decimal) or not value.is_finite()
+            ):
+                raise ValueError(f"VT08 situation {name} must be finite Decimal")
         if self.terminal_pnl is not None or self.post_outcome_label is not None:
             raise ValueError("VT08 situation cannot contain post-outcome information")
+
+    def _validate_market(self) -> None:
+        """Production Forex authority. Research subclass may only narrow/extend
+        in a separately identified, research-only Situation Model type."""
+        if self.market not in AUTHORIZED_MARKETS:
+            raise ValueError("VT08 situation market outside Forex authority")
 
     def payload(self) -> dict[str, object]:
         raw = asdict(self)
