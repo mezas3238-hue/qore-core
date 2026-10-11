@@ -1,0 +1,69 @@
+name: Scalper Issue772 Publish C0 Consolidated Scientific Evidence
+
+on:
+  push:
+    branches:
+      - research/scalper-p0-h1-m15-m1-causal-direction-audit-20261011
+    paths:
+      - '.github/workflows/qore-scalper-issue772-publish-c0-results.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  C0_RUN: '38115273268'
+  C0_CODE_SHA: '1e06a09acd2501a6b404195ef7d5d918b2f70b8e'
+
+jobs:
+  publish_c0_pinned_results:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/scalper-p0-h1-m15-m1-causal-direction-audit-20261011
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: scalper-issue772-C0-nine-market-scientific-${{ env.C0_CODE_SHA }}
+          path: pinned-C0
+          github-token: ${{ github.token }}
+          run-id: ${{ env.C0_RUN }}
+      - name: Verify exact immutable 2876/2020 and 20 original SHA256 traces
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('pinned-C0')
+          x=json.loads((root/'scalper-issue772-gate-c0-nine-market-results.json').read_text())
+          rows=[json.loads(s) for s in (root/'scalper-issue772-c0-20-traces-integrity.jsonl').read_text().splitlines() if s.strip()]
+          manifest=json.loads(Path('docs/research/issue772/scalper-issue772-20-source-IDs-manifest.json').read_text())
+          assert x['sources']==2876 and x['original_A']==2020
+          assert len(rows)==len(manifest['sample20'])==20
+          assert [v['source_opportunity_id'] for v in rows]==[y['source_id'] for y in manifest['sample20']]
+          assert x['no_outcomes_loaded'] and not x['certified']
+          assert not x['V49_DCVC_VPS_modified']
+          assert x['counts_original_A_2020']['counts']['EITHER_DIRECT_PARTIAL']==382
+          assert x['counts_original_A_2020']['counts']['H1_FIVE_CONSECUTIVE']==1529
+          for row in rows:
+              assert not row['outcome_or_PnL_loaded']
+              assert not row['gate_C_full_independent_first_online']
+              assert row['h1_POI_complete_upstream']=='UNKNOWN_ORIGIN_NO_POI_ID'
+          print('C0_PINNED_SCIENCE_SOURCE_2020_2876_20_VERIFIED')
+          PY
+      - name: Publish pinned summary and 20 additional C0 trace witnesses in research only
+        run: |
+          mkdir -p docs/research/issue772/c0_native_candle_integrity
+          cp pinned-C0/scalper-issue772-gate-c0-nine-market-results.json docs/research/issue772/c0_native_candle_integrity/
+          cp pinned-C0/scalper-issue772-c0-20-traces-integrity.jsonl docs/research/issue772/c0_native_candle_integrity/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/research/issue772/c0_native_candle_integrity/
+          if git diff --cached --quiet; then
+            echo 'Pinned C0 already published'
+          else
+            git commit -m 'research(scalper): publish pinned C0 nine-market counts and twenty original causal witnesses'
+            git push origin HEAD:research/scalper-p0-h1-m15-m1-causal-direction-audit-20261011
+          fi
