@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab.capitalizer_a1_audit14_online_predecision_bridge_v1 import (
-    A1FirstOnlinePredecisionWitness,
     IDENTITY,
+    A1FirstOnlinePredecisionWitness,
     reconcile_audit14_online_witnesses,
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
