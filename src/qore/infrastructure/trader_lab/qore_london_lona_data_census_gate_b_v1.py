@@ -12,7 +12,8 @@ import argparse
 import hashlib
 import json
 from collections import Counter
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Iterable
 
@@ -26,6 +27,12 @@ START = datetime(2025, 9, 17, tzinfo=UTC)
 END = datetime(2026, 9, 17, tzinfo=UTC)
 CLOCKS = (("M15_UTC", 15), ("H4_UTC", 240), ("D1_UTC", 1440))
 ALLOWED_SYMBOLS = frozenset(("EURUSD", "GBPUSD"))
+NY = ZoneInfo("America/New_York")
+H4_NY_HYPOTHESES = {
+    "H4_NY_22_02_06_HYPOTHESIS": (2, 6, 10, 14, 18, 22),
+    "H4_NY_01_05_09_HYPOTHESIS": (1, 5, 9, 13, 17, 21),
+}
+
 
 
 def sha256(path: Path) -> str:
@@ -43,9 +50,30 @@ def bucket_start(at: datetime, minutes: int) -> datetime:
                           seconds=at.second, microseconds=at.microsecond)
 
 
+def ny_h4_anchor(moment: datetime, hours: tuple[int, ...]) -> datetime:
+    """Experimental NY wall-clock bin. Does not establish TTrades timezone."""
+    if moment.tzinfo is None or moment.utcoffset() != timedelta(0):
+        raise ValueError("UTC_REQUIRED")
+    local = moment.astimezone(NY)
+    candidates = tuple(h for h in hours if h <= local.hour)
+    anchor_hour = candidates[-1] if candidates else hours[-1]
+    anchor_date = local.date() if candidates else (local.date() - timedelta(days=1))
+    return datetime.combine(anchor_date, time(anchor_hour), tzinfo=NY)
+
+
+def ny_h4_expected_minutes(anchor: datetime) -> int:
+    """NY wall-clock 4h may be 180/240/300 real minutes at DST boundaries."""
+    finish = anchor + timedelta(hours=4)
+    minutes = int((finish.astimezone(UTC) - anchor.astimezone(UTC)).total_seconds() // 60)
+    if minutes not in (180, 240, 300):
+        raise ValueError("UNEXPECTED_DST_H4_SPAN")
+    return minutes
+
+
 def summarize_coverage(observed: Iterable[datetime]) -> dict[str, object]:
     """Pure census across UTC bins; reports partials without inventing bars."""
     bins: dict[str, Counter[datetime]] = {key: Counter() for key, _ in CLOCKS}
+    ny_counts: dict[str, Counter[datetime]] = {key: Counter() for key in H4_NY_HYPOTHESES}
     count = 0
     previous: datetime | None = None
     missing_minutes_inside_span = 0
@@ -72,6 +100,8 @@ def summarize_coverage(observed: Iterable[datetime]) -> dict[str, object]:
         count += 1
         for key, minutes in CLOCKS:
             bins[key][bucket_start(at, minutes)] += 1
+        for name, hours in H4_NY_HYPOTHESES.items():
+            ny_counts[name][ny_h4_anchor(at, hours)] += 1
         previous = at
     groups: dict[str, object] = {}
     for key, minutes in CLOCKS:
@@ -94,7 +124,25 @@ def summarize_coverage(observed: Iterable[datetime]) -> dict[str, object]:
             ) if cc else None,
             "market_closed_or_empty_calendar_bins_not_assessed": True,
         }
+    ny_results: dict[str, object] = {}
+    for name, cc in ny_counts.items():
+        spans = {k: ny_h4_expected_minutes(k) for k in cc}
+        if any(n > spans[k] for k, n in cc.items()):
+            raise ValueError("OVERCOVERED_NY_H4_BIN")
+        completed = sum(n == spans[k] for k, n in cc.items())
+        ny_results[name] = {
+            "hypothesis_only": True,
+            "observed_buckets": len(cc),
+            "complete_buckets": completed,
+            "partial_buckets": sum(n < spans[k] for k, n in cc.items()),
+            "variable_duration_DST_handled": True,
+            "observed_buckets_with_180_min_span": sum(span == 180 for span in spans.values()),
+            "observed_buckets_with_300_min_span": sum(span == 300 for span in spans.values()),
+            "complete_fraction_of_observed_nonempty_bins": round(completed / len(cc), 6) if cc else None,
+            "not_an_author_clock_certification": True,
+        }
     return {
+        "ny_h4_hypothesis_bins": ny_results,
         "retained_m1_in_window": count,
         "first_observed_m1_utc": first.isoformat() if first else None,
         "last_observed_m1_utc": last.isoformat() if last else None,
