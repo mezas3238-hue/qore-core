@@ -211,20 +211,24 @@ def verify_causal_event(
         "order_authorized"
     ) is not False:
         raise BMethodologyBoundaryError("cannot authorize live/order from preflight")
-    reference = event.get("reference_swing")
-    if not isinstance(reference, dict):
-        raise BMethodologyBoundaryError("missing pre-C2 reference swing")
-    swing_seen = _time(reference.get("identified_at"), "swing.identified_at")
-    if swing_seen >= c2_open:
-        raise BMethodologyBoundaryError(
-            "swing reference identified ex-post during/after C2 (lookahead)"
-        )
-    _closed_proof(reference.get("source_proof"), "reference_swing", before=c2_open)
-    _closed_proof(reference.get("poi_proof"), "swing_poi", before=c2_open)
-    if reference.get("side") not in ("long", "short") or reference.get(
-        "side"
-    ) != event.get("side"):
-        raise BMethodologyBoundaryError("swing side unknown/mismatched")
+    # The auditor's STRICT pre-C2 reference swing constraint belongs to
+    # choosing C2 intra-candle WITH/AGAINST EQ. Do not turn it into an invented
+    # universal TTrades requirement for DIFFERENT C3 source families.
+    if family == "C2_COMPLETED":
+        reference = event.get("reference_swing")
+        if not isinstance(reference, dict):
+            raise BMethodologyBoundaryError("missing pre-C2 reference swing for C2 EQ")
+        swing_seen = _time(reference.get("identified_at"), "swing.identified_at")
+        if swing_seen >= c2_open:
+            raise BMethodologyBoundaryError(
+                "swing reference identified ex-post during/after C2 (lookahead)"
+            )
+        _closed_proof(reference.get("source_proof"), "reference_swing", before=c2_open)
+        _closed_proof(reference.get("poi_proof"), "swing_poi", before=c2_open)
+        if reference.get("side") not in ("long", "short") or reference.get(
+            "side"
+        ) != event.get("side"):
+            raise BMethodologyBoundaryError("swing side unknown/mismatched")
     poi = event.get("poi")
     if not isinstance(poi, dict):
         raise BMethodologyBoundaryError("missing source-family POI")
@@ -325,9 +329,25 @@ def verify_causal_event(
                 "C3 intracycle cannot use full C3 EQ before H4 close"
             )
         blockers += ("B_SOURCE:C3_INTRACYCLE_EQ_SOURCE_UNADJUDICATED",)
+        previous_swing = event.get("prior_c2_model_swing_proof")
+        if previous_swing is None:
+            blockers += ("B_SOURCE:C3_PRIOR_C2_SWING_ASOF_UNATTESTED",)
+        else:
+            closed = _closed_proof(
+                previous_swing, "prior_c2_model_swing", before=entry
+            )
+            available = _time(
+                previous_swing["available_at"], "prior_c2_model_swing.available_at"
+            )
+            if closed > c2_close or available > c2_close:
+                raise BMethodologyBoundaryError(
+                    "C3 continuation prior C2 swing was not confirmed by C2 H4 close"
+                )
+            blockers += ("B_SOURCE:C3_PRIOR_C2_SWING_PRIMARY_REVIEW_PENDING",)
     else:
         if basis != "C3_FULL_WICK_TO_WICK_AFTER_CLOSURE":
             raise BMethodologyBoundaryError("C3 must use full wick-to-wick EQ")
+        blockers += ("B_SOURCE:C3_CLOSURE_POI_AND_SWING_PRIMARY_REVIEW_PENDING",)
     tags = tuple((role, str(own[role]["tag"])) for role in ROLES)
     for role, tag in tags:
         if tag != "A":
