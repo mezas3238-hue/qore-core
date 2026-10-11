@@ -7,6 +7,7 @@ broker's quotes or fills and cannot certify P&L. Uses no private credentials.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import lzma
@@ -19,7 +20,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 SYMBOLS = ("EURUSD", "GBPUSD")
-PER_SYMBOL_LIMIT = 2
+PER_SYMBOL_LIMIT = 100
 DUPLICATE_M1_COUNTS = {"EURUSD": 18, "GBPUSD": 16}
 ROOTS = (
     "https://datafeed.dukascopy.com/datafeed",
@@ -191,21 +192,29 @@ def analyse_case(event: dict, fetched: dict) -> dict:
 
 def run_probe(original_ledger: Path, output: Path) -> dict:
     cases, counts = choose_cases(original_ledger)
-    cache: dict[tuple[str, str], dict] = {}
-    summaries: list[dict] = []
+    mapped_cases: list[tuple[dict, tuple[str, str]]] = []
+    request_hours: set[tuple[str, str]] = set()
     for event in cases:
         exit_ts = datetime.fromisoformat(event["exit_at"])
         m1_last = exit_ts - timedelta(minutes=1)
         hour = m1_last.replace(minute=0, second=0, microsecond=0).astimezone(UTC)
         key = (event["symbol"], hour.isoformat())
-        if key not in cache:
-            cache[key] = download_public_hour(event["symbol"], hour)
-        summaries.append(analyse_case(event, cache[key]))
-    # Unrelated independently fixed fixture prevents conflating a holiday
-    # with a provider access failure. The fixture does NOT enter economics.
+        mapped_cases.append((event, key))
+        request_hours.add(key)
+    fixture_keys = [(s, FIXTURE_INSTANT.isoformat()) for s in SYMBOLS]
+    request_hours.update(fixture_keys)
+    requested = sorted(request_hours)
+    # Bounded external traffic; one download per symbol-hour, max 4 workers.
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        fetched = list(executor.map(
+            lambda key: download_public_hour(key[0], datetime.fromisoformat(key[1])),
+            requested,
+        ))
+    cache = dict(zip(requested, fetched, strict=True))
+    summaries = [analyse_case(event, cache[key]) for event, key in mapped_cases]
     fixture: dict = {}
     for symbol in SYMBOLS:
-        f = download_public_hour(symbol, FIXTURE_INSTANT)
+        f = cache[(symbol, FIXTURE_INSTANT.isoformat())]
         fixture[symbol] = {
             "status": f["status"],
             "n_ticks": f.get("n_ticks", 0),
@@ -216,6 +225,24 @@ def run_probe(original_ledger: Path, output: Path) -> dict:
         "identity": "QORE_ISSUE777_LONDON_BID_ASK_PUBLIC_TICK_PROBE_V1",
         "frozen_original_ambiguous_count": counts,
         "cases_queried": len(summaries),
+        "source_hours_requested": len(requested),
+        "public_quote_cases_available": sum(
+            x["quote_status"] == "QUOTE_SOURCE_AVAILABLE" for x in summaries
+        ),
+        "first_touch_counts": dict(
+            (status, sum(x["tick_first_touch_status"] == status for x in summaries))
+            for status in sorted({x["tick_first_touch_status"] for x in summaries})
+        ),
+        "external_hourly_spread_over_stop_ratio_by_case": [
+            {
+                "symbol": x["symbol"],
+                "london_day": x["london_day"],
+                "ratio": x["hour_spread_pips_p50"] / x["intended_stop_distance_pips"],
+            }
+            for x in summaries
+            if x.get("hour_spread_pips_p50") is not None
+            and x.get("intended_stop_distance_pips", 0) > 0
+        ],
         "cases": summaries,
         "provider_fixture_2025_11_12_09utc": fixture,
         "external_broker_not_verified": True,
