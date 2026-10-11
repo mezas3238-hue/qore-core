@@ -86,6 +86,27 @@ class CensusGateBTests(unittest.TestCase):
         self.assertTrue(details["missing_minute_cause_unclassified"])
         self.assertTrue(details["no_forward_fill"])
 
+    def test_ny_1700_rollover_changes_utc_slot_across_dst(self):
+        # Winter 17:00 NY=22:00Z; summer 17:00 NY=21:00Z.
+        winter = datetime(2026, 1, 14, tzinfo=UTC)
+        summer = datetime(2026, 7, 14, tzinfo=UTC)
+        stamps = (
+            [winter + timedelta(minutes=i) for i in range(1440)
+             if i not in (21 * 60 + 59, 22 * 60)]
+            + [summer + timedelta(minutes=i) for i in range(1440)
+               if i not in (20 * 60 + 59, 21 * 60)]
+        )
+        output = summarize_coverage(stamps)
+        groups = output["dense_utc_day_missing_minute_diagnostic"][
+            "new_york_1700_rollover_clock_comparison"
+        ]
+        self.assertEqual(groups["21:00"]["dense_days_in_timezone_regime"], 1)
+        self.assertEqual(groups["22:00"]["dense_days_in_timezone_regime"], 1)
+        for value in groups.values():
+            self.assertEqual(value["expected_1700_NY_slot_missing"], 1)
+            self.assertEqual(value["minute_before_1700_NY_missing"], 1)
+            self.assertEqual(value["both_slots_missing"], 1)
+
     def test_sparse_partial_daily_does_not_enter_dense_classification(self):
         start = datetime(2026, 10, 6, 0, 0, tzinfo=UTC)
         output = summarize_coverage(start + timedelta(minutes=i) for i in range(10))
