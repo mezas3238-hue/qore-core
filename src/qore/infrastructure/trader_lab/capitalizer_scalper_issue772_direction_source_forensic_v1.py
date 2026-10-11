@@ -320,7 +320,7 @@ def market(frozen_root:Path,native_root:Path,output:Path)->dict[str,Any]:
         "".join(json.dumps(x,sort_keys=True)+"\n" for x in traces),
         encoding="utf-8",
     )
-    counts=Counter()
+    counts:Counter[str]=Counter()
     for x in traces:
         counts["INHERITED" if x["h1_state_inherited"] else "FRESH"]+=1
         counts["ORIGIN_MATCH" if x["original_source_origin_at"] else
