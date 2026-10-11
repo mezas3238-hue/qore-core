@@ -1,0 +1,24 @@
+# QORE NATIVE RESET G2 — preregistro M1 CIBO cTrader DEV, **posterior al G1 negativo**
+
+**Fecha 2026-10-11.** `EXPLORATORY_POST_G1`: no es test confirmatorio nuevo; nace tras ver G1 `DEV_GROSS_NO_SUPPORT`. Se congela **antes de consultar cualquier resultado M1 de RESET**. No backtest económico de otras horas/activos después de conocer G2. No modifica el prerregistro ni dictamen G1. El objetivo no es rescatar el PnL de G1; es preguntar si una medición **M1 de la cola inmediata del fixing** detecta alguna reversión bruta que merezca estudiar costes.
+
+## Archivos CIBO originales, sin OAuth
+
+- Fuente de **clasificación** de G1, M5: cTrader DEMO EURUSD, [run #35166210458](https://github.com/mezas3238-hue/qore-core/actions/runs/35166210458) y artifact **#10475354631**. Código G1 ya ejecutado `qore_native_reset_fix_g1_v1.py`. Presión 15:30–15:55 `Europe/London` y placebo 13:30–13:55, usando primera open y última close M5, umbral de **p75 lineal de 120 formaciones previas**, nunca tasas posteriores. Se debe **reutilizar exactamente** `g1.build_events` sin reentrenar ni reetiquetar.
+- Fuente de **medición M1** (solo entradas/salidas de G2): CIBO Capitalizer cTrader DEMO, [run #35548099334](https://github.com/mezas3238-hue/qore-core/actions/runs/35548099334), artifact **#10618547852** con `qore-capitalizer-cibo-10y-native-m1-EURUSD-18c338aedd5013ce65a6cb6408ffbc2e904a6217`, `RAW_M1_LEDGER/{2016,...,2026}.jsonl`, `m1-clone-manifest.json`, `MANIFEST_SHA256SUMS.txt`. Proveedor nativo **NO interpolado ni sintetizado**. Ventana **2016-09-17 UTC a 2026-09-17 UTC exclusiva**. Cada año raw verificado contra manifest `partitions[].raw_sha256` y total `retained_m1`. Precios `open_relative` divididos por **100000** (no `10**digits` configurable), `digits=5`; no ocultar anomalías.
+- **PROHIBIDO abrir** archivo sellado CIBO EURUSD 2014–2016 artifact #10948342218. Solo el inventario de ese archivo fue leído con fines de procedencia. No utilizar la parte septiembre 2016 anterior al 17. 
+- No BID/ASK/ticks exigidos en este ensayo **de señal bruta**; no pueden fabricarse costes ni PnL neto, PF, Sharpe, Sortino, MDD. No realizar nuevas peticiones cTrader.
+
+## Una sola definición operacional M1 congelada (no grid)
+
+- Fijar 16:00 `Europe/London` como ancla del benchmark; **FIX** usar `open` provider-native **16:03** como precio de referencia de entrada hipotética y `open` **16:15** como salida de referencia (**12 minutos**), ambos locales. El inicio 16:03 queda posterior a la ventana benchmark aproximada 15:57:30–16:02:30. La señal completa de presión termina a las 15:55, temporalmente anterior a la entrada.
+- **PLACEBO**: mismas 12 min locales **14:03 → 14:15**, presión y percentiles del placebo G1 original (formación termina 13:55).
+- Para cada brazo y fecha de G1, `reversion_bps=-sign(pressure) * 10000 * log(open_exit / open_entry)`. Sin órdenes; open M1 solo marca proxy mid/single price original, no fill bid/ask.
+- **Cohorte emparejada**: retener únicamente días con las cuatro aperturas M1 verificadas, exactamente en el timestamp `Europe/London` correspondiente (DST), además de la cohorte G1 ya completa, y presión no-cero en ambos brazos. No ffill, no usar un brazo solo. Los pares con missingness se excluyen y se reportan, nunca cambian el umbral.
+- **Endpoint único**: `D=(mean FIX_high - mean FIX_low)-(mean PLACEBO_high - mean PLACEBO_low)` en bps. Conserva categorías high/low de G1 incluso si cambia la cohorte debido a M1. Cuatro celdas mínimas 50 y mínimo **300 días comunes**; si falla, `DEV_M1_UNDERPOWERED`.
+- **Un IC95** para D mediante bootstrap 2.000 semanas ISO con reemplazo de semanas enteras y fecha conjunta, **seed 941102**, percentiles lineales. No múltiples cortes por año elegidos ni segunda hipótesis sobre mismos datos.
+- Gate exploratorio favorable **solo** si `D>0`, CI95 inferior de D `>0`, `FIX_HIGH_mean>0` y muestra suficiente. Etiqueta `DEV_M1_GROSS_SIGNAL_FOR_COST_AUDIT`, no `GO`, no trader certificable. Cualquier otro resultado `DEV_M1_GROSS_NO_SUPPORT` o `DEV_M1_UNDERPOWERED`.
+- Publicar **4 celdas, D, intervalo, todas exclusiones, temporalidad, año/semana, hashes y SHA de CI**, archivo individual por día, volumen de M1 inspeccionado. No seleccionar otro horario, mirar solamente el resultado fijado. No evaluar año 2014–2016 sellado.
+- Limitaciones científicas explícitas: prereg exploratorio **después de G1**, la ventana escogida no demuestra fidelidad al microflujo del benchmark ni la posibilidad de trading, y una sola combinación negativa no puede refutar toda la física del fixing. Si el efecto bruto no cumple, STOP para esta familia de presión alta + reversión simple; si cumple, pedir coste observado y OOS genuinamente independiente **antes** de clasificar estrategia.
+
+**El siguiente script se implementará después del commit de este preregistro; ningún outcome M1 se ha leído para elegir parámetros.**
