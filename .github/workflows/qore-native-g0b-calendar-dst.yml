@@ -1,0 +1,83 @@
+name: QORE NATIVE G0B - Nominal Clock DST and Pair Availability (NO RETURNS)
+
+on:
+  push:
+    branches:
+      - research/qore-native-g0b-calendar-dst-synchrony-20261011
+    paths:
+      - '.github/workflows/qore-native-g0b-calendar-dst.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g0b_calendar_dst_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g0b_calendar_dst_v1.py'
+      - 'docs/research/QORE_NATIVE_G0B_CALENDAR_DST_COVERAGE_PREREG_2026-10-11.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  G0_RUN: '38166675573'
+  G0_SHA: 'fb22970798a2bd93f097f1327ce9c864eec0bb9c'
+
+jobs:
+  clock_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: 'Preregistered DST/bitmap tests, strictly no outcomes'
+        run: |
+          test -s docs/research/QORE_NATIVE_G0B_CALENDAR_DST_COVERAGE_PREREG_2026-10-11.md
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_native_g0b_calendar_dst_v1.py
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g0b_calendar_dst_v1.py tests/infrastructure/trader_lab/test_qore_native_g0b_calendar_dst_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g0b_calendar_dst_v1.py
+
+  nine_market_observability:
+    needs: clock_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: 'Read-only G0 minute bitmaps from previously executed run, not raw prices'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-native-G0-*-${{ env.G0_SHA }}
+          path: G0-source-bitmaps
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.G0_RUN }}
+      - name: 'Exact session clock availability census; no PnL or signals'
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_g0b_calendar_dst_v1 G0-source-bitmaps G0B-output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('G0B-output/qore-native-G0B-calendar-observability.json')
+          j=json.loads(p.read_text(encoding='utf-8'))
+          assert j['G0B_source_integrity']=='VALIDATED_BITMASK_COUNTS'
+          assert j['all_sessions_are_candidate_nominal_clocks_not_provider_certified']
+          assert not j['provider_broker_calendar_verified']
+          assert not j['costs_observed']
+          assert not j['future_returns_or_PnL_measured']
+          assert not j['live_authorized']
+          assert set(j['windows'])=={'DRIVE_NY_AM','RESET_LDN_FIX_CONTEXT','RELATIVE_LDN_AM','RELATIVE_NY_AM'}
+          assert len(j['G0_bitmap_sha256'])==9
+          print('G0B_NOMINAL_CENSUS',json.dumps({
+              k:{'symbols':list(v['symbols']),'pairs':list(v['pairs'])}
+              for k,v in j['windows'].items()
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G0B-clock-census-${{ github.sha }}
+          path: G0B-output/
+          retention-days: 90
+          if-no-files-found: error
