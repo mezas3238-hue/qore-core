@@ -201,6 +201,8 @@ def anatomy(root: Path) -> dict[str, Any]:
     return {
         "identity":IDENTITY,
         "source_ids":2876,"baseline_max3":2020,"online_max3":1997,
+        "baseline_max3_source_ids":sorted(old_ids),
+        "online_max3_source_ids":sorted(new_ids),
         "invalid_source_breakdown":transitions,
         "max3_removed":cohort(removed),"max3_added":cohort(added),
         "max3_retained":cohort(kept),
