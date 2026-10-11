@@ -10,6 +10,63 @@
 
 ---
 
+## ACTUALIZACIÓN PRIORITARIA EN EL MOMENTO DE ENTREGA — Auditorías XIV y XV de B
+
+**Esta sección SUPERA las cifras anteriores de las auditorías XII/XIII cuando entren en conflicto.** Se comprobó el trabajo del arquitecto B en su rama GitHub, incluidos los resultados nuevos **después** del snapshot inicial de este documento. El siguiente arquitecto DEBE tomar estas cifras como estado de investigación más reciente y volver a consultar el HEAD de B; la rama sigue en evolución.
+
+### AUDITORÍA XIV — avance económico medido por primera vez, pero aún perdedor
+
+[GitHub Actions #38102352779, 11/11 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38102352779) (código B SHA b4d35fe99b99a96dac3728610258fe5a4ab20c15). Primer **replay económico histórico source-anchored con elección M1 first-online**, stop M15 V49, target H1 recalculado al nuevo cierre as-of, STOP-FIRST, salida objetivo/sesión y portfolio MAX3 nueve mercados. Conserva el universo de **2876 fuentes V49 originales** como punto de partida; **NO** regenera los eventos H1/M15 desde el dato crudo para descubrir oportunidades fuera de esa población. **NO** es un full-brain/corredor BID-ASK físico, ni OOS autor-certificado.
+
+| Medida bruta | V49 original | First-online source-anchored |
+|---|---:|---:|
+| Candidatas antes MAX3 | 2876 | 2816 válidas (36 geometrías SL M15 inválidas, 24 sin target H1) |
+| Trades elegidos MAX3 | 2020 | **1997** |
+| Wins | 1167 | **1154** |
+| PF bruto | 0.6644630742 | **0.8425240505** |
+| DD máximo bruto R | 236.134284 | **114.799099** |
+| Resultado bruto R | −233.269327 | **−109.055389** |
+| Beneficio bruto R | 461.942762 | 583.465531 |
+
+**Conclusión:** PF **+26,8% relativo**, DD **−51,4%**, pero **PF < 1** y pérdida de **109,06R** incluso antes de broker BID/ASK/comisión. Es un progreso económico real y cuantificado, **NO cumple la misión de edge rentable**. La diferencia mezcla cambio de instante/familia, 60 fuentes no elegibles y selección MAX3; no atribuir toda la mejora a una sola regla. No construir World Model para encubrir esta pérdida.
+
+**Ganadores por identidad:** [GH Actions #38102633581 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38102633581): conserva **1947** de los 2020 IDs ejecutados originales; 73 salen y 50 entran. De 1167 ganadoras originales, **1137 IDs** siguen seleccionados y representan **449.711269R/461.942762R = 97,35%** de la masa ganadora histórica identificada. **32/1137** cambian de ganadoras a perdedoras bajo el nuevo timing/target: conservar el ID NO equivale a conservar su beneficio realizado. El siguiente arquitecto debe medir retención tanto de ID como de win efectivo y R, por cartera y cohorte; las barreras Owner de 80% de IDs y 90% de R no garantizan rentabilidad.
+
+### Auditoría XIV — CORRECCIÓN definitiva de los falsos 111 H1 sin POI
+
+[GitHub Actions #38102351044 — 11/11 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38102351044), con lookback **exactamente 14 días** como el V49 original (antes un auditor reconstruía con 15 días): **2638/2638** C2 y **238/238** C3 H1/POI intrínseco vuelven a conciliar; **2876/2876** sesgos fuente reconstruidos. Los antiguos **111 sin reconstrucción** eran **artefacto de diferencia de lookback**, NO evidencia de POI ausente; queda explícitamente PROHIBIDO usarlos como diagnóstico vigente. **2372/2876** con las dos velas H1 60/60 físicas comprobadas, **504** sin doble cierre H1 íntegro (PARTIAL, NO veto).
+
+[GitHub Actions #38102651079 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38102651079): **152** testigos H1 source off-clock (cierre registrado fuera de HH:00 UTC) con ese lookback, **CERO** M15 setups y **CERO** primeras órdenes M1 confirmados antes del verdadero cierre HH:00 de esas 152. **NO** se ha probado lookahead temporal de entrada por este problema, aunque aún falta verificar integridad OHLC de barras H1 parciales (45/60), POI HTF del autor, fuentes de swings y causalidad de la herencia H1. NO vender 8,3% C3 como falta de fidelidad: H1 admite C2 **o** C3. 
+
+### AUDITORÍA XV — explicación de la pérdida residual, ahora con datos medidos
+
+[GitHub Actions #38104619725 — SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38104619725), [artifact audit15](https://github.com/mezas3238-hue/qore-core/actions/runs/38104619725/artifacts/11689048493). Analizó 9 mercados, 2876 oportunidades, el mismo replay 1997 MAX3 y 2020 baseline; **no reajustó por outcomes**.
+
+- Desglose de caída de fuentes: **36** INVALID_M15_STOP + **24** NO_H1_TARGET = 60 no elegibles antes MAX3; **73** IDs basales fuera del portfolio y **50** añadidos; **32** antiguas ganadoras seleccionadas pasan a perder tras el cambio.
+- **32/32** ganadoras→perdedoras adelantaron su entrada; desplazamiento mediano **−33 minutos**; **25** pasan de TARGET a STOP, **4** TARGET→SESSION_EXIT, **2** SESSION_EXIT→STOP, **1** permanece SESSION_EXIT; **20/32** tienen target cambiado y **0/32** cambio en SL fuente. **17** pertenecían al antiguo subgrupo de 381 divergencias y **15** a otro grupo, lo que demuestra por qué 381 NO agota el problema online.
+- En los **1997** nuevos trades, **935** tenían *target planificado inferior a 0,5R*; sólo **549** tenían target >=1R; target mediano **0.537R**, ganancia media de trade positivo **0.5056R** vs pérdida media por trade negativo **0.8234R**; **615** STOP, **1006** TARGET, **376** SESSION_EXIT. Este desequilibrio de payoff es P0 económico: no implica imponer RR mínimo ciego; comprobar **por qué** los objetivos HTF as-of tienen tan poco recorrido y el SL M15 es relativamente amplio. Segmentar por familia, mercado y sesión antes de hipótesis.
+- PF 0.842524 y DD 114.799R son **brutos** y todavía malos; audit15 NO ha producido un Trader certificado ni una política alternativa con edge.
+
+**B último código consultado:** auditor residual `src/qore/infrastructure/trader_lab/capitalizer_scalper_a2_audit15_residual_anatomy_v1.py` (localizar si cambia nombre por GitHub search), workflow `qore-scalper-a2-audit15-residual-anatomy-nine-market.yml` (comprobar filename exacto en HEAD B). Auditar logging, source IDs, hashes y artifact en la Action anterior. No confundir el informe PF source-anchored de B con **PF del verdadero Master Frame cognitivo A1**, que SIGUE SIN EJECUTARSE para nueve mercados históricos.
+
+### ORDEN PRIORITARIO REVISADO PARA EL SUCESOR
+
+**P0-A metodología:** resolver **primera selección CISD online NO prefix-stable**, **1090/2876** diferencias first-discovered en streaming contra V49, sin malinterpretar que 381 eventos estaban ausentes. Confirmar by-event as-of la relación swing/POI HTF TTrades; dejar regla de desempate multi-ruta como `QORE_ENGINEERING_RULE` si TTrades no la prescribe. Consulta DeepSeek para casos concretos de autor ambigüo, **verificar sus citas en TTrades**.
+
+**P0-B densidad y nueva generación:** el replay XIV está *source-anchored*, NO descubre nuevas oportunidades de H1/M15 fuera de 2876; reconstruir H1→M15→M1 **bar-by-bar desde todas las fuentes nativas** con lookback exacto 14 días, C2/C3 originales y POI/HTF verificados. Mantener protocolo de primera confirmación real sin backdate ni conocer next-H1/next-M15.
+
+**P0-C estructura económica:** explicar cuantitativamente los 935 targets <0,5R, payoffs y 32 flips, stop M15 vs target H1 as-of, selección MAX3 y winner-mass. Luego A/B pre-registrado de **una sola** corrección source-fiel cada vez, sin seleccionar por PF de ese mismo período de desarrollo. Asegurar costes reales BID/ASK/comisiones y prueba OOS congelada antes de certificación.
+
+**P0-D C3:** finalizar adjudicación de lecturas de diciembre vs enero, universos e impactos; no trasplantar reglas de un contexto distinto ni inducir gates artificiales. H1 C2 2638 / C3 238 NO indica por sí mismo desviación del autor.
+
+**P0-E A1:** mantener freeze de expansión World Model hasta raíz autor/causal resuelta; entonces conectar las nueve percepciones físicas, presión/portfolio/posiciones SETTLED ONLY, verdadera cognitiva Master Frame y PAPER, medir PF/DD reales del cerebro, no los del motor B.
+
+**DeepSeek para ambigüedades:** el siguiente arquitecto está expresamente autorizado a CONSULTAR a DeepSeek para obtener hipótesis, lecturas alternativas, contraejemplos y sugerencias de tests sobre CISD, POI C2/C3, stops/targets y first-online; registrar pregunta y respuesta en GitHub; verificar citas **primarias** directamente y someter cada respuesta a prueba 9-market. DeepSeek es apoyo externo, NO verdad autoral ni certificador. No compartir secretos.
+
+**Estado al publicar la actualización:** A1 #758 y B #759, así como #623, DRAFT/no merge; la prueba B XV tuvo inicialmente CI rojo y quedó **GREEN #38104619725**, por lo que no reproducir una falla transitoria como defecto pendiente. Auditoría completa de rama B puede tener nuevos runs posteriores; consultar HEAD y su estado actual. Sin VPS/MT5/LIVE. **Scalper sigue NO CERTIFICABLE.**
+
+---
+
 ## 0. LECTURA OBLIGATORIA PARA EL SUCESOR
 
 **No empezar desde cero ni ampliar el World Model todavía.** Antes, leer los documentos:
