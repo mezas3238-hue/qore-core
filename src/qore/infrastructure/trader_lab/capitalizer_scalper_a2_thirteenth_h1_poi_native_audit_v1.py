@@ -187,7 +187,7 @@ def market(
         )
         if identity not in cache:
             found=choose_origin(events,source)
-            witness=(
+            witness:dict[str,Any]=(
                 poi_witness(h1,pois,found)
                 if found is not None else {"source_event_reconstructed":False}
             )
@@ -204,7 +204,7 @@ def market(
             **record,
             "changes_original_trade":False,
         })
-    counts=Counter()
+    counts:Counter[str]=Counter()
     for x in rows:
         counts["SOURCE_MATCH" if x["source_event_reconstructed"]
                else "SOURCE_UNMATCHED"]+=1
@@ -232,7 +232,7 @@ def aggregate(root:Path)->dict[str,Any]:
           for x in _jsonl(p)]
     if len(rows)!=2876 or len({x["source_opportunity_id"] for x in rows})!=2876:
         raise ValueError("source population not conserved")
-    counts=Counter()
+    counts:Counter[str]=Counter()
     for x in rows:
         key="C3" if "CANDLE3" in x["original_basis"] else "C2"
         counts[key]+=1
