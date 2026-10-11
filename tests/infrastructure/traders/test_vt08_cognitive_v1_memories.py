@@ -1,5 +1,6 @@
 from qore.infrastructure.traders.vt08_cognitive_cibo_market_memory import (
     cibo_market_memory_fingerprint,
+    cibo_market_memory_runtime_view,
     market_anchor_prior,
     validate_cibo_market_memory,
 )
@@ -12,6 +13,7 @@ from qore.infrastructure.traders.vt08_cognitive_trader_experience_memory import 
     R315_CERTIFIED_PORTFOLIO_SIDES,
     experience_cell,
     trader_experience_fingerprint,
+    trader_experience_runtime_view,
     validate_trader_experience,
 )
 
@@ -72,3 +74,28 @@ def test_invalid_market_or_anchor_fails_closed() -> None:
         assert "outside 01/05/09" in str(error)
     else:
         raise AssertionError("13 NY must fail closed")
+
+
+def test_memory_runtime_views_cannot_mutate_governed_cached_state() -> None:
+    prior_cibo = cibo_market_memory_fingerprint()
+    prior_experience = trader_experience_fingerprint()
+    market_view = cibo_market_memory_runtime_view()
+    experience_view = trader_experience_runtime_view()
+    market_governance = market_view["governance"]
+    experience_governance = experience_view["governance"]
+    assert isinstance(market_governance, dict)
+    assert isinstance(experience_governance, dict)
+    market_governance["may_issue_execute_or_abstain"] = True
+    experience_governance["runtime_self_training_allowed"] = True
+
+    # Modifications to *returned* runtime observations cannot poison the
+    # frozen cached source before another cognitive event uses the memory.
+    new_market = cibo_market_memory_runtime_view()["governance"]
+    new_experience = trader_experience_runtime_view()["governance"]
+    assert isinstance(new_market, dict)
+    assert isinstance(new_experience, dict)
+    assert new_market["may_issue_execute_or_abstain"] is False
+    assert new_experience["runtime_self_training_allowed"] is False
+    assert cibo_market_memory_fingerprint() == prior_cibo
+    assert trader_experience_fingerprint() == prior_experience
+    validate_cognitive_memory()
