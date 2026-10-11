@@ -244,6 +244,18 @@ def verify_causal_event(
             raise BMethodologyBoundaryError(
                 f"{role}: confirmation was not available at source decision"
             )
+    if family == "C3_CONTINUATION_FROM_C2":
+        # Intracycle C3 must run from the observed M15 PREFIX only. A future
+        # complete C3 H4 candle / its final EQ has no causal existence here.
+        end_c3 = c2_close + timedelta(hours=4)
+        if not (c2_close <= decision < entry < end_c3):
+            raise BMethodologyBoundaryError(
+                "C3 intracycle decisions/entries must precede final H4 close"
+            )
+        if event.get("c3_candle") is not None or event.get("c3_closed_at") is not None:
+            raise BMethodologyBoundaryError(
+                "C3 intracycle cannot consume completed C3 H4 candle"
+            )
     c3_close: datetime | None = None
     if family == "C3_CLOSURE_TO_C4":
         c3_close = _time(event.get("c3_closed_at"), "c3.close")
@@ -304,6 +316,15 @@ def verify_causal_event(
             # Independent B/source reviewer must rederive the reference point
             # from the original earlier candle stream, not a producer assertion.
             blockers += ("B_SOURCE:PRE_C2_SWING_RAW_INDEPENDENT_REVIEW_PENDING",)
+    elif family == "C3_CONTINUATION_FROM_C2":
+        # C3 full H/L is future data for any intracycle entry. The only
+        # admissible current representation is EQ deliberately NOT consumed.
+        # A source-backed *prior* C2 EQ may be added in a NEW frozen contract.
+        if basis != "EQ_NOT_CONSUMED_INTRAC3_H4_UNCLOSED":
+            raise BMethodologyBoundaryError(
+                "C3 intracycle cannot use full C3 EQ before H4 close"
+            )
+        blockers += ("B_SOURCE:C3_INTRACYCLE_EQ_SOURCE_UNADJUDICATED",)
     else:
         if basis != "C3_FULL_WICK_TO_WICK_AFTER_CLOSURE":
             raise BMethodologyBoundaryError("C3 must use full wick-to-wick EQ")
