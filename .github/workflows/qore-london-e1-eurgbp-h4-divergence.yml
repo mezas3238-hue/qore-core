@@ -1,0 +1,113 @@
+name: London EUR GBP Reclaim Divergence H4 Prior E1
+
+on:
+  push:
+    branches:
+      - research/london-eur-gbp-divergence-h4-audit-20261011
+    paths:
+      - '.github/workflows/qore-london-e1-eurgbp-h4-divergence.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_london_eurgbp_h4_divergence_e1_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_london_eurgbp_h4_divergence_e1_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FROZEN_PATH_RUN: '38150980682'
+  FROZEN_PATH_SHA: '125bc37709f36ccf9295f6dbd6cc390b44b266c8'
+  NATIVE_M1_RUN: '35548099334'
+  NATIVE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e '.[dev]'
+      - name: 'Freeze E1 preregistration and run causal tests before seeing H4-conditioned outcomes'
+        run: |
+          test -s docs/research/QORE_LONDON_ISSUE775_DIVERGENCE_H4_E1_PREREG_2026-10-11.md
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_london_eurgbp_h4_divergence_e1_v1.py
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_london_eurgbp_h4_divergence_e1_v1.py tests/infrastructure/trader_lab/test_qore_london_eurgbp_h4_divergence_e1_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_london_eurgbp_h4_divergence_e1_v1.py
+
+  market:
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        symbol: [EURUSD, GBPUSD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - name: 'Original frozen state and outcome ledger, never recompute labels'
+        uses: actions/download-artifact@v4
+        with:
+          name: london-ttrades-source-only-${{ matrix.symbol }}-${{ env.FROZEN_PATH_SHA }}
+          path: frozen
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FROZEN_PATH_RUN }}
+      - name: 'Independent provider-native M1 data for pre-raid H4 only'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.NATIVE_M1_SHA }}
+          path: native
+          github-token: ${{ github.token }}
+          run-id: ${{ env.NATIVE_M1_RUN }}
+      - name: 'Causal H4 first-online classification, with strict completed UTC H4'
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_london_eurgbp_h4_divergence_e1_v1 market native frozen MARKET
+      - uses: actions/upload-artifact@v4
+        with:
+          name: issue775-LONDON-E1-${{ matrix.symbol }}-${{ github.sha }}
+          path: MARKET/
+          retention-days: 90
+          if-no-files-found: error
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: issue775-LONDON-E1-*-${{ github.sha }}
+          path: MARKET_AGGREGATE
+      - name: 'Shared five NY-date blocks and H4 standardized interaction, no new trades'
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_london_eurgbp_h4_divergence_e1_v1 aggregate MARKET_AGGREGATE E1-FINAL
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          j=json.loads(Path("E1-FINAL/qore-london-issue775-E1-eurgbp-H4-divergence-results.json").read_text())
+          assert j["source_days_total"]==522
+          assert not j["no_SMT_in_this_gate"] is False
+          assert j["no_TTrades_author_H4_confirmation"]
+          assert j["history_reused_no_independent_OOS"] and j["no_new_trader_or_PF"]
+          assert j["date_block_bootstrap"]["replications_requested"] == 2000
+          print("E1_AUDIT_COMPLETE",json.dumps({
+            "raw":j["original_interaction"],
+            "h4":j["H4_prior"],
+            "bootstrap":j["date_block_bootstrap"],
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: issue775-LONDON-E1-H4-divergence-aggregate-${{ github.sha }}
+          path: E1-FINAL/
+          retention-days: 90
+          if-no-files-found: error
