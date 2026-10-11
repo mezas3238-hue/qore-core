@@ -99,3 +99,33 @@ La degradación Sweep sigue siendo material tras corregir la primera selección 
 - **PF0.8425 y -109.055R BRUTO**; no rentable/certificable, tampoco BID/ASK físico. Las dos familias contribuyen; la ganancia media aumentó por timing+target+composición.
 - No se puede afirmar que el problema de los stops haya desaparecido: stop original M15 conserva riesgo -1R al hit, y hay 189 perdedoras que antes tuvieron excursion >=0.5R. Hace falta factorial stop M15/M1 sin hard-veto nuevo.
 - La generación H1/M15 original y el POI autor siguen condicionando el universo 2876; no reconstruir fuera de esas fuentes hasta tener suite completa. World Model congelado.
+
+---
+
+## 5. Factorial stop M15/M1 + ruido 2×2 fijo — [GH Actions #38105126886 SUCCESS 11/11](https://github.com/mezas3238-hue/qore-core/actions/runs/38105126886)
+
+**Protocolo:** 1997 source IDs inmutables ya seleccionadas por causal-first MAX3. No modificar entrada, familia, H1 objetivo, sesión, ni cronología MAX3. Stop original M15, o STOP M1 de pivote causal as-of detectado por `analyze_source_geometry` existente. Los brazos con ruido exigen condición PRESPECIFICADA 4–8× respecto al rango local M1 de V50-G; no optimizar parámetros ni elegir el brazo por PF. Todos los resultados son BRUTOS, sin BID/ASK o comisiones, y los subconjuntos con menor cobertura no son carteras reconstituidas.
+
+| Brazo fijo | N con stop y ruido disponible | PF bruto | R bruto | N fuera de cobertura de las 1997 |
+|---|---:|---:|---:|---:|
+| M15_NOISE_OFF | **1997** | 0.842524 | -109.055389R | 0 |
+| M1_NOISE_OFF | **1778** | 0.914294 | -99.363079R | 219 |
+| M15_NOISE_VETO | **52** | 1.180295 | +1.845016R | **1945** |
+| M1_NOISE_VETO | **52** | 1.786036 | +11.831383R | **1945** |
+
+El pivote M1 estructural está disponible para **1778/1997**, falta testigo para 219, y la condición 4–8× se cumple en 52. Aunque el M1 no-veto mejora el PF vs stop M15, **sigue debajo de 1** y aún registra casi -100R en este subconjunto. Los 52 con condición 4–8× exhiben PF>1 en el development, pero un veto que excluye **97,4% de operaciones** destruye densidad y carece de nueva selección MAX3, de costes y OOS. **No se autoriza integrarlo como filtro/stop en CORE**. Son resultados de investigación, no modelo certificado.
+
+Especialmente, no comparar PF de 52 oportunidades con PF de 1997 como si fueran universos equivalentes o asumir que los 52 conservarían desempeño en producción. El código, su test y el workflow son:
+- `capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1.py`;
+- `test_capitalizer_scalper_a2_fifteenth_online_stop_factorial_v1.py`;
+- `qore-scalper-a2-fifteenth-online-stop-factorial.yml`.
+
+### Veredicto final de auditoría XV
+
+1. Las diferencias 60/73/50/32 y mejor target R quedan **CLASSIFIED**, no filtradas.
+2. La reejecución de la suite H1 RANDOM + MFE/MAE + Sweep/FVG→CISD en n1997 queda **MEASURED**. **El problema Sweep→CISD sigue (-13.69pp a 15min), y el signo de retorno online sigue inferior al H1 RANDOM uniform** a 15/30/60.
+3. La ablation stops 2×2 queda **MEASURED pero no ejecutable como regla**: 1778 n pivote con PF0.914 y 52 en 4–8× PF>1 sin densidad ni OOS.
+4. Faltan: regeneración COMPLETA y no anclada de H1/M15/M1 desde datos causales, fidelidad HTF POI y swing M15 al autor, monitorización de integridad 504 H1 con cobertura parcial, y ensayo financiero físico BID/ASK cuando la variante amplia supere PF bruto 1 antes de costes.
+5. **NO CERTIFICABLE**, World Model congelado, V49 original intacto y ningún veto nuevo, PR #759 DRAFT, no MT5/VPS/LIVE.
+
+**NOTA**: no diseñar retroactivamente el próximo ensayo para rescatar PF 0.843 con el umbral 4–8× ya visto en development; se requeriría justificación fuente previa y datos de validación independientes.
