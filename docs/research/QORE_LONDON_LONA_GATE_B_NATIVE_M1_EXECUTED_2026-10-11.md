@@ -35,7 +35,17 @@ Los porcentajes de M15 y H4 están calculados SOLO sobre **bins no vacíos**; no
 
 Se añadió al censo una comprobación de anclajes NY `22/02/06/10/14/18` y `01/05/09/13/17/21`. Son hipótesis de datos con `America/New_York`, horarios DST variables (180/240/300 minutos reales por bloque cuando corresponde). La fuente londinense habla de 22:00 y 02:00 pero **no basta para adjudicar a priori una hora universal de entrada**. La alternativa 01/05 pertenece a otro perfil de fuente en el repositorio y no se importa como autoridad de LON-A.
 
-La métrica de cobertura NY, incluso si es superior a UTC, **no puede seleccionar el reloj autoral por maximización de la cobertura o del PF**; primero hay que resolver fuente e imagen/chart setup. Artefactos completos trazables en los runs posteriores al censado básico.
+**Segunda auditoría real finalizada:** [GitHub Actions run #38169272744](https://github.com/mezas3238-hue/qore-core/actions/runs/38169272744), `SUCCESS` en 3 jobs (contratos sintéticos y EUR/GBP), fuente idéntica y modo read-only.
+
+| Reloj H4 AUDITADO (no canónico) | EURUSD completas/observadas | GBPUSD completas/observadas |
+|---|---:|---:|
+| UTC 00/04/08/... | 1.242/1.607 = **77,29%** | 1.256/1.607 = **78,16%** |
+| NY 22/02/06/... | 1.178/1.608 = **73,26%** | 1.193/1.608 = **74,19%** |
+| NY 01/05/09/... | 1.010/1.555 = **64,95%** | 1.017/1.555 = **65,40%** |
+
+Los DENOMINADORES CAMBIAN al modificar el reloj; **no son una comparación causal de precisión de velas**, y cada bin observada puede incluir horarios de trading diferentes. Ambos relojes NY se verifican con conversión `America/New_York` y tests de frontera primavera/otoño. En el periodo real no aparecen bins observadas de 180/300 minutos: las transiciones DST ocurren durante cierres de mercado de estos pares, no porque se haya omitido implementar DST.
+
+**Conclusión:** elegir ancla horaria solo porque produce un porcentaje mayor equivale a selección por calidad aparentemente favorable y NO adjudica el H4 del autor. Se necesita confirmación del reloj en la fuente y comparación con velas H4 nativas si se dispone de ellas. La métrica de cobertura NY, incluso si difiere de UTC, **no puede seleccionar el reloj autoral por maximización de la cobertura o del PF**.
 
 ## 4. Trabajo restante obligatorio
 
