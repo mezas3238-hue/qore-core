@@ -122,7 +122,7 @@ def event(
     return out
 
 
-def test_text_only_spec_requires_all_family_roles_and_tag_D_is_not_A() -> None:
+def test_text_only_spec_requires_all_family_roles_and_tag_d_is_not_a() -> None:
     manifest = spec()
     declared = v.validate_text_only_spec(manifest)
     assert len(declared) == 3
@@ -136,7 +136,7 @@ def test_text_only_spec_requires_all_family_roles_and_tag_D_is_not_A() -> None:
     assert "B_SOURCE:JOINT_MANIFEST_NOT_SIGNED" in verdict.blockers
 
 
-def test_A_primary_source_requires_real_citation_and_verbatim_quote() -> None:
+def test_a_primary_source_requires_real_citation_and_verbatim_quote() -> None:
     manifest = spec()
     rule = manifest["rules"][2]
     assert rule["role"] == "EQ"
@@ -159,7 +159,7 @@ def test_A_primary_source_requires_real_citation_and_verbatim_quote() -> None:
         v.validate_text_only_spec(wrong)
 
 
-def test_missing_family_poi_or_mislabeled_C_rule_fails_closed() -> None:
+def test_missing_family_poi_or_mislabeled_c_rule_fails_closed() -> None:
     manifest = spec()
     manifest["rules"] = manifest["rules"][:-1]
     with pytest.raises(v.BMethodologyBoundaryError, match="all six"):
@@ -173,7 +173,7 @@ def test_missing_family_poi_or_mislabeled_C_rule_fails_closed() -> None:
 @pytest.mark.parametrize(("delta", "expected"), [
     (0, "identified ex-post"), (5, "identified ex-post"),
 ])
-def test_expost_swing_during_or_after_C2_is_structural_lookahead(
+def test_expost_swing_during_or_after_c2_is_structural_lookahead(
     delta: int, expected: str,
 ) -> None:
     e = event(against=True)
@@ -213,7 +213,7 @@ def test_causal_failures_never_qualify_as_source_complete(
         v.verify_causal_event(e, spec())
 
 
-def test_valid_preC2_swing_boolean_does_not_become_source_proof_or_signature() -> None:
+def test_valid_prec2_swing_boolean_does_not_become_source_proof_or_signature() -> None:
     e = event(against=True)
     first = v.verify_causal_event(e, spec())
     assert "B_SOURCE:PRE_C2_SWING_REGIME_NOT_ATTESTED" in first.blockers
@@ -224,7 +224,7 @@ def test_valid_preC2_swing_boolean_does_not_become_source_proof_or_signature() -
     assert "B_SOURCE:INDEPENDENT_SOURCE_ADJUDICATION_PENDING" in later.blockers
 
 
-def test_C3_and_C4_two_clocks_and_PS_must_not_reach_future_M15() -> None:
+def test_c3_and_c4_two_clocks_and_ps_must_not_reach_future_m15() -> None:
     e = event("C3_CLOSURE_TO_C4")
     ok = v.verify_causal_event(e, spec())
     assert ok.chronology_valid and not ok.cognitive_ready
@@ -245,7 +245,7 @@ def test_C3_and_C4_two_clocks_and_PS_must_not_reach_future_M15() -> None:
         v.verify_causal_event(premature_c4, spec())
 
 
-def test_double_sweep_D_is_excluded_not_silently_classified() -> None:
+def test_double_sweep_d_is_excluded_not_silently_classified() -> None:
     e = event("C3_CLOSURE_TO_C4")
     e["c2_dual_sweep"] = True
     e["dual_sweep_adjudicated"] = False
@@ -253,7 +253,7 @@ def test_double_sweep_D_is_excluded_not_silently_classified() -> None:
     assert "B_SOURCE:C2_DUAL_SWEEP_UNADJUDICATED" in verdict.blockers
 
 
-def test_body_engulf_36_must_be_qore_C_never_methodology_A() -> None:
+def test_body_engulf_36_must_be_qore_c_never_methodology_a() -> None:
     e = event("C3_CLOSURE_TO_C4")
     e["body_engulf_strong_proxy"] = True
     e["body_engulf_source_tag"] = "A"
@@ -281,7 +281,7 @@ def metrics() -> dict[str, object]:
     }
 
 
-def test_proxy_counts_separate_and_QORE_bucket_safely_labelled() -> None:
+def test_proxy_counts_separate_and_qore_bucket_safely_labelled() -> None:
     report = v.audit_proxy_metrics(metrics())
     assert report["m15_CISD_PS_FORMAL_PROXY_NOT_DENSITY"] == 129
     assert report["source_confirmed_CISD_PS"] == 0
