@@ -1,0 +1,113 @@
+name: QORE Native DRIVE NAS100 G1 One Frozen cTrader M1 NY Open Experiment
+
+on:
+  push:
+    branches:
+      - research/qore-native-drive-nas100-open-continuation-g1-20261011
+    paths:
+      - '.github/workflows/qore-native-drive-nas100-g1-cibo-m1.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_drive_nas100_g1_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_drive_nas100_g1_v1.py'
+      - 'docs/research/QORE_NATIVE_DRIVE_NAS100_G1_SINGLE_CLOCK_PREREG_2026-10-11.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-native-drive-g1-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only code and dev tests
+        run: python -m pip install -e '.[dev]'
+      - name: Verify immutable prereg plus source and execution boundaries
+        run: |
+          test -s docs/research/QORE_NATIVE_DRIVE_NAS100_G1_SINGLE_CLOCK_PREREG_2026-10-11.md
+          python - <<'PY'
+          from pathlib import Path
+          code=Path("src/qore/infrastructure/trader_lab/qore_native_drive_nas100_g1_v1.py").read_text()
+          assert 'PREREG_SHA = "9ebcf60628196a52cbd476e584d4f554b60af035"' in code
+          assert "SOURCE_ARTIFACT = 10618862813" in code
+          assert "America/New_York" in code
+          assert "MAX_PRIOR_AGE_DAYS = 5" in code
+          assert "BOOTSTRAPS = 2000" in code
+          assert "ctrader_open_api" not in code and "ProtoOA" not in code
+          assert "trade_order" not in code and "new_order" not in code
+          PY
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_drive_nas100_g1_v1.py tests/infrastructure/trader_lab/test_qore_native_drive_nas100_g1_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_drive_nas100_g1_v1.py
+
+  study:
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install repository only — no cTrader OAuth
+        run: python -m pip install -e .
+      - name: Recover immutable NAS100 native 10-year M1 dataset already retained by CIBO
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-NAS100-18c338aedd5013ce65a6cb6408ffbc2e904a6217
+          run-id: '35548099334'
+          github-token: ${{ github.token }}
+          path: cibo-native-nas100-m1
+      - name: Execute only preregistered 09:30→10:00 vs 10:01→11:00 NY continuation
+        run: |
+          mkdir -p drive-g1-out
+          python -m qore.infrastructure.trader_lab.qore_native_drive_nas100_g1_v1 cibo-native-nas100-m1 drive-g1-out | tee drive-g1-stdout.json
+      - name: Assert verdict validity and immutable source witness (not economic promotion)
+        if: success()
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          path=Path("drive-g1-out/drive-g1-nas100-report.json")
+          r=json.loads(path.read_text())
+          assert r["identity"]=="QORE_NATIVE_DRIVE_NAS100_G1_NY_OPEN_CONTINUATION_V1"
+          assert r["prereg_commit_sha"]=="9ebcf60628196a52cbd476e584d4f554b60af035"
+          assert r["source"]["source_artifact_id"]==10618862813
+          assert r["source"]["all_annual_sha256_verified"] is True
+          assert r["source"]["provider_native_m1"] is True
+          assert r["already_consumed_cibo_history_not_virgin_oos"] is True
+          assert r["no_vps_no_mt5_no_live_no_trade"] is True
+          assert r["profit_factor_sharpe_sortino_dd_not_estimated"] is True
+          assert r["verdict"] in [
+              "DEV_DRIVE_UNDERPOWERED",
+              "DEV_DRIVE_GROSS_NO_SUPPORT",
+              "DEV_DRIVE_GROSS_SIGNAL_ONLY",
+          ]
+          rows=Path("drive-g1-out/drive-g1-nas100-day-pairs.jsonl")
+          assert sum(1 for _ in rows.open())==r["matched_days"]
+          for filename in ("drive-g1-nas100-report.json", "drive-g1-nas100-day-pairs.jsonl"):
+              src=Path("drive-g1-out")/filename
+              expected=hashlib.sha256(src.read_bytes()).hexdigest()
+              assert (src.parent/(filename+".sha256")).read_text().strip().split()[0]==expected
+          print("QORE_DRIVE_NAS100_G1",r["verdict"],"PAIRED_DAYS",r["matched_days"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > drive-g1-out/code-head-sha.txt
+          printf '%s\n' 'PREREG_SHA=9ebcf60628196a52cbd476e584d4f554b60af035' > drive-g1-out/prereg-sha.txt
+          (cd drive-g1-out && sha256sum *.json *.jsonl *.txt > OUTPUT_SHA256SUMS.txt)
+      - name: Preserve outcomes even if run fails (no fabricated success)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-drive-nas100-g1-${{ github.sha }}
+          path: |
+            drive-g1-out/
+            drive-g1-stdout.json
+          retention-days: 90
+          if-no-files-found: warn
