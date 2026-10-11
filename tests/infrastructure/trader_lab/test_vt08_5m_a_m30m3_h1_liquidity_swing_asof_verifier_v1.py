@@ -174,6 +174,6 @@ def test_reverifier_refuses_forged_origin_id():
 
 def test_reverifier_refuses_wrong_opposing_series_time():
     record,m15,m3=synthetic_verified_source()
-    altered=dict(record,c2_m3_opposing_series_start=T.isoformat())
+    altered=dict(record,c2_m3_opposing_series_start=(T+timedelta(minutes=15)).isoformat())
     with pytest.raises(ValueError,match="lineage mismatch"):
         verify_record(altered,m15_index=m15,m3_index=m3)
