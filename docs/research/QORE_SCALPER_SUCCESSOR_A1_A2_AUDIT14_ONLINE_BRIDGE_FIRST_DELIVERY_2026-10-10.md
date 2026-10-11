@@ -44,3 +44,17 @@ No se han ejecutado estos 2876 source IDs con el nuevo bridge todavía. Las prue
 PR #758 y #759 aparecen abiertos como DRAFT, pero sus descripciones dicen que fueron sustituidos por #760/#761. Al consultar #760/#761 estos aparecen **cerrados**, con SHAs antiguos. Por eso este PR apunta a **A1 #758 abierta** (y se notifica a B #759), sin fusionar ni interpretar la descripción como autoridad suficiente. Aclarar qué PR representa a cada arquitecto antes de cualquier merge.
 
 **Dictamen:** mejora de trazabilidad e aislamiento cognitivo, no mejora económica demostrada. Scalper sigue NO CERTIFICADO.
+
+---
+
+## Verificación posterior — 11/11 GREEN sobre fuentes reales congeladas
+
+[GitHub Actions #38105365058](https://github.com/mezas3238-hue/qore-core/actions/runs/38105365058) completó **contracts + nueve mercados + aggregate**, 11/11 SUCCESS, sobre código commit `73fe20c025451a570850b5cce74702ee5f0bee64`. El primer intento falló por import-order Ruff y se corrigió; no lo confundir con error de metodología.
+
+**Trazabilidad PIN:** V49 control run 38053946695 / SHA e356e7a52541e99533b25ecfef0ab9c4e9ce03c0, Audit14 B run 38102352779 / SHA b4d35fe99b99a96dac3728610258fe5a4ab20c15; workflow del sucesor `qore-scalper-a1-successor-audit14-native-nine-market.yml` obtiene únicamente esos dos artefactos fuente por símbolo, no consulta VPS.
+
+**Ledger agregado exacto:** 2876/2876 source IDs reconciliados, 9/9 símbolos, first-online ≠ V49 en 1090 IDs, subset CISD static 381; estados `ELIGIBLE=2816`, `INVALID_M15_STOP_AT_ONLINE_CLOSE=36`, `NO_UNTOUCHED_H1_OBJECTIVE_AT_ONLINE_CLOSE=24`. [Artefacto consolidado #11689466493](https://github.com/mezas3238-hue/qore-core/actions/runs/38105365058/artifacts/11689466493) y nueve JSONL predecisión en la misma ejecución.
+
+**Conservación semántica:** se excluyeron `original_gross_r`, `candidate_gross_r`, `candidate_exit_reason` y `h1_state_until` del JSONL cognitivo. **CERO nueva entrada, ZERO economía Master Frame, ZERO broker BID/ASK, ZERO nuevos hard gates**; esto prueba **higiene y paridad de fuente**, NO fidelidad de POI TTrades, rentabilidad o certificación.
+
+**P0 remanente:** (1) reconstrucción libre de fuente H1/M15/M1, (2) POI/swing/EQ fuente TTrades as-of, (3) economía first-online real con posiciones y BID/ASK, (4) importación al Master Frame por nueva hora y cartera cronológica en PAPER, (5) test prospectivo OOS/suite de certificación. DeepSeek como segundo par de ojos, nunca autoridad primaria.
