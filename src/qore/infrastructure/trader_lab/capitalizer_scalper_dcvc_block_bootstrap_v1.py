@@ -96,7 +96,7 @@ def analyze(market_root:Path,experiment_root:Path,output:Path)->dict[str,Any]:
     diff_dd:list[float]=[]
     delta_dd_equiv:list[float]=[]
     for _ in range(DRAWS):
-        sampled=[]
+        sampled:list[str]=[]
         while len(sampled)<len(dates):
             anchor=rand.randrange(max(1,len(dates)-BLOCK_DAYS+1))
             sampled.extend(dates[anchor:anchor+BLOCK_DAYS])
