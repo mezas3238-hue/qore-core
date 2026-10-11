@@ -11,7 +11,6 @@ import json
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +26,8 @@ from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import 
 )
 from qore.infrastructure.trader_lab.capitalizer_h1_context_state_v49 import (
     IDENTITY as STATE_ID,
+)
+from qore.infrastructure.trader_lab.capitalizer_h1_context_state_v49 import (
     V49H1ContextState,
     V49H1StateEndReason,
 )
@@ -186,7 +187,7 @@ def diagnose(
              if DEV_WINDOW_START-DEFAULT_LOOKBACK<=x.opened_at<DEV_WINDOW_END)
     if not m1 or any(x.symbol!=symbol for x in m1):
         raise ValueError("provider native M1 missing or multiple symbols")
-    for prev,new in zip(m1,m1[1:]):
+    for prev,new in zip(m1,m1[1:],strict=False):
         if prev.opened_at>=new.opened_at:
             raise ValueError("M1 native chronology duplicate or unordered")
     h_buckets,strict_h,h_count=bucketize(m1,60)
@@ -359,7 +360,7 @@ def diagnose(
         continuous5=(
             len(last5)==5 and all(
                 (b.closed_at-a.closed_at)==timedelta(hours=1)
-                for a,b in zip(last5,last5[1:])
+                for a,b in zip(last5,last5[1:],strict=False)
             )
         )
         benchmark_available=len(last5)==5
