@@ -1,0 +1,74 @@
+name: VT08 B Independent Three Family FVG M15 Receipts
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_5m_b_independent_three_family_receipt_audit_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_5m_b_independent_three_family_receipt_audit_v1.py
+      - .github/workflows/vt08-b-independent-three-family-fvg-m15-receipts.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  b-independent-fvg-ps-m15:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: B-only independent FVG/PS M15 tests, static typing
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_5m_b_independent_three_family_receipt_audit_v1.py tests/infrastructure/trader_lab/test_vt08_5m_b_independent_three_family_receipt_audit_v1.py
+          mypy src/qore/infrastructure/trader_lab/vt08_5m_b_independent_three_family_receipt_audit_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_5m_b_independent_three_family_receipt_audit_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          repository: mezas3238-hue/qore-core
+          run-id: 38098839670
+          github-token: ${{ github.token }}
+          pattern: vt08-a-three-family-fvg-swing-*-5ea7d4ff2104200e99328bf57f6ee1aed447e028
+          merge-multiple: false
+          path: a-packages
+      - uses: actions/download-artifact@v4
+        with:
+          repository: mezas3238-hue/qore-core
+          run-id: 35934924907
+          github-token: ${{ github.token }}
+          pattern: qore-vt08-cognitive-5m-fresh-*-b2d33e1b4829d8b4afc76983decca8a99131403c
+          merge-multiple: false
+          path: m15-packages
+      - name: Exact frozen producer artifacts and original M15 pairs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from shutil import copyfile
+          root=Path("evidence")
+          for symbol in ("EURJPY","USDCHF","NZDUSD","CADJPY","USDCAD"):
+              a=Path("a-packages") / f"vt08-a-three-family-fvg-swing-{symbol}-5ea7d4ff2104200e99328bf57f6ee1aed447e028" / f"{symbol}-three-families-full.json"
+              m=Path("m15-packages") / f"qore-vt08-cognitive-5m-fresh-{symbol}-b2d33e1b4829d8b4afc76983decca8a99131403c" / "market-evidence-1095d.json"
+              for source,target in ((a,root/"a"/symbol/a.name),(m,root/"raw"/symbol/m.name)):
+                  if not source.is_file():
+                      raise FileNotFoundError(f"Frozen source artifact unavailable: {source}")
+                  target.parent.mkdir(parents=True,exist_ok=True)
+                  copyfile(source,target)
+          assert len(list(root.rglob("*.json")))==10
+          PY
+      - name: Reproduce each 495 FVG→M15 touch→CISD/PS receipts independently
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_5m_b_independent_three_family_receipt_audit_v1 \
+            --artifacts-root evidence \
+            --output artifacts/vt08-b-495-structural-m15-independently-verified.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-495-independent-fvg-m15-receipts-${{ github.sha }}
+          path: artifacts/*.json
+          retention-days: 30
+          if-no-files-found: error
