@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from itertools import product
@@ -189,7 +189,10 @@ def validate_source_coverage(
         "m15_first_open": first_m15_open.isoformat() if first_m15_open else None,
         "m15_last_close": last_m15_close.isoformat() if last_m15_close else None,
         "months_without_m3": missing,
-        "status": "BLOCKED_DATA_COVERAGE" if requirements else "BOUNDARIES_ONLY_OK_MORE_QA_REQUIRED",
+        "status": (
+            "BLOCKED_DATA_COVERAGE" if requirements
+            else "BOUNDARIES_ONLY_OK_MORE_QA_REQUIRED"
+        ),
         "blockers": requirements,
         "history_source_complete_proven": False,
         "broker_bid_ask_fees_proven": False,
