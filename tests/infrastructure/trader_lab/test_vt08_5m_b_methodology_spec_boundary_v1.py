@@ -118,7 +118,7 @@ def event(
             "c4_first_m15_observed": False,
         })
     elif family == "C3_CONTINUATION_FROM_C2":
-        out["eq_basis"] = "C3_FULL_WICK_TO_WICK_AFTER_CLOSURE"
+        out["eq_basis"] = "EQ_NOT_CONSUMED_INTRAC3_H4_UNCLOSED"
     return out
 
 
@@ -309,3 +309,34 @@ def test_proxy_counts_separate_and_qore_bucket_safely_labelled() -> None:
         changed[key] = bad
         with pytest.raises(v.BMethodologyBoundaryError):
             v.audit_proxy_metrics(changed)
+
+
+def test_intrac3_eq_unavailable_not_retroactively_full_c3_h4() -> None:
+    source = event("C3_CONTINUATION_FROM_C2")
+    receipt = v.verify_causal_event(source, spec())
+    assert receipt.chronology_valid and not receipt.cognitive_ready
+    assert "B_SOURCE:C3_INTRACYCLE_EQ_SOURCE_UNADJUDICATED" in receipt.blockers
+    forged = deepcopy(source)
+    forged["eq_basis"] = "C3_FULL_WICK_TO_WICK_AFTER_CLOSURE"
+    with pytest.raises(
+        v.BMethodologyBoundaryError, match="cannot use full C3 EQ"
+    ):
+        v.verify_causal_event(forged, spec())
+
+
+def test_intrac3_rejects_completed_h4_and_post_c3_close_entry() -> None:
+    source = event("C3_CONTINUATION_FROM_C2")
+    completed = deepcopy(source)
+    completed["c3_candle"] = {
+        "open": "100", "high": "108", "low": "97", "close": "107"
+    }
+    with pytest.raises(
+        v.BMethodologyBoundaryError, match="cannot consume completed C3 H4"
+    ):
+        v.verify_causal_event(completed, spec())
+    late = deepcopy(source)
+    late["hypothetical_entry_at"] = clock(480)
+    with pytest.raises(
+        v.BMethodologyBoundaryError, match="must precede final H4 close"
+    ):
+        v.verify_causal_event(late, spec())
