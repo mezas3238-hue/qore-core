@@ -10,8 +10,7 @@ from typing import Any
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     V49Opportunity,
 )
-from qore.infrastructure.trader_lab.capitalizer_scalper_issue772_direction_source_forensic_v1 import (  # noqa"
-f":E501
+from qore.infrastructure.trader_lab.capitalizer_scalper_issue772_direction_source_forensic_v1 import (  # noqa: E501
     load_sources,
     sample_hash,
 )
@@ -92,7 +91,7 @@ def mk_trace(rank:int,row:dict[str,Any])->str:
         f":{row['original_source_origin_at']}",
         f"H1 event recovery status: {row['original_source_origin_status']}",
         f"H1 original event age in minutes: {row['h1_source_age_minutes']}",
-        f"Independently computed 4-bar completed H1 price slope: {row['h1_trend4_completed_native']}"
+        f"4-bar completed H1 slope: {row['h1_trend4_completed_native']}"
         f" / agreement {row['h1_trend4_agreement']}, descriptive NOT TTrades",
         f"M15 setup confirmed source at: {row['m15_setup_confirmed_at']}",
         f"M15 timestamp matches closed native aggregated candle"
