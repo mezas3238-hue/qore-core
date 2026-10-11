@@ -81,3 +81,29 @@
 - Nuevo estudio separado de intervalos por *operating-date cluster* `capitalizer_scalper_a2_thirteenth_paired_cluster_uncertainty_v1.py` usa exactamente estos dos libros congelados sin buscar nuevos parámetros. Sólo después de su ejecución correcta se interpretará robustez de bandas <5pp.
 
 **Estado después del ciclo 13: NO CERTIFICABLE, World Model sin expandir, cero vetos, cero modificaciones del baseline V49, PR #759 DRAFT, GitHub-only.**
+
+
+## 6. Incertidumbre pareada y cierre de supuestos H1 [#38100268079 — SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38100268079)
+
+Estudio nuevo `capitalizer_scalper_a2_thirteenth_paired_cluster_uncertainty_v1.py`, que **no vuelve a seleccionar eventos**: cruza los artefactos originales de los 9 mercados de las runs #38099880288 y #38099916845, 2876/2876 source IDs, y hace 1000 remuestreos de los 313 días operativos disponibles, muestreando **días completos con todos sus símbolos** para conservar dependencia cross-market.
+
+**Población 381: NO se certifica equivalencia dentro de ±5 pp**, pese a estimaciones puntuales menores de 5 pp:
+- CLOSE+15: online menos V49 **+1.8373 pp**, 95% día-cluster **[-3.8147, +7.6294]**, N381, 212 fechas con cobertura.
+- CLOSE+30: **+3.4121 pp**, CI **[-1.5666,+8.6294]**, N381.
+- CLOSE+60: **+1.3158 pp**, CI **[-2.4213,+5.1151]**, N380.
+- 247 con sensor estático anterior: -3.6437 pp a +15 (CI -11.2903,+3.7037); 134 de discrepancia de familia al MISMO cierre en el estudio estático: +11.9403 pp a +15 (CI +4.6512,+19.685). Esta última comparación es entre V49 y el **primer detector verdaderamente incremental**, que puede detectar otro evento a una hora diferente; NO equivale a decir que cambiar nombre de familia al mismo instante altera la trayectoria. Por eso se exige el reporte de timestamps en el ledger per-ID.
+
+**Población 1090 cuya primera detección incremental difiere:**
+- +15: +10.3036 pp, CI **[+6.7753,+14.0304]**, N1087, 301 fechas;
+- +30: +9.4756 pp, CI **[+6.8966,+12.1270]**, N1087;
+- +60: +6.5559 pp, CI **[+4.2991,+8.9317]**, N1083.
+Las ventanas 15/30 tienen CI completamente por encima de +5pp en favorable **CLOSE**, no retorno neto o trades realmente ejecutados. Sin enumeración de todas oportunidades source y portfolio real reejecutado, no adjudicar “PF causal-first mejorado”. El cambio de cohortes posterior implica sesgo de composición; A/B full causal reconstituido es P0 posterior.
+
+**P0 H1 adicional — nuevo hallazgo observable por cruce de fuentes nativas:**
+- 2765 de 2876 eventos C2/C3 y POI reproducidos con el detector QORE.
+- De esos 2765, **2614** tienen `origin_closed_at` en el cierre horario UTC canónico **HH:00**, **151** tienen un cierre H1 reportado **fuera del límite HH:00**.
+- **111** sin origen reconstruido: **57** con estado directo, **54** `SESSION_INHERITED`. Estas 111 identidades no quedan marcadas causalmente “inválidas” hasta resolver la reconstrucción.
+- **2267/2876** disponen de dos H1 relevantes 60/60. Es consistente con al menos **151 eventos originados en H1 de cierre no horario**, pero NO prueba que las 151 decisiones M1 ocurrieran antes del cierre real programado; hay que verificar `entry_at` versus siguiente límite horario y distinguir solo anomalía de proveedor/mercado sin cotización de señal realmente adelantada.
+- Regla actual de ingeniería **>=45 M1 por H1** y cierre tomado del último M1 presente contrasta con concepto de vela de H1 cerrada en su timeframe real. Se requiere refutar/confirmar si esto permite activar sesgo sin cierre HTF causal en 151 ID, **no se impone veto ni se reescriben V49**.
+
+**Próximo orden exacto:** (i) explicar 57+54 originales no reconstruidos; (ii) verificar cada H1 no-HH:00 contra entrada M1 as-of y HTF close real; (iii) confirmar POI del autor y M15 swing; (iv) reconstruir oportunidad raíz completa con first incremental + targets/stop y MAX3, y reejecutar su economía con fees/BID/ASK, fecha/mercado OOS sellado. Mientras tanto NO CERTIFICABLE.
