@@ -47,7 +47,9 @@ from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import
 IDENTITY="QORE_SCALPER_A2_FIFTEENTH_FIXED_MAX3_M15_M1_STOP_NOISE_2X2_V1"
 
 
-def market(sel:Path,source:Path,econ:Path,native_root:Path)->tuple[dict[str,Any],tuple[dict[str,Any],...]]:
+def market(
+    sel:Path,source:Path,econ:Path,native_root:Path,
+)->tuple[dict[str,Any],tuple[dict[str,Any],...]]:
     pick=list(sel.rglob("scalper-a2-audit15-residual-anatomy-nine-market.json"))
     frozen=list(source.rglob("capitalizer-*-v49-hf-capacity-opportunities.jsonl"))
     alt=list(econ.rglob("scalper-audit14-candidates.jsonl"))
