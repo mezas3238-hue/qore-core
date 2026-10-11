@@ -8,12 +8,16 @@ Situation snapshots and retains testable per-event cognitive decision lineage.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Final
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.trader_lab.vt08_5m_a_to_b_candidate_readiness_v1 import (
+    inspect_architect_a_candidate,
+)
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     Vt08FiveMarketResearchSituation,
 )
@@ -301,6 +305,36 @@ class Vt08FiveMarketCognitiveGate:
         )
         self._decisions.append(trace)
         return trace
+
+    def evaluate_provenanced(
+        self,
+        envelope: Mapping[str, object],
+        situation: Vt08FiveMarketResearchSituation,
+        *,
+        joint_contract_manifest_sha256: str | None = None,
+    ) -> Vt08CognitiveDecisionTrace:
+        """Mandatory A→B entry point for REAL source snapshots.
+
+        evaluate() remains explicitly an isolated research-fixture simulator.
+        Neither cognitive EXECUTE intent nor a caller-provided manifest string
+        proves source validity or conveys executable/broker authority.
+        """
+        readiness = inspect_architect_a_candidate(
+            envelope,
+            joint_contract_manifest_sha256=joint_contract_manifest_sha256,
+        )
+        if not readiness.cognitive_ready:
+            raise ValueError(
+                "VT08 unverified A/B source cannot enter cognition: "
+                + ",".join(readiness.blockers)
+            )
+        if (
+            readiness.source_event_id != situation.source_evidence_id
+            or readiness.market != situation.market
+            or readiness.decision_at != _instant(situation.as_of)
+        ):
+            raise ValueError("VT08 A/B source and cognitive Situation identity drift")
+        return self.evaluate(situation)
 
     def record_fill(self, evidence: Vt08ResearchFillEvidence) -> Vt08ResearchFillTrace:
         """Attach simulated execution to a previously EXECUTE-approved source.
