@@ -70,6 +70,29 @@ class CensusGateBTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "M1_GRID_MISALIGNED"):
             summarize_coverage((x,))
 
+    def test_dense_daily_missing_slots_are_observed_not_filled(self):
+        # Fixed synthetic 1438/1440 day with two missing minute slots:
+        start = datetime(2026, 10, 6, 0, 0, tzinfo=UTC)
+        present = (start + timedelta(minutes=i) for i in range(1440) if i not in (1319, 1320))
+        output = summarize_coverage(present)
+        details = output["dense_utc_day_missing_minute_diagnostic"]
+        self.assertEqual(details["days_meeting_threshold"], 1)
+        self.assertEqual(details["days_with_1438_m1"], 1)
+        self.assertEqual(details["days_with_1440_m1"], 0)
+        self.assertEqual(details["missing_minutes_per_dense_day_counts"], {"2": 1})
+        self.assertEqual(
+            [x["utc_hhmm"] for x in details["most_frequent_missing_utc_minute_slots"]],
+            ["21:59", "22:00"])
+        self.assertTrue(details["missing_minute_cause_unclassified"])
+        self.assertTrue(details["no_forward_fill"])
+
+    def test_sparse_partial_daily_does_not_enter_dense_classification(self):
+        start = datetime(2026, 10, 6, 0, 0, tzinfo=UTC)
+        output = summarize_coverage(start + timedelta(minutes=i) for i in range(10))
+        detail = output["dense_utc_day_missing_minute_diagnostic"]
+        self.assertEqual(detail["days_meeting_threshold"], 0)
+        self.assertEqual(detail["most_frequent_missing_utc_minute_slots"], [])
+
     def test_weekend_gap_is_not_called_feed_defect(self):
         friday = datetime(2026, 10, 9, 21, 59, tzinfo=UTC)
         sunday = datetime(2026, 10, 11, 21, 0, tzinfo=UTC)
