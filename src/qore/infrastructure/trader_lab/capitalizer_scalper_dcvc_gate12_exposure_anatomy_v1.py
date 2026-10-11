@@ -74,8 +74,9 @@ def source_data(source_root:Path,original_root:Path)->Data:
         for sid,item in raw_outcomes.items()
     }
     original=tuple(x for _,x in _portfolio_select(tuple(trades.values())))
-    key=lambda x:(x.symbol,x.session,x.operating_date,
-                  x.entry_at,x.trigger_family,x.h1_state_basis)
+    def key(x: V49EconomicTrade) -> tuple[str, str, str, str, str, str]:
+        return (x.symbol,x.session,x.operating_date,
+                x.entry_at,x.trigger_family,x.h1_state_basis)
     ids={key(trade):sid for sid,trade in trades.items()}
     if len(ids)!=SOURCE_N:
         raise ValueError("nonunique frozen economic key")
