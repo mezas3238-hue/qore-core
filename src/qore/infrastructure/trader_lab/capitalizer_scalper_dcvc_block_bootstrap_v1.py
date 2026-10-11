@@ -91,7 +91,10 @@ def analyze(market_root:Path,experiment_root:Path,output:Path)->dict[str,Any]:
     pf_a,dd_a,exp_a=_pf_dd(actual_a)
     pf_b,dd_b,exp_b=_pf_dd(actual_b)
     rand=random.Random(20261010)
-    diff_pf=[];diff_mean=[];diff_dd=[];delta_dd_equiv=[]
+    diff_pf:list[float]=[]
+    diff_mean:list[float]=[]
+    diff_dd:list[float]=[]
+    delta_dd_equiv:list[float]=[]
     for _ in range(DRAWS):
         sampled=[]
         while len(sampled)<len(dates):
