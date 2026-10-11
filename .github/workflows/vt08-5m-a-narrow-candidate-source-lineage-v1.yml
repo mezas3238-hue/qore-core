@@ -1,0 +1,76 @@
+name: VT08 A Real Candidate B01 Source Lineage Five Markets V1
+
+on:
+  push:
+    branches:
+      - agent/vt08-5m-methodology-source-20261010
+    paths:
+      - .github/workflows/vt08-5m-a-narrow-candidate-source-lineage-v1.yml
+      - src/qore/infrastructure/trader_lab/vt08_5m_a_b_narrow_source_lineage_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_5m_a_b_narrow_source_lineage_v1.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  candidate-lineage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Compile Ruff and real-source tamper tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_5m_a_b_narrow_source_lineage_v1.py tests/infrastructure/trader_lab/test_vt08_5m_a_b_narrow_source_lineage_v1.py
+          python -m compileall -q src/qore/infrastructure/trader_lab/vt08_5m_a_b_narrow_source_lineage_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_5m_a_b_narrow_source_lineage_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.symbol }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: evidence/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - name: Real A CandidateEvent V1 plus all source/closed-M15 provenance
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_5m_a_b_narrow_source_lineage_v1 import audit_market
+          symbol = os.environ["SYMBOL"]
+          result = audit_market(Path(f"evidence/{symbol}/market-evidence-1095d.json"))
+          Path(f"artifacts/{symbol}-candidate-lineage-full.json").write_text(
+              json.dumps(result, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          summary = {key: result[key] for key in (
+              "schema", "market", "all_owner_anchors",
+              "source_candidates_with_real_bias_proof",
+              "unique_daily_candidates", "ambiguous_day_candidates_excluded",
+              "by_anchor_hour", "all_cognitive_features_verified",
+              "joint_contract_approved", "pnl_evaluated", "trades_executed",
+          )}
+          Path(f"artifacts/{symbol}-candidate-lineage-summary.json").write_text(
+              json.dumps(summary, sort_keys=True, indent=2),
+              encoding="utf-8",
+          )
+          print(json.dumps(summary, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-a-b01-real-candidate-lineage-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/*
+          retention-days: 30
+          if-no-files-found: error

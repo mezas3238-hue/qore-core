@@ -1,0 +1,89 @@
+name: VT08 A 5M 1095D Outcome-Blind Anchor Ledger
+
+on:
+  push:
+    branches:
+      - agent/vt08-5m-methodology-source-20261010
+    paths:
+      - .github/workflows/vt08-5m-architect-a-anchor-ledger-v1.yml
+      - src/qore/infrastructure/trader_lab/vt08_5m_architect_a_anchor_ledger_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_5m_architect_a_anchor_ledger_v1.py
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  source-first-ledger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install isolated research dependencies
+        run: pip install -e ".[dev]"
+      - name: Compile, static check and hermetic regression tests
+        run: |
+          python -m compileall -q src/qore/infrastructure/trader_lab/vt08_5m_architect_a_anchor_ledger_v1.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_5m_architect_a_anchor_ledger_v1.py tests/infrastructure/trader_lab/test_vt08_5m_architect_a_anchor_ledger_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_5m_architect_a_anchor_ledger_v1.py
+      - name: Fetch immutable consumed 1095D evidence (NOT sealed 7Y)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.symbol }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: evidence/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - name: Record each as-of H4 anchor and causal first-failure
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_5m_architect_a_anchor_ledger_v1 import (
+              evaluate,
+          )
+
+          symbol = os.environ["SYMBOL"]
+          result = evaluate(Path(f"evidence/{symbol}/market-evidence-1095d.json"))
+          summary = result["summary"]
+          baseline_candidates = {
+              "EURJPY": 88,
+              "USDCHF": 88,
+              "NZDUSD": 126,
+              "CADJPY": 88,
+              "USDCAD": 98,
+          }
+          if summary["mechanical_candidates"] != baseline_candidates[symbol]:
+              raise AssertionError(
+                  f"{symbol} baseline mechanical candidates diverged "
+                  f"expected={baseline_candidates[symbol]} "
+                  f"actual={summary['mechanical_candidates']}"
+              )
+          Path(f"artifacts/{symbol}-anchor-ledger.json").write_text(
+              json.dumps(result, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          Path(f"artifacts/{symbol}-annual-summary.json").write_text(
+              json.dumps(summary, indent=2, sort_keys=True),
+              encoding="utf-8",
+          )
+          print(json.dumps({"market": symbol, "summary": summary}, sort_keys=True))
+          PY
+      - name: Preserve per-market event ledger and annual breakdown
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-a-outcome-blind-anchor-ledger-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/*
+          retention-days: 30
+          if-no-files-found: error
