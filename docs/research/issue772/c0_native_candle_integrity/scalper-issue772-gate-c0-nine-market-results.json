@@ -1,0 +1,743 @@
+{
+  "M1_first_online_CISD_unresolved": true,
+  "V49_DCVC_VPS_modified": false,
+  "benchmark_five_H1_old_label_is_available_not_consecutive": true,
+  "bucket_census_by_symbol": {
+    "AUDJPY": {
+      "H1": {
+        "BUCKET_NATIVE_OBSERVED": 6453,
+        "INTERNAL_GAP": 297,
+        "LEADING_GAP": 271,
+        "LEGACY_ACCEPTED": 6446,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 262,
+        "LEGACY_ACCEPTED_NONSTRICT": 553,
+        "LEGACY_REJECTED": 7,
+        "MISSING_MINUTES": 560,
+        "PREMATURE_CLOSE": 263,
+        "STRICT_COMPLETE": 5893,
+        "STRICT_INVALID": 560,
+        "TRAILING_GAP": 263
+      },
+      "M15": {
+        "BUCKET_NATIVE_OBSERVED": 25805,
+        "INTERNAL_GAP": 417,
+        "LEADING_GAP": 287,
+        "LEGACY_ACCEPTED": 25722,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 277,
+        "LEGACY_ACCEPTED_NONSTRICT": 618,
+        "LEGACY_REJECTED": 83,
+        "MISSING_MINUTES": 701,
+        "PREMATURE_CLOSE": 299,
+        "STRICT_COMPLETE": 25104,
+        "STRICT_INVALID": 701,
+        "TRAILING_GAP": 299
+      }
+    },
+    "AUDUSD": {
+      "H1": {
+        "BUCKET_NATIVE_OBSERVED": 6453,
+        "INTERNAL_GAP": 514,
+        "LEADING_GAP": 272,
+        "LEGACY_ACCEPTED": 6401,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 272,
+        "LEGACY_ACCEPTED_NONSTRICT": 614,
+        "LEGACY_REJECTED": 52,
+        "MISSING_MINUTES": 666,
+        "PREMATURE_CLOSE": 276,
+        "STRICT_COMPLETE": 5787,
+        "STRICT_INVALID": 666,
+        "TRAILING_GAP": 276
+      },
+      "M15": {
+        "BUCKET_NATIVE_OBSERVED": 25807,
+        "INTERNAL_GAP": 1004,
+        "LEADING_GAP": 371,
+        "LEGACY_ACCEPTED": 25573,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 344,
+        "LEGACY_ACCEPTED_NONSTRICT": 1022,
+        "LEGACY_REJECTED": 234,
+        "MISSING_MINUTES": 1256,
+        "PREMATURE_CLOSE": 429,
+        "STRICT_COMPLETE": 24551,
+        "STRICT_INVALID": 1256,
+        "TRAILING_GAP": 429
+      }
+    },
+    "EURUSD": {
+      "H1": {
+        "BUCKET_NATIVE_OBSERVED": 6453,
+        "INTERNAL_GAP": 534,
+        "LEADING_GAP": 271,
+        "LEGACY_ACCEPTED": 6420,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 274,
+        "LEGACY_ACCEPTED_NONSTRICT": 684,
+        "LEGACY_REJECTED": 33,
+        "MISSING_MINUTES": 717,
+        "PREMATURE_CLOSE": 276,
+        "STRICT_COMPLETE": 5736,
+        "STRICT_INVALID": 717,
+        "TRAILING_GAP": 276
+      },
+      "M15": {
+        "BUCKET_NATIVE_OBSERVED": 25808,
+        "INTERNAL_GAP": 897,
+        "LEADING_GAP": 318,
+        "LEGACY_ACCEPTED": 25652,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 353,
+        "LEGACY_ACCEPTED_NONSTRICT": 1011,
+        "LEGACY_REJECTED": 156,
+        "MISSING_MINUTES": 1167,
+        "PREMATURE_CLOSE": 407,
+        "STRICT_COMPLETE": 24641,
+        "STRICT_INVALID": 1167,
+        "TRAILING_GAP": 407
+      }
+    },
+    "GBPJPY": {
+      "H1": {
+        "BUCKET_NATIVE_OBSERVED": 6453,
+        "INTERNAL_GAP": 266,
+        "LEADING_GAP": 271,
+        "LEGACY_ACCEPTED": 6449,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 268,
+        "LEGACY_ACCEPTED_NONSTRICT": 548,
+        "LEGACY_REJECTED": 4,
+        "MISSING_MINUTES": 552,
+        "PREMATURE_CLOSE": 269,
+        "STRICT_COMPLETE": 5901,
+        "STRICT_INVALID": 552,
+        "TRAILING_GAP": 269
+      },
+      "M15": {
+        "BUCKET_NATIVE_OBSERVED": 25808,
+        "INTERNAL_GAP": 322,
+        "LEADING_GAP": 282,
+        "LEGACY_ACCEPTED": 25755,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 285,
+        "LEGACY_ACCEPTED_NONSTRICT": 575,
+        "LEGACY_REJECTED": 53,
+        "MISSING_MINUTES": 628,
+        "PREMATURE_CLOSE": 306,
+        "STRICT_COMPLETE": 25180,
+        "STRICT_INVALID": 628,
+        "TRAILING_GAP": 306
+      }
+    },
+    "GBPUSD": {
+      "H1": {
+        "BUCKET_NATIVE_OBSERVED": 6453,
+        "INTERNAL_GAP": 454,
+        "LEADING_GAP": 271,
+        "LEGACY_ACCEPTED": 6411,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 270,
+        "LEGACY_ACCEPTED_NONSTRICT": 622,
+        "LEGACY_REJECTED": 42,
+        "MISSING_MINUTES": 664,
+        "PREMATURE_CLOSE": 272,
+        "STRICT_COMPLETE": 5789,
+        "STRICT_INVALID": 664,
+        "TRAILING_GAP": 272
+      },
+      "M15": {
+        "BUCKET_NATIVE_OBSERVED": 25808,
+        "INTERNAL_GAP": 715,
+        "LEADING_GAP": 341,
+        "LEGACY_ACCEPTED": 25584,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 295,
+        "LEGACY_ACCEPTED_NONSTRICT": 753,
+        "LEGACY_REJECTED": 224,
+        "MISSING_MINUTES": 977,
+        "PREMATURE_CLOSE": 396,
+        "STRICT_COMPLETE": 24831,
+        "STRICT_INVALID": 977,
+        "TRAILING_GAP": 396
+      }
+    },
+    "NAS100": {
+      "H1": {
+        "BUCKET_NATIVE_OBSERVED": 6137,
+        "INTERNAL_GAP": 22,
+        "LEADING_GAP": 7,
+        "LEGACY_ACCEPTED": 6128,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 205,
+        "LEGACY_ACCEPTED_NONSTRICT": 217,
+        "LEGACY_REJECTED": 9,
+        "MISSING_MINUTES": 226,
+        "PREMATURE_CLOSE": 211,
+        "STRICT_COMPLETE": 5911,
+        "STRICT_INVALID": 226,
+        "TRAILING_GAP": 211
+      },
+      "M15": {
+        "BUCKET_NATIVE_OBSERVED": 24525,
+        "INTERNAL_GAP": 22,
+        "LEADING_GAP": 10,
+        "LEGACY_ACCEPTED": 24515,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 205,
+        "LEGACY_ACCEPTED_NONSTRICT": 219,
+        "LEGACY_REJECTED": 10,
+        "MISSING_MINUTES": 229,
+        "PREMATURE_CLOSE": 212,
+        "STRICT_COMPLETE": 24296,
+        "STRICT_INVALID": 229,
+        "TRAILING_GAP": 212
+      }
+    },
+    "USDCAD": {
+      "H1": {
+        "BUCKET_NATIVE_OBSERVED": 6453,
+        "INTERNAL_GAP": 600,
+        "LEADING_GAP": 272,
+        "LEGACY_ACCEPTED": 6360,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 275,
+        "LEGACY_ACCEPTED_NONSTRICT": 688,
+        "LEGACY_REJECTED": 93,
+        "MISSING_MINUTES": 781,
+        "PREMATURE_CLOSE": 281,
+        "STRICT_COMPLETE": 5672,
+        "STRICT_INVALID": 781,
+        "TRAILING_GAP": 281
+      },
+      "M15": {
+        "BUCKET_NATIVE_OBSERVED": 25807,
+        "INTERNAL_GAP": 1033,
+        "LEADING_GAP": 378,
+        "LEGACY_ACCEPTED": 25506,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 344,
+        "LEGACY_ACCEPTED_NONSTRICT": 995,
+        "LEGACY_REJECTED": 301,
+        "MISSING_MINUTES": 1296,
+        "PREMATURE_CLOSE": 509,
+        "STRICT_COMPLETE": 24511,
+        "STRICT_INVALID": 1296,
+        "TRAILING_GAP": 509
+      }
+    },
+    "USDJPY": {
+      "H1": {
+        "BUCKET_NATIVE_OBSERVED": 6453,
+        "INTERNAL_GAP": 398,
+        "LEADING_GAP": 271,
+        "LEGACY_ACCEPTED": 6403,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 272,
+        "LEGACY_ACCEPTED_NONSTRICT": 564,
+        "LEGACY_REJECTED": 50,
+        "MISSING_MINUTES": 614,
+        "PREMATURE_CLOSE": 279,
+        "STRICT_COMPLETE": 5839,
+        "STRICT_INVALID": 614,
+        "TRAILING_GAP": 279
+      },
+      "M15": {
+        "BUCKET_NATIVE_OBSERVED": 25807,
+        "INTERNAL_GAP": 758,
+        "LEADING_GAP": 344,
+        "LEGACY_ACCEPTED": 25586,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 317,
+        "LEGACY_ACCEPTED_NONSTRICT": 802,
+        "LEGACY_REJECTED": 221,
+        "MISSING_MINUTES": 1023,
+        "PREMATURE_CLOSE": 415,
+        "STRICT_COMPLETE": 24784,
+        "STRICT_INVALID": 1023,
+        "TRAILING_GAP": 415
+      }
+    },
+    "XAUUSD": {
+      "H1": {
+        "BUCKET_NATIVE_OBSERVED": 6139,
+        "INTERNAL_GAP": 339,
+        "LEADING_GAP": 268,
+        "LEGACY_ACCEPTED": 6129,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 259,
+        "LEGACY_ACCEPTED_NONSTRICT": 538,
+        "LEGACY_REJECTED": 10,
+        "MISSING_MINUTES": 548,
+        "PREMATURE_CLOSE": 266,
+        "STRICT_COMPLETE": 5591,
+        "STRICT_INVALID": 548,
+        "TRAILING_GAP": 266
+      },
+      "M15": {
+        "BUCKET_NATIVE_OBSERVED": 24540,
+        "INTERNAL_GAP": 337,
+        "LEADING_GAP": 272,
+        "LEGACY_ACCEPTED": 24533,
+        "LEGACY_ACCEPTED_EARLY_CLOSE": 267,
+        "LEGACY_ACCEPTED_NONSTRICT": 547,
+        "LEGACY_REJECTED": 7,
+        "MISSING_MINUTES": 554,
+        "PREMATURE_CLOSE": 269,
+        "STRICT_COMPLETE": 23986,
+        "STRICT_INVALID": 554,
+        "TRAILING_GAP": 269
+      }
+    }
+  },
+  "bucket_census_total": {
+    "H1": {
+      "BUCKET_NATIVE_OBSERVED": 57447,
+      "INTERNAL_GAP": 3424,
+      "LEADING_GAP": 2174,
+      "LEGACY_ACCEPTED": 57147,
+      "LEGACY_ACCEPTED_EARLY_CLOSE": 2357,
+      "LEGACY_ACCEPTED_NONSTRICT": 5028,
+      "LEGACY_REJECTED": 300,
+      "MISSING_MINUTES": 5328,
+      "PREMATURE_CLOSE": 2393,
+      "STRICT_COMPLETE": 52119,
+      "STRICT_INVALID": 5328,
+      "TRAILING_GAP": 2393
+    },
+    "M15": {
+      "BUCKET_NATIVE_OBSERVED": 229715,
+      "INTERNAL_GAP": 5505,
+      "LEADING_GAP": 2603,
+      "LEGACY_ACCEPTED": 228426,
+      "LEGACY_ACCEPTED_EARLY_CLOSE": 2687,
+      "LEGACY_ACCEPTED_NONSTRICT": 6542,
+      "LEGACY_REJECTED": 1289,
+      "MISSING_MINUTES": 7831,
+      "PREMATURE_CLOSE": 3242,
+      "STRICT_COMPLETE": 221884,
+      "STRICT_INVALID": 7831,
+      "TRAILING_GAP": 3242
+    }
+  },
+  "certified": false,
+  "counts_original_A_2020": {
+    "by_inherited": {
+      "FRESH": {
+        "EITHER_DIRECT_PARTIAL": 30,
+        "H1_DIRECT_PARTIAL": 28,
+        "H1_EARLY_CLOSE": 1,
+        "H1_FIVE_AVAILABLE": 755,
+        "H1_FIVE_CONSECUTIVE": 647,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 39,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 4,
+        "M15_DIRECT_PARTIAL": 5,
+        "M15_SPAN_GAP": 1,
+        "N": 755
+      },
+      "INHERITED": {
+        "EITHER_DIRECT_PARTIAL": 352,
+        "H1_DIRECT_PARTIAL": 347,
+        "H1_EARLY_CLOSE": 200,
+        "H1_FIVE_AVAILABLE": 1265,
+        "H1_FIVE_CONSECUTIVE": 882,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 343,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 6,
+        "M15_DIRECT_PARTIAL": 10,
+        "M15_EARLY_CLOSE": 1,
+        "M15_SPAN_GAP": 3,
+        "N": 1265
+      }
+    },
+    "by_symbol": {
+      "AUDJPY": {
+        "EITHER_DIRECT_PARTIAL": 70,
+        "H1_DIRECT_PARTIAL": 70,
+        "H1_EARLY_CLOSE": 37,
+        "H1_FIVE_AVAILABLE": 181,
+        "H1_FIVE_CONSECUTIVE": 65,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 70,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 1,
+        "M15_DIRECT_PARTIAL": 2,
+        "N": 181
+      },
+      "AUDUSD": {
+        "EITHER_DIRECT_PARTIAL": 103,
+        "H1_DIRECT_PARTIAL": 101,
+        "H1_EARLY_CLOSE": 54,
+        "H1_FIVE_AVAILABLE": 171,
+        "H1_FIVE_CONSECUTIVE": 58,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 88,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 2,
+        "M15_DIRECT_PARTIAL": 5,
+        "M15_SPAN_GAP": 1,
+        "N": 171
+      },
+      "EURUSD": {
+        "EITHER_DIRECT_PARTIAL": 25,
+        "H1_DIRECT_PARTIAL": 25,
+        "H1_EARLY_CLOSE": 3,
+        "H1_FIVE_AVAILABLE": 285,
+        "H1_FIVE_CONSECUTIVE": 272,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 30,
+        "N": 285
+      },
+      "GBPJPY": {
+        "EITHER_DIRECT_PARTIAL": 85,
+        "H1_DIRECT_PARTIAL": 85,
+        "H1_EARLY_CLOSE": 50,
+        "H1_FIVE_AVAILABLE": 194,
+        "H1_FIVE_CONSECUTIVE": 71,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 89,
+        "M15_DIRECT_PARTIAL": 1,
+        "N": 194
+      },
+      "GBPUSD": {
+        "EITHER_DIRECT_PARTIAL": 6,
+        "H1_DIRECT_PARTIAL": 5,
+        "H1_EARLY_CLOSE": 1,
+        "H1_FIVE_AVAILABLE": 288,
+        "H1_FIVE_CONSECUTIVE": 286,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 11,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 1,
+        "M15_DIRECT_PARTIAL": 1,
+        "M15_EARLY_CLOSE": 1,
+        "M15_SPAN_GAP": 1,
+        "N": 288
+      },
+      "NAS100": {
+        "H1_FIVE_AVAILABLE": 258,
+        "H1_FIVE_CONSECUTIVE": 258,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 3,
+        "N": 258
+      },
+      "USDCAD": {
+        "EITHER_DIRECT_PARTIAL": 7,
+        "H1_DIRECT_PARTIAL": 5,
+        "H1_EARLY_CLOSE": 2,
+        "H1_FIVE_AVAILABLE": 215,
+        "H1_FIVE_CONSECUTIVE": 211,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 10,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 3,
+        "M15_DIRECT_PARTIAL": 3,
+        "M15_SPAN_GAP": 1,
+        "N": 215
+      },
+      "USDJPY": {
+        "EITHER_DIRECT_PARTIAL": 84,
+        "H1_DIRECT_PARTIAL": 82,
+        "H1_EARLY_CLOSE": 54,
+        "H1_FIVE_AVAILABLE": 179,
+        "H1_FIVE_CONSECUTIVE": 59,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 77,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 3,
+        "M15_DIRECT_PARTIAL": 3,
+        "M15_SPAN_GAP": 1,
+        "N": 179
+      },
+      "XAUUSD": {
+        "EITHER_DIRECT_PARTIAL": 2,
+        "H1_DIRECT_PARTIAL": 2,
+        "H1_FIVE_AVAILABLE": 249,
+        "H1_FIVE_CONSECUTIVE": 249,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 4,
+        "N": 249
+      }
+    },
+    "by_trigger_family": {
+      "FVG_RETRACE_CISD": {
+        "EITHER_DIRECT_PARTIAL": 206,
+        "H1_DIRECT_PARTIAL": 202,
+        "H1_EARLY_CLOSE": 112,
+        "H1_FIVE_AVAILABLE": 1066,
+        "H1_FIVE_CONSECUTIVE": 811,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 206,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 7,
+        "M15_DIRECT_PARTIAL": 8,
+        "M15_EARLY_CLOSE": 1,
+        "M15_SPAN_GAP": 2,
+        "N": 1066
+      },
+      "LIQUIDITY_SWEEP_CISD": {
+        "EITHER_DIRECT_PARTIAL": 176,
+        "H1_DIRECT_PARTIAL": 173,
+        "H1_EARLY_CLOSE": 89,
+        "H1_FIVE_AVAILABLE": 954,
+        "H1_FIVE_CONSECUTIVE": 718,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 176,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 3,
+        "M15_DIRECT_PARTIAL": 7,
+        "M15_SPAN_GAP": 2,
+        "N": 954
+      }
+    },
+    "counts": {
+      "EITHER_DIRECT_PARTIAL": 382,
+      "H1_DIRECT_PARTIAL": 375,
+      "H1_EARLY_CLOSE": 201,
+      "H1_FIVE_AVAILABLE": 2020,
+      "H1_FIVE_CONSECUTIVE": 1529,
+      "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 382,
+      "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 10,
+      "M15_DIRECT_PARTIAL": 15,
+      "M15_EARLY_CLOSE": 1,
+      "M15_SPAN_GAP": 4,
+      "N": 2020
+    }
+  },
+  "counts_original_sample20": {
+    "by_inherited": {
+      "FRESH": {
+        "H1_FIVE_AVAILABLE": 10,
+        "H1_FIVE_CONSECUTIVE": 7,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 3,
+        "N": 10
+      },
+      "INHERITED": {
+        "EITHER_DIRECT_PARTIAL": 3,
+        "H1_DIRECT_PARTIAL": 3,
+        "H1_EARLY_CLOSE": 1,
+        "H1_FIVE_AVAILABLE": 10,
+        "H1_FIVE_CONSECUTIVE": 7,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 2,
+        "N": 10
+      }
+    },
+    "by_symbol": {
+      "AUDJPY": {
+        "EITHER_DIRECT_PARTIAL": 1,
+        "H1_DIRECT_PARTIAL": 1,
+        "H1_EARLY_CLOSE": 1,
+        "H1_FIVE_AVAILABLE": 5,
+        "H1_FIVE_CONSECUTIVE": 1,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 2,
+        "N": 5
+      },
+      "EURUSD": {
+        "EITHER_DIRECT_PARTIAL": 1,
+        "H1_DIRECT_PARTIAL": 1,
+        "H1_FIVE_AVAILABLE": 5,
+        "H1_FIVE_CONSECUTIVE": 5,
+        "N": 5
+      },
+      "GBPJPY": {
+        "EITHER_DIRECT_PARTIAL": 1,
+        "H1_DIRECT_PARTIAL": 1,
+        "H1_FIVE_AVAILABLE": 3,
+        "H1_FIVE_CONSECUTIVE": 2,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 3,
+        "N": 3
+      },
+      "GBPUSD": {
+        "H1_FIVE_AVAILABLE": 2,
+        "H1_FIVE_CONSECUTIVE": 2,
+        "N": 2
+      },
+      "USDCAD": {
+        "H1_FIVE_AVAILABLE": 1,
+        "H1_FIVE_CONSECUTIVE": 1,
+        "N": 1
+      },
+      "USDJPY": {
+        "H1_FIVE_AVAILABLE": 2,
+        "H1_FIVE_CONSECUTIVE": 1,
+        "N": 2
+      },
+      "XAUUSD": {
+        "H1_FIVE_AVAILABLE": 2,
+        "H1_FIVE_CONSECUTIVE": 2,
+        "N": 2
+      }
+    },
+    "by_trigger_family": {
+      "FVG_RETRACE_CISD": {
+        "EITHER_DIRECT_PARTIAL": 2,
+        "H1_DIRECT_PARTIAL": 2,
+        "H1_EARLY_CLOSE": 1,
+        "H1_FIVE_AVAILABLE": 10,
+        "H1_FIVE_CONSECUTIVE": 8,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 2,
+        "N": 10
+      },
+      "LIQUIDITY_SWEEP_CISD": {
+        "EITHER_DIRECT_PARTIAL": 1,
+        "H1_DIRECT_PARTIAL": 1,
+        "H1_FIVE_AVAILABLE": 10,
+        "H1_FIVE_CONSECUTIVE": 6,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 3,
+        "N": 10
+      }
+    },
+    "counts": {
+      "EITHER_DIRECT_PARTIAL": 3,
+      "H1_DIRECT_PARTIAL": 3,
+      "H1_EARLY_CLOSE": 1,
+      "H1_FIVE_AVAILABLE": 20,
+      "H1_FIVE_CONSECUTIVE": 14,
+      "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 5,
+      "N": 20
+    }
+  },
+  "counts_source_2876": {
+    "by_inherited": {
+      "FRESH": {
+        "EITHER_DIRECT_PARTIAL": 43,
+        "H1_DIRECT_PARTIAL": 40,
+        "H1_EARLY_CLOSE": 1,
+        "H1_FIVE_AVAILABLE": 1272,
+        "H1_FIVE_CONSECUTIVE": 1142,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 66,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 5,
+        "M15_DIRECT_PARTIAL": 6,
+        "M15_SPAN_GAP": 1,
+        "N": 1272
+      },
+      "INHERITED": {
+        "EITHER_DIRECT_PARTIAL": 483,
+        "H1_DIRECT_PARTIAL": 477,
+        "H1_EARLY_CLOSE": 289,
+        "H1_FIVE_AVAILABLE": 1604,
+        "H1_FIVE_CONSECUTIVE": 1186,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 465,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 7,
+        "M15_DIRECT_PARTIAL": 11,
+        "M15_EARLY_CLOSE": 1,
+        "M15_SPAN_GAP": 3,
+        "N": 1604
+      }
+    },
+    "by_symbol": {
+      "AUDJPY": {
+        "EITHER_DIRECT_PARTIAL": 102,
+        "H1_DIRECT_PARTIAL": 102,
+        "H1_EARLY_CLOSE": 55,
+        "H1_FIVE_AVAILABLE": 282,
+        "H1_FIVE_CONSECUTIVE": 151,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 104,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 1,
+        "M15_DIRECT_PARTIAL": 2,
+        "N": 282
+      },
+      "AUDUSD": {
+        "EITHER_DIRECT_PARTIAL": 138,
+        "H1_DIRECT_PARTIAL": 136,
+        "H1_EARLY_CLOSE": 73,
+        "H1_FIVE_AVAILABLE": 275,
+        "H1_FIVE_CONSECUTIVE": 144,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 119,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 2,
+        "M15_DIRECT_PARTIAL": 5,
+        "M15_SPAN_GAP": 1,
+        "N": 275
+      },
+      "EURUSD": {
+        "EITHER_DIRECT_PARTIAL": 27,
+        "H1_DIRECT_PARTIAL": 27,
+        "H1_EARLY_CLOSE": 4,
+        "H1_FIVE_AVAILABLE": 332,
+        "H1_FIVE_CONSECUTIVE": 319,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 33,
+        "N": 332
+      },
+      "GBPJPY": {
+        "EITHER_DIRECT_PARTIAL": 121,
+        "H1_DIRECT_PARTIAL": 121,
+        "H1_EARLY_CLOSE": 77,
+        "H1_FIVE_AVAILABLE": 300,
+        "H1_FIVE_CONSECUTIVE": 168,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 127,
+        "M15_DIRECT_PARTIAL": 1,
+        "N": 300
+      },
+      "GBPUSD": {
+        "EITHER_DIRECT_PARTIAL": 6,
+        "H1_DIRECT_PARTIAL": 5,
+        "H1_EARLY_CLOSE": 1,
+        "H1_FIVE_AVAILABLE": 329,
+        "H1_FIVE_CONSECUTIVE": 327,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 12,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 1,
+        "M15_DIRECT_PARTIAL": 1,
+        "M15_EARLY_CLOSE": 1,
+        "M15_SPAN_GAP": 1,
+        "N": 329
+      },
+      "NAS100": {
+        "H1_FIVE_AVAILABLE": 361,
+        "H1_FIVE_CONSECUTIVE": 361,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 4,
+        "N": 361
+      },
+      "USDCAD": {
+        "EITHER_DIRECT_PARTIAL": 8,
+        "H1_DIRECT_PARTIAL": 5,
+        "H1_EARLY_CLOSE": 2,
+        "H1_FIVE_AVAILABLE": 320,
+        "H1_FIVE_CONSECUTIVE": 313,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 13,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 4,
+        "M15_DIRECT_PARTIAL": 4,
+        "M15_SPAN_GAP": 1,
+        "N": 320
+      },
+      "USDJPY": {
+        "EITHER_DIRECT_PARTIAL": 119,
+        "H1_DIRECT_PARTIAL": 117,
+        "H1_EARLY_CLOSE": 78,
+        "H1_FIVE_AVAILABLE": 297,
+        "H1_FIVE_CONSECUTIVE": 165,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 112,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 3,
+        "M15_DIRECT_PARTIAL": 3,
+        "M15_SPAN_GAP": 1,
+        "N": 297
+      },
+      "XAUUSD": {
+        "EITHER_DIRECT_PARTIAL": 5,
+        "H1_DIRECT_PARTIAL": 4,
+        "H1_FIVE_AVAILABLE": 380,
+        "H1_FIVE_CONSECUTIVE": 380,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 7,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 1,
+        "M15_DIRECT_PARTIAL": 1,
+        "N": 380
+      }
+    },
+    "by_trigger_family": {
+      "FVG_RETRACE_CISD": {
+        "EITHER_DIRECT_PARTIAL": 281,
+        "H1_DIRECT_PARTIAL": 275,
+        "H1_EARLY_CLOSE": 153,
+        "H1_FIVE_AVAILABLE": 1511,
+        "H1_FIVE_CONSECUTIVE": 1220,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 285,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 9,
+        "M15_DIRECT_PARTIAL": 10,
+        "M15_EARLY_CLOSE": 1,
+        "M15_SPAN_GAP": 2,
+        "N": 1511
+      },
+      "LIQUIDITY_SWEEP_CISD": {
+        "EITHER_DIRECT_PARTIAL": 245,
+        "H1_DIRECT_PARTIAL": 242,
+        "H1_EARLY_CLOSE": 137,
+        "H1_FIVE_AVAILABLE": 1365,
+        "H1_FIVE_CONSECUTIVE": 1108,
+        "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 246,
+        "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 3,
+        "M15_DIRECT_PARTIAL": 7,
+        "M15_SPAN_GAP": 2,
+        "N": 1365
+      }
+    },
+    "counts": {
+      "EITHER_DIRECT_PARTIAL": 526,
+      "H1_DIRECT_PARTIAL": 517,
+      "H1_EARLY_CLOSE": 290,
+      "H1_FIVE_AVAILABLE": 2876,
+      "H1_FIVE_CONSECUTIVE": 2328,
+      "H1_STRICT_SIGNATURE_DIFFERENT_OR_MISSING": 531,
+      "M15_CONDITIONAL_STRICT_DIFFERENT_OR_MISSING": 12,
+      "M15_DIRECT_PARTIAL": 17,
+      "M15_EARLY_CLOSE": 1,
+      "M15_SPAN_GAP": 4,
+      "N": 2876
+    }
+  },
+  "identity": "QORE_SCALPER_ISSUE772_C0_FULL_NATIVE_AGGREGATION_INTEGRITY_AUDIT_V1",
+  "legacy_H1_original_bias_detector_USED_ONLY_AS_COMPARATOR": true,
+  "legacy_M15_original_structural_detector_USED_ONLY_AS_COMPARATOR": true,
+  "no_outcomes_loaded": true,
+  "old_swing_distance_R_is_tautological_not_late_entry_measure": true,
+  "original_A": 2020,
+  "original_H1_POI_upstream_provenance_unresolved": true,
+  "promotable": false,
+  "sample20_source_IDs_identical": true,
+  "sources": 2876,
+  "strict_H1_no_independent_author_adjudication": true,
+  "strict_M15_no_full_H1_M1_route_rebuild": true
+}

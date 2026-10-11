@@ -1,0 +1,71 @@
+name: Scalper Issue772 Publish 20 Source Witnesses to Research Branch
+
+on:
+  push:
+    branches:
+      - research/scalper-p0-h1-m15-m1-causal-direction-audit-20261011
+    paths:
+      - '.github/workflows/qore-scalper-issue772-publish-traces.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+env:
+  AUDIT_RUN: '38112995741'
+  AUDIT_SHA: '962c24cf94b34e06e64c6bcb208686885bc6dd93'
+  RESEARCH_BRANCH: 'research/scalper-p0-h1-m15-m1-causal-direction-audit-20261011'
+
+jobs:
+  commit_trace_witnesses_research_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/scalper-p0-h1-m15-m1-causal-direction-audit-20261011
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: scalper-issue772-P0-source-census-20traces-${{ env.AUDIT_SHA }}
+          path: pinned-source-only
+          github-token: ${{ github.token }}
+          run-id: ${{ env.AUDIT_RUN }}
+      - name: Inspect source-only artifact, never upload outcomes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("pinned-source-only")
+          x=json.loads((root/"scalper-issue772-source-causal-nine-market-report.json").read_text())
+          manifest=json.loads((root/"scalper-issue772-20-source-IDs-manifest.json").read_text())
+          traces=list((root/"20_outcome_blind_asof_traces").glob("TRACE_*.md"))
+          js=list((root/"20_outcome_blind_asof_traces").glob("TRACE_*.json"))
+          assert x["all_source"]==2876 and x["original_A"]==2020
+          assert len(traces)==len(js)==len(manifest["sample20"])==20
+          assert not x["author_validated_signal_semantics"]
+          assert not x["independent_full_first_online_reconstructed"]
+          assert not x["certified"] and x["source_only_NO_economics"]
+          for file in js:
+              d=json.loads(file.read_text())
+              assert not d["outcomes_accessed"]
+              assert not d["first_online_independently_complete"]
+              assert "realized_gross_r" not in d and "profit_factor" not in d
+          print("ISSUE772_APPROVED_FOR_RESEARCH_PUBLICATION",len(traces))
+          PY
+      - name: Publish exact science artifact in research branch only
+        run: |
+          mkdir -p docs/research/issue772/source_only_20_traces
+          cp pinned-source-only/20_outcome_blind_asof_traces/TRACE_* docs/research/issue772/source_only_20_traces/
+          cp pinned-source-only/scalper-issue772-20-source-IDs-manifest.json docs/research/issue772/
+          cp pinned-source-only/scalper-issue772-source-causal-nine-market-report.json docs/research/issue772/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/research/issue772/
+          if git diff --cached --quiet; then
+            echo "Same source audit already published"
+          else
+            git commit -m "research(scalper): publish Issue772 20 deterministic source-only M1 H1 M15 traces"
+            git push origin HEAD:research/scalper-p0-h1-m15-m1-causal-direction-audit-20261011
+          fi
