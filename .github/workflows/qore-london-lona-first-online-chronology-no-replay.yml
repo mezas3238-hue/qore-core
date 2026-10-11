@@ -7,7 +7,9 @@ on:
     paths:
       - '.github/workflows/qore-london-lona-first-online-chronology-no-replay.yml'
       - 'src/qore/infrastructure/trader_lab/qore_london_lona_first_online_chronology_gate_v1.py'
+      - 'src/qore/infrastructure/trader_lab/qore_london_lona_m15_cisd_sequence_observer_v1.py'
       - 'tests/infrastructure/trader_lab/test_qore_london_lona_first_online_chronology_gate_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_london_lona_m15_cisd_sequence_observer_v1.py'
       - 'docs/research/QORE_LONDON_LONA_GATE_A_PRIMARY_EVIDENCE_MATRIX_2026-10-11.md'
       - 'docs/research/QORE_LONDON_LONA_GATE_A_SECOND_SOURCE_ADJUDICATION_2026-10-11.md'
   workflow_dispatch:
@@ -26,8 +28,9 @@ jobs:
           python-version: '3.12'
       - name: Compile and execute LON-A timestamp guard synthetic tests
         run: |
-          python -m compileall -q src/qore/infrastructure/trader_lab/qore_london_lona_first_online_chronology_gate_v1.py
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_london_lona_first_online_chronology_gate_v1.py src/qore/infrastructure/trader_lab/qore_london_lona_m15_cisd_sequence_observer_v1.py
           PYTHONPATH=src python -m unittest discover -s tests/infrastructure/trader_lab -p 'test_qore_london_lona_first_online_chronology_gate_v1.py' -v
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure/trader_lab -p 'test_qore_london_lona_m15_cisd_sequence_observer_v1.py' -v
       - name: Assert fail-closed output and publish synthetic proof of status
         run: |
           mkdir -p gate-evidence
