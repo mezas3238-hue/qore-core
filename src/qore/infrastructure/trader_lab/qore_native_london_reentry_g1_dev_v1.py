@@ -112,8 +112,7 @@ def iter_pre_cutoff(source: Path, period: str) -> Iterator[Bar]:
                 closed = datetime.fromisoformat(match.group(2).decode()).astimezone(UTC)
                 if closed - opened != duration:
                     raise ValueError("wrong native period duration")
-                if opened.second or opened.microsecond or opened.minute % duration.seconds * 0 != 0:
-                    # Minutes grid checked separately; the zero product is kept out of any parser side effects.
+                if opened.second or opened.microsecond:
                     raise ValueError("misaligned sub-minute native timestamp")
                 if opened.minute % (duration.seconds // 60) != 0:
                     raise ValueError("misaligned native M5/M15 grid")
