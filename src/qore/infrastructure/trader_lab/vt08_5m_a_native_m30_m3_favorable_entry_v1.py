@@ -266,6 +266,14 @@ def analyze_setup(
         "positional": positional,
         "retest": retest,
         "eq_intra_c2_used": False,
+        "stop_basis": "QORE_PS_ONLY_PROXY_C_NOT_AUTHOR_M30_EQ_BREAKER",
+        "author_bullish_stop_rule_source": (
+            "https://ttrades.com/timeframe-alignment-how-to-align-higher-"
+            "and-lower-time-frames-for-precision-entries/"
+        ),
+        "author_m30_eq_breaker_stop_proven": False,
+        "author_eq_reference_swing_asof_proven": False,
+        "author_breaker_low_asof_proven": False,
         "orders_authorized": False,
         "bid_ask_fill_verified": False,
     }
