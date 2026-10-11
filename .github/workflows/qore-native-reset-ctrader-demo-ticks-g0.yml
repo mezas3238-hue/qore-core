@@ -1,0 +1,157 @@
+name: QORE RESET G0 cTrader DEMO Native EURUSD Historical Tick (BID ASK ONLY)
+
+on:
+  push:
+    branches:
+      - research/qore-native-reset-ctrader-tick-source-g0-20261011
+    paths:
+      - '.github/workflows/qore-native-reset-ctrader-demo-ticks-g0.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_reset_ctrader_tick_g0_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_reset_ctrader_tick_g0_v1.py'
+      - 'docs/research/QORE_NATIVE_RESET_CTRADER_DEMO_TICK_G0_PREREG_2026-10-11.md'
+      - 'docs/research/QORE_NATIVE_RESET_CTRADER_DEMO_TICK_G0B_2015_AND_DUAL_SECRET_PATH_ADDENDUM_2026-10-11.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-reset-ctrader-native-tick-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  code_gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Official provider only and causal contract
+        run: |
+          test -s docs/research/QORE_NATIVE_RESET_CTRADER_DEMO_TICK_G0_PREREG_2026-10-11.md
+          test -s docs/research/QORE_NATIVE_RESET_CTRADER_DEMO_TICK_G0B_2015_AND_DUAL_SECRET_PATH_ADDENDUM_2026-10-11.md
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("src/qore/infrastructure/trader_lab/qore_native_reset_ctrader_tick_g0_v1.py").read_text()
+          assert "ProtoOAGetTickDataReq" in p
+          assert "SOURCE_ARTIFACT = 10475354631" in p
+          assert "ROOTS =" not in p and "dukascopy" not in p.lower()
+          assert "ProtoOARefreshTokenReq" not in p
+          assert "MIN_SECONDS_BETWEEN_REQUESTS = 0.30" in p
+          PY
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_reset_ctrader_tick_g0_v1.py tests/infrastructure/trader_lab/test_qore_native_reset_ctrader_tick_g0_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_reset_ctrader_tick_g0_v1.py
+
+  ctrader_ticks:
+    needs: code_gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      # Keep each OAuth app+token bundle matched; do not mix DEMO tokens
+      # with generic app credentials. Earlier CIBO used generic-first.
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+      QORE_CTRADER_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install official Spotware SDK (no external quote providers)
+        run: python -m pip install -e '.[ctrader]'
+      - name: Restore only original CIBO EURUSD ID manifest, not M5-derived ticks
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-EURUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: cibo-eurusd-source
+      - name: Restore CIBO 2014–2016 SEALED M1 INVENTORY METADATA ONLY (no OHLC)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-pre2016-sealed-m1-inventory-660881acc008593eb04b7be2c4e2e60f06950a4d
+          run-id: '36367221571'
+          github-token: ${{ github.token }}
+          path: cibo-pre2016-inventory
+      - name: Verify metadata witness for added 2015 date; never open sealed data
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.qore_native_reset_ctrader_tick_g0_v1 import probe_dates
+          witness=json.loads(Path("cibo-pre2016-inventory/pre2016-sealed-m1-inventory.json").read_text())
+          assert witness["identity"]=="QORE_CAPITALIZER_PRE2016_SEALED_M1_INVENTORY_V1"
+          assert witness["freeze"]["holdout_start"]=="2014-09-17T00:00:00+00:00"
+          assert witness["freeze"]["holdout_end_exclusive"]=="2016-09-17T00:00:00+00:00"
+          assert witness["economics_opened"] is False
+          eur=[item for item in witness["markets"] if item["symbol"]=="EURUSD"]
+          assert len(eur)==1 and eur[0]["provider_native_m1"] is True
+          assert eur[0]["retained_m1"]==762455
+          assert eur[0]["holdout_economics_evaluated"] is False
+          assert str(probe_dates()[0])=="2015-09-15"
+          assert len(probe_dates())==12
+          print("CIBO_2015_METADATA_WITNESS_ONLY_PASS")
+          PY
+      - name: Fetch actual BID and ASK ticks from cTrader DEMO
+        id: capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p native-tick-g0
+          python -m qore.infrastructure.trader_lab.qore_native_reset_ctrader_tick_g0_v1 cibo-eurusd-source native-tick-g0
+      - name: Record audit outcome when source unavailable; no invented ticks
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p native-tick-g0
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          out=Path("native-tick-g0/source-gate-unavailable.json")
+          # Keep the runner's detailed, sanitized account-list diagnostic.
+          # Only create a generic witness when the Python process emitted none.
+          if not (Path("native-tick-g0/source-coverage-manifest.json")).is_file() and not out.is_file():
+              out.write_text(json.dumps({
+                  "identity":"QORE_NATIVE_RESET_CTRADER_DEMO_TICK_G0_V1",
+                  "status":"SOURCE_G0_AUTH_OR_PROVIDER_BLOCKED",
+                  "original_source":"CTRADER_OPEN_API_DEMO",
+                  "historical_tick_coverage_verified":False,
+                  "no_external_provider_substituted":True,
+                  "no_oauth_refresh_performed":True,
+                  "owner_followup":"investigate existing DEMO grant and persistent secret resolver"
+              },indent=2,sort_keys=True)+"\n")
+          PY
+      - name: Verify report; successful CI does not mean data complete
+        if: success()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("native-tick-g0/source-coverage-manifest.json")
+          x=json.loads(p.read_text())
+          assert x["source"]=="CTRADER_OPEN_API_DEMO"
+          assert x["oauth_refresh_performed"] is False
+          assert x["demo_account_verified"] is True
+          assert x["g2_economic_test_performed"] is False
+          assert x["post2015_years_sampled"]==12
+          print("CTRADER_NATIVE_TICK_G0", x["status"],
+                x["complete_bid_ask_dates"],"of 12")
+          PY
+      - name: Upload native tick and source-gate artifacts whether complete or blocked
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-reset-native-ctrader-demo-ticks-g0-${{ github.sha }}
+          path: native-tick-g0/
+          retention-days: 90
+          if-no-files-found: error
