@@ -146,7 +146,8 @@ def replay_market(
             raise ValueError("first-online discovery close absent from provider M1")
         price=m1[ix-1].close
         status="ELIGIBLE"
-        if capitalizer_session_at(decision) is not CapitalizerSession(s.session):
+        session_at=capitalizer_session_at(decision)
+        if session_at is not CapitalizerSession(s.session):
             status="OUTSIDE_SOURCE_SESSION"
         elif decision<DEV_WINDOW_START:
             status="OUTSIDE_DEVELOPMENT_WINDOW"
@@ -205,8 +206,8 @@ def replay_market(
                 if status=="ELIGIBLE" and target is not None else None,
             "candidate_exit_reason":new_fill.exit_reason
                 if status=="ELIGIBLE" and new_fill is not None else None,
-            "session_at_online":capitalizer_session_at(decision).value
-                if capitalizer_session_at(decision) else None,
+            "session_at_online":session_at.value
+                if session_at is not None else None,
             "source_anchored_H1_M15_not_regenerated":True,
             "source_author_POI_not_independently_certified":True,
             "physical_bid_ask_available":False,
@@ -313,8 +314,8 @@ def main()->None:
         with (args.output/"scalper-audit14-candidates.jsonl").open(
             "w",encoding="utf-8"
         ) as out:
-            for row in trades:
-                out.write(json.dumps(asdict(row),sort_keys=True)+"\n")
+            for trade in trades:
+                out.write(json.dumps(asdict(trade),sort_keys=True)+"\n")
     else:
         rep=aggregate(args.inputs)
         (args.output/"scalper-audit14-nine-market.json").write_text(
