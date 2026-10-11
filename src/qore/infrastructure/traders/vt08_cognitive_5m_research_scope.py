@@ -74,6 +74,8 @@ class Vt08FiveMarketResearchSituation(Vt08ForexSituationModel):
 
     def __post_init__(self) -> None:
         Vt08ForexSituationModel.__post_init__(self)
+        if type(self.research_only) is not bool or type(self.operational_authority) is not bool:
+            raise ValueError("VT08 5M research authority flags must be exact bool")
         if not self.research_only or self.operational_authority:
             raise ValueError("VT08 5M cognitive situation is research-only")
         if not self.source_evidence_id.strip():
