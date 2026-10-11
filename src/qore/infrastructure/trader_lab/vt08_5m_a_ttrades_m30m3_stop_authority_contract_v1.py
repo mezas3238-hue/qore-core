@@ -128,7 +128,7 @@ class M30BullishExampleAuthority:
     pre_c2_external_pivot_known: bool
     research_breaker_proxy_count: int
     documented_stop_condition: str = "LONG_STOP_STRICTLY_BELOW_EQ_AND_BREAKER_LOW"
-    stop_condition_written_A: bool = True
+    stop_condition_written_a: bool = True
     source_eq_reference_swing_valid: bool = False
     source_breaker_low_adjudicated: bool = False
     source_poi_significant: bool = False
@@ -159,7 +159,7 @@ class M30BullishExampleAuthority:
             "ob_source": POI_OB_SOURCE,
             "eq_source": EQ_SOURCE,
             "ps_stop_source": PS_STOP_SOURCE,
-            "stop_rule_written_A": self.stop_condition_written_A,
+            "stop_rule_written_A": self.stop_condition_written_a,
             "reference_swing_eq_valid": self.source_eq_reference_swing_valid,
             "breaker_low_adjudicated": self.source_breaker_low_adjudicated,
             "source_poi_significant": self.source_poi_significant,
