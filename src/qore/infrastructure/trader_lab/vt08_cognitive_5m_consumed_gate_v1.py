@@ -70,6 +70,11 @@ class Vt08CognitivePositionTrace:
     destination_state: str
     next_stop: Decimal | None
     policy_calibrated: bool
+    fill_id: str
+    fill_evidence_sha256: str
+    original_initial_stop: Decimal
+    original_bound_destination: Decimal
+    observed_current_stop: Decimal
     research_only: bool = True
     broker_order_authorized: bool = False
 
@@ -120,6 +125,56 @@ class Vt08ResearchFillTrace:
     broker_order_authorized: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class Vt08ResearchTerminalEvidence:
+    """External research terminal settlement; cognition never manufactures it."""
+
+    source_event_id: str
+    market: str
+    fill_id: str
+    fill_evidence_sha256: str
+    closed_at: datetime
+    exit_price: Decimal
+    terminal_reason: str
+    evidence_sha256: str
+    research_only: bool = True
+    broker_order_authorized: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.source_event_id or not self.market or not self.fill_id:
+            raise ValueError("VT08 terminal settlement needs source/market/fill identity")
+        if self.closed_at.tzinfo is None or self.closed_at.utcoffset() is None:
+            raise ValueError("VT08 terminal settlement requires timezone-aware close")
+        if not self.exit_price.is_finite() or self.exit_price <= 0:
+            raise ValueError("VT08 terminal exit price must be positive finite")
+        if self.terminal_reason not in {
+            "STOP", "TARGET", "H4_LIFECYCLE", "EXTERNAL_CLOSE", "OTHER",
+        }:
+            raise ValueError("VT08 terminal reason outside declared categories")
+        if (
+            re.fullmatch(r"[0-9a-f]{64}", self.evidence_sha256) is None
+            or re.fullmatch(r"[0-9a-f]{64}", self.fill_evidence_sha256) is None
+        ):
+            raise ValueError("VT08 terminal evidence requires SHA256 lineage")
+        if not self.research_only or self.broker_order_authorized:
+            raise ValueError("VT08 terminal settlement is research-only")
+
+
+@dataclass(frozen=True, slots=True)
+class Vt08ResearchTerminalTrace:
+    source_event_id: str
+    market: str
+    fill_id: str
+    closed_at: datetime
+    exit_price: Decimal
+    terminal_reason: str
+    evidence_sha256: str
+    related_fill_evidence_sha256: str
+    last_position_fingerprint: str | None
+    research_only: bool = True
+    broker_order_authorized: bool = False
+
+
 class Vt08FiveMarketCognitiveGate:
     """Stateful causal source-event cognition, no economic/broker authority."""
 
@@ -128,6 +183,10 @@ class Vt08FiveMarketCognitiveGate:
         self._event_identity: dict[str, tuple[str, ...]] = {}
         self._last_decision_at: dict[str, datetime] = {}
         self._last_position_at: dict[str, datetime] = {}
+        self._position_terms: dict[str, tuple[Decimal, Decimal]] = {}
+        self._last_observed_stops: dict[str, Decimal] = {}
+        self._terminal: dict[str, Vt08ResearchTerminalTrace] = {}
+        self._terminals: list[Vt08ResearchTerminalTrace] = []
         self._executed: set[str] = set()
         self._fill_ids: set[str] = set()
         self._filled: dict[str, Vt08ResearchFillTrace] = {}
@@ -147,6 +206,10 @@ class Vt08FiveMarketCognitiveGate:
     @property
     def fills(self) -> tuple[Vt08ResearchFillTrace, ...]:
         return tuple(self._fills)
+
+    @property
+    def terminals(self) -> tuple[Vt08ResearchTerminalTrace, ...]:
+        return tuple(self._terminals)
 
     def _check_source_identity(
         self, situation: Vt08FiveMarketResearchSituation
@@ -269,6 +332,55 @@ class Vt08FiveMarketCognitiveGate:
         self._last_global_as_of = evidence.filled_at
         return trace
 
+    def record_terminal(
+        self, evidence: Vt08ResearchTerminalEvidence
+    ) -> Vt08ResearchTerminalTrace:
+        """Record external observed closure; an EXIT suggestion is NOT a fill.
+
+        Requires the original fill identity and digest. Never computes PnL,
+        broker orders, or an outcome from unverified OHLC/source price.
+        """
+        event_id = evidence.source_event_id
+        fill = self._filled.get(event_id)
+        if fill is None:
+            raise ValueError("VT08 terminal requires registered research fill")
+        if event_id in self._terminal:
+            raise ValueError("VT08 source position already terminal")
+        if (
+            evidence.market != fill.market
+            or evidence.fill_id != fill.fill_id
+            or evidence.fill_evidence_sha256 != fill.evidence_sha256
+        ):
+            raise ValueError("VT08 terminal evidence contradicts fill lineage")
+        if evidence.closed_at <= fill.filled_at:
+            raise ValueError("VT08 terminal close must follow original fill")
+        if (
+            self._last_global_as_of is not None
+            and evidence.closed_at < self._last_global_as_of
+        ):
+            raise ValueError("VT08 terminal replay clock cannot move backwards")
+        latest = next(
+            (p for p in reversed(self._positions) if p.source_event_id == event_id),
+            None,
+        )
+        trace = Vt08ResearchTerminalTrace(
+            source_event_id=event_id,
+            market=evidence.market,
+            fill_id=evidence.fill_id,
+            closed_at=evidence.closed_at,
+            exit_price=evidence.exit_price,
+            terminal_reason=evidence.terminal_reason,
+            evidence_sha256=evidence.evidence_sha256,
+            related_fill_evidence_sha256=evidence.fill_evidence_sha256,
+            last_position_fingerprint=(
+                latest.position_fingerprint if latest is not None else None
+            ),
+        )
+        self._terminal[event_id] = trace
+        self._terminals.append(trace)
+        self._last_global_as_of = evidence.closed_at
+        return trace
+
     def evaluate_position(
         self,
         situation: Vt08FiveMarketResearchSituation,
@@ -285,6 +397,8 @@ class Vt08FiveMarketCognitiveGate:
             raise ValueError("VT08 cannot assess unadmitted research position")
         if event_id not in self._filled:
             raise ValueError("VT08 cannot assess position without recorded fill")
+        if event_id in self._terminal:
+            raise ValueError("VT08 cannot assess a terminal-closed position")
         fill = self._filled[event_id]
         if position.entry_price != fill.entry_price:
             raise ValueError("VT08 position entry price differs from recorded fill")
@@ -304,12 +418,27 @@ class Vt08FiveMarketCognitiveGate:
         previous = self._last_position_at.get(event_id)
         if previous is not None and situation.as_of <= previous:
             raise ValueError("VT08 in-trade assessment timestamp must advance")
+        # First observed position terms become immutable within THIS research
+        # replay. This is continuity, not independent external risk provenance:
+        # initial SL and TP remain unverified until execution sends signed terms.
+        terms = (position.initial_stop, position.bound_destination)
+        original = self._position_terms.get(event_id)
+        if original is not None and original != terms:
+            raise ValueError("VT08 initial SL and destination cannot drift in position")
+        prior_stop = self._last_observed_stops.get(event_id)
+        if prior_stop is not None and (
+            (position.side == "long" and position.current_stop < prior_stop)
+            or (position.side == "short" and position.current_stop > prior_stop)
+        ):
+            raise ValueError("VT08 observed stop cannot widen between M15 snapshots")
         result = evaluate_in_trade_cognition(
             situation=situation,
             position=position,
             policy=RESEARCH_UNCALIBRATED_POSITION_POLICY,
         )
         self._last_position_at[event_id] = situation.as_of
+        self._position_terms.setdefault(event_id, terms)
+        self._last_observed_stops[event_id] = position.current_stop
         self._last_global_as_of = situation.as_of
         trace = Vt08CognitivePositionTrace(
             market=situation.market,
@@ -323,6 +452,11 @@ class Vt08FiveMarketCognitiveGate:
             destination_state=result.journey.destination_state.value,
             next_stop=result.position_decision.next_stop,
             policy_calibrated=result.position_decision.policy_calibrated,
+            fill_id=fill.fill_id,
+            fill_evidence_sha256=fill.evidence_sha256,
+            original_initial_stop=terms[0],
+            original_bound_destination=terms[1],
+            observed_current_stop=position.current_stop,
         )
         self._positions.append(trace)
         return trace
