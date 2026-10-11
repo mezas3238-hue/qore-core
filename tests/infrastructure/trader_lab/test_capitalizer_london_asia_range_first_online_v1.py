@@ -17,10 +17,10 @@ DAY = datetime(2026, 7, 15, tzinfo=LONDON).date()
 
 
 def bar(at: datetime, o: str = "1.10000", h: str = "1.10010",
-        l: str = "1.09990", c: str = "1.10000") -> CapitalizerM1Bar:
+        low: str = "1.09990", c: str = "1.10000") -> CapitalizerM1Bar:
     return CapitalizerM1Bar(
         symbol="EURUSD", opened_at=at, closed_at=at + timedelta(minutes=1),
-        open=Decimal(o), high=Decimal(h), low=Decimal(l), close=Decimal(c),
+        open=Decimal(o), high=Decimal(h), low=Decimal(low), close=Decimal(c),
         volume=10, digits=5,
     )
 
@@ -34,7 +34,7 @@ def test_l1_reclaim_is_observed_only_after_breach_bar_close() -> None:
     start = london_start(DAY, 8)
     rows = asia() + [
         bar(start, h="1.10040", c="1.10000"),
-        bar(start+timedelta(minutes=1), l="1.09950"),
+        bar(start+timedelta(minutes=1), low="1.09950"),
     ]
     r = asof_event("EURUSD", DAY, tuple(rows))
     assert r.reason == "SIGNAL_CONFIRMED"
@@ -61,9 +61,9 @@ def test_l2_requires_two_closed_M1_outside_range_before_next_open() -> None:
     rows = asia() + [
         bar(start, h="1.10040", c="1.10030"),
         bar(start+timedelta(minutes=1), o="1.10030", h="1.10050",
-            l="1.10020", c="1.10040"),
+            low="1.10020", c="1.10040"),
         bar(start+timedelta(minutes=2), o="1.10040", h="1.10080",
-            l="1.10030", c="1.10065"),
+            low="1.10030", c="1.10065"),
     ]
     r = asof_event("EURUSD", DAY, tuple(rows))
     assert r.reason == "SIGNAL_CONFIRMED"
@@ -103,7 +103,7 @@ def test_exit_gap_is_censored_and_not_imputed() -> None:
 
 def test_same_bar_stop_target_is_stop_first_in_both_directions() -> None:
     start = london_start(DAY, 8)
-    b = bar(start, h="1.10150", l="1.09850")
+    b = bar(start, h="1.10150", low="1.09850")
     end, reason, outcome, double = exit_path(
         {start: b}, start, Decimal("1.099"), Decimal("1.101"), "LONG", DAY
     )
