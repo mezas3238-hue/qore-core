@@ -10,7 +10,7 @@ import argparse
 import json
 import math
 from collections import Counter
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
