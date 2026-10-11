@@ -180,8 +180,8 @@ def aggregate(root:Path,output:Path)->dict[str,Any]:
             "historical_outcomes_or_1to1_used":False,
         },indent=2,sort_keys=True)+"\n",encoding="utf-8"
     )
-    full=Counter()
-    a=Counter()
+    full:Counter[str]=Counter()
+    a:Counter[str]=Counter()
     market_dir:dict[str,Counter[str]]=defaultdict(Counter)
     session_dir:dict[str,Counter[str]]=defaultdict(Counter)
     lag=[]
