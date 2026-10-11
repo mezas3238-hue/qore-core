@@ -230,13 +230,20 @@ def verify_c4_observation(
     if event.get("c4_first_m15_sha256") != _sha_m15((bar,)):
         raise ValueError("C4 first M15 source hash mismatch")
     eq = parent["eq"]
+    low_bound = parent["c3_low"]
+    high_bound = parent["c3_high"]
+    if not all(isinstance(x, Decimal) for x in (eq, low_bound, high_bound)):
+        raise ValueError("C4 parent must have Decimal-bounded EQ")
+    assert isinstance(eq, Decimal)
+    assert isinstance(low_bound, Decimal)
+    assert isinstance(high_bound, Decimal)
     if Decimal(str(event.get("c3_eq_level_used"))) != eq:
         raise ValueError("C4 modified C3 full range EQ")
     bullish = parent["side"] == "long"
     expected_respect = bar.close >= eq if bullish else bar.close <= eq
     expected_wick = (
-        eq <= bar.low <= parent["c3_high"] if bullish
-        else parent["c3_low"] <= bar.high <= eq
+        eq <= bar.low <= high_bound if bullish
+        else low_bound <= bar.high <= eq
     )
     if event.get("eq_half_respected_at_closed_m15") is not expected_respect:
         raise ValueError("C4 EQ respect misreported")
