@@ -3,7 +3,7 @@ import unittest
 from datetime import UTC, datetime, timedelta
 
 from qore.infrastructure.trader_lab.qore_london_lona_data_census_gate_b_v1 import (
-    bucket_start, summarize_coverage,
+    bucket_start, ny_h4_anchor, ny_h4_expected_minutes, summarize_coverage,
 )
 
 
@@ -76,6 +76,29 @@ class CensusGateBTests(unittest.TestCase):
         out = summarize_coverage((friday, sunday))
         self.assertEqual(out["discontinuity_events_including_weekends_and_holidays"], 1)
         self.assertTrue(out["market_closure_vs_feed_gap_unresolved"])
+
+
+    def test_dst_spring_wall_clock_H4_span_is_three_hours(self):
+        # March 8, 2026 NY springs from 01:59:59 to 03:00:00.
+        now = datetime(2026, 3, 8, 7, 30, tzinfo=UTC)
+        a = ny_h4_anchor(now, (2, 6, 10, 14, 18, 22))
+        self.assertEqual(a.hour, 2)
+        self.assertEqual(ny_h4_expected_minutes(a), 180)
+
+    def test_dst_fall_wall_clock_H4_span_is_five_hours(self):
+        # NY 22:00 previous day to 02:00 after fall-back spans 5 real hours.
+        now = datetime(2026, 11, 1, 6, 30, tzinfo=UTC)
+        a = ny_h4_anchor(now, (2, 6, 10, 14, 18, 22))
+        self.assertEqual(a.hour, 22)
+        self.assertEqual(ny_h4_expected_minutes(a), 300)
+
+    def test_competing_NY_H4_clocks_are_only_hypotheses(self):
+        first = datetime(2026, 10, 6, 8, 0, tzinfo=UTC)
+        counts = summarize_coverage(first + timedelta(minutes=k) for k in range(60))
+        self.assertEqual(set(counts["ny_h4_hypothesis_bins"]),
+                         {"H4_NY_22_02_06_HYPOTHESIS", "H4_NY_01_05_09_HYPOTHESIS"})
+        self.assertTrue(all(x["not_an_author_clock_certification"]
+                            for x in counts["ny_h4_hypothesis_bins"].values()))
 
     def test_no_fill_authorization_flag_in_bin_schema(self):
         x = datetime(2026, 10, 6, 8, 0, tzinfo=UTC)
