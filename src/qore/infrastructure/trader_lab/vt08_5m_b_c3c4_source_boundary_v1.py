@@ -218,10 +218,13 @@ def verify_c4_observation(
     if (event.get("origin_id") != parent["origin_id"] or
         event.get("parent_snapshot_fingerprint") != parent["snapshot_fingerprint"]):
         raise ValueError("C4 lineage must match stable source and C3 snapshot")
-    expected = parent["closed_at"] + timedelta(minutes=15)
+    parent_close = parent["closed_at"]
+    if not isinstance(parent_close, datetime):
+        raise ValueError("C4 parent requires causal datetime")
+    expected = parent_close + timedelta(minutes=15)
     if _timestamp(event.get("observed_at")) != expected:
         raise ValueError("C4 first M15 cannot be known before its close")
-    bar = by_open.get(parent["closed_at"])
+    bar = by_open.get(parent_close)
     if bar is None or bar.closed_at.astimezone(UTC) != expected:
         raise ValueError("C4 M15 physical bar absent or incomplete")
     if event.get("c4_first_m15_sha256") != _sha_m15((bar,)):
