@@ -1,7 +1,7 @@
 """No-network native cTrader DEMO tick source tests for QORE RESET G0."""
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
