@@ -25,6 +25,7 @@ from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSessi
 from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import (
     _aggregate,
     _build_h1_bias_events,
+    _operating_date,
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     DEFAULT_LOOKBACK,
@@ -32,10 +33,8 @@ from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v
     DEV_WINDOW_START,
     V49Opportunity,
 )
-from qore.infrastructure.trader_lab.capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1 import (
-    candidate_key,
-    original_key,
-    source_key,
+from qore.infrastructure.trader_lab import (
+    capitalizer_scalper_a2_fourteenth_winner_reconciliation_v1 as keys,
 )
 from qore.infrastructure.trader_lab.capitalizer_scalper_h1_direction_random_baseline_v1 import (
     DRAWS,
@@ -59,7 +58,6 @@ from qore.infrastructure.trader_lab.capitalizer_scalper_v49_v50_g_waterfall_v1 i
     source_id,
 )
 from qore.infrastructure.trader_lab.capitalizer_session_clock import (
-    _operating_date,
     capitalizer_session_at,
 )
 from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
@@ -103,19 +101,19 @@ def market(
     if any(x.symbol!=symbol for x in sources):
         raise ValueError("mixed market source")
     source_by_id={source_id(x):x for x in sources}
-    row_by_old={source_key(x):x for x in ids}
-    row_by_alt={candidate_key(x):x for x in ids if x["status"]=="ELIGIBLE"}
+    row_by_old={keys.source_key(x):x for x in ids}
+    row_by_alt={keys.candidate_key(x):x for x in ids if x["status"]=="ELIGIBLE"}
     if len(source_by_id)!=len(sources) or len(row_by_old)!=len(sources):
         raise ValueError("source IDs / reference economic source not unique")
     old_selected=[
-        (row_by_old[original_key(t)]["source_opportunity_id"],t)
+        (row_by_old[keys.original_key(t)]["source_opportunity_id"],t)
         for t in originals
-        if row_by_old[original_key(t)]["source_opportunity_id"] in original_ids
+        if row_by_old[keys.original_key(t)]["source_opportunity_id"] in original_ids
     ]
     alt_selected=[
-        (row_by_alt[original_key(t)]["source_opportunity_id"],t)
+        (row_by_alt[keys.original_key(t)]["source_opportunity_id"],t)
         for t in alts
-        if row_by_alt[original_key(t)]["source_opportunity_id"] in alternative_ids
+        if row_by_alt[keys.original_key(t)]["source_opportunity_id"] in alternative_ids
     ]
     if (len({id for id,_ in old_selected})!=len(old_selected)
             or len({id for id,_ in alt_selected})!=len(alt_selected)):
@@ -140,8 +138,8 @@ def market(
     alternative_mfe=observe_market_excursions(
         tuple(t for _,t in alt_selected),bars
     ) if alt_selected else ()
-    old_mfe_by_key={original_key(t):t for t in original_mfe}
-    alt_mfe_by_key={original_key(t):t for t in alternative_mfe}
+    old_mfe_by_key={keys.original_key(t):t for t in original_mfe}
+    alt_mfe_by_key={keys.original_key(t):t for t in alternative_mfe}
     # ExcursionRow and economic trade share source keys except exit metadata.
     if len(old_mfe_by_key)!=len(old_selected) or len(alt_mfe_by_key)!=len(alt_selected):
         raise ValueError("MFE/MAE lifecycle did not reconcile")
@@ -153,13 +151,13 @@ def market(
     outputs:list[dict[str,Any]]=[]
     stage_problems:Counter[str]=Counter()
     for sid,trade in old_selected:
-        excursion=old_mfe_by_key[original_key(trade)]
+        excursion=old_mfe_by_key[keys.original_key(trade)]
         outputs.append({
             "which":"V49","source_opportunity_id":sid,"symbol":symbol,
             "excursion":asdict(excursion),
         })
     for sid,trade in alt_selected:
-        excursion=alt_mfe_by_key[original_key(trade)]
+        excursion=alt_mfe_by_key[keys.original_key(trade)]
         source=source_by_id[sid]
         at=datetime.fromisoformat(trade.entry_at)
         side=1 if trade.direction=="LONG" else -1
