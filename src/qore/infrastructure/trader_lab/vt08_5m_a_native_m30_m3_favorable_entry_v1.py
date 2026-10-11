@@ -267,6 +267,82 @@ def analyze_setup(
     }
 
 
+def earliest_clean_touch_per_market_day(
+    observations: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Earliest independently CLOSED M3 retest per NY day, no PnL rank.
+
+    Retest observation is posterior to the mother setup proposal; we never
+    alter historical entry signals at their M30-open timestamps.
+    Does not certify intrabar BID/ASK execution or authorize a trade.
+    """
+    selected: dict[str, dict[str, object]] = {}
+    for record in observations:
+        date_key = record.get("market_ny_date")
+        retest = record.get("retest")
+        positional = record.get("positional")
+        if (
+            not isinstance(date_key, str)
+            or not isinstance(retest, dict)
+            or retest.get("status") != "CLEAN_OHLC_TOUCH_NOT_PHYSICAL_FILL"
+            or not isinstance(positional, dict)
+        ):
+            continue
+        new_geom = retest.get("gross_geometry")
+        observed = retest.get("observed_after_close")
+        if not isinstance(new_geom, dict) or not isinstance(observed, str):
+            raise ValueError("source closed M3 retest lacks geometry or clock")
+        timestamp = datetime.fromisoformat(observed).astimezone(UTC)
+        origin = record["origin_id"]
+        if not isinstance(origin, str):
+            raise ValueError("source event ID missing")
+        opening = datetime.fromisoformat(
+            str(record["entry_positional_proposed_at"])
+        ).astimezone(UTC)
+        if timestamp <= opening:
+            raise AssertionError("retest selected before original M30 signal")
+        original_risk = Decimal(str(positional["risk"]))
+        refined_risk = Decimal(str(new_geom["risk"]))
+        if original_risk <= refined_risk or refined_risk <= 0:
+            raise AssertionError("retreat not favorable in risk units")
+        pct = (Decimal(1) - refined_risk / original_risk) * 100
+        candidate: dict[str, object] = {
+            "market_ny_date": date_key,
+            "origin_id": origin,
+            "original_m30_open_at": opening.isoformat(),
+            "first_clean_retest_m3_closed_at": timestamp.isoformat(),
+            "positional_gross_rr": str(positional["rr"]),
+            "retest_gross_rr": str(new_geom["rr"]),
+            "risk_reduction_percent_gross": str(pct),
+            "selection_policy": "EARLIEST_M3_CLOSED_TOUCH_THEN_STABLE_EVENT_ID",
+            "bid_ask_fill_verified": False,
+            "poi_author_source_verified": False,
+            "trade_authorized": False,
+        }
+        old = selected.get(date_key)
+        if old is None or (
+            candidate["first_clean_retest_m3_closed_at"],
+            candidate["origin_id"],
+        ) < (
+            old["first_clean_retest_m3_closed_at"],
+            old["origin_id"],
+        ):
+            selected[date_key] = candidate
+    return [selected[d] for d in sorted(selected)]
+
+
+def median_decimals(values: list[Decimal]) -> str | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    n = len(ordered)
+    return str(
+        ordered[n // 2]
+        if n % 2
+        else (ordered[n // 2 - 1] + ordered[n // 2]) / 2
+    )
+
+
 def evaluate(base_path: Path, m3_path: Path) -> dict[str, object]:
     fingerprint, market, checked, sha, m15 = load_market_evidence(base_path)
     if market not in EXPANSION_MARKETS or sha != SOURCE_SHA:
@@ -374,6 +450,22 @@ def evaluate(base_path: Path, m3_path: Path) -> dict[str, object]:
         raise AssertionError("M30/M3 geometry receipt mismatch")
     if len({r["origin_id"] for r in evidence}) != len(evidence):
         raise AssertionError("duplicate mother event origin ID")
+    first_daily = earliest_clean_touch_per_market_day(evidence)
+    if len(first_daily) != len(daysets["CLEAN_OHLC_TOUCH_NOT_PHYSICAL_FILL"]):
+        raise AssertionError("daily first touch count not reconciled")
+    median_improvement = median_decimals([
+        Decimal(str(x["risk_reduction_percent_gross"])) for x in first_daily
+    ])
+    median_pos_rr = median_decimals([
+        Decimal(str(x["positional_gross_rr"])) for x in first_daily
+    ])
+    median_retest_rr = median_decimals([
+        Decimal(str(x["retest_gross_rr"])) for x in first_daily
+    ])
+    first_daily_rr_1_5 = sum(
+        Decimal(str(x["retest_gross_rr"])) >= Decimal("1.5")
+        for x in first_daily
+    )
     return {
         "schema": SCHEMA,
         "market": market,
@@ -388,6 +480,18 @@ def evaluate(base_path: Path, m3_path: Path) -> dict[str, object]:
         },
         "per_year_counts": {k: dict(sorted(v.items())) for k, v in sorted(years.items())},
         "research_observations": evidence,
+        "earliest_clean_retest_one_per_ny_day": first_daily,
+        "daily_retest_selection": {
+            "market_days_with_first_clean_m3_retest": len(first_daily),
+            "first_clean_retests_gross_rr_ge_1_5": first_daily_rr_1_5,
+            "median_gross_risk_reduction_percent": median_improvement,
+            "median_positional_gross_rr": median_pos_rr,
+            "median_retest_gross_rr": median_retest_rr,
+            "clock_rule": "FIRST_M3_CLOSE_OBSERVING_CLEAN_TOUCH_NOT_LIMIT_FILL",
+            "candidate_count_without_daily_duplication": len(first_daily),
+            "source_authority": "RESEARCH_ONLY_NOT_AUTHOR_COMPLETE",
+            "physical_fills_certified": False,
+        },
         "m30_m3_author_timeframe_pair_source_verified": True,
         "m30_m3_setup_poi_source_adjudicated": False,
         "gross_rr_only_no_bid_ask": True,
