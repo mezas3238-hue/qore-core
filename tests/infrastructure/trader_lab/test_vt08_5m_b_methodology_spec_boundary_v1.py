@@ -234,7 +234,7 @@ def test_C3_and_C4_two_clocks_and_PS_must_not_reach_future_M15() -> None:
         v.verify_causal_event(too_early, spec())
     future = deepcopy(e)
     future["protected_swing"]["source_proof"] = proof(480, 485)
-    with pytest.raises(v.BMethodologyBoundaryError, match="cannot consume C4"):
+    with pytest.raises(v.BMethodologyBoundaryError, match="not available at source decision"):
         v.verify_causal_event(future, spec())
     premature_c4 = deepcopy(e)
     premature_c4.update({
