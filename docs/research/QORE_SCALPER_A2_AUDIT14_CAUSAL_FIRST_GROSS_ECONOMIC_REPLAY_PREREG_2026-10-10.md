@@ -37,3 +37,41 @@ No modificar parámetros ni pasar H1.state_until futuro a puerto cognitivo; pend
 - `.github/workflows/qore-scalper-a2-fourteenth-causal-first-gross-replay.yml`
 
 Resultados se adjuntarán sólo con CI real **GREEN 11/11**; nunca inferir PF/DD por valor esperado de 15/30 minutos.
+
+---
+
+## RESULTADOS MEDIDOS DEL ENSAYO XIV (NO MODIFICAR PREREGISTRO RETROSPECTIVAMENTE)
+
+### A. [GH Actions #38102352779 — 11/11 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38102352779): PF/DD bruto sobre nueve mercados
+
+El replay de TODAS las **2876 fuentes originales** concilió completamente operaciones económicas V49 con las originales para cada símbolo, antes de evaluar candidata causal-first. 2876 IDs source conservados; **1090/2876** con primera familia/close online distintos, **381/2876** subcohorte estática original.
+- Candidatas source-anchored **2816 elegibles**, **36** nuevo precio invalida lado del SL M15 y **24** no tienen objetivo H1 disponible delante; 60 sin lifecycle alternativo. Esto NO son vetos que se hayan aplicado a V49 ni evidencia de que el autor prohíba operar ese parent: son estados no ejecutables bajo el contrato de precios/stop/objetivo congelado para esta comparación.
+- MAX3 global original **2020** vs MAX3 alt **1997**. No atribuir igualdad de densidad a la variante online; son **23 trades menos**.
+- **BASELINE bruto V49** n2020, wins1167, losses852, flat1, PF **0.6644630742216047**, gross total **-233.2693270763665R**, DD máximo **236.1342843563359R**, gross winners mass +461.9427618322289R, gross losses -695.2120889085954R.
+- **PRUEBA causal-first SOURCE-ANCHORED** n1997, wins1154, losses841, flats2, PF bruto **0.8425240504779709**, gross total **-109.0553894526897R**, DD máximo **114.7990990562515R**, beneficio bruto +583.4655306223729R, pérdidas brutas -692.5209200750626R.
+- Diferencia PF **+0.178061** (+26.8% relativo), delta drawdown **-121.335185R** (-51.4%), delta neto **+124.2139376236768R**; ganancias+ pérdidas son trayectoria bruto sin spreads ni comisión.
+
+**Veredicto económico P0:** mejora BRUTA real medida bajo política fijada SIN seleccionar por outcomes. El PF **permanece <1** y el neto **permanece NEGATIVO**. No declarar edge rentable ni probabilidad de certificación; tampoco atribuir todo el efecto al orden solo, porque 60 oportunidades pasan a no-elegibles y 23 salen del MAX3 en esta alternativa. Falta re-generación H1/M15/M1 full-online sobre población no condicionada y precio físico BID/ASK. NO CERTIFICABLE.
+
+### B. [GH Actions #38102633581 — SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38102633581): retención por identidad, no por PF
+
+- Baseline MAX3 original 2020; alternativa MAX3 1997. Identidades de MAX3 preservadas **1947**, perdidas **73**, añadidas **50**.
+- De los **1167 ganadores originales**, **1137** siguen seleccionados (97.4%). Sus resultados originales positivos suman **449.7112689147351R** de **461.9427618322289R** (97.352%); esto es masa original preservada, no PnL de la variante.
+- De los 1137 ganadores originales que continúan seleccionados, **1105** siguen ganando y **32** pierden bajo nuevo price/time/SL/TP.
+- Requisitos owner `934 winners` y `415.74848565R` cumplidos, ambos PASS como restricciones de preservación de identidad; son objetivos internos, **NO reglas TTrades ni certificación económica**.
+
+### C. [GH Actions #38102351044 — 11/11 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38102351044): los 111 H1 faltantes eran artefacto de ventana del AUDITOR
+
+Al recrear los ORIGINALES con mismo exact `DEFAULT_LOOKBACK=14 días` de V49 y mismo stream nativo M1:
+- Candle2 n2638, 2638 geometrías con POI interno fuente atestadas;
+- Candle3 n238, 238 geometrías con POI interno fuente atestadas;
+- **2876/2876** evento/POI QORE nativamente reconciliados, **0** source originales faltantes.
+- **2372** de 2876 IDs con dos H1 pertinentes exactamente 60/60 minutos; **504** no alcanzan testigo exacto 60/60. No invalidar por ausencia de trading en algunos M1 ni certificar automáticamente las 504.
+- El anterior resultado `111 sin reconstruir` se explica por la auditoría que utilizó 15 días de history (un día más) en un detector con POI persistentes: la diferencia de lookback es suficiente para cambiar las etiquetas seleccionadas. No imputar estos 111 a POI de vela opuesta, porque V49 no genera variantes de vela contraria.
+- Sigue UNRESOLVED fidelidad POI HTF autor, M15 protected swing auténtico e integridad del H1 parcial, aun cuando 2876 eventos coinciden consigo mismos.
+
+### D. Límite económico físico
+
+La única serie M1 provider-native sellada aquí proporciona OPEN/HIGH/LOW/CLOSE y no pares BID/ASK sincronizados, swaps, comisión por volumen o fills MT5. **PF0.8425 y DD114.80R son brutos**, no PF/DD netos. No se puede deducir si un coste no-negativo arreglaría el PF bajo esta ruta; introducir costes de broker no mejora el resultado bruto ya negativo salvo cambios de ejecución físicos favorables no demostrados. La próxima etapa necesita evidencia real BID/ASK antes de certificar, no un spread supuesto.
+
+**PR #759 DRAFT, no merge, no VPS, no MT5 LIVE, World Model congelado; CIBO/Shared sin cambios.**
