@@ -50,7 +50,7 @@ def fixture():
         candle(t3 + timedelta(minutes=3*i), 102, 103, 100, 101)
         for i in range(10)
     ]
-    future[0] = candle(t3, 104, 105, 100, 101)
+    future[0] = candle(t3, 104, 105, 101, 101)
     future[1] = candle(t3+timedelta(minutes=3), 101, 103, 98, 100)
     return c1, c2, tuple(c2bars), tuple(future)
 
@@ -70,14 +70,22 @@ def test_m30_c2_single_sweep_and_m3_cisd_preconfirmed():
     assert output["c2_m3_cisd_retest_level"]=="100"
     assert output["retest"]["status"]=="CLEAN_OHLC_TOUCH_NOT_PHYSICAL_FILL"
     assert output["retest"]["observed_after_close"] > output["entry_positional_proposed_at"]
-    assert Decimal(output["retest"]["gross_geometry"]["risk"]) < Decimal(output["positional"]["risk"])
+    retest_risk = Decimal(output["retest"]["gross_geometry"]["risk"])
+    positional_risk = Decimal(output["positional"]["risk"])
+    assert retest_risk < positional_risk
     assert output["orders_authorized"] is False
 
 
 def test_risk_geometric_filter_is_causal():
-    assert gross_geometry(side=LONG,entry=Decimal("104"),stop=Decimal("94"),target=Decimal("110"))["rr"]=="0.6"
-    assert gross_geometry(side=LONG,entry=Decimal("93"),stop=Decimal("94"),target=Decimal("110")) is None
-    assert gross_geometry(side=LONG,entry=Decimal("114"),stop=Decimal("94"),target=Decimal("110")) is None
+    def geometry(price: str):
+        return gross_geometry(
+            side=LONG, entry=Decimal(price),
+            stop=Decimal("94"), target=Decimal("110"),
+        )
+
+    assert geometry("104")["rr"] == "0.6"
+    assert geometry("93") is None
+    assert geometry("114") is None
 
 
 def test_retest_in_same_m3_as_stop_cannot_be_asserted_clean():
@@ -130,7 +138,9 @@ def test_cross_timeframe_m30_source_provenance_and_tampering():
     source={x.opened_at:x for x in ltf}
     actual=closed_source_window(source,begin=ltf[0].opened_at,count=10,minutes=3)
     assert actual is not None
-    assert same_ohlc(aggregate(actual,period_minutes=30,member_minutes=3),aggregate(ltf,period_minutes=30,member_minutes=3))
+    left = aggregate(actual, period_minutes=30, member_minutes=3)
+    right = aggregate(ltf, period_minutes=30, member_minutes=3)
+    assert same_ohlc(left, right)
     altered=candle(c1.opened_at,c1.open,c1.high+Decimal("1"),c1.low,c1.close,30)
     assert not same_ohlc(c1,altered)
 
