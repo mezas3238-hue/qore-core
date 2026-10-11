@@ -16,6 +16,8 @@ from pathlib import Path
 
 from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
     closed_source_window,
+)
+from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
     evaluate as m30m3_source_geometry,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_m3_fractal_density_recovery_v1 import (
