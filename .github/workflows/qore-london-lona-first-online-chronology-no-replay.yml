@@ -1,0 +1,51 @@
+name: QORE London LON-A First-Online Chronology (No Economic Replay)
+
+on:
+  push:
+    branches:
+      - research/london-lona-gate-a-primary-evidence-20261011
+    paths:
+      - '.github/workflows/qore-london-lona-first-online-chronology-no-replay.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_london_lona_first_online_chronology_gate_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_london_lona_first_online_chronology_gate_v1.py'
+      - 'docs/research/QORE_LONDON_LONA_GATE_A_PRIMARY_EVIDENCE_MATRIX_2026-10-11.md'
+      - 'docs/research/QORE_LONDON_LONA_GATE_A_SECOND_SOURCE_ADJUDICATION_2026-10-11.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic_first_online_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and execute LON-A timestamp guard synthetic tests
+        run: |
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_london_lona_first_online_chronology_gate_v1.py
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure/trader_lab -p 'test_qore_london_lona_first_online_chronology_gate_v1.py' -v
+      - name: Assert fail-closed output and publish synthetic proof of status
+        run: |
+          mkdir -p gate-evidence
+          PYTHONPATH=src python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.qore_london_lona_first_online_chronology_gate_v1 import evaluate_chronology
+          result=evaluate_chronology(symbol='EURUSD', decision_at_utc='2026-10-10T08:16:00Z', evidence=[])
+          assert result['status']=='BLOCKED_CHRONOLOGY'
+          assert result['economic_replay_authorized'] is False
+          assert result['author_fidelity_certified'] is False
+          assert result['live_authorized'] is False
+          Path('gate-evidence/lona-first-online-no-replay.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+          print('LONA_CHRONOLOGY_FAIL_CLOSED', json.dumps(result,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: london-lona-synthetic-chronology-NO-REPLAY-${{ github.sha }}
+          path: gate-evidence/
+          if-no-files-found: error
+          retention-days: 90
