@@ -21,8 +21,6 @@ from qore.infrastructure.ctrader_demo_account_discovery import select_single_dem
 from qore.infrastructure.ctrader_open_api_client import (
     CTraderOpenApiCredentials,
     SpotwareCTraderOpenApiClient,
-    _ensure_reactor_running,
-    _method,
 )
 from qore.kernel.result import Failure
 
