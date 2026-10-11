@@ -68,3 +68,22 @@ Control preregistrado **same-time DIRECTION_FLIP**: para cada una de las MISMAS 
 - [Issue #770](https://github.com/mezas3238-hue/qore-core/issues/770)
 
 **NO VPS / NO MERGE / NO LIVE / NO CERTIFICACIÓN.**
+
+---
+
+## AUDIT SECUNDARIA POSTHOC — Diferencia PAREADA por jornada del signo inverso (después de observar la anomalía)
+
+Se publicó un programa nuevo de auditoría estadística sin cambiar ni repetir entradas/replay primario: `capitalizer_scalper_issue770_posthoc_paired_sign_v1.py`, [Actions #38110441161](https://github.com/mezas3238-hue/qore-core/actions/runs/38110441161) **SUCCESS**; código congelado para ese run SHA `c7771ac4cfe318f7a4062edb18472bd0753b3f6e`, [artifact #11691219241](https://github.com/mezas3238-hue/qore-core/actions/runs/38110441161/artifacts/11691219241). Reutiliza exclusivamente las 2020 filas de [artefacto original](https://github.com/mezas3238-hue/qore-core/actions/runs/38109948508/artifacts/11690988906).
+
+Por ID de operación, los dos escenarios tienen exactamente la **misma cohorte** de resoluciones entre fuente y espejo: PURE 1735 pares + **285 ambos censurados**; SESSION_CAPPED 2010 pares + **10 ambos censurados**, sin casos resolved-only en un solo brazo. Por tanto, el contraste pareado no está sesgado por censuras diferentes entre source/mirror de cada escenario.
+
+| Contraste `R_opuesto − R_original` en las mismas operaciones resueltas | PURE_FIRST_BARRIER | SESSION_CAPPED |
+|---|---:|---:|
+| Observación media R/operación resuelta | **+0.22017R** | **+0.19273R** |
+| 95% percentil 2000 bootstrap paired, 5 jornadas | **[+0.11092,+0.31090]R** | **[+0.10934,+0.26964]R** |
+| p de 2000 permutaciones de signo AGRUPADAS por jornada (espejo mejor) | **0.00049975** | **0.00049975** |
+| Cohorte fuente/mirror resuelta | 1735 / 1735 | 2010 / 2010 |
+
+**IMPORTANTE: esta auditoría es POSTHOC, fue diseñada después de ver el resultado del espejo, y se realizó sobre datos históricos ya consumidos**. Los p y bootstrap son evidencia descriptiva de una divergencia dentro de esa muestra, no significación confirmatoria, ni estrategia de reversión con edge físico, ni test de timing aleatorio, ni prueba de que todas las direcciones TTrades estén equivocadas. El test espejo de ±1R no está ligado a un swing M15 autoral para operaciones inversas. El problema de divergencia first-online vs V49 (1090 identidades con hora/familia modificadas en auditorías anteriores) y la no reconstrucción independiente del universo H1/M15 deben investigarse antes de atribuir causalidad al CISD/sweep/H1.
+
+**Hito recomendado para arquitecto B:** matriz autoral falsable H1 Candle2/Candle3→M15 sweep→M1 CISD, identidad source y first-online, y ensayo fuera de muestra que no reinterprete la historia actual. La fuerza de la divergencia observada justifica **auditar la metodología, NO invertir posiciones**. STOP / NO CERTIFIED sin cambios.
