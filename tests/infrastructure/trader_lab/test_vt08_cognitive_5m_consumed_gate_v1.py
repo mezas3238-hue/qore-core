@@ -809,3 +809,88 @@ def test_terminal_global_clock_never_regresses_after_another_market_event() -> N
     with pytest.raises(ValueError, match="terminal replay clock"):
         gate.record_terminal(_terminal(when=T0 + timedelta(minutes=9)))
     assert gate.terminals == ()
+
+
+def test_dst_fall_back_wall_clock_decreases_while_actual_replay_clock_advances() -> None:
+    ny = ZoneInfo("America/New_York")
+    early = datetime(2026, 11, 1, 1, 45, tzinfo=ny, fold=0)
+    later = datetime(2026, 11, 1, 1, 15, tzinfo=ny, fold=1)
+    assert early.astimezone(UTC) < later.astimezone(UTC)
+    assert early.hour == later.hour == 1
+    expiry = datetime(2026, 11, 1, 3, 0, tzinfo=ny)
+    gate = Vt08FiveMarketCognitiveGate()
+    pending = gate.evaluate(_snapshot(
+        source="fall-fold",
+        when=early,
+        anchor_hour_ny=1,
+        source_cycle_id="fall-cycle",
+        cycle_expires_at=expiry,
+        cisd_state="PENDING",
+    ))
+    confirmed = gate.evaluate(_snapshot(
+        source="fall-fold",
+        when=later,
+        anchor_hour_ny=1,
+        source_cycle_id="fall-cycle",
+        cycle_expires_at=expiry,
+    ))
+    assert pending.action is Vt08CognitiveAction.WAIT
+    assert confirmed.action is Vt08CognitiveAction.EXECUTE
+    assert gate.fills == ()
+    # A callback ordered backwards in *absolute* time cannot pass even
+    # when its NY wall-clock string looks later.
+    with pytest.raises(ValueError, match="global replay clock"):
+        gate.evaluate(_snapshot(
+            source="backwards-fold",
+            when=early,
+            anchor_hour_ny=1,
+            source_cycle_id="independent-cycle",
+            cycle_expires_at=expiry,
+        ))
+
+
+def test_dst_fold_latest_m15_and_feature_cutoff_require_absolute_source_time() -> None:
+    ny = ZoneInfo("America/New_York")
+    early = datetime(2026, 11, 1, 1, 45, tzinfo=ny, fold=0)
+    later = datetime(2026, 11, 1, 1, 15, tzinfo=ny, fold=1)
+    expiry = datetime(2026, 11, 1, 3, 0, tzinfo=ny)
+    with pytest.raises(ValueError, match="consume future bars"):
+        _snapshot(
+            when=early, anchor_hour_ny=1, cycle_expires_at=expiry,
+            latest_available_bar_close=later,
+            feature_cutoffs=tuple((k, early) for k in CAUSAL_FIELDS),
+        )
+    with pytest.raises(ValueError, match="cutoff consumes future"):
+        _snapshot(
+            when=early, anchor_hour_ny=1, cycle_expires_at=expiry,
+            latest_available_bar_close=early,
+            feature_cutoffs=tuple((k, later) for k in CAUSAL_FIELDS),
+        )
+
+
+def test_replay_position_accepts_same_instant_in_ny_and_utc_after_dst() -> None:
+    ny = ZoneInfo("America/New_York")
+    at = datetime(2026, 11, 1, 1, 15, tzinfo=ny, fold=1)
+    expiry = datetime(2026, 11, 1, 3, 0, tzinfo=ny)
+    earlier = datetime(2026, 11, 1, 1, 5, tzinfo=ny, fold=1)
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot(
+        when=earlier, anchor_hour_ny=1, source_cycle_id="fold-pos",
+        cycle_expires_at=expiry,
+    ))
+    gate.record_fill(Vt08ResearchFillEvidence(
+        source_event_id="synthetic-source-01",
+        market="EURJPY", side="long", source_cycle_id="fold-pos",
+        fill_id="dst-fill", filled_at=earlier,
+        entry_price=Decimal("100"), evidence_sha256="a" * 64,
+    ))
+    result = gate.evaluate_position(
+        _snapshot(
+            when=at, anchor_hour_ny=1, source_cycle_id="fold-pos",
+            cycle_expires_at=expiry, entry_state="FILLED",
+            position_state="OPEN",
+        ),
+        _position(at.astimezone(UTC)),
+    )
+    assert result.fill_id == "dst-fill"
+    assert result.action is Vt08PositionAction.HOLD
