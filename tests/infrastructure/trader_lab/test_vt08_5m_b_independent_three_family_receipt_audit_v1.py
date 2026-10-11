@@ -29,7 +29,8 @@ def parent_fvg() -> tuple[Vt08B01Bar, ...]:
         bar(2, "104", "106", "104", "105"),
     ]
     return tuple(first + [
-        bar(i, "106", "106", "105", "105.5") for i in range(3, 16)
+        bar(i, "106", "106", "103" if i == 3 else "105", "105.5")
+        for i in range(3, 16)
     ])
 
 
