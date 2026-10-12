@@ -28,8 +28,10 @@ jobs:
         run: |
           git merge-base --is-ancestor 4f2372d4cb96fe40a51c642d27d9ff56131bb190 "$GITHUB_SHA"
           git merge-base --is-ancestor e2bc4db9339a07c9d94b303a27661e7a4b5bcbc0 "$GITHUB_SHA"
+          git merge-base --is-ancestor 26359559301edff5024e8b1cae8d3f514550fb3b "$GITHUB_SHA"
           test -s docs/research/QORE_ALPHA2_G2_P0_FOUR_SYMBOL_DEMO_CONTRACT_PRIMITIVES_PREREG_2026-10-12.md
           test -s docs/research/QORE_ALPHA2_G2_P0_BROKER_CONTRACT_SOURCE_V2_DUPLICATE_CATALOG_FIX_PREREG_2026-10-12.md
+          test -s docs/research/QORE_ALPHA2_G2_P0_CONTRACT_SOURCE_V3_SINGLE_ID_MAX6_PREREG_2026-10-12.md
           ruff check src/qore/research/alpha2_g2_four_broker_contract_primitives.py tests/research/test_alpha2_g2_four_broker_contract_primitives.py
           pytest -q -o addopts='' tests/research/test_alpha2_g2_four_broker_contract_primitives.py
           ! grep -qE 'ProtoOANewOrderReq|ProtoOARefreshTokenReq|ProtoOAClosePositionReq|ProtoOAAmendOrderReq|ProtoOAGetTickDataReq' src/qore/research/alpha2_g2_four_broker_contract_primitives.py
