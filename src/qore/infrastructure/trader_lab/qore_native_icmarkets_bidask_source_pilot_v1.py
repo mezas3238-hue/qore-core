@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from importlib import import_module
 import os
 import re
 from datetime import UTC, datetime
@@ -49,6 +50,17 @@ class ReadOnlyTickPilot(_ReadOnlyIcMarketsHistoryClient):
     _HISTORY_ONLY_REQUEST_NAMES = _ReadOnlyIcMarketsHistoryClient._HISTORY_ONLY_REQUEST_NAMES | frozenset({
         "ProtoOAGetTickDataReq",
     })
+
+    def __init__(self, *, credentials, request_timeout_seconds: float):
+        super().__init__(credentials=credentials, request_timeout_seconds=request_timeout_seconds)
+        # The historical M5/M1 base binding omitted tick messages by design.
+        # Admit only documented official read-only tick Req/Res to THIS instance.
+        sdk = import_module("ctrader_open_api.messages.OpenApiMessages_pb2")
+        for name in ("ProtoOAGetTickDataReq", "ProtoOAGetTickDataRes"):
+            native = getattr(sdk, name, None)
+            if not isinstance(native, type):
+                raise SourceBlock("NATIVE_TICK_SDK_PROTO_UNAVAILABLE")
+            self._bindings.messages[name] = native
 
 
 def window_milliseconds(window: tuple[str, str]) -> tuple[int, int]:
