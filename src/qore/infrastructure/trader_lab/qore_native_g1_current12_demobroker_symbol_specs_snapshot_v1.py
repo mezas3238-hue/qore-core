@@ -212,7 +212,7 @@ def run(outdir:Path)->dict[str,Any]:
         output["rows"]=rows
         output["source_asof_utc"]=datetime.now(UTC).isoformat()
         output["status"]="CURRENT12_DEMO_NATIVE_SYMBOL_SPECS_PASS_HISTORIC_CONTRACT_UNVERIFIED"
-    except (ValueError,RuntimeError,TypeError,KeyError,AttributeError) as e:
+    except (ValueError,RuntimeError,TypeError,KeyError,AttributeError):
         # Never echo exception contents; SDK/provider errors can carry account refs.
         output["safe_blocker"]="CURRENT_SPEC_BROKER_OR_SYMBOL_CONTRACT_FAIL_CLOSED"
     finally:
