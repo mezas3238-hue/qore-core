@@ -5,7 +5,6 @@ No source ZIP bytes, no price/outcome/trading/credentials, no raw public backup.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 from datetime import UTC, datetime, timedelta
