@@ -60,7 +60,9 @@ def _hash_scope(path: Path, expected: set[str]) -> dict[str, str]:
     return witness
 
 
-def audit_new_symbol(\n    symbol: str, source: Path, *, allowed_symbols: tuple[str, ...] = NEW,\n) -> dict[str, Any]:
+def audit_new_symbol(
+    symbol: str, source: Path, *, allowed_symbols: tuple[str, ...] = NEW,
+) -> dict[str, Any]:
     """Full raw + quality SHA verification and timestamps; zero OHLC or PnL."""
     check_universe()
     if symbol not in allowed_symbols or not source.is_dir():
