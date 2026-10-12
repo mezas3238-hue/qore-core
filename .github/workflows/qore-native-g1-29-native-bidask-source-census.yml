@@ -1,0 +1,73 @@
+name: QORE Native G1 29 remaining symbols 3 frozen BID ASK windows IC Markets read only
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-29remaining-bidask-source-census-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-29-native-bidask-source-census.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_remaining29_bidask_census_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_remaining29_bidask_census_v1.py'
+      - 'docs/research/QORE_NATIVE_G1_29_SOURCE_BIDASK_CENSUS_PREREG_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-native-g1-29-source-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  frozen_breadth29_source_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install historical SDK and research test dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Strict source scope and 29 frozen identity synthetic tests
+        run: |
+          set -euo pipefail
+          test -s docs/research/QORE_NATIVE_G1_29_SOURCE_BIDASK_CENSUS_PREREG_2026-10-12.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_remaining29_bidask_census_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_remaining29_bidask_census_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_icmarkets_bidask_source_pilot_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_remaining29_bidask_census_v1.py
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_native_g1_remaining29_bidask_census_v1.py
+          echo "SOURCE-ONLY CONTRACTS PASS; 0 MARKET PRICES CONSUMED IN TESTS"
+
+  single_account_source29:
+    needs: frozen_breadth29_source_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only Spotware official SDK
+        run: python -m pip install -e '.[ctrader]'
+      - name: Collect 29 distinct sources in ONE sequential authenticated DEMO session
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_remaining29_bidask_census_v1 native-sources
+      - name: Upload complete or partial per-market source witnesses only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-29-remaining-BID-ASK-source-NOT-NET-${{ github.sha }}
+          path: native-sources/
+          retention-days: 90
+          if-no-files-found: warn
+          compression-level: 6
