@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: qore-native-icmarkets-universe33-source-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
