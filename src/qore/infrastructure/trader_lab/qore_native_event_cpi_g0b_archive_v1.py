@@ -13,8 +13,8 @@ import urllib.error
 import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from dataclasses import dataclass
+from datetime import date
 from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
