@@ -1,7 +1,6 @@
 """Source-only independent Protobuf tick wire decoder/side custody tests."""
 from __future__ import annotations
 
-import hashlib
 import json
 import struct
 from datetime import UTC, datetime
@@ -25,10 +24,8 @@ def encode(*ticks):
 def test_cumulative_original_wire_unsigned_absolute_signed_delta():
     first = 1615899601000
     payload = encode((first+100, 110020), (-100, -5), (-250, 8))
-    observed = a.decode_batch_fields(payload, first, first+1000)
-    assert observed == [(first+100,110020), (first,110015), (first-250,110023)] if False else (
-        observed == [(first+100,110020), (first,110015), (first-250,110023)]
-    )
+    observed = a.decode_batch_fields(payload, first-250, first+1000)
+    assert observed == [(first+100,110020), (first,110015), (first-250,110023)]
 
 
 def test_invalid_framing_or_price_delta_fails_closed():
