@@ -19,10 +19,8 @@ from qore.research.alpha2_g1a_panel_stats import (
     block_bootstrap,
 )
 from qore.research.alpha2_intermarket import MARKETS, sha256_file
-from qore.research.alpha2_w3_cmtrl_native_m5 import (
-    IDENTITY as SOURCE_ONLY_ID,
-    SOURCE33_SHA as ORIGINAL33_SHA,
-)
+from qore.research.alpha2_w3_cmtrl_native_m5 import IDENTITY as SOURCE_ONLY_ID
+from qore.research.alpha2_w3_cmtrl_native_m5 import SOURCE33_SHA as ORIGINAL33_SHA
 
 IDENTITY = "QORE_ALPHA2_W3_CMTRL_33_FIRST_PAIRED_GROSS_ONLY_PANEL_V1"
 COST_BPS = (0, 1, 3, 5, 10, 20)
