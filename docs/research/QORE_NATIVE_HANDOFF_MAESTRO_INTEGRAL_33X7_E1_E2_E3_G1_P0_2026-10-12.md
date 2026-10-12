@@ -107,7 +107,7 @@ Las 56 oportunidades iniciales de cinco mercados/dos fechas tenían entrada teó
 
 ## 6. Cobertura total de fuente y presupuesto realista SIN descargar
 
-[PR #867](https://github.com/mezas3238-hue/qore-core/pull/867) conservó un registro clock-only de **33 ZIP E1 originales**, 373.611 oportunidades (DEV **278.983**, DIAG **94.628**), 747.222 ventanas inicio/cierre sin dedup, **412.012** intervalos BID/ASK de hasta 30min deduplicados por símbolo y reloj, **mínimo 824.024 llamadas por lado** (BID y ASK contadas por separado; puede aumentar con hasMore/retries). Esto es una **estimación**, no una cola autorizada y no una descarga ejecutada.
+[PR #867](https://github.com/mezas3238-hue/qore-core/pull/867) conservó un registro clock-only de **33 ZIP E1 originales**, 373.611 oportunidades (DEV **278.983**, DIAG **94.628**), 747.222 ventanas inicio/cierre sin dedup, **412.012** intervalos BID/ASK de hasta 30min deduplicados por símbolo y reloj, **mínimo 824.024 solicitudes totales**, contando separadamente una llamada BID y una llamada ASK por fragmento (puede aumentar con hasMore/retries). Esto es una **estimación**, no una cola autorizada y no una descarga ejecutada.
 
 Dos fechas previamente expuestas: 2021-03-16 y 2023-03-21 → **368** eventos, **403** shards, **mínimo 806** llamadas. Pilot Phase0 de cuatro clases: EURGBP (10 eventos/11 shards), USDJPY (12/14), XAGUSD (11/12), SP500→US500 (12/12) = **45 oportunidades E1/49 fragmentos/mínimo 98 llamadas BID/ASK**, todas **pendientes/no ejecutadas**. Dataset privado licenciado y presupuesto/restore son bloqueos anteriores a cualquier nueva descarga. **No cambiar familias ni fechas a posteriori por PnL**.
 
