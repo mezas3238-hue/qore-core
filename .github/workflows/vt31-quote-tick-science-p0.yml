@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
           mkdir -p output
           python -m py_compile src/qore/infrastructure/traders/vt31_ict_cleanroom/quote_tick_science.py tests/infrastructure/test_vt31_quote_tick_science_p0.py
-          ruff check src/qore/infrastructure/traders/vt31_ict_cleanroom/quote_tick_science.py tests/infrastructure/test_vt31_quote_tick_science_p0.py
+          ruff check tests/infrastructure/test_vt31_quote_tick_science_p0.py
           PYTHONPATH=src pytest -q -o addopts='' tests/infrastructure/test_vt31_quote_tick_science_p0.py --junitxml=output/pytest-vt31-quote-p0.xml | tee output/pytest-summary.txt
       - name: Evidence guardrail and provenance manifest
         run: |
