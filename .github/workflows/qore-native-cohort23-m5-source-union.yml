@@ -1,0 +1,130 @@
+name: QORE Native 12+11 frozen original M5 source union (read only)
+
+on:
+  push:
+    branches:
+      - research/qore-native-cohort23-union-source-g0-20261012
+    paths:
+      - '.github/workflows/qore-native-cohort23-m5-source-union.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_cohort23_m5_source_union_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_cohort23_m5_source_union_v1.py'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: qore-native-cohort23-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Fail closed on 11/12 confusion, SHA, duplicates and production
+        run: |
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_cohort23_m5_source_union_v1.py tests/infrastructure/trader_lab/test_qore_native_cohort23_m5_source_union_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_cohort23_m5_source_union_v1.py
+
+  verify_first_11_new:
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        symbol: [USDCHF, NZDUSD, EURGBP, EURJPY, EURCHF, EURCAD, EURAUD, EURNZD, GBPCHF, GBPCAD, GBPAUD]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Retrieve original IC Markets DEMO source artifact from separate producer run
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-${{ matrix.symbol }}-e0ca5a13c866a19d8505c68cffc473598984b340
+          run-id: '38193802541'
+          github-token: ${{ github.token }}
+          path: capture-original
+      - name: Verify all 11 annual SHA of provider RAW and quality, M5 timestamp identity only
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_cohort23_m5_source_union_v1 verify-new "$SYMBOL" capture-original new-witness
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          s=os.environ["SYMBOL"]
+          a=json.loads(Path(f"new-witness/qore-native-cohort23-new-{s}.json").read_text())
+          assert a["status"]=="G0_NEW_PROVIDER_M5_SHA_PASS"
+          assert a["symbol"]==s and len(a["years"])==11
+          assert a["m5_bars"]>0 and a["g1_net_authorized"] is False
+          assert a["ohlc_prices_returns_or_pnl_analyzed"] is False
+          PY
+          printf '%s\n' "$GITHUB_SHA" > new-witness/verify-code-sha.txt
+      - name: Upload one immutable verified symbol witness
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-cohort23-new-${{ matrix.symbol }}-${{ github.sha }}
+          path: new-witness/
+          if-no-files-found: warn
+          retention-days: 90
+
+  combine_12_plus_11:
+    needs: verify_first_11_new
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download G0B 12-market independently audited immutable original aggregate
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-g0b-existing12-aggregate-b62053df37cd7e1301c9e8452fb57f6412d1e213
+          run-id: '38201368296'
+          github-token: ${{ github.token }}
+          path: original12-verified-g0b
+      - name: Read only the eleven successful SHA witnesses from this exact commit
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-native-cohort23-new-*-${{ github.sha }}
+          path: new11-verified
+      - name: Publish single 23-market index without copying/pricing/mixing original bars
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_cohort23_m5_source_union_v1 combine original12-verified-g0b new11-verified output-cohort23
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("output-cohort23/qore-native-cohort23-unified-manifest.json")
+          d=json.loads(p.read_text())
+          assert d["cohort_count"]==23 and d["original_count"]==12
+          assert d["new_sha_verified_count"]==11
+          assert d["original_12_m5_bars"]==8726985
+          assert len(d["markets"])==23
+          assert d["source_boundaries_preserved"] is True
+          assert d["cross_broker_raw_prices_not_concatenated"] is True
+          assert d["g1_net_authorized"] is False
+          assert d["production_untouched"] is True
+          PY
+          printf '%s\n' "$GITHUB_SHA" > output-cohort23/code-head-sha.txt
+          (cd output-cohort23 && sha256sum qore-native-cohort23-unified-manifest.json code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - name: Archive the combined research universe manifest, SHA and source identities
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-cohort23-unified-manifest-${{ github.sha }}
+          path: output-cohort23/
+          retention-days: 90
+          if-no-files-found: error
