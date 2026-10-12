@@ -60,10 +60,12 @@ def _hash_scope(path: Path, expected: set[str]) -> dict[str, str]:
     return witness
 
 
-def audit_new_symbol(symbol: str, source: Path) -> dict[str, Any]:
+def audit_new_symbol(
+    symbol: str, source: Path, *, allowed_symbols: tuple[str, ...] = NEW,
+) -> dict[str, Any]:
     """Full raw + quality SHA verification and timestamps; zero OHLC or PnL."""
     check_universe()
-    if symbol not in NEW or not source.is_dir():
+    if symbol not in allowed_symbols or not source.is_dir():
         raise ValueError("symbol not in frozen new cohort or original archive absent")
     manifest_name = "symbol-consumption-manifest.json"
     expected_manifest_scope = {manifest_name} | {
