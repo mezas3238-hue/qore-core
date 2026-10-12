@@ -1,0 +1,77 @@
+name: QORE Native D1 TSMOM20 single 33-market edge experiment assumed cost NOT NET
+
+on:
+  push:
+    branches:
+      - research/qore-native-d1-tsmom20-single-edge-20261012
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_d1_tsmom20_single_edge_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_d1_tsmom20_single_edge_v1.py'
+      - 'docs/research/QORE_NATIVE_D1_TSMOM20_33_SINGLE_TEST_PREREG_2026-10-12.md'
+      - '.github/workflows/qore-native-d1-tsmom20-single-edge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-native-single-d1-tsmom20-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  synthetic_unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate frozen 20-day TSMOM lookback and cost timing without raw sources
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_d1_tsmom20_single_edge_v1.py -v
+
+  single_frozen_historical_panel:
+    needs: synthetic_unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 95
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run exactly one 33-market original source TSMOM20 historical study
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_d1_tsmom20_single_edge_v1 original-source-temporary D1-TSMOM20-results
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path('D1-TSMOM20-results/D1_TSMOM20_FROZEN_33_MARKETS_COST1BP_SIDE.json').read_text())
+          assert q['frozen_markets'] == 33
+          assert len(q['source_reports']) == 33
+          assert all(x['source_sha_verified_11_annual_partitions'] for x in q['source_reports'])
+          assert q['signal_trading_days'] == 20
+          assert q['cost_bp_per_position_side_change'] == 1
+          assert q['holdout_outcomes_calculated'] is False
+          assert q['performance_is_real_broker_NET'] is False
+          assert q['certified_traders'] == 0
+          assert q['performance']['DEV']['market_day_positions'] > 0
+          assert q['performance']['DIAG']['market_day_positions'] > 0
+          print('QORE_D1_TSMOM20_SINGLE_EXPERIMENT_RESULT_AND_HOLDOUT_CHECK_PASS')
+          PY
+          printf '%s\n' "$GITHUB_SHA" > D1-TSMOM20-results/producer-code-commit-sha.txt
+          (cd D1-TSMOM20-results && sha256sum *.json *.txt > FINAL_SHA256SUMS.txt)
+      - name: Publish compact single hypothesis result, no raw prices or holdout
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-D1-TSMOM20-single33-assumed1bp-NOT-NET-${{ github.sha }}
+          path: D1-TSMOM20-results/
+          retention-days: 30
+          if-no-files-found: error
