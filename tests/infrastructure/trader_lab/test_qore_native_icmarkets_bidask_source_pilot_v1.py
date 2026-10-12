@@ -45,7 +45,7 @@ def test_hasmore_exact_disjoint_split_keeps_source_ticks():
     called = []
     def fake(a, b):
         called.append((a, b))
-        if b - a > 3:
+        if b - a > 1:
             return {"has_more": True, "tick_data": (FakeTick(b, 10001),)}
         return {"has_more": False, "tick_data": (FakeTick(b, 10002),)}
     ticks, requests = source.complete_side(fake, 0, 7)
