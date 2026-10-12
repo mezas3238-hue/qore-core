@@ -310,3 +310,35 @@ DEV bruto promedio por operación +0,92575bps, coste hipotético de 1bps ya lo d
 **Advertencia de causalidad nueva:** la decisión teórica UTC 00:00 puede coincidir con `OPEN` de la M5 siguiente en mercados abiertos a medianoche; se usan solo previos días completos para la SEÑAL, pero no se demostró latencia de orden ni que el OPEN simultáneo sea alcanzable. Marcar ese precio como **GROSS REFERENCE NOT EXECUTABLE**, no ocultarlo. Cualquier diseño futuro deberá agregar retardo real a partir de primera cotización BID/ASK *después* de tener señal disponible y en OOS auténticamente nuevo, no una corrección oportunista con el dataset examinado.
 
 **Prioridades operativas tras esta ronda:** (1) conservar jurídicamente los archivos originales antes del 16-dic con restore independiente (#837), en paralelo a la dirección científica; (2) cerrar ESTE TSMOM sin retoques y diseñar solo hipótesis con horizonte diario/multi-día **y validación prospectiva independiente**, potencia semanal efectiva y protocolo nuevo, no W4 adaptativo en 2016–2024; (3) resolver contratos (#868) y BIDASK/costes/PIT/OOS (#852) para certificar el futuro, **NO confundir estos P0 técnicos con prueba de edge**. W1 y W2 siguen `INCONCLUSIVE_UNDERPOWERED`; W3 `PREDECLARED_GROSS_TEST_FAILED`. **0 traders Alpha2 certificados, 0 órdenes, NO PROD/VPS/MT5/CIBO/Shared. PR DRAFT**.
+
+
+---
+
+## Anexo V — decisión FINAL TSMOM vol-scaling y experimento XSREV5 sin selección posterior
+
+### Corrección de universo y base documental
+La revisión del owner identificó dos componentes no representados en el primer TSMOM D1: ajuste inverso de volatilidad y cobertura diversificada de futuros. El segundo es **imposible de satisfacer sin nuevas fuentes de bonos y materias primas distintas de metales**. **21/33=63,64% son FX CROSSES; pero 28/33=84,85% son FX si se añaden los 7 mayores. Solo 5/33 son no-FX (3 índices, 2 metales), NO 11.** El ensayo anterior 252d equiponderado es una variante no escalada; su fallo no falsaba el modelo de futuros MOP 2012. Este test nuevo (vol20d anualizada, target vol10%, cap3x) sigue siendo MOP-INSPIRED sobre CFDs/FX, NO réplica de 58 futuros, aunque sí tiene escalado real.
+
+**Prereg dual BEFORE outcomes:** [QORE_ALPHA2_FINAL_TSMOM_RISKSCALED_AND_XSREV5_FROZEN_PREREG_2026-10-12.md](QORE_ALPHA2_FINAL_TSMOM_RISKSCALED_AND_XSREV5_FROZEN_PREREG_2026-10-12.md) commit ancestral `f9248d42a6cbced3d6e962b24e47c709cb91161c`. Con este protocolo queda fijada una única última variante TSMOM (y una única estrategia independiente de reversal cross-sectional 5d), regla stop no reversible y costes SUPUESTOS exactamente 1bp/lado por notional de entrada y salida, no descuentos fijos de PnL sin volumen. Conserva serie fuente SHA11 años y embargo; no mirada 2024+.
+
+### A: Resultado final TSMOM252-RISK, FUENTE REAL
+
+[Informe TSMOM vol-scaled completo](QORE_ALPHA2_FINAL_TSMOM_RISK20_33_SECTORS_STOP_VERDICT_2026-10-12.md), [GitHub Actions #38318945616](https://github.com/mezas3238-hue/qore-core/actions/runs/38318945616) exact HEAD `09db573527b5e9f607edf75949902c6319d6ab21`, **35/35 jobs SUCCESS**, 33 original SHA-audited workers y preflight. Artifact original #11776789637 ZIP `sha256:63b27be5ea371e863f7df4587b2a700140455f13096be6733112a14629132bd7`; descarga y ambos registros SHA internos rehasheados de forma independiente PASS. `alpha2-final-tsmom-risk33-sector-gross-minus-cost.json` SHA `de479f7114a66b59160850dc5359c8c1853e28b47471176fecb059e006c318ae`.
+
+**Resultado sin selección posterior**, estimando *bps por semana por slot de capital aproximado*, coste supuesto 1bp lado (NO NET):
+| Grupo | DEV media | DEV CI95 4wk | DIAG media | DIAG CI95 4wk |
+|---|---:|---|---:|---|
+| FULL33 | **−0,55044** | [−6,14630;+5,00548] | **−5,29240** | [−17,02716;+5,69845] |
+| FX_CROSSES21 | −1,31666 | [−7,95948;+5,72782] | −7,92230 | [−22,10199;+4,59083] |
+| FX_MAJORS7 | −1,06280 | [−10,77381;+8,99467] | −6,11250 | [−21,28103;+9,58369] |
+| NONFX5 | **+3,38504** | [−7,79979;+15,16782] | **+6,90132** | [−14,06004;+26,19852] |
+
+Full33 8.605 señales en DEV, 3.427 DIAG (no IID), 262/104 semanas activas. El límite de exposición notional cap3 se activó 106/8.605 DEV y 57/3.427 DIAG. Todos los CI sectoriales cruzan cero, INCLUIDO noFX5. Estado exacto **`FINAL_TSMOM_FAIL_CLOSE_FAMILY_ON_EXPOSED_DATA`**. **Línea TSMOM CERRADA en este panel 2016–2024**: no optimizar lookback 60/120/180, cap, vol target, costos ni extraer no-FX5 como ganadores. NoF5 es observación descriptiva, requiere otra fuente/era realmente virgen y control de multiplicidad, nunca trader seleccionado en esta muestra.
+
+**Advertencia**: el primer M5 OPEN al inicio UTC de semana puede no haber sido un fill alcanzable por un actor que calcula señal justo al cierre del día previo. Los PnL siguen marcados como reference OHLC; costos 1bp por lado ASSUMED, no source BIDASK. Faltan costes contractuales Atlas, cash/point, swaps, calendario, noticias conocidas as-of, y OOS nueva (#852/#868). No NET ni UTC001.
+
+### B: XSREV5 línea separada precongelada
+Fórmula de reversal original a cinco sesiones para **33/33 en fecha COMÚN**: rank por retorno de cinco sesiones comunes PREVIAS, bottom 7 LONG top 7 SHORT; pesos +1/14 y -1/14, horizonte 5 sesiones, costa entrada+salida sum2bps sobre exposición total1. Exige *todos33* elegibles, no forward-fill ni universe cut. Folds DEV/DIAG idénticos, bootstrap 4 semanas B2000; estado PASS exploratorio solo si medias cost-proxy positivas e IC inferior >0 en ambos eras y semana suficiente; FAIL/inconcluso sin reoptimización. Su rango precio diario se usa únicamente en archivo efímero runner y no se sube públicamente; archivo firmado final permite comparar semanas/sector sin raw price. Código `alpha2_xsrev5_common_calendar.py`, tests `test_alpha2_xsrev5_common_calendar.py`, workflow `.github/workflows/qore-alpha2-xsrev5-one-independent-33.yml`, primer test [GitHub Actions #38319216801](https://github.com/mezas3238-hue/qore-core/actions/runs/38319216801) con **preflight éxito**, procesamiento de fuentes en curso al escribir este anexo. **NO afirmar resultado antes de verificar el job final y su artefacto SHA**.
+
+### Prioridad / stop de programa
+Los dos tests se hicieron posibles **sin esperar licencias+vault**. #837 sigue fuente histórica P0 antes de 16-dic-2026, no declarada preservada; #852 source BIDASK/NET/PIT/OOS y #868 original12 contract equivalence P0. El programa NO debe continuar una iteración indefinida de estrategias sobre los mismos 2016–2024 ya vistos. Para resultados positivos futuros exigir hipótesis independiente, datos nuevos prospectivos, poder estadístico por calendario, costes contrato verificables y todas puertas UTC001. **0 Traders Alpha2 certificados, 0 broker órdenes, no main/VPS/MT5/Shared/CIBO/QDLE/PAPER/LIVE. PR #840 DRAFT.**
