@@ -1,0 +1,39 @@
+name: QORE Alpha2 W3 first gross source-pinned posthoc (no new prices)
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-w3-original-posthoc-census.yml'
+      - 'src/qore/research/alpha2_w3_posthoc_census.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original_signed_first_outcome:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'ruff>=0.5,<1'
+      - run: ruff check src/qore/research/alpha2_w3_posthoc_census.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: alpha2-w3-cmtrl-first33-gross-panel-e7ec0e4d1cfb8b80effb9e2c1eea23524d6e716c
+          run-id: '38284821503'
+          github-token: ${{ github.token }}
+          path: original-first-result
+      - name: Audit original 265-signal source and blockers without new OHLC
+        run: |
+          python -m qore.research.alpha2_w3_posthoc_census original-first-result posthoc
+          printf '%s\n' "$GITHUB_SHA" > posthoc/posthoc-code-sha.txt
+          (cd posthoc && sha256sum *.json posthoc-code-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-w3-posthoc-first33-${{ github.sha }}
+          path: posthoc/
+          retention-days: 90
+          if-no-files-found: error
