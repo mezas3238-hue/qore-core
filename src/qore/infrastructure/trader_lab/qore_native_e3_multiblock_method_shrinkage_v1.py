@@ -136,6 +136,18 @@ def summarize_bootstrap(
             "SE_bps": None,
             "passed_bootstrap_data_gate": False,
         }
+    variability = float(np.std(samples, ddof=1)) if expected_replicates > 1 else None
+    if variability is None or variability <= max(1e-12, 1e-10 * abs(observed)):
+        # Degenerate constant bootstrap cannot supply calibrated evidence.
+        return {
+            "ci95_descriptive_bps":[float(np.min(samples)),float(np.max(samples))],
+            "p_two_sided_null_centered_exploratory":1.0,
+            "valid_draws":expected_replicates,
+            "invalid_draws":0,
+            "SE_bps":variability,
+            "passed_bootstrap_data_gate":False,
+            "degenerate_variance_refuse_significance":True,
+        }
     centered = samples - observed
     p = (1 + int(np.count_nonzero(np.abs(centered) >= abs(observed)))) / (expected_replicates + 1)
     return {
