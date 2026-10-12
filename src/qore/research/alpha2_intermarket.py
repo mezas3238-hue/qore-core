@@ -11,7 +11,7 @@ import hashlib
 import json
 import math
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from statistics import median, pstdev
 from typing import Iterable, Mapping, Sequence
@@ -36,7 +36,7 @@ MAX_RESPONSE_FRACTION = 0.25
 ATR_BARS = 20
 ENTRY_DELAY = timedelta(minutes=5)
 MAX_HOLD = timedelta(hours=12)
-RESEARCH_CUTOFF = datetime(2024, 9, 17, tzinfo=timezone.utc)
+RESEARCH_CUTOFF = datetime(2024, 9, 17, tzinfo=UTC)
 ORIGINAL_SOURCE_MANIFEST_SHA256 = (
     "1291d5c2efb4e51c2698ea25ad420a01a213dc405b5070c37efbce4131606b85"
 )
@@ -150,7 +150,7 @@ def _correlation_beta(a: Sequence[float], b: Sequence[float]) -> tuple[float, fl
     vb = sum((v - mean_b) ** 2 for v in b)
     if va <= 1e-24 or vb <= 1e-24:
         return 0.0, 0.0
-    cov = sum((x - mean_a) * (y - mean_b) for x, y in zip(a, b))
+    cov = sum((x - mean_a) * (y - mean_b) for x, y in zip(a, b, strict=True))
     corr = cov / math.sqrt(va * vb)
     beta = max(-2.0, min(2.0, cov / vb))
     return corr, beta
