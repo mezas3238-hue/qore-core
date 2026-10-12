@@ -1,0 +1,132 @@
+name: QORE Native G1 frozen real E1 opportunity clock vs source BID ASK coverage audit
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-real-e1-event-time-quote-coverage-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-e1-real-event-quote-coverage.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_e1_original_opportunity_quote_coverage_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_e1_original_opportunity_quote_coverage_v1.py'
+      - 'docs/research/QORE_NATIVE_G1_FROZEN_E1_56_REAL_OPPORTUNITY_SOURCE_CLOCK_COVERAGE_PREREG_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  real_e1_research_event_quote_source_coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install source-only audit dependencies, no broker account
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Strict original-E1 SHA/UTC/DST/no-return ledger negative tests
+        run: |
+          set -euo pipefail
+          test -s docs/research/QORE_NATIVE_G1_FROZEN_E1_56_REAL_OPPORTUNITY_SOURCE_CLOCK_COVERAGE_PREREG_2026-10-12.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_e1_original_opportunity_quote_coverage_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_e1_original_opportunity_quote_coverage_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_e1_original_opportunity_quote_coverage_v1.py
+      - name: Attest original 5 E1 code SHA and immutable zipped artifact digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          from qore.infrastructure.trader_lab import qore_native_g1_e1_original_opportunity_quote_coverage_v1 as native
+          pairs=list(native.ARTIFACTS.values())+[(11764163362,"b4eb9e66d76bcd439d4db8f2b8707afa06fe2d211a275c8af8b8605714b58684")]
+          for artifact_id,digest in pairs:
+              endpoint="https://api.github.com/repos/mezas3238-hue/qore-core/actions/artifacts/"+str(artifact_id)
+              req=urllib.request.Request(endpoint,headers={
+                  "Authorization":"Bearer "+os.environ["GH_TOKEN"],
+                  "Accept":"application/vnd.github+json",
+              })
+              with urllib.request.urlopen(req,timeout=15) as response:
+                  info=json.load(response)
+              assert info["id"]==artifact_id and info["expired"] is False
+              assert info["digest"]=="sha256:"+digest
+              original=info["workflow_run"]
+              if artifact_id==11764163362:
+                  assert original["id"]==38288411671
+                  assert original["head_sha"]=="8dfae03e8212566d7d334c2598931e57c7b55d64"
+              else:
+                  assert original["id"]==native.E1_SOURCE_RUN
+                  assert original["head_sha"]==native.E1_CODE_SHA
+          print("FIVE_GENUINE_E1_GROSS_RESEARCH_WITNESS_ORIGINAL_ZIP_CUSTODY_PASS_NO_NET")
+          PY
+      - name: Restore exact original signed native Protobuf quote windows
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-original-tick-field-proto-wire-NOT-NET-8dfae03e8212566d7d334c2598931e57c7b55d64
+          run-id: '38288411671'
+          github-token: ${{ github.token }}
+          path: original-proto-source
+      - name: Restore frozen E1 7-method EURUSD original research witness
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e1-seven-EURUSD-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: signed-e1/EURUSD
+      - name: Restore frozen E1 7-method GBPUSD original research witness
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e1-seven-GBPUSD-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: signed-e1/GBPUSD
+      - name: Restore frozen E1 7-method USDJPY original research witness
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e1-seven-USDJPY-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: signed-e1/USDJPY
+      - name: Restore frozen E1 7-method XAGUSD original research witness
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e1-seven-XAGUSD-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: signed-e1/XAGUSD
+      - name: Restore frozen E1 7-method SP500 original research witness
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e1-seven-SP500-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: signed-e1/SP500
+      - name: Reconcile E1 real 7-method research clock events and theoretical exits vs original native source coverage
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_e1_original_opportunity_quote_coverage_v1 signed-e1 original-proto-source gap-only-audit
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("gap-only-audit/G1_ORIGINAL_E1_OPPORTUNITY_CLOCK_SOURCE_GAPS_NOT_NET.json").read_text())
+          assert r["status"]=="ORIGINAL_E1_HISTORICAL_RESEARCH_CLOCKS_VS_G1_SOURCE_GAPS_AUDITED_NO_NET"
+          assert r["counts"]["real_e1_research_events"]==56
+          assert r["source_field_protobuf_independently_redecoded"]
+          assert r["signed_E1_strategy_gross_bps_never_accessed_or_exported"]
+          assert len(r["original_E1_sha_provenance"])==5
+          assert all(x["future_outcome_fields_exported"] is False
+                     and x["broker_order_open_close_proven"] is False for x in r["event_source_clocks_only"])
+          assert r["counts"]["both_quotes_ok_not_NET"] <= r["counts"]["both_clocks_inside_source_window"]
+          assert not r["historical_NET_authorized"]
+          assert r["certified_traders"]==0
+          print("FROZEN_REAL_E1_56_RESEARCH_DECISIONS_SOURCE_GAP_AUDITED_NOT_NET")
+          PY
+          printf '%s\n' "$GITHUB_SHA" > gap-only-audit/code-head-sha.txt
+          (cd gap-only-audit && sha256sum *.json code-head-sha.txt > AUDIT_REPORT_SHA256SUMS.txt)
+      - name: Preserve E1 source clock gap QA summaries ONLY, never gross return or raw quotes
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-original-E1-real-research-clock-coverage-NOT-NET-${{ github.sha }}
+          path: gap-only-audit/
+          retention-days: 90
+          if-no-files-found: error
