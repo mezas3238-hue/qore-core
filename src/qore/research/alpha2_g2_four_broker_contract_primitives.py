@@ -173,11 +173,17 @@ def _read_demo_contract_source()->dict:
             client_msg_id="alpha2-g2-p0-4name-2alias-exact-catalog",
             timeout_seconds=35,
         )
-        if (isinstance(answer,Failure)
-                or not isinstance(answer.value,
-                    client._bindings.messages["ProtoOASymbolsListRes"])
-                or getattr(answer.value,"ctidTraderAccountId",None)!=account):
-            raise SourceBlockedError("P0_CATALOG_RESPONSE_UNTRUSTED")
+        if isinstance(answer,Failure):
+            raise SourceBlockedError("P0_CATALOG_RESPONSE_FAILURE")
+        if not isinstance(
+            answer.value,client._bindings.messages["ProtoOASymbolsListRes"]
+        ):
+            raise SourceBlockedError("P0_CATALOG_RESPONSE_WRONG_PROTO")
+        response_account=getattr(answer.value,"ctidTraderAccountId",None)
+        if type(response_account) is not int or response_account<=0:
+            raise SourceBlockedError("P0_CATALOG_RESPONSE_ACCOUNT_ID_MISSING")
+        if response_account!=account:
+            raise SourceBlockedError("P0_CATALOG_RESPONSE_ACCOUNT_ID_MISMATCH")
         catalog=source_catalog(tuple(getattr(answer.value,"symbol",())))
         # Require known exact source names NZDUSD and XAGUSD, and one
         # broker name for each index; alias only labels source candidates.
@@ -192,11 +198,17 @@ def _read_demo_contract_source()->dict:
             client_msg_id="alpha2-g2-p0-four-broker-symbol-details",
             timeout_seconds=35,
         )
-        if (isinstance(specs,Failure)
-                or not isinstance(specs.value,
-                    client._bindings.messages["ProtoOASymbolByIdRes"])
-                or getattr(specs.value,"ctidTraderAccountId",None)!=account):
-            raise SourceBlockedError("P0_FULL_SYMBOL_PROVIDER_RESPONSE_UNTRUSTED")
+        if isinstance(specs,Failure):
+            raise SourceBlockedError("P0_FULL_SYMBOL_RESPONSE_FAILURE")
+        if not isinstance(
+            specs.value,client._bindings.messages["ProtoOASymbolByIdRes"]
+        ):
+            raise SourceBlockedError("P0_FULL_SYMBOL_RESPONSE_WRONG_PROTO")
+        detail_response_account=getattr(specs.value,"ctidTraderAccountId",None)
+        if type(detail_response_account) is not int or detail_response_account<=0:
+            raise SourceBlockedError("P0_FULL_SYMBOL_RESPONSE_ACCOUNT_ID_MISSING")
+        if detail_response_account!=account:
+            raise SourceBlockedError("P0_FULL_SYMBOL_RESPONSE_ACCOUNT_ID_MISMATCH")
         provided={}
         for row in getattr(specs.value,"symbol",()):
             sid=getattr(row,"symbolId",None)
@@ -242,9 +254,15 @@ def execute(destination:Path)->dict:
             "P0_ICMARKETS_DEMO_CATALOG_NOT_VERIFIED",
             "P0_DEMO_ACCOUNT_SOURCE_INVALID",
             "P0_DEMO_CLIENT_AUTH_FAILURE",
-            "P0_CATALOG_RESPONSE_UNTRUSTED",
+            "P0_CATALOG_RESPONSE_FAILURE",
+            "P0_CATALOG_RESPONSE_WRONG_PROTO",
+            "P0_CATALOG_RESPONSE_ACCOUNT_ID_MISSING",
+            "P0_CATALOG_RESPONSE_ACCOUNT_ID_MISMATCH",
             "P0_ALL_FOUR_BROKER_NAME_CANDIDATES_UNAVAILABLE",
-            "P0_FULL_SYMBOL_PROVIDER_RESPONSE_UNTRUSTED",
+            "P0_FULL_SYMBOL_RESPONSE_FAILURE",
+            "P0_FULL_SYMBOL_RESPONSE_WRONG_PROTO",
+            "P0_FULL_SYMBOL_RESPONSE_ACCOUNT_ID_MISSING",
+            "P0_FULL_SYMBOL_RESPONSE_ACCOUNT_ID_MISMATCH",
             "P0_SYMBOLBYID_PROVIDER_DETAIL_DUPLICATE_OR_UNREQUESTED",
             "P0_FULL_SYMBOL_DETAILS_INCOMPLETE",
             "P0_FULL_SYMBOL_PRICE_PRECISION_UNVERIFIED",
