@@ -14,7 +14,6 @@ import os
 from collections.abc import Iterable
 from pathlib import Path
 from threading import Event
-from typing import Any
 
 from qore.infrastructure.ctrader_open_api_client import _SdkBindings
 from qore.infrastructure.ctrader_demo_account_discovery import (
