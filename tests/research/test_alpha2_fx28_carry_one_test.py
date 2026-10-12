@@ -47,6 +47,7 @@ def test_eight_currency_full_graph_28_pairs_not_independent_signals():
     validate_roster()
     assert len(FX28)==28
     assert len(CCYS)==8
+    assert not {"NAS100", "XAUUSD", "XAGUSD", "SP500", "US30"} & set(FX28)
     assert {frozenset((s[:3],s[3:])) for s in FX28}=={
         frozenset((a,b)) for a in CCYS for b in CCYS if a!=b
     }
