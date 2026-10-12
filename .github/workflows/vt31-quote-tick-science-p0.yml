@@ -1,0 +1,65 @@
+name: VT31 P0 quote tick science contract (research only)
+
+on:
+  push:
+    branches:
+      - agent/vt31-p0-quote-evidence-verification-20261012
+    paths:
+      - tests/infrastructure/test_vt31_quote_tick_science_p0.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/quote_tick_science.py
+      - .github/workflows/vt31-quote-tick-science-p0.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quote-evidence-adversarial:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install isolated research test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Static and adversarial checks
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          python -m py_compile src/qore/infrastructure/traders/vt31_ict_cleanroom/quote_tick_science.py tests/infrastructure/test_vt31_quote_tick_science_p0.py
+          ruff check src/qore/infrastructure/traders/vt31_ict_cleanroom/quote_tick_science.py tests/infrastructure/test_vt31_quote_tick_science_p0.py
+          PYTHONPATH=src pytest -q -o addopts='' tests/infrastructure/test_vt31_quote_tick_science_p0.py --junitxml=output/pytest-vt31-quote-p0.xml | tee output/pytest-summary.txt
+      - name: Evidence guardrail and provenance manifest
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+          doc = {
+            "schema": "qore.vt31.quote_p0_unit_science.v1",
+            "git_sha": os.environ["GITHUB_SHA"],
+            "scope": "SYNTHETIC_UNIT_CASES_ONLY_NOT_MARKET_DATA",
+            "one_vt31": True,
+            "production_or_broker_orders_modified": False,
+            "historical_bid_ask_evaluated": False,
+            "historical_M1_3Y_replayed_in_this_workflow": False,
+            "actual_fill_count": None,
+            "profit_factor_net": None,
+            "drawdown_net": None,
+            "holdout_opened": False,
+            "authorized_for_live": False,
+          }
+          Path("output/manifest.json").write_text(json.dumps(doc, indent=2)+"\n")
+          PY
+          (cd output && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd output && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-quote-p0-contract-${{ github.sha }}
+          path: output/
+          if-no-files-found: error
+          retention-days: 90
