@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Iterable
+from importlib import import_module
 from pathlib import Path
 from threading import Event
 
@@ -47,14 +48,34 @@ def select_complete_credential_bundle() -> str:
     raise ValueError("NO_COMPLETE_CTRADER_OAUTH_BUNDLE")
 
 
-def classify_accounts(items: Iterable[object], permission: object) -> tuple[int, str]:
+def _ic_markets_label(value: object) -> bool:
+    """Match IC Markets broker identity, not e.g. 'Not IC Markets'."""
+    if not isinstance(value, str):
+        return False
+    normalized = "".join(ch for ch in value.casefold() if ch.isalnum())
+    return normalized.startswith("icmarkets")
+
+
+def classify_accounts(
+    items: Iterable[object], permission: object
+) -> tuple[int, str | None]:
+    """Select one labelled DEMO or a single unlabelled DEMO pending broker proof.
+
+    brokerTitleShort is OPTIONAL in cTrader Open API. A missing title is not
+    proof of IC Markets. Only the later authenticated Trader brokerName check
+    may promote an unlabelled account; otherwise downloads remain blocked.
+    """
     if type(permission) is not int or permission not in (0, 1):
         raise ValueError("READ_ONLY_PERMISSION_UNRECOGNIZED")
-    selection: list[tuple[int, str]] = []
+    matching: list[tuple[int, str]] = []
+    unknown: list[tuple[int, None]] = []
     for a in items:
         has_field = getattr(a, "HasField", None)
         try:
-            explicit = has_field("isLive") is True if callable(has_field) else hasattr(a, "isLive")
+            explicit = (
+                has_field("isLive") is True
+                if callable(has_field) else hasattr(a, "isLive")
+            )
         except (TypeError, ValueError):
             explicit = False
         if not explicit or getattr(a, "isLive", None) is not False:
@@ -64,13 +85,14 @@ def classify_accounts(items: Iterable[object], permission: object) -> tuple[int,
         if type(id_value) is not int or id_value <= 0:
             raise ValueError("INVALID_DEMO_ACCOUNT_ID")
         if not isinstance(broker_title, str) or not broker_title.strip():
-            raise ValueError("BROKER_NAME_MISSING")
-        if "ic markets" not in " ".join(broker_title.casefold().split()):
-            continue
-        selection.append((id_value, broker_title.strip()))
-    if len(selection) != 1:
-        raise ValueError("REQUIRE_EXACT_ONE_ICMARKETS_DEMO_ACCOUNT")
-    return selection[0]
+            unknown.append((id_value, None))
+        elif _ic_markets_label(broker_title):
+            matching.append((id_value, broker_title.strip()))
+    if len(matching) == 1:
+        return matching[0]
+    if not matching and len(unknown) == 1:
+        return unknown[0]
+    raise ValueError("REQUIRE_EXACT_ONE_ICMARKETS_DEMO_ACCOUNT")
 
 
 def match_catalog(entries: Iterable[object]) -> dict[str, object]:
@@ -117,6 +139,15 @@ def probe_catalog() -> dict[str, object]:
         "ProtoOAAccountAuthReq", "ProtoOAAccountAuthRes",
         "ProtoOASymbolsListReq", "ProtoOASymbolsListRes",
     )
+    # The base SDK binding is restricted. Import only documented read-only
+    # TraderReq/Res into this isolated catalog probe's message dictionary.
+    if "ProtoOATraderReq" not in bindings.messages:
+        proto = import_module("ctrader_open_api.messages.OpenApiMessages_pb2")
+        for name in ("ProtoOATraderReq", "ProtoOATraderRes"):
+            message_type = getattr(proto, name, None)
+            if not isinstance(message_type, type):
+                raise ValueError("SDK_TRADER_BROKER_PROOF_UNAVAILABLE")
+            bindings.messages[name] = message_type
     if any(k not in bindings.messages for k in required):
         raise ValueError("SDK_REQUIRED_PROTO_MISSING")
     client = bindings.client_type(
@@ -183,6 +214,17 @@ def probe_catalog() -> dict[str, object]:
         }, "account-auth")
         if not isinstance(auth, bindings.messages["ProtoOAAccountAuthRes"]):
             raise ValueError("DEMO_ACCOUNT_AUTH_FAILED")
+        if broker is None:
+            trader_response = req("ProtoOATraderReq", {
+                "ctidTraderAccountId": account_id,
+            }, "trader-broker-proof")
+            if not isinstance(trader_response, bindings.messages["ProtoOATraderRes"]):
+                raise ValueError("TRADER_BROKER_PROOF_FAILED")
+            trader = getattr(trader_response, "trader", None)
+            name = getattr(trader, "brokerName", None)
+            if not _ic_markets_label(name):
+                raise ValueError("BROKER_IDENTITY_NOT_PROVEN_ICMARKETS")
+            broker = name.strip()
         symbols = req("ProtoOASymbolsListReq", {
             "ctidTraderAccountId": account_id,
             "includeArchivedSymbols": False,
@@ -227,6 +269,10 @@ def main() -> None:
             "READ_ONLY_PERMISSION_UNRECOGNIZED",
             "INVALID_DEMO_ACCOUNT_ID",
             "BROKER_NAME_MISSING",
+            "SDK_TRADER_BROKER_PROOF_UNAVAILABLE",
+            "TRADER_BROKER_PROOF_FAILED",
+            "BROKER_IDENTITY_NOT_PROVEN_ICMARKETS",
+            "READ_ONLY_REQUEST_FAILED_AT_TRADER_BROKER_PROOF",
             "REQUIRE_EXACT_ONE_ICMARKETS_DEMO_ACCOUNT",
             "SDK_REQUIRED_PROTO_MISSING",
             "CTRADER_DEMO_TLS_CONNECT_FAILED",
