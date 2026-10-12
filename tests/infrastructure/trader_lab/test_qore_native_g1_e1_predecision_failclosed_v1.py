@@ -106,6 +106,35 @@ class ResearchClockAndCausalWitnessTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "NO_EXECUTION"):
             gate.read_research_event(row)
 
+    def test_six_methods_reject_preclose_feature_witness(self):
+        row = record()
+        self.assertIn(row["method_id"], gate.SAME_BOUNDARY_SIGNAL_METHODS)
+        w = witness(row)
+        w["closed_bar_available_at_utc"] = "2023-03-21T12:55:00+00:00"
+        w["all_features_observed_at_utc"] = "2023-03-21T12:55:01+00:00"
+        with self.assertRaisesRegex(ValueError, "M5_CLOSE_BEFORE_BAR_FINISHED"):
+            gate.assess_predecision_shape(row, w)
+
+    def test_trend_prior_session_signal_not_confused_with_current_baseline(self):
+        row = record()
+        row["method_id"] = "TREND_MULTI_DAY"
+        row["entry_research_utc"] = "2023-03-21T16:00:00+00:00"
+        row["theoretical_M5_target_close_utc"] = "2023-03-21T20:00:00+00:00"
+        row["duration_minutes"] = 240
+        start = gate.utc(row["entry_research_utc"])
+        row["opportunity_sha256"] = hashlib.sha256(
+            f"{gate.E1_SHA}|TREND_MULTI_DAY|USDJPY|{start.isoformat()}".encode()
+        ).hexdigest()
+        w = witness(row)
+        w["closed_bar_available_at_utc"] = "2023-03-21T15:00:00+00:00"
+        w["all_features_observed_at_utc"] = "2023-03-21T15:01:00+00:00"
+        w["decision_emitted_at_utc"] = "2023-03-21T15:02:00+00:00"
+        w["entry_order_eligible_at_utc"] = "2023-03-21T15:02:01+00:00"
+        w["order_expiration_at_utc"] = "2023-03-21T16:10:00+00:00"
+        result = gate.assess_predecision_shape(row, w)
+        self.assertTrue(result["causal_structure_pass"])
+        self.assertFalse(result["historical_NET_authorized"])
+
     def test_reject_witness_provenance_mismatch(self):
         row = record()
         w = witness(row)
