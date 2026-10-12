@@ -1,0 +1,67 @@
+name: QORE Native 231 E2 gross vs 33 one screenshot BID ASK SPOT ONLY not net
+
+on:
+  push:
+    branches:
+      - research/qore-native-33-bidask-visual-snapshot-20261012
+    paths:
+      - '.github/workflows/qore-native-231-one-screenshot-spread-stress.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_e2_231_one_spot_spread_stress_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_e2_231_one_spot_spread_stress_v1.py'
+      - 'docs/research/data/QORE_NATIVE_USER_BIDASK_SCREENSHOTS_33_SPOT_TRANSCRIPTION_2026-10-12.json'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_screenshot_bidask_spot_audit_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  illustrative_one_snapshot_stress_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research test dependencies
+        run: python -m pip install -e '.[dev]' 'numpy>=2,<3'
+      - name: Verify standalone test of 231 joins, zero spread, index alias and no net
+        run: |
+          set -euo pipefail
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_e2_231_one_spot_spread_stress_v1.py tests/infrastructure/trader_lab/test_qore_native_e2_231_one_spot_spread_stress_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_e2_231_one_spot_spread_stress_v1.py
+      - name: Download only original signed 231 E2 results, not price ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e2-all231-gross-Holm-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: original-e2-gross
+      - name: Check signed E2 original SHA and perform one-spot spread illustration
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_e2_231_one_spot_spread_stress_v1 original-e2-gross docs/research/data/QORE_NATIVE_USER_BIDASK_SCREENSHOTS_33_SPOT_TRANSCRIPTION_2026-10-12.json one-spot-output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          j=json.loads(Path("one-spot-output/qore-native-e2-231-single-spread-spot-screen-NOT-NET.json").read_text())
+          assert j["identity"]=="QORE_NATIVE_E2_ONE_SCREENSHOT_SPREAD_STRESS_231_POSTHOC_V1"
+          assert j["study_e2_original_sha256"]=="5161dbdf157805af3e37957ec25acad3657962a50c99d214883005cb03945f80"
+          assert j["counts"]["total"]==231
+          assert j["counts"]["blocked_contract_or_zero_spread_cells"]==21
+          assert j["counts"]["eligible_only_for_nonhistorical_spot_comparison"]==210
+          assert j["history_based_spread_calibration"] is False
+          assert j["commission_slippage_swap_financing_latency_included"] is False
+          assert j["G1_certified"] is False and j["traders_certified"]==0
+          assert j["production_untouched"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > one-spot-output/exact-code-head-sha.txt
+          (cd one-spot-output && sha256sum qore-native-e2-231-single-spread-spot-screen-NOT-NET.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-231-historic-gross-vs-single-spot-spread-NOT-NET-${{ github.sha }}
+          path: one-spot-output/
+          retention-days: 90
+          if-no-files-found: error
