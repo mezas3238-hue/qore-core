@@ -1,0 +1,79 @@
+name: QORE Native G1 read-only XAGUSD metal and SP500 US500 index native BID ASK
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-xagusd-us500-crossasset-bidask-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-two-crossasset-bidask.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_crossasset_bidask_source_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_crossasset_bidask_source_v1.py'
+      - 'docs/research/QORE_NATIVE_G1_XAGUSD_US500_BIDASK_PREREG_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-native-crossasset-bidask-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source_contract_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install immutable source research requirements
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Test original NZDUSD decoder plus metal/index exact-source contract
+        run: |
+          set -euo pipefail
+          test -s docs/research/QORE_NATIVE_G1_XAGUSD_US500_BIDASK_PREREG_2026-10-12.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_crossasset_bidask_source_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_crossasset_bidask_source_v1.py
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_native_g1_crossasset_bidask_source_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_icmarkets_bidask_source_pilot_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_crossasset_bidask_source_v1.py
+          echo "SYNTHETIC CONTRACTS ONLY; 0 STRATEGY TRADES / NO NET"
+
+  native_source_capture:
+    needs: source_contract_tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        market: [XAGUSD, SP500]
+    env:
+      QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+      CANONICAL: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install official historical Spotware SDK only
+        run: python -m pip install -e '.[ctrader]'
+      - name: Collect frozen 3x10min BID ASK original native data DEMO only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_crossasset_bidask_source_v1 "$CANONICAL" "source-$CANONICAL"
+      - name: Preserve original SHA source side artifacts or sanitized blocker
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-crossasset-${{ matrix.market }}-source-NOT-NET-${{ github.sha }}
+          path: source-${{ matrix.market }}/
+          retention-days: 90
+          if-no-files-found: warn
