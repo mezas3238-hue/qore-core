@@ -103,3 +103,65 @@ def test_short_history_never_creates_imputed_data():
     r=replay(x)
     assert r["count_events"]==0
     assert r["all33_common_eligible_days"]==6
+
+
+def test_private_writer_and_finish_use_same_sidecar(monkeypatch, tmp_path):
+    """Reproduce CI original33 reached FINISH then missing json.sha256 sidecars."""
+    from qore.research import alpha2_xsrev5_common_calendar as x
+
+    monkeypatch.setattr(x, "source33_manifest", lambda folder: {"synthetic": True})
+    monkeypatch.setattr(
+        x, "verify_source",
+        lambda symbol, native, frozen, aggregate: {
+            "source_cohort": "SYNTHETIC_ONLY_NO_BROKER",
+        },
+    )
+    monkeypatch.setattr(
+        x, "source_rows_before_embargo", lambda native, symbol: iter(())
+    )
+    monkeypatch.setattr(
+        x, "daily_from_native",
+        lambda bars: (
+            [Day(y.utc_day, y.open, y.close, y.native_m5_bars)
+             for y in fake_universe(n=35)["EURUSD"]],
+            {"synthetic_fixture_only": True},
+        ),
+    )
+    private = tmp_path / "private-not-uploaded"
+    for symbol in MARKETS:
+        x.prep_day_source(
+            symbol, tmp_path / "not_a_broker", tmp_path / "not_a_manifest",
+            private, None,
+        )
+        assert (private / f"{symbol}.json").is_file()
+        assert (private / f"{symbol}.json.sha256").is_file()
+    out = x.finish(private, tmp_path / "aggregates-only")
+    assert out["all33_exact_original_sources"] == 33
+    assert out["raw_market_daily_OHLC_published"] is False
+    assert (tmp_path/"aggregates-only"/"OUTPUT_SHA256SUMS.txt").is_file()
+    assert not (tmp_path/"aggregates-only"/"EURUSD.json").exists()
+
+
+def test_private_sha_integrity_poisoning_blocks_finish(monkeypatch, tmp_path):
+    from qore.research import alpha2_xsrev5_common_calendar as x
+
+    monkeypatch.setattr(x, "source33_manifest", lambda folder: {"synthetic": True})
+    monkeypatch.setattr(
+        x, "verify_source",
+        lambda symbol, native, frozen, aggregate: {
+            "source_cohort": "SYNTHETIC_ONLY_NO_BROKER"
+        },
+    )
+    monkeypatch.setattr(x, "source_rows_before_embargo", lambda n,s: iter(()))
+    monkeypatch.setattr(
+        x, "daily_from_native",
+        lambda rows: (fake_universe(n=35)["EURUSD"], {"synthetic": True}),
+    )
+    private = tmp_path / "private"
+    for symbol in MARKETS:
+        x.prep_day_source(symbol, tmp_path, tmp_path, private, None)
+    target=private/"GBPJPY.json"
+    target.write_text(target.read_text(encoding="utf-8")+"\n",encoding="utf-8")
+    with pytest.raises(ValueError, match="INTERMEDIATE_PRICE_SHA_INVALID"):
+        x.finish(private,tmp_path/"final")
+    assert not (tmp_path/"final").exists()
