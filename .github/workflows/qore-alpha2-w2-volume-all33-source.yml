@@ -1,0 +1,184 @@
+name: QORE Alpha2 W2 all33 source volume census (NO OHLC)
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-w2-volume-all33-source.yml'
+      - 'src/qore/research/alpha2_w2_volume_full33.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  freeze_w2_source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'ruff>=0.5,<1' 'pytest>=8,<9'
+      - run: |
+          git merge-base --is-ancestor d1c6c5f85b35cc63f1512212b42aa31e491ecccd "$GITHUB_SHA"
+          git merge-base --is-ancestor ddb6112681b5ebc52e22b9cdfef3bbc2c864c22e "$GITHUB_SHA"
+          ruff check src/qore/research/alpha2_w2_volume_full33.py src/qore/research/alpha2_w2_volume_source_probe.py
+          pytest -q -o addopts='' tests/research/test_alpha2_w2_volume_source_probe.py
+  source_original12:
+    needs: freeze_w2_source
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        symbol: [AUDJPY, AUDUSD, EURUSD, GBPJPY, GBPUSD, NAS100, SP500, US30, USDCAD, USDJPY, XAGUSD, XAUUSD]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: signed33
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: atlas
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: raw-native
+      - name: Original RAW+quality SHA before reading volume alone
+        run: |
+          python -m qore.research.alpha2_w2_volume_full33 "$SYMBOL" raw-native signed33 volume-out --aggregate12 atlas
+          printf '%s\n' "$GITHUB_SHA" > volume-out/exact-code-head-sha.txt
+          (cd volume-out && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-w2-source33-${{ matrix.symbol }}-${{ github.sha }}
+          path: volume-out/
+          retention-days: 90
+          if-no-files-found: error
+  source_new21:
+    needs: freeze_w2_source
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        symbol: [USDCHF, NZDUSD, EURGBP, EURJPY, EURCHF, EURCAD, EURAUD, EURNZD, GBPCHF, GBPCAD, GBPAUD, GBPNZD, AUDCAD, AUDCHF, AUDNZD, CADJPY, CADCHF, CHFJPY, NZDJPY, NZDCAD, NZDCHF]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: signed33
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-${{ matrix.symbol }}-e0ca5a13c866a19d8505c68cffc473598984b340
+          run-id: '38193802541'
+          github-token: ${{ github.token }}
+          path: raw-native
+      - name: Original IC Markets RAW+quality SHA and volume only
+        run: |
+          python -m qore.research.alpha2_w2_volume_full33 "$SYMBOL" raw-native signed33 volume-out
+          printf '%s\n' "$GITHUB_SHA" > volume-out/exact-code-head-sha.txt
+          (cd volume-out && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-w2-source33-${{ matrix.symbol }}-${{ github.sha }}
+          path: volume-out/
+          retention-days: 90
+          if-no-files-found: error
+  compile_source33:
+    needs: [source_original12, source_new21]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: alpha2-w2-source33-*-${{ github.sha }}
+          path: volume33
+      - uses: actions/download-artifact@v4
+        with:
+          name: alpha2-w2-four-provider-volume-pilot-ddb6112681b5ebc52e22b9cdfef3bbc2c864c22e
+          run-id: '38272577494'
+          github-token: ${{ github.token }}
+          path: pilot-original
+      - name: Exactly 33 SHA witnesses + validate four original pilot counts
+        run: |
+          mkdir -p source33-report
+          python - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          paths=sorted(Path("volume33").rglob("alpha2-w2-volume-source-*.json"))
+          assert len(paths)==33,f"Must include exactly 33 native sources, got {len(paths)}"
+          result={}
+          for p in paths:
+              witness=(p.parent/"OUTPUT_SHA256SUMS.txt").read_text().splitlines()
+              entries={v[1]:v[0] for line in witness if len(v:=line.split())==2}
+              assert set(entries)=={p.name,"exact-code-head-sha.txt"}
+              for name,digest in entries.items():
+                  assert hashlib.sha256((p.parent/name).read_bytes()).hexdigest()==digest
+              assert (p.parent/"exact-code-head-sha.txt").read_text().strip()=="$GITHUB_SHA"
+              obj=json.loads(p.read_text())
+              assert obj["identity"]=="QORE_ALPHA2_W2_FULL33_NATIVE_VOLUME_SOURCE_ONLY_V1"
+              assert obj["ohlc_fields_accessed"] is False and obj["price_returns_or_PnL_read"] is False
+              assert obj["broker_volume_semantics"]=="PROVIDER_VOLUME_SEMANTICS_UNVERIFIED"
+              symbol=obj["market"]
+              assert symbol not in result
+              result[symbol]={"rows":obj["m5_rows_pre_embargo"],
+                              "categories":obj["categories"],
+                              "source_cohort":obj["source"]["source_cohort"]}
+          assert len(result)==33
+          pilot=json.loads(Path("pilot-original/w2-source-pilot-summary.json").read_text())
+          assert pilot["identity"]=="QORE_ALPHA2_W2_FOUR_MARKET_SOURCE_PILOT_G0_ONLY"
+          for sym,original in pilot["source_coverage"].items():
+              assert result[sym]["rows"]==original["row_count"]
+              assert result[sym]["categories"]==original["category_count"]
+          r={"identity":"QORE_ALPHA2_W2_FULL33_NATIVE_VOLUME_SOURCE_CENSUS_G0B",
+             "markets":len(result),"per_market":dict(sorted(result.items())),
+             "total_preembargo_source_rows":sum(x["rows"] for x in result.values()),
+             "total_positive_volume_rows":sum(x["categories"].get("POSITIVE",0) for x in result.values()),
+             "four_pilot_symbols_reconciled":True,
+             "provider_tick_volume_semantics_verified":False,
+             "ohlc_or_PnL_read":False,"certified_trader":False}
+          Path("source33-report/source33-w2-volume-census.json").write_text(json.dumps(r,sort_keys=True,indent=2)+"\n")
+          print(json.dumps({"markets":r["markets"],"total_rows":r["total_preembargo_source_rows"],
+                           "positive_rows":r["total_positive_volume_rows"],
+                           "pilot_reconciled":True,"source_only":True},sort_keys=True))
+          PY
+          printf '%s\n' "$GITHUB_SHA" > source33-report/exact-code-head-sha.txt
+          (cd source33-report && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-w2-source33-volume-census-${{ github.sha }}
+          path: source33-report/
+          retention-days: 90
+          if-no-files-found: error
