@@ -1,0 +1,85 @@
+name: QORE Native G1 independent raw protobuf BID ASK SHA and zero spread audit
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-5market-protobuf-independent-audit-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-proto-wire-second-decoder-qa.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_proto_wire_second_decoder_qa_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_proto_wire_second_decoder_qa_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  original_protobuf_fields_sha_asof_second_decoder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research SDK and independent QA dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Strict synthetic second-decoder and protobuf field framing regression
+        run: |
+          set -euo pipefail
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_proto_wire_second_decoder_qa_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_proto_wire_second_decoder_qa_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_proto_wire_second_decoder_qa_v1.py
+      - name: Verify original provider-field-only source artifact HEAD and SHA digest metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          url = "https://api.github.com/repos/mezas3238-hue/qore-core/actions/artifacts/11764163362"
+          req = urllib.request.Request(url, headers={
+              "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+              "Accept": "application/vnd.github+json",
+          })
+          with urllib.request.urlopen(req, timeout=15) as res:
+              manifest=json.load(res)
+          assert manifest["id"] == 11764163362
+          assert manifest["workflow_run"]["id"] == 38288411671
+          assert manifest["workflow_run"]["head_sha"] == "8dfae03e8212566d7d334c2598931e57c7b55d64"
+          assert manifest["digest"] == "sha256:b4eb9e66d76bcd439d4db8f2b8707afa06fe2d211a275c8af8b8605714b58684"
+          assert manifest["expired"] is False
+          print("ORIGINAL_PROTO_TICK_FIELD_SOURCE_HEAD_AND_ARTIFACT_SHA_PROVEN")
+          PY
+      - name: Download immutable original 5-market two-sided cTrader tick field artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-original-tick-field-proto-wire-NOT-NET-8dfae03e8212566d7d334c2598931e57c7b55d64
+          run-id: '38288411671'
+          github-token: ${{ github.token }}
+          path: original-proto-source
+      - name: Decode raw Protobuf independently with full hasMore page checks SHA and causal zero spread QA
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_proto_wire_second_decoder_qa_v1 original-proto-source source-independent-qa
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("source-independent-qa/G1_SOURCE_PROTO_WIRE_INDEPENDENT_QA_NOT_NET.json").read_text())
+          assert x["status"]=="SOURCE_WIRE_INDEPENDENT_CUMULATIVE_DELTA_PARITY_PASS_NO_NET"
+          assert x["source_markets"]==5 and x["source_windows_per_market"]==2
+          assert x["source_field_wire_protobuf_redecoded_independently"]
+          assert x["source_ticks_total"]>0
+          assert sum(x["source_quality_totals"][k] for k in (
+              "missing_side","stale_side","crossed_spread","zero_spread",
+              "positive_spread"))>0
+          assert not x["NET_authorized"] and x["traders_certified"]==0
+          print("REAL_RAW_PROTO_SIDE_FIELD_SHA_AND_SECOND_DECODER_PARITY_PASS_NO_NET")
+          PY
+          printf '%s\n' "$GITHUB_SHA" > source-independent-qa/auditor-code-sha.txt
+          (cd source-independent-qa && sha256sum *.json auditor-code-sha.txt > AUDIT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-original-proto-field-second-QA-NOT-NET-${{ github.sha }}
+          path: source-independent-qa/
+          retention-days: 90
+          if-no-files-found: error
