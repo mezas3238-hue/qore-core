@@ -49,7 +49,22 @@ def spread_stats(doc: dict[str, Any]) -> dict[str, Any]:
                    for x in images)):
         raise ValueError("missing or mismatched original 3 image SHA fingerprints")
     caveats = doc.get("scope_caveats", {})
-    if not isinstance(caveats, dict) or not all(caveats.values()):
+    must_remain_uncertain = (
+        "all_quotes_not_exactly_same_tick",
+        "quote_date_and_timezones_unverified",
+        "instruments_from_screenshot_may_differ_from_original_cTrader_G0_broker",
+        "spread_instantaneous_not_historical",
+        "commission_slippage_swap_latency_not_included",
+        "fee_schedule_not_verified",
+        "spread_around_trading_session_news_and_rollover_not_known",
+        "execution_bidask_in_2016_to_2024_not_proven",
+    )
+    if (
+        not isinstance(caveats, dict)
+        or any(caveats.get(k) is not True for k in must_remain_uncertain)
+        or caveats.get("net_certification_authorized") is not False
+        or caveats.get("capital_or_live_authorized") is not False
+    ):
         raise ValueError("screenshot cannot attest historic or executable broker costs")
     extra = doc.get("outside_frozen_universe_excluded")
     if (not isinstance(extra, list) or len(extra) != 1
