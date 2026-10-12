@@ -155,7 +155,8 @@ def source_audit(downloader=fetch) -> dict:
         reports[currency]=report
         print("H4_OECD_3M_8RATE_SOURCE_PASS",
               currency,report["present_valid_months"],
-              report["missing_months_including_na"],flush=True)
+              report["missing_months_including_na"],
+              "missing_months=", ",".join(report["missing_first_5_month_stamps"]),flush=True)
     if len(reports)!=8:raise ValueError("H4_OECD_NOT_ALL_8")
     full=all(x["missing_months_including_na"]==0 for x in reports.values())
     return {
