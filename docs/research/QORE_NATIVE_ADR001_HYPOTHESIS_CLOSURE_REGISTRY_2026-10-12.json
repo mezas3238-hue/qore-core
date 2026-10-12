@@ -1,0 +1,124 @@
+{
+  "identity": "QORE_NATIVE_ADR001_RESEARCH_STOP_LEDGER_V1",
+  "as_of_date": "2026-10-12",
+  "decision": "PIVOT_TO_EXOGENOUS_FORCED_INDEX_FLOW_FEASIBILITY",
+  "legacy_price_pattern_family": "CLOSED_NO_SUPPORT_FOR_TESTED_IMPLEMENTATIONS",
+  "g0_source_status": "33_OF_33_M5_SHA_VERIFIED",
+  "g0_source_bars": 24377420,
+  "g0_original_markets": 12,
+  "g0_new_markets": 21,
+  "preregistered_native_attempts": 4,
+  "completed_no_support": 4,
+  "native_traders_certified": 0,
+  "no_new_price_pattern_backtests_without_new_adr": true,
+  "no_future_prices_or_holdout_reopened": true,
+  "historical_bidask_broker_cost_verified": false,
+  "net_economics_authorized": false,
+  "news_asof_operational_compliance": false,
+  "production_untouched": true,
+  "source_g0": {
+    "pr": 829,
+    "actions_run": 38207337960,
+    "manifest_sha256": "1291d5c2efb4e51c2698ea25ad420a01a213dc405b5070c37efbce4131606b85"
+  },
+  "tests": [
+    {
+      "code": "H4_GROSS01_EURUSD",
+      "pr": 822,
+      "actions_run": 38203530559,
+      "prereg_sha": "a4424ba3027018bab54f03aff668894f63f47da9",
+      "dev_n": 1526,
+      "diag_n": 510,
+      "dev_delta_bps": 0.74341,
+      "diag_delta_bps": -0.257893,
+      "dev_CI_delta_bps": [
+        -0.142367,
+        1.645114
+      ],
+      "diag_CI_delta_bps": [
+        -1.715618,
+        1.221282
+      ],
+      "result": "NO_SUPPORT",
+      "estimated_real_net": "NOT_MEASURED"
+    },
+    {
+      "code": "H4_GROSS02_XAUUSD",
+      "pr": 825,
+      "actions_run": 38204480486,
+      "prereg_sha": "94bc58e89b5b2112e1c65df77a077bff2758b63c",
+      "dev_n": 1480,
+      "diag_n": 495,
+      "dev_delta_bps": -0.436145,
+      "diag_delta_bps": -0.112157,
+      "dev_CI_delta_bps": [
+        -2.216163,
+        1.314571
+      ],
+      "diag_CI_delta_bps": [
+        -3.01169,
+        2.74439
+      ],
+      "result": "NO_SUPPORT",
+      "estimated_real_net": "NOT_MEASURED"
+    },
+    {
+      "code": "NY_OPEN_DRIVE03_NAS100",
+      "pr": 827,
+      "actions_run": 38205479893,
+      "prereg_sha": "4b26a2da961da6f778028835efaa7ea899ebda9d",
+      "dev_n": 1533,
+      "diag_n": 509,
+      "dev_delta_bps": 0.422061,
+      "diag_delta_bps": 2.645942,
+      "dev_CI_delta_bps": [
+        -4.665549,
+        5.659497
+      ],
+      "diag_CI_delta_bps": [
+        -6.699434,
+        12.518373
+      ],
+      "dev_gross_bps": 2.456753,
+      "diag_gross_bps": 2.852094,
+      "result": "NO_SUPPORT",
+      "estimated_real_net": "NOT_MEASURED"
+    },
+    {
+      "code": "GROSS04_ALL33_SWEEP_RECLAIM",
+      "pr": 830,
+      "actions_run": 38208073921,
+      "prereg_sha": "9b147f0a385213dd4b0183b3205c6c9d467581ad",
+      "dev_n": 13989,
+      "diag_n": 4680,
+      "dev_delta_bps": -0.033253,
+      "diag_delta_bps": 0.146432,
+      "dev_CI_delta_bps": [
+        -1.295593,
+        1.219408
+      ],
+      "diag_CI_delta_bps": [
+        -2.102263,
+        2.683191
+      ],
+      "dev_gross_bps": 0.151074,
+      "diag_gross_bps": 0.099568,
+      "result": "NO_SUPPORT",
+      "estimated_real_net": "NOT_MEASURED"
+    }
+  ],
+  "related_prior_work_without_native_prereg_verification": [
+    "RESET",
+    "DRIVE"
+  ],
+  "independence_correction": "GROSS04_SYNCHRONIZED_WHOLE_UTC_WEEK_BLOCK_BOOTSTRAP",
+  "factor_equivalent_count": "NOT_ESTIMATED",
+  "effective_sample_size": "NOT_ESTIMATED",
+  "proposed_new_research_gate": "E0_INDEX_RECONSTITUTION_METADATA_POINT_IN_TIME_ONLY",
+  "expected_e0_outcomes": [
+    "DATA_READY_FOR_PREREG",
+    "SOURCE_BLOCKED",
+    "STRUCTURAL_MECHANISM_NOT_TESTABLE"
+  ],
+  "futures_alternative": "F0_FEASIBILITY_ONLY_H3_NOT_REOPENED"
+}
