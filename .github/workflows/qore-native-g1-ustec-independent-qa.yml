@@ -1,0 +1,82 @@
+name: QORE Native G1 USTEC original source SHA asof QA alias still unverified
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-ustec-independent-source-qa-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-ustec-independent-qa.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_ustec_independent_source_qa_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_ustec_independent_source_qa_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ustec_source_only_sha_asof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Strict negative source-only QA
+        run: |
+          set -euo pipefail
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_ustec_independent_source_qa_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_ustec_independent_source_qa_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_ustec_independent_source_qa_v1.py
+      - name: Verify immutable provider source artifact metadata ID SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          from qore.infrastructure.trader_lab.qore_native_g1_ustec_independent_source_qa_v1 import (
+              SOURCE_ARTIFACT,SOURCE_RUN,SOURCE_SHA,ZIP_DIGEST,
+          )
+          u="https://api.github.com/repos/mezas3238-hue/qore-core/actions/artifacts/"+str(SOURCE_ARTIFACT)
+          req=urllib.request.Request(u,headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],
+                                                "Accept":"application/vnd.github+json"})
+          with urllib.request.urlopen(req,timeout=15) as response:
+              j=json.load(response)
+          assert j["id"]==SOURCE_ARTIFACT and j["expired"] is False
+          assert j["digest"]=="sha256:"+ZIP_DIGEST
+          assert j["workflow_run"]["head_sha"]==SOURCE_SHA
+          assert j["workflow_run"]["id"]==SOURCE_RUN
+          print("USTEC_SOURCE_ORIGINAL_ARTIFACT_METADATA_SHA_PASS")
+          PY
+      - name: Restore exact original USTEC candidate source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-USTEC-candidate-source-NOT-NAS100-certified-1626667cb8a2ac40702a021e8422d9fdec252e75
+          run-id: '38285063753'
+          github-token: ${{ github.token }}
+          path: source-ustec
+      - name: Independent SHA and 6129 tick asof QA, no NAS100 contract equivalence
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_ustec_independent_source_qa_v1 source-ustec source-qa
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("source-qa/USTEC-ALIAS-CANDIDATE-QA-NOT-NET.json").read_text())
+          assert x["status"]=="USTEC_REAL_SOURCE_SHA_ASOF_PASS_ALIAS_UNVERIFIED_NO_NET"
+          assert x["source_file_sha_verified"]==13
+          assert x["source_bid_ticks"]==3075
+          assert x["source_ask_ticks"]==3054
+          assert not x["original_NAS100_contract_equivalence_verified"]
+          assert not x["historical_NET_authorized"] and x["certified_traders"]==0
+          print("USTEC_REAL_SOURCE_SECOND_QA_PASS_UNHOMOLOGATED_ALIAS")
+          PY
+          printf '%s\n' "$GITHUB_SHA" > source-qa/auditor-sha.txt
+          (cd source-qa && sha256sum *.json auditor-sha.txt > REPORT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-USTEC-independent-source-QA-NOT-NET-${{ github.sha }}
+          path: source-qa/
+          retention-days: 90
+          if-no-files-found: error
