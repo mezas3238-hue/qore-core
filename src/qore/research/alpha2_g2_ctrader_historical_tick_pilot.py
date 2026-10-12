@@ -95,7 +95,9 @@ def classify_pilot(
     }
 
 
-def _sdk_response_ticks(value: object, *, expected_account: int) -> tuple[list[tuple[int,int]],bool]:
+def _sdk_response_ticks(
+    value: object, *, expected_account: int,
+) -> tuple[list[tuple[int, int]], bool]:
     if getattr(value, "ctidTraderAccountId", None) != expected_account:
         raise ValueError("HISTORICAL_TICK_ACCOUNT_SCOPE_MISMATCH")
     is_init = getattr(value, "IsInitialized", None)
@@ -241,7 +243,9 @@ def write_pilot(output: Path) -> dict[str, Any]:
             "SDK_TICK_PAYLOAD_INVALID",
         }
         code = str(exc) if type(exc) is ValueError else ""
-        result["safe_blocker"] = code if code in whitelisted else "AUTH_OR_SOURCE_UNAVAILABLE_SAFE_BLOCK"
+        result["safe_blocker"] = (
+            code if code in whitelisted else "AUTH_OR_SOURCE_UNAVAILABLE_SAFE_BLOCK"
+        )
     manifest = output/"alpha2-g2-eurchf-historical-bidask-source-manifest.json"
     manifest.write_text(json.dumps(result,sort_keys=True,indent=2)+"\n",encoding="utf-8")
     (output/"SOURCE_SHA256SUMS.txt").write_text(
