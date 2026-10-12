@@ -13,8 +13,8 @@ from qore.research.alpha2_g2_nzdusd_independent_forward_receipt_qa import (
     SHA_COMPLETE,
     SHA_SOURCE,
     SOURCE_IDENTITY,
-    SUCCESS,
     STATUS,
+    SUCCESS,
     audit,
     qa_events,
 )
