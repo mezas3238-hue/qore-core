@@ -1,0 +1,470 @@
+{
+  "identity": "QORE_NATIVE_G1_USER_SCREENSHOT_BIDASK_SPOT_33_V1",
+  "received_chat_date": "2026-10-12",
+  "quote_calendar_date_verified": false,
+  "quote_timezone_verified": false,
+  "quote_broker_account_and_execution_contract_verified": false,
+  "platform_app_identity_verified": false,
+  "source_type": "USER_PROVIDED_STATIC_SCREENSHOTS_PRICES_TRANSCRIBED_VISUALLY",
+  "snapshot_device_clock_label": "10:13",
+  "screen_source_images": [
+    {
+      "id": "quote-screenshot-1",
+      "file_name": "1000920175.png",
+      "sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "raw_image_available_only_in_user_conversation": true
+    },
+    {
+      "id": "quote-screenshot-2",
+      "file_name": "1000920174.png",
+      "sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "raw_image_available_only_in_user_conversation": true
+    },
+    {
+      "id": "quote-screenshot-3",
+      "file_name": "1000920173.png",
+      "sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "raw_image_available_only_in_user_conversation": true
+    }
+  ],
+  "original_universe_G0_33_sha256": "1291d5c2efb4e51c2698ea25ad420a01a213dc405b5070c37efbce4131606b85",
+  "user_quote_rows_expected": 33,
+  "rows": [
+    {
+      "canonical_symbol": "CHFJPY",
+      "displayed_symbol": "CHFJPY",
+      "bid_transcribed": "190.443",
+      "ask_transcribed": "190.458",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:22",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "EURAUD",
+      "displayed_symbol": "EURAUD",
+      "bid_transcribed": "1.60396",
+      "ask_transcribed": "1.60405",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:23",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "EURCAD",
+      "displayed_symbol": "EURCAD",
+      "bid_transcribed": "1.59408",
+      "ask_transcribed": "1.59422",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:23",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "EURCHF",
+      "displayed_symbol": "EURCHF",
+      "bid_transcribed": "0.93107",
+      "ask_transcribed": "0.93114",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:23",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "EURGBP",
+      "displayed_symbol": "EURGBP",
+      "bid_transcribed": "0.84476",
+      "ask_transcribed": "0.84483",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:22",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "EURJPY",
+      "displayed_symbol": "EURJPY",
+      "bid_transcribed": "177.321",
+      "ask_transcribed": "177.327",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:23",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "EURNZD",
+      "displayed_symbol": "EURNZD",
+      "bid_transcribed": "1.99753",
+      "ask_transcribed": "1.99771",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:23",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "GBPAUD",
+      "displayed_symbol": "GBPAUD",
+      "bid_transcribed": "1.89868",
+      "ask_transcribed": "1.89880",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:21",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "GBPCAD",
+      "displayed_symbol": "GBPCAD",
+      "bid_transcribed": "1.88701",
+      "ask_transcribed": "1.88713",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:23",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "GBPCHF",
+      "displayed_symbol": "GBPCHF",
+      "bid_transcribed": "1.10213",
+      "ask_transcribed": "1.10222",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:20",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "GBPNZD",
+      "displayed_symbol": "GBPNZD",
+      "bid_transcribed": "2.36458",
+      "ask_transcribed": "2.36478",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:22",
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "NZDCAD",
+      "displayed_symbol": "NZDCAD",
+      "bid_transcribed": "0.79799",
+      "ask_transcribed": "0.79811",
+      "quote_hhmmss_displayed_unverified_timezone": null,
+      "screenshot_id": "quote-screenshot-1",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "EURUSD",
+      "displayed_symbol": "EURUSD",
+      "bid_transcribed": "1.11781",
+      "ask_transcribed": "1.11782",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:18",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "USDCHF",
+      "displayed_symbol": "USDCHF",
+      "bid_transcribed": "0.83293",
+      "ask_transcribed": "0.83300",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:16",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "NZDUSD",
+      "displayed_symbol": "NZDUSD",
+      "bid_transcribed": "0.55956",
+      "ask_transcribed": "0.55961",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:15",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "NZDJPY",
+      "displayed_symbol": "NZDJPY",
+      "bid_transcribed": "88.763",
+      "ask_transcribed": "88.780",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:15",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "NZDCHF",
+      "displayed_symbol": "NZDCHF",
+      "bid_transcribed": "0.46607",
+      "ask_transcribed": "0.46617",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:16",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "XAGUSD",
+      "displayed_symbol": "XAGUSD",
+      "bid_transcribed": "60.603",
+      "ask_transcribed": "60.658",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:16",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "AUDCAD",
+      "displayed_symbol": "AUDCAD",
+      "bid_transcribed": "0.99383",
+      "ask_transcribed": "0.99390",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:16",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "AUDCHF",
+      "displayed_symbol": "AUDCHF",
+      "bid_transcribed": "0.58046",
+      "ask_transcribed": "0.58055",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:16",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "AUDNZD",
+      "displayed_symbol": "AUDNZD",
+      "bid_transcribed": "1.24534",
+      "ask_transcribed": "1.24553",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:16",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "CADCHF",
+      "displayed_symbol": "CADCHF",
+      "bid_transcribed": "0.58406",
+      "ask_transcribed": "0.58414",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:18",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "CADJPY",
+      "displayed_symbol": "CADJPY",
+      "bid_transcribed": "111.236",
+      "ask_transcribed": "111.244",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:18",
+      "screenshot_id": "quote-screenshot-2",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "AUDJPY",
+      "displayed_symbol": "AUDJPY",
+      "bid_transcribed": "110.548",
+      "ask_transcribed": "110.558",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:11",
+      "screenshot_id": "quote-screenshot-3",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "GBPUSD",
+      "displayed_symbol": "GBPUSD",
+      "bid_transcribed": "1.32325",
+      "ask_transcribed": "1.32325",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:12",
+      "screenshot_id": "quote-screenshot-3",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "GBPJPY",
+      "displayed_symbol": "GBPJPY",
+      "bid_transcribed": "209.905",
+      "ask_transcribed": "209.923",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:12",
+      "screenshot_id": "quote-screenshot-3",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "XAUUSD",
+      "displayed_symbol": "XAUUSD",
+      "bid_transcribed": "4170.96",
+      "ask_transcribed": "4171.34",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:12",
+      "screenshot_id": "quote-screenshot-3",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "NAS100",
+      "displayed_symbol": "NDX100",
+      "bid_transcribed": "30846.75",
+      "ask_transcribed": "30848.35",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:13",
+      "screenshot_id": "quote-screenshot-3",
+      "legacy_source_alias_equivalence_verified": false,
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "SP500",
+      "displayed_symbol": "SPX500",
+      "bid_transcribed": "7817.14",
+      "ask_transcribed": "7817.72",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:06",
+      "screenshot_id": "quote-screenshot-3",
+      "legacy_source_alias_equivalence_verified": false,
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "US30",
+      "displayed_symbol": "US30",
+      "bid_transcribed": "51673.06",
+      "ask_transcribed": "51675.04",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:13",
+      "screenshot_id": "quote-screenshot-3",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "AUDUSD",
+      "displayed_symbol": "AUDUSD",
+      "bid_transcribed": "0.69689",
+      "ask_transcribed": "0.69692",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:02",
+      "screenshot_id": "quote-screenshot-3",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "USDCAD",
+      "displayed_symbol": "USDCAD",
+      "bid_transcribed": "1.42612",
+      "ask_transcribed": "1.42614",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:11",
+      "screenshot_id": "quote-screenshot-3",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    },
+    {
+      "canonical_symbol": "USDJPY",
+      "displayed_symbol": "USDJPY",
+      "bid_transcribed": "158.632",
+      "ask_transcribed": "158.640",
+      "quote_hhmmss_displayed_unverified_timezone": "16:13:11",
+      "screenshot_id": "quote-screenshot-3",
+      "legacy_source_alias_equivalence_verified": true,
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "quote_bidask_operator_confirmed": false,
+      "not_historical_bidask": true
+    }
+  ],
+  "outside_frozen_universe_excluded": [
+    {
+      "displayed_symbol": "BTCUSD",
+      "bid_transcribed": "82630.20",
+      "ask_transcribed": "82659.95",
+      "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
+      "reason": "EXTRA_NOT_IN_FROZEN_33"
+    }
+  ],
+  "known_anomalies": [
+    {
+      "symbol": "GBPUSD",
+      "code": "ZERO_DISPLAYED_SPREAD_INVALID_FOR_HISTORICAL_COST_ESTIMATION",
+      "detail": "user screenshot shows bid equals ask and platform spread figure zero; no claim of commission-free trading or zero persistent spread"
+    },
+    {
+      "symbol": "NAS100",
+      "displayed": "NDX100",
+      "code": "EXCHANGE_OR_BROKER_ALIAS_NOT_VERIFIED",
+      "detail": "not the same literal ticker as canonical NAS100, original source also used USTEC; cannot claim identical price feed"
+    },
+    {
+      "symbol": "SP500",
+      "displayed": "SPX500",
+      "code": "EXCHANGE_OR_BROKER_ALIAS_NOT_VERIFIED",
+      "detail": "not the same literal ticker as canonical SP500, original source also used US500; cannot claim identical price feed"
+    }
+  ],
+  "scope_caveats": {
+    "all_quotes_not_exactly_same_tick": true,
+    "quote_date_and_timezones_unverified": true,
+    "instruments_from_screenshot_may_differ_from_original_cTrader_G0_broker": true,
+    "spread_instantaneous_not_historical": true,
+    "commission_slippage_swap_latency_not_included": true,
+    "fee_schedule_not_verified": true,
+    "spread_around_trading_session_news_and_rollover_not_known": true,
+    "execution_bidask_in_2016_to_2024_not_proven": true,
+    "net_certification_authorized": false,
+    "capital_or_live_authorized": false
+  }
+}
