@@ -78,7 +78,8 @@ def original_g0(folder:Path)->dict[str,dict]:
         canonical=symbol.get("canonical_symbol")
         if canonical not in ORIGINAL12 or canonical in rows:
             raise ValueError("G0_ORIGINAL_12_UNIVERSE_DUPLICATE")
-        pids={}; meta=set()
+        pids={}
+        meta=set()
         partitions=symbol.get("partitions")
         if not isinstance(partitions,list) or len(partitions)!=11:
             raise ValueError("G0_HISTORICAL_PROVIDER_PARTITIONS_INCOMPLETE")
