@@ -156,9 +156,10 @@ def fetch_official(url: str, *, limit: int = 350_000) -> bytes:
         target = response.geturl()
         if target != url and target != url.rstrip("/"):
             raise ValueError("archive BLS redirect changed destination")
-        raw = response.read(limit + 1)
-    if len(raw) > limit:
-        raise ValueError("BLS archived response exceeds size guard")
+        # CPI reports include long data tables; only the bounded release
+        # HEADER PREFIX is relevant to this source-only embargo audit.
+        # Do not reject long official reports merely because of their size.
+        raw = response.read(limit)
     return raw
 
 
@@ -217,7 +218,7 @@ def inspect_entry(calendar_event: dict[str, Any], indexed: ArchivedEntry | None
     row["status"] = "ARCHIVE_INDEX_LINK_ONLY"
     try:
         raw = fetch_official(indexed.url)
-        row["archived_header_source_sha256"] = hashlib.sha256(raw).hexdigest()
+        row["archived_header_prefix_sha256"] = hashlib.sha256(raw).hexdigest()
         heading_date, ref_month, ref_year = parse_header(raw.decode("utf-8", errors="strict"))
         if heading_date is None or ref_month is None or ref_year is None:
             row["status"] = "ARCHIVE_HEADER_UNPARSEABLE"
