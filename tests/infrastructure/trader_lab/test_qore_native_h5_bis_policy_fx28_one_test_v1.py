@@ -116,10 +116,10 @@ class PolicyRateH5(unittest.TestCase):
             h.calendar_and_maps(bars)
 
     def test_common28_and_spot_theory_separate(self):
-        data=mocked_bars(940,start=date(2020,1,1))
+        data=mocked_bars(1850,start=date(2017,1,2))
         days,_,c=h.calendar_and_maps(data)
         self.assertEqual(c["fx_count"],28)
-        self.assertEqual(len(days),940)
+        self.assertEqual(len(days),1850)
         results=h.score(data,mocked_monthly())
         self.assertEqual(results["num_fx_pairs"],28)
         self.assertTrue(results["B_component_is_idealized_yield_not_executable"])
