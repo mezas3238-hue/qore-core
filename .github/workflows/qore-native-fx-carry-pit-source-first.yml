@@ -27,7 +27,7 @@ jobs:
           python-version: '3.12'
       - name: Synthetic cross-quote PIT, no lookahead, FX pair network, missing data rejects
         run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_fx_carry_pit_gate_v1.py -v
-      - name: Scientific truth gate: no historical forward source, NO ECONOMIC BACKTEST
+      - name: 'Scientific truth gate - no historical forward source, NO ECONOMIC BACKTEST'
         shell: bash
         run: |
           set -euo pipefail
