@@ -1,0 +1,39 @@
+name: QORE Native D0 registry 33 markets x 7 methods without price access
+
+on:
+  push:
+    branches:
+      - research/qore-native-adr002-all33-cross-methodology-20261012
+    paths:
+      - '.github/workflows/qore-native-33x7-d0-registry.yml'
+      - 'docs/research/QORE_NATIVE_ADR002_33_MARKETS_7_METHODS_FACTORIAL_PLAN_2026-10-12.md'
+      - 'src/qore/infrastructure/trader_lab/qore_native_33x7_method_market_registry_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_33x7_method_market_registry_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact_33x7_research_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Registry integrity without reading prices
+        run: |
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_33x7_method_market_registry_v1.py tests/infrastructure/trader_lab/test_qore_native_33x7_method_market_registry_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_33x7_method_market_registry_v1.py
+          python -m qore.infrastructure.trader_lab.qore_native_33x7_method_market_registry_v1 registry33x7
+          printf '%s\n' "$GITHUB_SHA" > registry33x7/exact-code-head-sha.txt
+          (cd registry33x7 && sha256sum qore-native-33x7-design-matrix.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-33x7-design-only-${{ github.sha }}
+          path: registry33x7/
+          retention-days: 90
+          if-no-files-found: error
