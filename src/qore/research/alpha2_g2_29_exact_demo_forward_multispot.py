@@ -15,13 +15,13 @@ from pathlib import Path
 from time import monotonic
 from typing import Any
 
+from qore.kernel.result import Failure
 from qore.research.alpha2_g2_29_real_bidask_reuse import SOURCE_29
 from qore.research.alpha2_g2_nzdusd_forward_spot_receipt import (
     SourceBlockedError,
     _optional_present_integer,
     _read_only_spot_client,
 )
-from qore.kernel.result import Failure
 
 IDENTITY = "QORE_ALPHA2_G2_29_EXACT_DEMO_SPOT_60SEC_FIRSTRECEIPT_V1"
 WINDOW_SECONDS = 60
