@@ -1,0 +1,97 @@
+name: QORE Native G1 cross-asset real BID ASK SHA and asof independent audit
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-crossasset-independent-source-qa-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-crossasset-source-independent-audit.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_crossasset_source_qa_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_crossasset_source_qa_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  original_source_sha_asof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        canonical: [XAGUSD, SP500]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Research-only QA dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Synthetic source SHA asof and timestamp negative controls
+        run: |
+          set -euo pipefail
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_crossasset_source_qa_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_crossasset_source_qa_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_crossasset_source_qa_v1.py
+      - name: Confirm immutable artifact id digest and exact source HEAD metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANONICAL: ${{ matrix.canonical }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          from qore.infrastructure.trader_lab.qore_native_g1_crossasset_source_qa_v1 import (
+              SOURCE_HEAD, SOURCE_RUN, SYMBOL_ARTIFACT,
+          )
+          source = SYMBOL_ARTIFACT[os.environ["CANONICAL"]]
+          url = "https://api.github.com/repos/mezas3238-hue/qore-core/actions/artifacts/" + str(source["id"])
+          req = urllib.request.Request(url, headers={
+              "Authorization":"Bearer " + os.environ["GH_TOKEN"],
+              "Accept":"application/vnd.github+json",
+          })
+          with urllib.request.urlopen(req, timeout=15) as reply:
+              data = json.load(reply)
+          assert data["id"] == source["id"]
+          assert data["expired"] is False
+          assert data["workflow_run"]["id"] == SOURCE_RUN
+          assert data["workflow_run"]["head_sha"] == SOURCE_HEAD
+          assert data["digest"] == "sha256:" + source["zip_sha256"]
+          print("ORIGINAL_GITHUB_ARTIFACT_METADATA_AND_DIGEST_PASS",os.environ["CANONICAL"])
+          PY
+      - name: Restore original single symbol real two-side native source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-crossasset-${{ matrix.canonical }}-source-NOT-NET-626909b960525dbf3ca0c7ab0a554b56d03c0170
+          run-id: '38282585181'
+          github-token: ${{ github.token }}
+          path: original-source
+      - name: Independently check all 13 SHA, timestamps, decimals and asof spot states
+        env:
+          CANONICAL: ${{ matrix.canonical }}
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_crossasset_source_qa_v1 "$CANONICAL" original-source audit-only
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path("audit-only")/(os.environ["CANONICAL"]+"-asof-integrity-NOT-NET.json")
+          d=json.loads(p.read_text())
+          expected = {"XAGUSD": (2923,2859,5782), "SP500": (961,930,1891)}
+          assert (d["bid_ticks"],d["ask_ticks"],d["total_native_ticks"])==expected[os.environ["CANONICAL"]]
+          assert d["source_files_sha256_verified"] == 13
+          assert d["historical_NET_authorized"] is False and d["certified_traders"]==0
+          assert not d["historical_33_market_bidask_coverage_proven"]
+          assert all(not w["NET_economics_measured"] for w in d["windows"])
+          print("G1_CROSSASSET_SOURCE_ONLY_INTEGRITY_PASS",os.environ["CANONICAL"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > audit-only/auditor-code-head.txt
+          (cd audit-only && sha256sum *.json auditor-code-head.txt > AUDIT_SHA256SUMS.txt)
+      - name: Preserve audit summary only, NEVER republish raw provider prices
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-${{ matrix.canonical }}-independent-QA-NOT-NET-${{ github.sha }}
+          path: audit-only/
+          retention-days: 90
+          if-no-files-found: error
