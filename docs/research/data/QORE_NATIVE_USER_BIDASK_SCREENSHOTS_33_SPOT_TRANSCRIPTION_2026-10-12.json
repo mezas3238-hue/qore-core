@@ -39,7 +39,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -51,7 +51,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -63,7 +63,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -75,7 +75,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -87,7 +87,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -99,7 +99,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -111,7 +111,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -123,7 +123,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -135,7 +135,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -147,7 +147,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -159,7 +159,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -171,7 +171,7 @@
       "screenshot_id": "quote-screenshot-1",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "7e261efa1364cdf8613c2996b04065d6f1a57ffa819eb9e9c9f640d020fb2897",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -183,7 +183,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -195,7 +195,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -207,7 +207,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -219,7 +219,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -231,7 +231,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -243,7 +243,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -255,7 +255,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -267,7 +267,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -279,7 +279,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -291,7 +291,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -303,7 +303,7 @@
       "screenshot_id": "quote-screenshot-2",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "ab1382d78ccebd3deed5aad3d61c27cf9352729f5c04b2e390951640fc15fbf0",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -315,7 +315,7 @@
       "screenshot_id": "quote-screenshot-3",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -327,7 +327,7 @@
       "screenshot_id": "quote-screenshot-3",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -339,7 +339,7 @@
       "screenshot_id": "quote-screenshot-3",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -351,7 +351,7 @@
       "screenshot_id": "quote-screenshot-3",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -363,7 +363,7 @@
       "screenshot_id": "quote-screenshot-3",
       "legacy_source_alias_equivalence_verified": false,
       "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -375,7 +375,7 @@
       "screenshot_id": "quote-screenshot-3",
       "legacy_source_alias_equivalence_verified": false,
       "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -387,7 +387,7 @@
       "screenshot_id": "quote-screenshot-3",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -399,7 +399,7 @@
       "screenshot_id": "quote-screenshot-3",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -411,7 +411,7 @@
       "screenshot_id": "quote-screenshot-3",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     },
     {
@@ -423,7 +423,7 @@
       "screenshot_id": "quote-screenshot-3",
       "legacy_source_alias_equivalence_verified": true,
       "source_image_sha256": "c8794c6d6630d9f5fc0f5e5c30d2c87e139609222a20f6dbb595ac9e7d3132f3",
-      "quote_bidask_operator_confirmed": false,
+      "quote_bidask_operator_confirmed": true,
       "not_historical_bidask": true
     }
   ],
