@@ -79,3 +79,18 @@ def test_bad_windows_fail_closed():
     ):
         with pytest.raises(source.SourceBlock):
             source.window_milliseconds(bad)
+
+def test_official_sdk_quote_req_res_are_admitted_only_to_pilot_instance():
+    from qore.infrastructure.ctrader_open_api_client import CTraderOpenApiCredentials
+    creds = CTraderOpenApiCredentials(
+        client_id="synthetic-client", client_secret="synthetic-secret",
+        access_token="synthetic-access", refresh_token="synthetic-refresh",
+        ctid_trader_account_id=1,
+    )
+    pilot = source.ReadOnlyTickPilot(credentials=creds, request_timeout_seconds=10.0)
+    try:
+        assert "ProtoOAGetTickDataReq" in pilot._bindings.messages
+        assert "ProtoOAGetTickDataRes" in pilot._bindings.messages
+        assert "ProtoOANewOrderReq" not in pilot._HISTORY_ONLY_REQUEST_NAMES
+    finally:
+        pilot.close()
