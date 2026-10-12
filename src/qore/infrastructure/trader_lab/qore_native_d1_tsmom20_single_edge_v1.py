@@ -19,7 +19,22 @@ from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
-from qore.infrastructure.trader_lab.qore_native_universe_33_source_registry_v1 import universe
+# Frozen universe, independent of later research branches not merged into G0.
+UNIVERSE33 = (
+    "NAS100", "SP500", "US30", "XAUUSD", "XAGUSD",
+    "AUDUSD", "EURUSD", "GBPUSD", "NZDUSD", "USDCAD", "USDCHF", "USDJPY",
+    "AUDJPY", "AUDCAD", "AUDCHF", "AUDNZD", "CADCHF", "CADJPY", "CHFJPY",
+    "EURAUD", "EURCAD", "EURCHF", "EURGBP", "EURJPY", "EURNZD",
+    "GBPAUD", "GBPCAD", "GBPCHF", "GBPJPY", "GBPNZD",
+    "NZDCAD", "NZDCHF", "NZDJPY",
+)
+
+
+def universe() -> tuple[str, ...]:
+    if len(UNIVERSE33) != 33 or len(set(UNIVERSE33)) != 33:
+        raise ValueError("FROZEN_33_DUPLICATE_OR_INCOMPLETE")
+    return UNIVERSE33
+
 
 IDENTITY = "QORE_NATIVE_D1_TSMOM20_SINGLE_FROZEN_PANEL_V1"
 SIGNAL_DAYS = 20
