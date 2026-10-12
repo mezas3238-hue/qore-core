@@ -18,7 +18,7 @@ from typing import Any
 from qore.infrastructure.trader_lab import qore_native_existing12_m5_g0_v1 as g0
 
 IDENTITY = "QORE_NATIVE_H4_GROSS01_EURUSD_12H_VS_4H_RESEARCH_V1"
-PREREG_COMMIT = "d439737d108d5d5923fdae79617704e55fa82772"
+PREREG_COMMIT = "a4424ba3027018bab54f03aff668894f63f47da9"
 DEV_END = date(2022, 9, 17)
 DIAGNOSTIC_END = date(2024, 9, 17)
 START = date(2016, 9, 17)
@@ -44,10 +44,11 @@ class Block:
     last_close: int
     last_at: datetime
     bars: int = 1
+    contiguous: bool = True
 
     def push(self, at: datetime, open_: int, close: int) -> None:
         if (at - self.last_at).total_seconds() != 300:
-            raise ValueError("missing or reordered M5 within required 4h")
+            self.contiguous = False
         self.last_close = close
         self.last_at = at
         self.bars += 1
@@ -109,7 +110,7 @@ def evaluate_day(d: date, blocks: dict[int, Block]) -> dict[str, Any] | None:
             return None
         b = blocks[h]
         expected = datetime(d.year, d.month, d.day, h, tzinfo=UTC)
-        if (b.bars != 48 or b.opened != expected
+        if (b.bars != 48 or not b.contiguous or b.opened != expected
                 or b.last_at != expected.replace(hour=h + 3, minute=55)):
             return None
     first = blocks[4]
