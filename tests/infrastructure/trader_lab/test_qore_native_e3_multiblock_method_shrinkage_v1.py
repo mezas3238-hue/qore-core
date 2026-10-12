@@ -69,7 +69,7 @@ def test_seven_methods_and_28_strata_with_all_231_cells() -> None:
         assert all(x["gross_equal_market_bps"]==pytest.approx(.3) for x in block["seven_methods"])
         assert all(x["paired_delta_equal_market_bps"]==pytest.approx(.3) for x in block["seven_methods"])
         assert all(not x["BH_positive_at_10pct_not_certified"] for x in block["seven_methods"])
-        assert all(x["passed_bootstrap_data_gate"] for x in block["seven_methods"])
+        # Artificially constant weekly data has degenerate variance and MUST NOT appear significant.\n        assert all(not x["passed_bootstrap_data_gate"] for x in block["seven_methods"])\n        assert all(x["p_two_sided_null_centered_exploratory"] == 1.0 for x in block["seven_methods"])
 
 
 def test_two_period_screen_is_descriptive_even_if_everything_positive(monkeypatch:pytest.MonkeyPatch) ->None:
