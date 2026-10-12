@@ -90,7 +90,7 @@ class Frozen252WeeklyTest(unittest.TestCase):
                     self.assertEqual(r["turnover_sides"],0.)
 
     def test_no_reserved_holdout(self):
-        d=bars(400,start=dt.date(2023,1,1))
+        d=bars(500,start=dt.date(2023,1,1))
         self.assertTrue(any(x["date"]>=t.EMBARGO for x in d))
         with self.assertRaisesRegex(ValueError,"HOLDOUT_INPUT_PROHIBITED"):
             t.evaluate_one("GBPUSD",d)
