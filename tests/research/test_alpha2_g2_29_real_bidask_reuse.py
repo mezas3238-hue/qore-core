@@ -64,7 +64,8 @@ def test_2026_quote_side_is_strictly_out_of_scope(tmp_path):
 def test_wrong_decoded_price_cannot_be_claimed_as_provider_quote(tmp_path):
     meta,sha,_,human=fixture(tmp_path)
     rows=human.read_text().splitlines()
-    d=json.loads(rows[0]);d["price"]="0.00000"
+    d=json.loads(rows[0])
+    d["price"]="0.00000"
     human.write_text(json.dumps(d)+"\n"+"\n".join(rows[1:])+"\n")
     sha[human.name]=digest(human)
     meta["decoded_sha256"]=sha[human.name]
@@ -75,9 +76,11 @@ def test_wrong_decoded_price_cannot_be_claimed_as_provider_quote(tmp_path):
 def test_outside_source_time_even_if_file_is_rehashed(tmp_path):
     meta,sha,raw,_=fixture(tmp_path)
     rows=raw.read_text().splitlines()
-    d=json.loads(rows[0]);d["epoch_ms"]=int(
+    d=json.loads(rows[0])
+    d["epoch_ms"]=int(
         datetime.fromisoformat(WINDOWS[1][0]).timestamp()*1000)
     raw.write_text(json.dumps(d)+"\n"+"\n".join(rows[1:])+"\n")
-    sha[raw.name]=digest(raw);meta["native_int_sha256"]=sha[raw.name]
+    sha[raw.name]=digest(raw)
+    meta["native_int_sha256"]=sha[raw.name]
     with pytest.raises(ValueError,match="SOURCE_INVALID"):
         audit_two_sides(tmp_path,"EURCHF",1,WINDOWS[0],"BID",meta,sha)
