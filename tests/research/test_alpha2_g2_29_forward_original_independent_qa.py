@@ -107,7 +107,7 @@ def test_29_original_sha_and_per_market_bidask_reconcile(tmp_path):
 def test_native_quote_value_mutation_must_break_original_checksum(tmp_path):
     original=tmp_path/"original"
     names,_=fixture(original)
-    path=original/names[0]
+    path=original/next(name for name in names if name.startswith("firstrecv-"))
     path.write_text(path.read_text().replace("100005","100006"))
     with pytest.raises(ValueError,match="SHA256_TAMPERED"):
         inspect_original(original)
