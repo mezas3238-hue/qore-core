@@ -36,6 +36,18 @@ def _env(name: str) -> str:
     return value
 
 
+def select_complete_credential_bundle() -> str:
+    """Never mix tokens/client IDs between app grants or rotate secrets."""
+    key_names = ("CLIENT_ID", "CLIENT_SECRET", "ACCESS_TOKEN", "REFRESH_TOKEN")
+    for prefix in ("QORE_CTRADER_DEMO_", "QORE_CTRADER_"):
+        values = {suffix: os.environ.get(prefix + suffix, "") for suffix in key_names}
+        if all(values.values()):
+            for suffix, value in values.items():
+                os.environ["QORE_CTRADER_" + suffix] = value
+            return "DEMO_ALIAS_BUNDLE" if prefix.endswith("DEMO_") else "GENERIC_BUNDLE"
+    raise ValueError("NO_COMPLETE_CTRADER_OAUTH_BUNDLE")
+
+
 def classify_accounts(items: Iterable[object], permission: object) -> tuple[int, str]:
     if type(permission) is not int or permission not in (0, 1):
         raise ValueError("READ_ONLY_PERMISSION_UNRECOGNIZED")
@@ -97,6 +109,7 @@ def match_catalog(entries: Iterable[object]) -> dict[str, object]:
 
 
 def probe_catalog() -> dict[str, object]:
+    selected_bundle = select_complete_credential_bundle()
     bindings = _SdkBindings()
     required = (
         "ProtoOAApplicationAuthReq", "ProtoOAApplicationAuthRes",
@@ -184,6 +197,7 @@ def probe_catalog() -> dict[str, object]:
             "broker_label": broker,
             "broker_identity_verified_from_account": True,
             "token_refreshed": False,
+            "credential_bundle_type": selected_bundle,
             "account_is_live": False,
             "source_only": True, "live_authorized": False,
             "economic_replay_authorized": False,
