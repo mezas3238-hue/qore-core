@@ -1,0 +1,42 @@
+name: QORE Alpha2 source-pinned signal census 33 (no PnL)
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-signal-density-no-pnl.yml'
+      - 'src/qore/research/alpha2_signal_census.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  post_source_census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'ruff>=0.5,<1'
+      - name: Static lint and no-outcome contract
+        run: |
+          ruff check src/qore/research/alpha2_signal_census.py
+      - name: Fetch exact original 33 signal-only PATR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: alpha2-patr-ultra-fast-33-signal-only-a0841226934f1140817a52db72c47141623a8aa4
+          run-id: '38268654596'
+          github-token: ${{ github.token }}
+          path: original-ledger
+      - name: Source-pinned signal coverage (no price, no PnL)
+        run: |
+          python -m qore.research.alpha2_signal_census original-ledger census
+          printf '%s\n' "$GITHUB_SHA" > census/diagnostic-code-head-sha.txt
+          (cd census && sha256sum alpha2-33-signal-density-source-only.json diagnostic-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-alpha2-33-signal-density-${{ github.sha }}
+          path: census/
+          retention-days: 90
+          if-no-files-found: error
