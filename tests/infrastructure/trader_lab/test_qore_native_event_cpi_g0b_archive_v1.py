@@ -97,6 +97,17 @@ def test_header_effective_release_checked_not_just_index(
     assert "actual" not in report and "forecast" not in report
 
 
+
+def test_original_bls_2016_cp1252_title_delimiter() -> None:
+    original = (b"Transmission of material in this release is embargoed until "
+                b"8:30 a.m. (EDT) October 18, 2016 "
+                b"CONSUMER PRICE INDEX " + bytes([0x96]) +
+                b" SEPTEMBER 2016")
+    assert m.parse_header(m.decode_archived_header(original)) == (
+        "2016-10-18", "September", 2016
+    )
+
+
 def test_archive_header_wrong_date_cannot_be_counted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
