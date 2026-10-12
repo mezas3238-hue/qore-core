@@ -180,6 +180,7 @@ def probe_catalog() -> dict[str, object]:
         catalog = match_catalog(getattr(symbols, "symbol", ()))
         return {
             "identity": IDENTITY, "status": "ICMARKETS_DEMO_CATALOG_VERIFIED",
+            "_ephemeral_account_id": account_id,
             "broker_label": broker,
             "broker_identity_verified_from_account": True,
             "token_refreshed": False,
@@ -204,6 +205,7 @@ def main() -> None:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     try:
         report = probe_catalog()
+        report.pop("_ephemeral_account_id", None)
     except (ValueError, OSError, RuntimeError) as exc:
         # Never serialize exception text from network transport or tokens.
         report = {
