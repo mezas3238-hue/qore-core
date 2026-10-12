@@ -149,7 +149,7 @@ def probe_catalog() -> dict[str, object]:
             _method(deferred, "addCallbacks")(ok, bad)
         _method(reactor, "callFromThread")(send)
         if not done.wait(16.0) or not responses:
-            raise ValueError("BROKER_READ_ONLY_AUTH_OR_REQUEST_FAILED")
+            raise ValueError("READ_ONLY_REQUEST_FAILED_AT_" + cid.upper().replace("-", "_"))
         try:
             return bindings.extract(responses[0])
         except (ValueError, KeyError, TypeError) as exc:
@@ -220,9 +220,31 @@ def main() -> None:
         report = probe_catalog()
         report.pop("_ephemeral_account_id", None)
     except (ValueError, OSError, RuntimeError) as exc:
-        # Never serialize exception text from network transport or tokens.
+        # Only whitelisted static diagnostic codes are published, never raw
+        # connection error text, URLs, tokens or arbitrary exception payloads.
+        static_codes = {
+            "NO_COMPLETE_CTRADER_OAUTH_BUNDLE",
+            "READ_ONLY_PERMISSION_UNRECOGNIZED",
+            "INVALID_DEMO_ACCOUNT_ID",
+            "BROKER_NAME_MISSING",
+            "REQUIRE_EXACT_ONE_ICMARKETS_DEMO_ACCOUNT",
+            "SDK_REQUIRED_PROTO_MISSING",
+            "CTRADER_DEMO_TLS_CONNECT_FAILED",
+            "CTRADER_APP_AUTH_FAILED",
+            "CTRADER_ACCESS_TOKEN_INVALID_NO_REFRESH_ATTEMPTED",
+            "DEMO_ACCOUNT_AUTH_FAILED",
+            "DEMO_SYMBOLS_LIST_FAILED",
+            "AMBIGUOUS_BROKER_SYMBOL_ALIAS",
+            "BAD_PROVIDER_SYMBOL_ID",
+            "READ_ONLY_REQUEST_FAILED_AT_APP",
+            "READ_ONLY_REQUEST_FAILED_AT_ACCOUNTS",
+            "READ_ONLY_REQUEST_FAILED_AT_ACCOUNT_AUTH",
+            "READ_ONLY_REQUEST_FAILED_AT_SYMBOLS",
+        }
+        code = str(exc) if type(exc) is ValueError else ""
         report = {
             "identity": IDENTITY, "status": "ICMARKETS_DEMO_AUTH_OR_CATALOG_BLOCKED",
+            "safe_blocker": code if code in static_codes else "UNCLASSIFIED_SAFE_FAIL_CLOSED",
             "error_class": type(exc).__name__,
             "broker_identity_verified_from_account": False,
             "token_refreshed": False, "source_only": True,
