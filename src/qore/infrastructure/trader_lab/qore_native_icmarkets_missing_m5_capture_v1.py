@@ -45,6 +45,28 @@ def _history_scope_allowed(scope: object) -> bool:
 class _ReadOnlyIcMarketsHistoryClient(SpotwareCTraderOpenApiClient):
     """History-only DEMO adapter accepting SCOPE_VIEW=0 without SDK changes."""
 
+    # This is a security boundary, not just a description: even an accidental
+    # downstream call to this client cannot submit an order or mutate an account.
+    _HISTORY_ONLY_REQUEST_NAMES = frozenset({
+        "ProtoOAApplicationAuthReq",
+        "ProtoOAGetAccountListByAccessTokenReq",
+        "ProtoOAAccountAuthReq",
+        "ProtoOASymbolsListReq",
+        "ProtoOASymbolByIdReq",
+        "ProtoOAGetTrendbarsReq",
+    })
+
+    def request(self, message_name, fields, *, client_msg_id, timeout_seconds):
+        if message_name not in self._HISTORY_ONLY_REQUEST_NAMES:
+            return Failure(CTraderOpenApiProtocolError(
+                "HISTORY_ONLY_MESSAGE_NOT_ALLOWED"
+            ))
+        return super().request(
+            message_name, fields,
+            client_msg_id=client_msg_id,
+            timeout_seconds=timeout_seconds,
+        )
+
     def _refresh_tokens(self):
         return Failure(CTraderOpenApiProtocolError(
             "REAUTH_REQUIRED_NO_TOKEN_REFRESH_PERMITTED"
