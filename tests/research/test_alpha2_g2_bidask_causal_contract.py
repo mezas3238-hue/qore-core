@@ -89,3 +89,18 @@ def test_non_utc_and_nonfinite_are_rejected():
         quote(at=t, available=t)
     with pytest.raises(BrokerEvidenceError, match="nonfinite"):
         quote(bid=float("nan"))
+
+
+def test_zero_spread_research_quote_must_never_become_free_fill():
+    q = quote(bid=100.0, ask=100.0)
+    assert q.spread == 0
+    with pytest.raises(BrokerEvidenceError, match="ZERO_OR_CROSSED_SPREAD_QUARANTINED"):
+        causal_side_reference(q, position_direction=1, action="entry")
+    with pytest.raises(BrokerEvidenceError, match="ZERO_OR_CROSSED_SPREAD_QUARANTINED"):
+        causal_side_reference(q, position_direction=-1, action="exit")
+
+
+def test_boolean_direction_is_not_an_actual_signed_order_direction():
+    q = quote()
+    with pytest.raises(BrokerEvidenceError, match="invalid trading side"):
+        causal_side_reference(q, position_direction=True, action="entry")
