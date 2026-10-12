@@ -70,7 +70,7 @@ def test_negative_momentum_has_short_direction_and_gross_gain_downtrend():
 def test_control_can_differ_caused_by_last_five_reversal():
     d = sample_days()
     for i in range(255, 262):
-        d[i] = Day(d[i].utc_day, 10000 + 262 - i, 10000 + 262 - i, 36)
+        d[i] = Day(d[i].utc_day, 10200 + 262 - i, 10000 + 262 - i, 36)
     primary, control = directions_before_entry(d, 262)
     assert primary == 1
     assert control == -1
@@ -82,6 +82,7 @@ def test_zero_long_lookback_abstains_for_that_week():
     d[at-1] = Day(d[at-1].utc_day, d[at-1].open,
                    d[at-253].close, 36)
     assert directions_before_entry(d, at)[0] == 0
+    d = [Day(x.utc_day, 100, 100, 36) for x in d]
     x = replay_days("EURUSD", d)
     assert x["not_entered_week_counts"]["ZERO_PRIOR_MOMENTUM_OR_BASELINE_CENSORED"] >= 1
 
