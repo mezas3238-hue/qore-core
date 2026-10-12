@@ -1,0 +1,142 @@
+name: VT31 Fixed 1p60 Bid Ask Source Scenario 3Y
+
+on:
+  push:
+    branches:
+      - agent/vt31-bidask-tick-evidence-20261012
+    paths:
+      - scripts/vt31_shadow_opposite_pivot_ab_v1.py
+      - scripts/vt31_shadow_ab_3y_runner.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/fixed_spread_quote_scenario.py
+      - tests/infrastructure/test_vt31_fixed_spread_quote_scenario.py
+      - docs/research/VT31_OPPOSITE_PIVOT_AB_PREREGISTRATION_2026-10-10.md
+      - .github/workflows/vt31-fixed-spread-1p60-3y.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-fixed1p60-source-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  FROZEN_SOURCE_ID: "11459859004"
+  VT31_INPUT_SOURCE_SHA256: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+
+jobs:
+  m1-nas100-static-ndx100-snapshot-spread:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install scientific research requirements
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m pip install "ijson>=3.3,<4"
+      - name: Strict new script + tests + native prefill invariants
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_shadow_opposite_pivot_ab_v1.py scripts/vt31_shadow_ab_3y_runner.py src/qore/infrastructure/traders/vt31_ict_cleanroom/fixed_spread_quote_scenario.py tests/infrastructure/test_vt31_fixed_spread_quote_scenario.py
+          ruff check scripts/vt31_shadow_opposite_pivot_ab_v1.py scripts/vt31_shadow_ab_3y_runner.py src/qore/infrastructure/traders/vt31_ict_cleanroom/fixed_spread_quote_scenario.py tests/infrastructure/test_vt31_fixed_spread_quote_scenario.py
+          PYTHONPATH=src pytest -q -o addopts='' tests/infrastructure/test_vt31_fixed_spread_quote_scenario.py tests/infrastructure/test_vt31_ict_cleanroom_cog_revocation_forensics.py tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py tests/infrastructure/test_vt31_ict_cleanroom_ops.py tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py
+          PYTHONPATH=src python scripts/vt31_shadow_ab_3y_runner.py --self-test
+      - name: Restore actual frozen owner-consumed NAS100 M1 and verify byte digest
+        run: |
+          set -euo pipefail
+          mkdir -p input output
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FROZEN_SOURCE_ID}" --jq '{id,expired,name}' | tee output/source-artifact.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("output/source-artifact.json").read_text())
+          assert a["id"]==11459859004 and a["expired"] is False
+          PY
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FROZEN_SOURCE_ID}/zip" > frozen.zip
+          unzip -q frozen.zip -d input
+          test "$(sha256sum input/NAS100/market-evidence.json | cut -d ' ' -f 1)" = "${VT31_INPUT_SOURCE_SHA256}"
+          printf '%s\n' "${VT31_INPUT_SOURCE_SHA256}" > output/market-evidence-sha256.txt
+      - name: Paired 3Y original M1 source A/B without broker fills
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src python scripts/vt31_shadow_ab_3y_runner.py \
+            --evidence input/NAS100/market-evidence.json \
+            --output output/vt31-fixed-spread-1p60-source-3y.json \
+            | tee output/summary.json
+      - name: Paired source parity / preregistered statistics / zero execution
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('output/vt31-fixed-spread-1p60-source-3y.json').read_text())
+          assert d['base']=='VT31_NAS100_OWNER_3Y_BASE_001'
+          assert d['market_M1']==1059784
+          assert d['registered_trader_count']==1
+          assert d['models']==['LONDON','NEW_YORK']
+          assert d['cog_and_OPS_M1_calls']==137160
+          assert d['full_source_hours']=={
+            'VT31_LONDON':774,'VT31_NY_AM':771,'VT31_NY_PM':741}
+          assert d['first_FVG_same_in_both']=={
+            'VT31_LONDON':766,'VT31_NY_AM':721,'VT31_NY_PM':653}
+          n=sum(d['first_FVG_same_in_both'].values())
+          assert n==2140
+          assert len(d['paired_candidate_records'])==n
+          assert sum(d['paired_contingency_by_window'].values())==n
+          assert sum(d['A_mutually_exclusive_labels'].values())==n
+          assert sum(d['B_mutually_exclusive_labels'].values())==n
+          assert sum(d['A_original_OPS_source_terminal'].values())==n
+          assert sum(d['B_protected_swing_shadow_source_terminal'].values())==n
+          assert d['original_P0_pending_without_COG']==0
+          q=d['fixed_spread_1p60_scenario']
+          assert q['observed_single_MT5_NDX100_bid']=='30853.00'
+          assert q['observed_single_MT5_NDX100_ask']=='30854.60'
+          assert q['spread_price_points_applied_to_all_historical_M1']=='1.60'
+          assert q['hypothesis_historical_M1_price_basis']=='MID_ASSUMED_NOT_VERIFIED'
+          assert q['source_symbol']=='NAS100'
+          assert q['screenshot_symbol']=='NDX100'
+          assert not q['source_symbol_equivalence_broker_verified']
+          assert q['not_full_historical_quote_series']
+          assert q['does_not_resolve_same_minute_CE_cancel_ambiguity']
+          assert q['simulated_fill_count']==0
+          assert q['broker_confirmed_fill_count']==0
+          cnt=q['price_only_original_clean_CE_quote_side_stress_by_window']
+          for ses in ('VT31_LONDON','VT31_NY_AM','VT31_NY_PM'):
+              for arm in ('A','B'):
+                  supported=cnt.get(ses+'|'+arm+'_QUOTE_SIDE_REACHABLE',0)
+                  excluded=cnt.get(ses+'|'+arm+'_CE_NOT_SUPPORTED_AT_1P60',0)
+                  original=sum(
+                      value for label,value in d[
+                        arm+'_mutually_exclusive_labels'
+                      ].items()
+                      if label==ses+'|VALID_CE'
+                  )
+                  assert supported+excluded==original
+          e=d['preregistered_primary_endpoint']
+          assert e['population_original_first_FVGs']==2140
+          assert e['min_net_B_advantage_percentage_points']==5.0
+          assert e['max_B_indeterminate_percentage']==10.0
+          assert not e['authorized_for_real_money_or_production']
+          assert d['multiple_comparisons']['three_windows_secondary_exploratory']
+          g=d['guards']
+          assert g['broker_fills_confirmed']==0
+          assert g['profit_factor_drawdown_sharpe'] is None
+          assert g['holdout_sealed']
+          assert not g['live_authorized']
+          PY
+      - name: Immutable source and forensic output signatures
+        run: |
+          echo "${GITHUB_SHA}" > output/source-git-sha.txt
+          (cd output && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd output && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-fixed-spread-1p60-simulation-real-3y-${{ github.sha }}
+          path: output/
+          if-no-files-found: error
+          retention-days: 90

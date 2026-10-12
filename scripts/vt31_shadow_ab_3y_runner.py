@@ -30,6 +30,13 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     MethodologyDecision,
     utc,
 )
+from qore.infrastructure.traders.vt31_ict_cleanroom.fixed_spread_quote_scenario import (
+    FIXED_SPREAD,
+    HALF_SPREAD,
+    SCREENSHOT_ASK,
+    SCREENSHOT_BID,
+    SyntheticM1QuoteBounds,
+)
 from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
 
 SCHEMA = "qore.vt31.one_trader.source_AB_protected_pivot.v2"
@@ -79,6 +86,7 @@ def scan(rows):
     full, partial, born = Counter(), Counter(), Counter()
     proven_pivot, arm_a, arm_b = Counter(), Counter(), Counter()
     a_ce, b_ce, mid = Counter(), Counter(), Counter()
+    fixed_spread_scenario_by_window = Counter()
     contingency, a_labels, b_labels = Counter(), Counter(), Counter()
     paired_records = []
     samples = []
@@ -103,6 +111,8 @@ def scan(rows):
         recent = []
         a_touched, a_ambiguous = False, False
         a_target_before_ce = False
+        a_first_clean_ce_side_reachable = False
+        b_first_clean_ce_side_reachable = False
         for bar in pending:
             prior_ops = trader._windows.get(source_key)
             prior_phase = prior_ops.decision if prior_ops else None
@@ -135,6 +145,9 @@ def scan(rows):
                 continue
             ce = shadow.source_ce
             overlaps = bar.low <= ce <= bar.high
+            quote_side_reachable = SyntheticM1QuoteBounds.from_mid_m1(
+                bar
+            ).eligible_quote_side_reachable(shadow.side, ce)
             if (
                 ops.decision is MethodologyDecision.RESEARCH_PENDING_CE
                 and obs.cognition and obs.cognition.decision is None
@@ -148,6 +161,8 @@ def scan(rows):
                 )
             ):
                 a_touched = True
+                if quote_side_reachable:
+                    a_first_clean_ce_side_reachable = True
             if (
                 prior_phase is MethodologyDecision.RESEARCH_PENDING_CE
                 and not a_touched and not overlaps
@@ -164,7 +179,14 @@ def scan(rows):
                 and ops.event_at == bar.closed_at
             ):
                 a_ambiguous = True
+            before_b = shadow.outcome
             shadow.on_m1(bar, cognition, tuple(recent), session)
+            if (
+                before_b == "OPEN"
+                and shadow.outcome == "CE_OVERLAP_NOT_BROKER_FILL"
+                and quote_side_reachable
+            ):
+                b_first_clean_ce_side_reachable = True
         if shadow:
             shadow.finish()
             ops = trader._windows[source_key]
@@ -173,6 +195,20 @@ def scan(rows):
                 target_before_ce=a_target_before_ce,
             )
             lab_b = classify_b(shadow.outcome)
+            a_stress = lab_a == "VALID_CE" and a_first_clean_ce_side_reachable
+            b_stress = lab_b == "VALID_CE" and b_first_clean_ce_side_reachable
+            if a_stress:
+                fixed_spread_scenario_by_window[session.value + "|A_QUOTE_SIDE_REACHABLE"] += 1
+            if b_stress:
+                fixed_spread_scenario_by_window[session.value + "|B_QUOTE_SIDE_REACHABLE"] += 1
+            if lab_a == "VALID_CE" and not a_stress:
+                fixed_spread_scenario_by_window[session.value + "|A_CE_NOT_SUPPORTED_AT_1P60"] += 1
+            if lab_b == "VALID_CE" and not b_stress:
+                fixed_spread_scenario_by_window[session.value + "|B_CE_NOT_SUPPORTED_AT_1P60"] += 1
+            if b_stress and not a_stress:
+                fixed_spread_scenario_by_window[session.value + "|B_ONLY_PROXY_CE"] += 1
+            if a_stress and not b_stress:
+                fixed_spread_scenario_by_window[session.value + "|A_ONLY_PROXY_CE"] += 1
             contingency[session.value + "|" + lab_a + "|" + lab_b] += 1
             a_labels[session.value + "|" + lab_a] += 1
             b_labels[session.value + "|" + lab_b] += 1
@@ -196,6 +232,8 @@ def scan(rows):
                     if shadow.first_opposing_fvg_at else None
                 ),
                 "B_mid_only_post_ce": shadow.exit_after_ce,
+                "A_original_clean_CE_quote_side_reachable_1p60": a_stress,
+                "B_original_clean_CE_quote_side_reachable_1p60": b_stress,
                 "real_broker_fill_proven": False,
             })
             arm_a[session.value + "|" + ops.decision.value] += 1
@@ -284,6 +322,27 @@ def scan(rows):
         "B_CE_overlap_M1_not_fill": dict(sorted(b_ce.items())),
         "B_after_CE_mid_price_only": dict(sorted(mid.items())),
         "original_P0_pending_without_COG": p0,
+        "fixed_spread_1p60_scenario": {
+            "observed_single_MT5_NDX100_bid": str(SCREENSHOT_BID),
+            "observed_single_MT5_NDX100_ask": str(SCREENSHOT_ASK),
+            "spread_price_points_applied_to_all_historical_M1": str(FIXED_SPREAD),
+            "hypothesis_historical_M1_price_basis": "MID_ASSUMED_NOT_VERIFIED",
+            "synthetic_bid_minus_M1_price_points": str(HALF_SPREAD),
+            "synthetic_ask_plus_M1_price_points": str(HALF_SPREAD),
+            "source_symbol": "NAS100",
+            "screenshot_symbol": "NDX100",
+            "source_symbol_equivalence_broker_verified": False,
+            "price_only_original_clean_CE_quote_side_stress_by_window": dict(
+                sorted(fixed_spread_scenario_by_window.items())
+            ),
+            "comparison_only_on_original_unambiguous_CE_M1": True,
+            "not_full_historical_quote_series": True,
+            "does_not_resolve_same_minute_CE_cancel_ambiguity": True,
+            "simulated_fill_count": 0,
+            "broker_confirmed_fill_count": 0,
+            "historical_actual_bid_ask_available": False,
+            "eligible_for_production": False,
+        },
         "paired_contingency_by_window": dict(sorted(contingency.items())),
         "A_mutually_exclusive_labels": dict(sorted(a_labels.items())),
         "B_mutually_exclusive_labels": dict(sorted(b_labels.items())),
