@@ -1,0 +1,212 @@
+name: QORE Native E1-E2 all33 x seven frozen gross-only methods no LIVE
+
+on:
+  push:
+    branches:
+      - research/qore-native-adr002-all33-cross-methodology-20261012
+    paths:
+      - '.github/workflows/qore-native-e1-e2-all33-seven-methods.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_e1_33x7_seven_gross_per_market_v1.py'
+      - 'src/qore/infrastructure/trader_lab/qore_native_e2_33x7_holm_synchronized_weeks_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_e1_33x7_seven_gross_per_market_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_e2_33x7_holm_synchronized_weeks_v1.py'
+      - 'docs/research/QORE_NATIVE_E1_33X7_FROZEN_RULES_BEFORE_NEW_OUTCOMES_2026-10-12.md'
+      - 'docs/research/QORE_NATIVE_E2_33X7_PRE_OUTCOME_MULTIPLICITY_CLUSTER_PLAN_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-native-e1e2-all33-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  freeze_causes_and_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]' 'numpy>=2,<3'
+      - name: Verify prereg E1/E2 ancestors BEFORE 33 price-ledger jobs
+        run: |
+          set -euo pipefail
+          git cat-file -e 67022daf7e2c3335eda991fd217df83fc1a34bc4^{commit}
+          git merge-base --is-ancestor 67022daf7e2c3335eda991fd217df83fc1a34bc4 "$GITHUB_SHA"
+          git cat-file -e eb92611da14868e0677845d1d08436402e4725ca^{commit}
+          git merge-base --is-ancestor eb92611da14868e0677845d1d08436402e4725ca "$GITHUB_SHA"
+          test -s docs/research/QORE_NATIVE_E1_33X7_FROZEN_RULES_BEFORE_NEW_OUTCOMES_2026-10-12.md
+          test -s docs/research/QORE_NATIVE_E2_33X7_PRE_OUTCOME_MULTIPLICITY_CLUSTER_PLAN_2026-10-12.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_e1_33x7_seven_gross_per_market_v1.py src/qore/infrastructure/trader_lab/qore_native_e2_33x7_holm_synchronized_weeks_v1.py tests/infrastructure/trader_lab/test_qore_native_e1_33x7_seven_gross_per_market_v1.py tests/infrastructure/trader_lab/test_qore_native_e2_33x7_holm_synchronized_weeks_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_e1_33x7_seven_gross_per_market_v1.py tests/infrastructure/trader_lab/test_qore_native_e2_33x7_holm_synchronized_weeks_v1.py
+
+  original12_e1_all_seven:
+    needs: freeze_causes_and_tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        symbol: [AUDJPY, AUDUSD, EURUSD, GBPJPY, GBPUSD, NAS100, SP500, US30, USDCAD, USDJPY, XAGUSD, XAUUSD]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Read-only signed original 33 source manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: signed-parent33
+      - name: Original12 SHA immutable source aggregate
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original12-aggregate
+      - name: Download one signed source without broker, one of twelve
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: raw-provider-M5
+      - name: Reaudit eleven annual source hashes then run seven E1 prereg gross references
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_e1_33x7_seven_gross_per_market_v1 "$SYMBOL" raw-provider-M5 signed-parent33 seven-e1 --original12-aggregate original12-aggregate
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          s=os.environ["SYMBOL"]
+          r=json.loads(Path(f"seven-e1/qore-native-e1-seven-{s}.json").read_text())
+          assert r["original_symbol"]==s
+          assert r["frozen_prereg_commit"]=="67022daf7e2c3335eda991fd217df83fc1a34bc4"
+          assert r["source33_sha"]=="1291d5c2efb4e51c2698ea25ad420a01a213dc405b5070c37efbce4131606b85"
+          assert r["source_audit"]["original_raw_11_year_sha_checked"]
+          assert r["source_audit"]["source_cohort"]=="ORIGINAL12_DEMO"
+          assert len(r["seven_methods"])==7 and r["future_ohlc_not_read"]
+          assert r["traders_certified"]==0 and not r["net_certified"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > seven-e1/exact-code-head-sha.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-native-e1-seven-${{ matrix.symbol }}-${{ github.sha }}
+          path: seven-e1/
+          retention-days: 90
+          if-no-files-found: warn
+
+  new21_e1_all_seven:
+    needs: freeze_causes_and_tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        symbol: [USDCHF, NZDUSD, EURGBP, EURJPY, EURCHF, EURCAD, EURAUD, EURNZD, GBPCHF, GBPCAD, GBPAUD, GBPNZD, AUDCAD, AUDCHF, AUDNZD, CADJPY, CADCHF, CHFJPY, NZDJPY, NZDCAD, NZDCHF]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Read-only signed original 33 source manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: signed-parent33
+      - name: Download one signed source without broker, one of twenty-one
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-${{ matrix.symbol }}-e0ca5a13c866a19d8505c68cffc473598984b340
+          run-id: '38193802541'
+          github-token: ${{ github.token }}
+          path: raw-provider-M5
+      - name: Reaudit eleven annual source hashes then run seven E1 prereg gross references
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_e1_33x7_seven_gross_per_market_v1 "$SYMBOL" raw-provider-M5 signed-parent33 seven-e1
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          s=os.environ["SYMBOL"]
+          r=json.loads(Path(f"seven-e1/qore-native-e1-seven-{s}.json").read_text())
+          assert r["original_symbol"]==s
+          assert r["frozen_prereg_commit"]=="67022daf7e2c3335eda991fd217df83fc1a34bc4"
+          assert r["source33_sha"]=="1291d5c2efb4e51c2698ea25ad420a01a213dc405b5070c37efbce4131606b85"
+          assert r["source_audit"]["original_raw_11_year_sha_checked"]
+          assert r["source_audit"]["source_cohort"]=="NEW21_ICMARKETS_DEMO"
+          assert len(r["seven_methods"])==7 and r["future_ohlc_not_read"]
+          assert r["traders_certified"]==0 and not r["net_certified"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > seven-e1/exact-code-head-sha.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-native-e1-seven-${{ matrix.symbol }}-${{ github.sha }}
+          path: seven-e1/
+          retention-days: 90
+          if-no-files-found: warn
+
+  aggregate_all_231_week_Holm:
+    needs: [original12_e1_all_seven, new21_e1_all_seven]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'numpy>=2,<3'
+      - name: Download all 33 signed E1 original source+seven methods from exact code SHA
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-native-e1-seven-*-${{ github.sha }}
+          path: signed-e1-per-market
+      - name: Compute 231 cells, common synchronized calendar weeks and Holm adjustment
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_e2_33x7_holm_synchronized_weeks_v1 signed-e1-per-market complete-e2
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          r=json.loads(Path("complete-e2/qore-native-e2-33x7-full-gross-results.json").read_text())
+          assert r["markets"]==33 and r["methods"]==7 and r["all_fixed_cells"]==231
+          assert r["2024_09_17_onward_prices_embargoed"] and r["traders_certified"]==0
+          assert r["net_PF_sharpe_sortino_DD_not_certified"]
+          assert r["old_33_sweep_results_not_independent_confirmation"]
+          for k in ("development","temporal_diagnostic"):
+              p=r[k]
+              assert len(p["cells"])==231
+              assert p["one_shared_synced_week_calendar"]
+              assert p["comparison_count_Holm"]==231
+              assert p["bootstrap_draws"]==20000
+              assert all(not x["net_broker_certification"] for x in p["cells"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > complete-e2/exact-code-head-sha.txt
+          (cd complete-e2 && sha256sum qore-native-e2-33x7-full-gross-results.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-e2-all231-gross-Holm-${{ github.sha }}
+          path: complete-e2/
+          retention-days: 90
+          if-no-files-found: error
