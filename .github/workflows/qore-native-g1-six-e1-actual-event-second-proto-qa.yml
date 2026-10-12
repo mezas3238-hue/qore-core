@@ -1,0 +1,118 @@
+name: QORE Native G1 original Protobuf E1 6 pairs second SHA and causal asof gate
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-six-e1-original-protobuf-asof-independent-qa-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-six-e1-actual-event-second-proto-qa.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_six_e1_original_proto_bidask_pair_qa_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_six_e1_original_proto_bidask_pair_qa_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  actual_e1_six_source_clock_proto_sha_causal_asof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Research-only protobuf and test dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Synthetic negative source SHA proto and zero/stale gate checks
+        run: |
+          set -euo pipefail
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_six_e1_original_proto_bidask_pair_qa_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_six_e1_original_proto_bidask_pair_qa_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_six_e1_original_proto_bidask_pair_qa_v1.py
+      - name: Verify six quote source original artifact ZIP and E1 signed witnesses original HEAD SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          from qore.infrastructure.trader_lab import qore_native_g1_six_e1_original_proto_bidask_pair_qa_v1 as audit
+          records=[(audit.SOURCE_ARTIFACT,audit.SOURCE_ZIP_SHA256,audit.SOURCE_RUN,audit.SOURCE_HEAD)]
+          for sym in ("GBPUSD","SP500","USDJPY","XAGUSD"):
+              art,digest=audit.e1.ARTIFACTS[sym]
+              records.append((art,digest,audit.e1.E1_SOURCE_RUN,audit.e1.E1_CODE_SHA))
+          for artifact,digest,run,head in records:
+              url="https://api.github.com/repos/mezas3238-hue/qore-core/actions/artifacts/"+str(artifact)
+              req=urllib.request.Request(url,headers={
+                  "Authorization":"Bearer "+os.environ["GH_TOKEN"],
+                  "Accept":"application/vnd.github+json",
+              })
+              with urllib.request.urlopen(req,timeout=15) as f: row=json.load(f)
+              assert row["id"]==artifact and row["expired"] is False
+              assert row["digest"]=="sha256:"+digest
+              assert row["workflow_run"]["id"]==run
+              assert row["workflow_run"]["head_sha"]==head
+          print("G1_SIX_GENUINE_NATIVE_SOURCE_AND_FOUR_SIGNED_E1_ARTIFACT_PROVENANCE_SHA_PASS")
+          PY
+      - name: Restore exact original native Protobuf BID ASK source for six research clocks
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-six-real-E1-source-clock-pairs-NOT-NET-7b7cd8339a4a1d135f531db90fd3931213708de4
+          run-id: '38293565282'
+          github-token: ${{ github.token }}
+          path: original-native-pairs
+      - name: Recover original signed E1 research event witness GBPUSD
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e1-seven-GBPUSD-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: signed-e1/GBPUSD
+      - name: Recover original signed E1 research event witness SP500
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e1-seven-SP500-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: signed-e1/SP500
+      - name: Recover original signed E1 research event witness USDJPY
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e1-seven-USDJPY-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: signed-e1/USDJPY
+      - name: Recover original signed E1 research event witness XAGUSD
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e1-seven-XAGUSD-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: signed-e1/XAGUSD
+      - name: Independent replay original proto page SHA signed deltas and six true E1 event source asof at both clocks
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_six_e1_original_proto_bidask_pair_qa_v1 signed-e1 original-native-pairs verified-six-source-only
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          row=json.loads(Path("verified-six-source-only/G1_E1_SIX_REAL_RESEARCH_CLOCK_SOURCE_PROTO_ASOF_QA_NOT_NET.json").read_text())
+          assert row["status"]=="G1_SIX_ORIGINAL_E1_RESEARCH_EVENT_SOURCE_PROTO_PAIR_QA_PASS_NO_NET"
+          assert row["original_E1_research_opportunities"]==6
+          assert len(row["event_results"])==6
+          assert row["source_eligible_both_clocks"]+row["source_blocked_pairs"]==6
+          assert row["source_original_proto_tick_fields_independently_redecoded"]
+          assert not row["historical_NET_authorized"] and row["certified_traders"]==0
+          assert not row["real_broker_contract_equivalence_proven"]
+          assert all(not x["outcomes_signs_or_pnl_exported"] for x in row["event_results"])
+          print("SIX_E1_REAL_CLOCK_ORIGINAL_PROTO_SHA_ASOF_QUALITY_AUDITED_NO_NET")
+          PY
+          printf '%s\n' "$GITHUB_SHA" > verified-six-source-only/auditor-code-head.txt
+          (cd verified-six-source-only && sha256sum *.json auditor-code-head.txt > QA_REPORT_SHA256SUMS.txt)
+      - name: Publish six source quality verdicts ONLY, no raw provider prices or E1 future gross
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-six-real-E1-proto-independent-source-QA-NOT-NET-${{ github.sha }}
+          path: verified-six-source-only/
+          retention-days: 90
+          if-no-files-found: error
