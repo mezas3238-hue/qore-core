@@ -75,7 +75,7 @@ def test_control_undiscriminating_prevents_discovery_label():
     )
 
 
-def test_fixed_all33_and_asof_non_NET_guards():
+def test_fixed_all33_and_asof_non_net_guards():
     workers = synthetic_workers(truncate=True)
     del workers["AUDJPY"]
     with pytest.raises(ValueError, match="ALL33_MISSING_WORKER"):
