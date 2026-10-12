@@ -9,6 +9,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -118,6 +119,10 @@ def _native_fetch(
         timeout_seconds=35.0,
     )
     if isinstance(result, Failure):
+        # Do not disclose untrusted provider text or credentials in an artifact.
+        code = re.search(r"cTrader request rejected: ([A-Z][A-Z0-9_]{0,63})", str(result.error))
+        if code:
+            raise SourceBlock("NATIVE_TICK_PROVIDER_" + code.group(1))
         raise SourceBlock("NATIVE_TICK_PROVIDER_QUERY_FAILED")
     response = result.value
     if getattr(response, "ctidTraderAccountId", None) != client.account_id:
