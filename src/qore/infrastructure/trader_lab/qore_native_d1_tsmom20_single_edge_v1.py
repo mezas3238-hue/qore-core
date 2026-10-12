@@ -268,6 +268,10 @@ def market_experiment(symbol: str, bars: list[dict]) -> tuple[list[dict], dict]:
                 continue
             if ((openbar["date"] - prior["date"]).days > MAX_GAP_DAYS
                     or (exitbar["date"] - openbar["date"]).days > MAX_GAP_DAYS
+                    or openbar["entry_ts"].date() != openbar["date"]
+                    or exitbar["entry_ts"].date() != exitbar["date"]
+                    or openbar["entry_ts"].hour * 60 + openbar["entry_ts"].minute
+                       < FIRST_EXEC_MINUTE_UTC
                     or (prior["last_ts"] + timedelta(minutes=5)
                         + timedelta(seconds=MIN_SIGNAL_TO_ORDER_SECONDS)
                         > openbar["entry_ts"])):
