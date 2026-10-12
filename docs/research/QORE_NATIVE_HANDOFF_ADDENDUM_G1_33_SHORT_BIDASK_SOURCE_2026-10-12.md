@@ -112,3 +112,33 @@ En las 20 evaluaciones iniciales, `OK_POSITIVE_BIDASK=13`, `ZERO_SPREAD=5`, `STA
 ## 9. Issue concreta para la siguiente fase (NO utilizar checkpoints como trades)
 
 Creada [Issue P0 #863 — Timestamps causales de decisiones reales de los traders y cobertura source BID/ASK en ambos lados de operación](https://github.com/mezas3238-hue/qore-core/issues/863). La diferencia es crítica: los 20 pares `PR #862` usan tiempos de fuente FICTICIOS para probar el Gate, no eventos de trading. Para liberar un estudio real, el nuevo arquitecto debe congelar identificadores de señales/decisiones del motor 231, tiempos UTC pre-decision y cierre, contrato/broker SHA, sesgo de zona horaria y sesiones, luego testigos as-of de side BID/ASK con reglas de fuentes y comisiones reales. **No mezclar sample original 12 CIBO con broker actual antes de homologación #857, no imputar zeros #856, no usar holdout sellado ni anunciar NET/EDGE sin la cobertura.**
+
+## 10. NUEVA frontera G1: oportunidades E1 originales vs cotizaciones en ambos horarios (2026-10-12)
+
+**Descubrimiento y resolución parcial ejecutada en tres PRs independientes**; NO nuevo edge ni nuevas metodologías. Fuente signed E1 original 7×33 [Actions #38257207836](https://github.com/mezas3238-hue/qore-core/actions/runs/38257207836), HEAD `dfe78f115957a40f4188c30e78bd7f88c2ce6c42`, G0 SHA `1291d5c2efb4e51c2698ea25ad420a01a213dc405b5070c37efbce4131606b85`, solo DEV/DIAG ya investigados. Fuente Protobuf quote original [#859/#860](https://github.com/mezas3238-hue/qore-core/pull/860), BUY/SELL quote, no fill/fees.
+
+### P0-A — 56 oportunidades E1 originales y brecha real de fuente
+
+[PR #864](https://github.com/mezas3238-hue/qore-core/pull/864), [Actions #38293096998](https://github.com/mezas3238-hue/qore-core/actions/runs/38293096998) **SUCCESS**: coteja SHA de cinco artefactos E1 originales y sus 7 metodologías, timestamps UTC/DST/embargo pre-2024-09-17, salida **TEÓRICA** M5 (15/120/240 minutos según método), fuente BID/ASK Protobuf 2021-03-16 y 2023-03-21 [13:00,13:30). **56 oportunidades E1 método×símbolo** entre cinco mercados/dos fechas, 6 con entrada teórica en 13:00 pero sin cotización **anterior** a 13:00 dentro del fragmento; **0/56** contaban con entrada Y cierre teórico cubiertos, ya que ningún cierre E1 estaba en [13:00,13:30). [Artifact #11766827773](https://github.com/mezas3238-hue/qore-core/actions/runs/38293096998/artifacts/11766827773), ZIP SHA `966cf2ad2e39b3d216ee399a2978b48cb9904f0db629f8f5d69da099b476a093`. Datos históricos E1 contienen PnL gross ex post pero se descartaron al exportar; no son órdenes ejecutadas.
+
+### P0-B — Fuente original BID/ASK específicamente en 6 eventos E1, 2 clocks
+
+[PR #865](https://github.com/mezas3238-hue/qore-core/pull/865) [Actions #38293565282](https://github.com/mezas3238-hue/qore-core/actions/runs/38293565282) **SUCCESS**: 6/6 ventanas DOBLES completadas con BID y ASK originales IC Markets DEMO, account-free serialized `ProtoOATickData`, hasMore, SHA, entero↔decimal. **Seis filas preregistradas antes de consulta** por EXISTENCIA del E1 a las 13:00 y target-horizon M5 teórico a las 15:00 (nunca por retornos): SP500→US500 2021-03-16 y 2023-03-21 SWEEP; GBPUSD 2021-03-16 RANGE_BREAK; USDJPY 2021-03-16 RANGE_BREAK y 2023-03-21 SWEEP; XAGUSD 2023-03-21 SWEEP. Cada una tiene ventanas [12:55,13:05) y [14:55,15:05) UTC para permitir **as-of hacia atrás** en ambos clocks. ZIP fuente #11767003876, SHA `01075ecd534de104caf4fb8702aebef86468b611aafb5fcec366722ac12eea9b`, HEAD `7b7cd8339a4a1d135f531db90fd3931213708de4`.
+
+### P0-C — Segunda auditoría SHA/Protobuf de 13.445 source ticks + E1 signados
+
+[PR #866](https://github.com/mezas3238-hue/qore-core/pull/866), [Actions #38294099883](https://github.com/mezas3238-hue/qore-core/actions/runs/38294099883) **SUCCESS**, independent raw protobuf field decoder, split hasMore, 13 archivos SHA/evento, validación de 4 originales E1 por artifact original zip SHA, reloj DST, preembargo y versión. **13.445 ticks originales redecodificados; dato NO aditivo al 162.689 anterior, porque hay solapamiento [13:00,13:05) con capturas previas**. Resumen QA [artifact #11767229334](https://github.com/mezas3238-hue/qore-core/actions/runs/38294099883/artifacts/11767229334), ZIP SHA `f8906269cf04a56aed8e6803ed540f636f141f9953fde588de9b9293914ee132`. Todos los eventos con ingreso 13:00 y cierre teórico 15:00, tope 5s edad por lado, ASK>BID obligatorio.
+
+| Evento histórico E1 / fecha UTC | Source entry | Source cierre M5 teórico | Estado |
+|---|---|---|---|
+| SP500→US500 SWEEP 2021-03-16 | STALE | POSITIVO | RECHAZADO |
+| SP500→US500 SWEEP 2023-03-21 | POSITIVO | POSITIVO | FUENTE ELIGIBLE |
+| GBPUSD RANGE 2021-03-16 | ZERO | ZERO | RECHAZADO |
+| USDJPY RANGE 2021-03-16 | ZERO | ZERO | RECHAZADO |
+| USDJPY SWEEP 2023-03-21 | POSITIVO | POSITIVO | FUENTE ELIGIBLE |
+| XAGUSD SWEEP 2023-03-21 | POSITIVO | POSITIVO | FUENTE ELIGIBLE |
+| **TOTAL** | **3 OK / 2 ZERO / 1 STALE** | **4 OK / 2 ZERO** | **3/6 FUENTE ELIGIBLE** |
+
+**PROHIBIDO reportar estos 3/6 como 3 trades rentables o 3 traders certificados.** El E1 es experimento GROSS y su cierre es simplemente el horizonte de barras M5, NO stop/target real, no roundtrip fill. Original CIBO vs fuente IC Markets DEMO no homologado, comisión RT, swaps, news PIT y slippage sin verificar. 231 métodos×símbolo Holm/FDR/E3 siguen NO_SUPPORT, traders 0/3.
+
+**Próxima misión P0 del siguiente arquitecto**: [Issue #863](https://github.com/mezas3238-hue/qore-core/issues/863) escalar la extracción *sin outcomes* a las 33×7 celdas con SHA, ventanas originales y deduplicación de clocks/plan de shards limitado por cuota y licencia; evitar cientos de miles de solicitudes sin custodia; [#856](https://github.com/mezas3238-hue/qore-core/issues/856) resolver los BID=ASK reales en GBPUSD/USDJPY 2021 (no convertirlos a coste gratis); [#857](https://github.com/mezas3238-hue/qore-core/issues/857) comparar todos los contratos de broker/cuentas históricas CIBO vs IC Markets; [#837](https://github.com/mezas3238-hue/qore-core/issues/837) vault privado licenciado. Sin datos de ejecución real, 3 pares source elegibles siguen **NET BLOCKED** y no hay autorización VPS/MT5/LIVE/CIBO/Shared/QDLE.
