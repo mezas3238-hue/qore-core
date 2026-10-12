@@ -1,0 +1,152 @@
+name: QORE Native 33 IC Markets cTrader DEMO Missing M5 (Research Only)
+
+on:
+  push:
+    branches:
+      - research/qore-native-universe-33-icmarkets-ctrader-capture-20261011
+    paths:
+      - '.github/workflows/qore-native-icmarkets-33-universe-m5-missing-capture.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_universe_33_source_registry_v1.py'
+      - 'src/qore/infrastructure/trader_lab/qore_native_icmarkets_catalog_preflight_v1.py'
+      - 'src/qore/infrastructure/trader_lab/qore_native_icmarkets_missing_m5_capture_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_universe33_icmarkets_capture_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-native-icmarkets-universe33-source-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_DEMO_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+
+jobs:
+  offline_inventory_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Compile and test exact 33 source registry, broker lock and no refresh gate
+        run: |
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_native_universe_33_source_registry_v1.py src/qore/infrastructure/trader_lab/qore_native_icmarkets_catalog_preflight_v1.py src/qore/infrastructure/trader_lab/qore_native_icmarkets_missing_m5_capture_v1.py
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_universe_33_source_registry_v1.py src/qore/infrastructure/trader_lab/qore_native_icmarkets_catalog_preflight_v1.py src/qore/infrastructure/trader_lab/qore_native_icmarkets_missing_m5_capture_v1.py tests/infrastructure/trader_lab/test_qore_native_universe33_icmarkets_capture_v1.py
+          PYTHONPATH=src python -m unittest discover -s tests/infrastructure/trader_lab -p 'test_qore_native_universe33_icmarkets_capture_v1.py' -v
+      - name: Emit source-provenance 33 inventory (no broker claim)
+        run: |
+          mkdir -p source-inventory
+          PYTHONPATH=src python -m qore.infrastructure.trader_lab.qore_native_universe_33_source_registry_v1 source-inventory/33-source-registry.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-universe33-GITHUB-ARCHIVE-INVENTORY-${{ github.sha }}
+          path: source-inventory/
+          if-no-files-found: error
+          retention-days: 90
+
+  broker_catalog_gate:
+    needs: offline_inventory_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install cTrader DEMO SDK
+        run: python -m pip install -e '.[ctrader]'
+      - name: Probe only original explicit IC Markets DEMO broker account, token and symbol catalog
+        run: |
+          mkdir -p broker-proof
+          PYTHONPATH=src python -m qore.infrastructure.trader_lab.qore_native_icmarkets_catalog_preflight_v1 broker-proof/icmarkets-demo-catalog.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-native-universe33-ICMARKETS-AUTH-CATALOG-ONLY-${{ github.sha }}
+          path: broker-proof/
+          if-no-files-found: warn
+          retention-days: 90
+
+  capture_missing_m5:
+    needs: [offline_inventory_contract, broker_catalog_gate]
+    if: ${{ needs.broker_catalog_gate.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 210
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        symbol:
+          - USDCHF
+          - NZDUSD
+          - EURGBP
+          - EURJPY
+          - EURCHF
+          - EURCAD
+          - EURAUD
+          - EURNZD
+          - GBPCHF
+          - GBPCAD
+          - GBPAUD
+          - GBPNZD
+          - AUDCAD
+          - AUDCHF
+          - AUDNZD
+          - CADJPY
+          - CADCHF
+          - CHFJPY
+          - NZDJPY
+          - NZDCAD
+          - NZDCHF
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: IC Markets DEMO only — verified symbol, seven-day original native M5 collection, no refresh
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "captured/$SYMBOL"
+          PYTHONPATH=src python -m qore.infrastructure.trader_lab.qore_native_icmarkets_missing_m5_capture_v1 "$SYMBOL" "captured/$SYMBOL"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          symbol=os.environ["SYMBOL"]
+          path=Path("captured")/symbol/"symbol-consumption-manifest.json"
+          result=json.loads(path.read_text())
+          assert result["canonical_symbol"]==symbol
+          assert result["provider_symbol"]==symbol
+          assert result["target_start"]=="2016-09-17T00:00:00+00:00"
+          assert result["target_end_exclusive"]=="2026-09-17T00:00:00+00:00"
+          assert result["raw_integrity_status"]=="CLEAN_PROVIDER_PAYLOAD"
+          assert result["read_only"] is True
+          for k in ("demo_eligible","live_authorized","production_authorized","real_capital_authorized"):
+              assert result[k] is False
+          assert result["retained_bars"]>0
+          print("ICMARKETS_DEMO_10Y_M5_CAPTURE_CONFIRMED",symbol,result["retained_bars"])
+          PY
+          (cd "captured/$SYMBOL" && sha256sum symbol-consumption-manifest.json > SOURCE_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-${{ matrix.symbol }}-${{ github.sha }}
+          path: captured/${{ matrix.symbol }}/
+          if-no-files-found: warn
+          retention-days: 90
