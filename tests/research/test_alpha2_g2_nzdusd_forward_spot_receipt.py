@@ -105,3 +105,11 @@ def test_naive_clock_rejected():
         normalize_spot_event(FakeEvent(bid=105500),
                              expected_symid=SYM,
                              received_at=datetime(2026,10,12),sequence=0)
+
+
+def test_future_seen_time_cannot_validate_a_fresh_bidask_pair():
+    with pytest.raises(SourceBlockedError,match="FUTURE_LOCAL_BIDASK_SIDE_RECEIPT"):
+        classify_received_pair(
+            bid=100,ask=101,bid_seen=T+timedelta(milliseconds=1),
+            ask_seen=T,now=T,
+        )
