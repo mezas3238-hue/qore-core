@@ -13,9 +13,8 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-from qore.research.alpha2_lab_h4_extract import source33_manifest, verify_source
-
 from qore.research.alpha2_intermarket import MARKETS
+from qore.research.alpha2_lab_h4_extract import source33_manifest, verify_source
 
 PILOT = MARKETS
 CUTOFF = datetime(2024, 9, 17, tzinfo=UTC)
