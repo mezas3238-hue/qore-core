@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 from dataclasses import asdict, dataclass
@@ -36,6 +37,9 @@ ATR_BARS = 20
 ENTRY_DELAY = timedelta(minutes=5)
 MAX_HOLD = timedelta(hours=12)
 RESEARCH_CUTOFF = datetime(2024, 9, 17, tzinfo=timezone.utc)
+ORIGINAL_SOURCE_MANIFEST_SHA256 = (
+    "1291d5c2efb4e51c2698ea25ad420a01a213dc405b5070c37efbce4131606b85"
+)
 
 
 @dataclass(frozen=True)
@@ -85,6 +89,14 @@ def read_m5(path: Path) -> Iterable[Bar]:
             at = datetime.fromisoformat(row["timestamp_utc"].replace("Z", "+00:00"))
             yield Bar(at=at, open=float(row["open"]), high=float(row["high"]),
                       low=float(row["low"]), close=float(row["close"]))
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def aggregate_complete_h4(rows: Iterable[Bar]) -> dict[datetime, Bar]:
@@ -164,6 +176,7 @@ def _stop_distance(bars: Mapping[datetime, Bar], at: datetime) -> float | None:
 def signal_at(
     bars_by_symbol: Mapping[str, Mapping[datetime, Bar]],
     at: datetime,
+    cached_returns: Mapping[str, Mapping[datetime, float]] | None = None,
 ) -> list[Signal]:
     """Decide only after H4 bar at 'at' has CLOSED; regressors end at at-H4.
 
@@ -173,9 +186,13 @@ def signal_at(
         raise ValueError("decision grid must be UTC")
     if at >= RESEARCH_CUTOFF:
         raise ValueError("reserved/embargoed price outcomes prohibited in research")
+    if at + H4 + ENTRY_DELAY + MAX_HOLD > RESEARCH_CUTOFF:
+        return []  # never generate a trade horizon crossing the embargo
     if at.hour % 4 or at.minute or at.second or at.microsecond:
         raise ValueError("timestamp must be UTC H4-grid aligned")
-    rs = {symbol: _returns(series) for symbol, series in bars_by_symbol.items()}
+    rs = cached_returns if cached_returns is not None else {
+        symbol: _returns(series) for symbol, series in bars_by_symbol.items()
+    }
     results: list[Signal] = []
     for symbol in sorted(bars_by_symbol):
         own = rs[symbol]
@@ -242,30 +259,43 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Alpha2 research signal generator; no orders")
     parser.add_argument("--m5-dir", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--input-attestation", type=Path, required=True)
     parser.add_argument("--from-utc", required=True)
     parser.add_argument("--until-utc", required=True)
     args = parser.parse_args()
     start = datetime.fromisoformat(args.from_utc.replace("Z", "+00:00"))
     end = datetime.fromisoformat(args.until_utc.replace("Z", "+00:00"))
-    if start.tzinfo is None or end.tzinfo is None:
+    if (start.tzinfo is None or end.tzinfo is None or
+            start.utcoffset() != timedelta(0) or end.utcoffset() != timedelta(0)):
         raise ValueError("explicit UTC dates required")
     if end > RESEARCH_CUTOFF or not start < end:
         raise ValueError("research end must be at or before 2024-09-17 UTC")
+    attestation = json.loads(args.input_attestation.read_text(encoding="utf-8"))
+    if attestation.get("original_source_manifest_sha256") != ORIGINAL_SOURCE_MANIFEST_SHA256:
+        raise ValueError("original 33 source manifest fingerprint mismatch")
+    checksums = attestation.get("derived_csv_sha256")
+    if not isinstance(checksums, dict) or set(checksums) != set(MARKETS):
+        raise ValueError("exactly 33 derived CSV hashes are required")
     index: dict[str, dict[datetime, Bar]] = {}
     for symbol in MARKETS:
         path = args.m5_dir / f"{symbol}.csv"
         if not path.is_file():
             raise FileNotFoundError(f"33/33 mandatory, missing {symbol}; no dropping markets")
+        if sha256_file(path) != checksums[symbol]:
+            raise ValueError(f"staged CSV SHA256 mismatch for {symbol}")
         index[symbol] = aggregate_complete_h4(read_m5(path))
+    returns_cache = {symbol: _returns(series) for symbol, series in index.items()}
     times = sorted(set().union(*(set(s) for s in index.values())))
     signals = [asdict(s) for t in times if start <= t < end
-               for s in signal_at(index, t)]
+               for s in signal_at(index, t, cached_returns=returns_cache)]
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps({
         "trader": "QORE-Alpha 2", "mode": "RESEARCH_ONLY",
         "universe": list(MARKETS), "market_count": len(MARKETS),
         "gross_net_results": "NOT_COMPUTED", "costs": "UNVERIFIED",
         "macro_asof": "UNVERIFIED", "certification": "BLOCKED",
+        "original_source_manifest_sha256": ORIGINAL_SOURCE_MANIFEST_SHA256,
+        "staging_provenance": "CSV_HASH_VERIFIED_DERIVATION_AUDIT_STILL_REQUIRED",
         "signals": signals,
     }, indent=2), encoding="utf-8")
 
