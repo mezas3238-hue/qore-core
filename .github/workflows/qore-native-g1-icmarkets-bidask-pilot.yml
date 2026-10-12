@@ -1,0 +1,70 @@
+name: QORE Native G1 cTrader NZDUSD historical native BID ASK source only
+
+on:
+  push:
+    branches:
+      - research/qore-native-icmarkets-native-bidask-g1-pilot-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-icmarkets-bidask-pilot.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_icmarkets_bidask_source_pilot_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_icmarkets_bidask_source_pilot_v1.py'
+      - 'docs/research/QORE_NATIVE_ICMARKETS_BIDASK_SOURCE_PILOT_PREREG_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-native-bidask-nzdusd-source-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  frozen_source_code_gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research test dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Native quote source tests only, no market data
+        run: |
+          set -euo pipefail
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_icmarkets_bidask_source_pilot_v1.py tests/infrastructure/trader_lab/test_qore_native_icmarkets_bidask_source_pilot_v1.py
+          python -m compileall -q src/qore/infrastructure/trader_lab/qore_native_icmarkets_bidask_source_pilot_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_icmarkets_bidask_source_pilot_v1.py
+
+  read_only_native_bid_ask_source:
+    needs: frozen_source_code_gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install native Spotware SDK
+        run: python -m pip install -e '.[ctrader]'
+      - name: Authenticate DEMO broker and retrieve only 3x10min native BID ASK
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_icmarkets_bidask_source_pilot_v1 source-output
+      - name: Preserve source-only result or safe blocker
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-NZDUSD-G1-source-NOT-NET-${{ github.sha }}
+          path: source-output/
+          retention-days: 90
+          if-no-files-found: warn
