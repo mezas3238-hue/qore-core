@@ -34,7 +34,7 @@ MONTH_RE = "|".join(MONTHS)
 ANCHOR = re.compile(rf"\b(?P<month>{MONTH_RE})\s+(?P<year>20\d{{2}})\s+Consumer Price Index\b", re.I)
 EMBARGO = re.compile(
     rf"embargoed\s+until\s+8:30\s+a\.?\s*m\.?\s*\((?:ET|EDT|EST)\)\s*"
-    rf"(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+"
+    rf"(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+)?"
     rf"(?P<month>{MONTH_RE})\s+(?P<day>\d{{1,2}}),?\s+(?P<year>20\d{{2}})",
     re.I,
 )
@@ -219,7 +219,7 @@ def inspect_entry(calendar_event: dict[str, Any], indexed: ArchivedEntry | None
     try:
         raw = fetch_official(indexed.url)
         row["archived_header_prefix_sha256"] = hashlib.sha256(raw).hexdigest()
-        heading_date, ref_month, ref_year = parse_header(raw.decode("utf-8", errors="strict"))
+        heading_date, ref_month, ref_year = parse_header(raw.decode("utf-8", errors="replace"))
         if heading_date is None or ref_month is None or ref_year is None:
             row["status"] = "ARCHIVE_HEADER_UNPARSEABLE"
         elif (heading_date != calendar_event["ny_date"]
