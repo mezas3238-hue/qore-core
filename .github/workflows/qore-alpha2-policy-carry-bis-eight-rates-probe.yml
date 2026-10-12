@@ -1,0 +1,61 @@
+name: QORE Alpha2 FX28 official BIS policy rate 8 CCY source probe no PnL
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-policy-carry-bis-eight-rates-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bis8_rate_source_audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Frozen prereg before observed policy rate values
+        run: |
+          git merge-base --is-ancestor e669a1d2100f94a0c17e3773b177a3ead3661e16 "$GITHUB_SHA"
+      - name: BIS eight-rate official research coverage and raw-file SHA no PnL
+        run: |
+          set -euo pipefail
+          mkdir -p bis-private rate-audit
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 240 \
+            --user-agent 'QORE-Alpha2-ReadOnly-Research/1.0' \
+            https://data.bis.org/static/bulk/WS_CBPOL_csv_flat.zip \
+            --output bis-private/WS_CBPOL_csv_flat.zip
+          sha256sum bis-private/WS_CBPOL_csv_flat.zip | tee rate-audit/BIS_ZIP_SHA_ONLY.txt
+          python - <<'PY'
+          import zipfile,csv,io,json,hashlib
+          from pathlib import Path
+          f=Path("bis-private/WS_CBPOL_csv_flat.zip")
+          info={"download_url":"https://data.bis.org/static/bulk/WS_CBPOL_csv_flat.zip",
+                "zip_sha256":hashlib.sha256(f.read_bytes()).hexdigest(),
+                "zip_size_bytes":f.stat().st_size}
+          with zipfile.ZipFile(f) as z:
+              x=z.namelist()
+              print("BIS ZIP MEMBERS:",x[:15])
+              info["members"]=[{"name":i.filename,"size":i.file_size} for i in z.infolist()][:12]
+              for name in x[:4]:
+                  if not name.endswith(".csv"):continue
+                  with z.open(name) as h:
+                      s=io.TextIOWrapper(h,encoding="utf-8-sig",newline="")
+                      reader=csv.reader(s)
+                      rows=[next(reader,[]) for _ in range(4)]
+                      print("CSV_HEAD",name,[str(row[:15])[:1500] for row in rows])
+                      info["first_headers"]=rows[:3]
+                  break
+          Path("rate-audit/bis8_source_schema.json").write_text(json.dumps(info,sort_keys=True,indent=2)+"\n")
+          PY
+          rm -rf bis-private
+          printf '%s\n' "$GITHUB_SHA" > rate-audit/exact-code-head-sha.txt
+          (cd rate-audit && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-BIS8-policy-rate-schema-hash-only-${{ github.sha }}
+          path: rate-audit/
+          retention-days: 90
+          if-no-files-found: error
