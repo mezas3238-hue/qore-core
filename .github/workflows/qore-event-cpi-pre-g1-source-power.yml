@@ -1,0 +1,104 @@
+name: QORE EVENT CPI Pre-G1 SOURCE-ONLY PIT Sample and Power Feasibility
+
+on:
+  push:
+    branches:
+      - research/qore-event-cpi-pre-g1-feasibility-power-20261011
+    paths:
+      - '.github/workflows/qore-event-cpi-pre-g1-source-power.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_event_cpi_pre_g1_feasibility_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_event_cpi_pre_g1_feasibility_v1.py'
+      - 'docs/research/QORE_EVENT_CPI_PRE_G1_FEASIBILITY_PIT_COST_POWER_DECISION_2026-10-11.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-event-cpi-pre-g1-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source_only_quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install local research dependencies only
+        run: python -m pip install -e '.[dev]'
+      - name: Fixed source and conditional power tests only — no broker
+        run: |
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_event_cpi_pre_g1_feasibility_v1.py tests/infrastructure/trader_lab/test_qore_event_cpi_pre_g1_feasibility_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_event_cpi_pre_g1_feasibility_v1.py
+
+  metadata_power:
+    needs: source_only_quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install original local research package only
+        run: python -m pip install -e .
+      - name: Recover original G0 OFFICIAL BLS calendar metadata only
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-event-cpi-g0-bls-calendar-5da94a97eba2c8286f46ecfe4bfbb27fed2b3dfe
+          run-id: '38189483643'
+          github-token: ${{ github.token }}
+          path: original-bls
+      - name: Recover original G0 NAS100 minute PRESENCE metadata only
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-event-cpi-g0-cibo-nas100-presence-5da94a97eba2c8286f46ecfe4bfbb27fed2b3dfe
+          run-id: '38189483643'
+          github-token: ${{ github.token }}
+          path: original-presence
+      - name: Recover original G0B archival release HEADER verification only
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-event-cpi-g0b-archived-header-518a6c565f3ec5e1430aad835fecd15d359af69f
+          run-id: '38191275999'
+          github-token: ${{ github.token }}
+          path: original-archive
+      - name: Independently verify 3 immutable metadata SHA and 24/119 + MDE
+        run: |
+          mkdir -p source-only-output
+          python -m qore.infrastructure.trader_lab.qore_event_cpi_pre_g1_feasibility_v1 original-bls original-presence original-archive/event-cpi-g0b source-only-output | tee source-only-output/stdout.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("source-only-output")
+          x=json.loads((root/"cpi-pre-g1-feasibility-power-scenarios.json").read_text())
+          s=json.loads((root/"cpi-pre-g1-24-date-source-verification.json").read_text())
+          assert x["status"]=="BLOCKED_NOT_EVALUABLE_INFRASTRUCTURE"
+          assert x["all_source_hashes_verified"] is True
+          assert x["full_documented_releases"]==119
+          assert x["complete_timestamp_event_windows"]==113
+          assert x["frozen_provider_comparison_events"]==len(s)==24
+          assert x["frozen_comparison_nas100_71_m1_complete"]==23
+          assert x["frozen_comparison_nas100_missing_dates"]==["2017-03-15"]
+          assert x["G1_economic_authorized"] is False
+          assert x["PIT_vintage_verified"] is False
+          assert x["CPI_window_0835_0905_cost_verified"] is False
+          assert x["performance_or_returns_opened"] is False
+          assert x["macro_pooling_authorized"] is False
+          assert all(row["economic_returns_opened"] is False for row in s)
+          print("QORE_CPI_PRE_G1_GATES_SOURCE_ONLY",x["status"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > source-only-output/code-head-sha.txt
+          (cd source-only-output && sha256sum *.json > OUTPUT_SHA256SUMS.txt)
+      - name: Preserve source-only decision evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cpi-pre-g1-source-power-${{ github.sha }}
+          path: source-only-output/
+          retention-days: 90
+          if-no-files-found: warn
