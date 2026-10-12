@@ -54,12 +54,14 @@ def _proto_value(message: object, name: str) -> object | None:
 
 def source_catalog(entries: tuple[object,...]) -> dict[str,int]:
     seen={}
+    encountered=set()
     for row in entries:
         name=getattr(row,"symbolName",None)
         if name not in NAMES:
             continue
-        if name in seen:
+        if name in encountered:
             raise SourceBlockedError("DUPLICATE_EXACT_SOURCE_NAME")
+        encountered.add(name)
         sid=getattr(row,"symbolId",None)
         if type(sid) is not int or sid<=0:
             raise SourceBlockedError("BROKER_SYMBOL_ID_INVALID")
