@@ -1,5 +1,7 @@
 # ADDENDUM al HANDOFF MAESTRO QORE NATIVE — G1 BID/ASK, 33 posiciones con 1 alias provisional
 
+> **HANDOFF MAESTRO INTEGRAL ACTUALIZADO:** [QORE_NATIVE_HANDOFF_MAESTRO_INTEGRAL_33X7_E1_E2_E3_G1_P0_2026-10-12.md](https://github.com/mezas3238-hue/qore-core/blob/research/qore-native-master-handoff-g1-33-sources-addendum-20261012/docs/research/QORE_NATIVE_HANDOFF_MAESTRO_INTEGRAL_33X7_E1_E2_E3_G1_P0_2026-10-12.md). **El siguiente arquitecto debe empezar por este documento nuevo:** incluye G0, E1, E2, E3, G1, contratos, código exacto, SHA, mapa de PR, pendientes y Gates de certificación. Este addendum mantiene la cronología y evidencia original.
+
 **Fecha:** 2026-10-12. **Parent handoff inmutable:** commit `ba64abffd8f74d8c1b5975014234790f4b3e6543`, [PR #841](https://github.com/mezas3238-hue/qore-core/pull/841). Este documento complementa, NO reemplaza, los ensayos 7×33=231 y sus dictámenes Holm/FDR/E3. El resultado original sigue `E2_E3_NO_POSITIVE_REPLICATED_EDGE`, `CERTIFIED_0_OF_3`.
 
 ## 1. Dictamen verificable y alcance MUY específico
