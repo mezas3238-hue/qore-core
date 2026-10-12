@@ -1,0 +1,100 @@
+name: QORE EVENT CPI G0B Official Archived Release Header Verification (NO PRICES)
+
+on:
+  push:
+    branches:
+      - research/qore-native-event-cpi-g0b-archive-release-check-20261011
+    paths:
+      - '.github/workflows/qore-native-event-cpi-g0b-archived-release-source.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_event_cpi_g0b_archive_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_event_cpi_g0b_archive_v1.py'
+      - 'docs/research/QORE_NATIVE_EVENT_CPI_G0B_ARCHIVED_RELEASE_HEADER_PREREG_2026-10-11.md'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: qore-event-cpi-g0b-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install local research + test dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Check no-price source boundaries and archived release tests
+        run: |
+          test -s docs/research/QORE_NATIVE_EVENT_CPI_G0B_ARCHIVED_RELEASE_HEADER_PREREG_2026-10-11.md
+          python - <<'PY'
+          from pathlib import Path
+          code=Path("src/qore/infrastructure/trader_lab/qore_native_event_cpi_g0b_archive_v1.py").read_text()
+          assert 'PREREG_SHA = "c8092917ea27afbeee2d6b4cb4df1d2cbe245d1a"' in code
+          assert "CALENDAR_ARTIFACT = 11720651765" in code
+          assert "https://www.bls.gov/bls/news-release/cpi.htm" in code
+          assert "ctrader_open_api" not in code and "math.log(" not in code
+          PY
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_event_cpi_g0b_archive_v1.py tests/infrastructure/trader_lab/test_qore_native_event_cpi_g0b_archive_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_event_cpi_g0b_archive_v1.py
+
+  archive_headers:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only original local research code
+        run: python -m pip install -e .
+      - name: Retrieve exactly original sealed G0 BLS calendar artifact, not broker data
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-event-cpi-g0-bls-calendar-5da94a97eba2c8286f46ecfe4bfbb27fed2b3dfe
+          run-id: '38189483643'
+          github-token: ${{ github.token }}
+          path: original-g0-bls
+      - name: Confirm release archival index and each archived embargo header (OFFICIAL BLS ONLY)
+        run: |
+          mkdir -p event-cpi-g0b
+          python -m qore.infrastructure.trader_lab.qore_native_event_cpi_g0b_archive_v1 original-g0-bls event-cpi-g0b | tee event-cpi-g0b-stdout.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("event-cpi-g0b/g0b-release-header-audit.json").read_text())
+          rows=json.loads(Path("event-cpi-g0b/g0b-release-header-by-date.json").read_text())
+          assert r["identity"]=="QORE_NATIVE_EVENT_CPI_G0B_RELEASE_HEADER_ONLY_V1"
+          assert r["prereg_sha"]=="c8092917ea27afbeee2d6b4cb4df1d2cbe245d1a"
+          assert r["locked_calendar_artifact"]==11720651765
+          assert r["calendar_events"]==len(rows)==119
+          assert r["economic_G1_authorized"] is False
+          assert r["price_or_forward_return_read"] is False
+          assert not r["consensus_asof_verified"]
+          assert not r["event_spread_cost_verified"]
+          assert r["archived_headers_confirmed"]==sum(
+              1 for x in rows if x["archive_header_confirmed"]
+          )
+          assert all(x["source_ohlc_read"] is False for x in rows)
+          assert all(x["source_consensus_read"] is False for x in rows)
+          print("EVENT_CPI_G0B_ARCHIVE_HEADER_SOURCE_ONLY",r["status"],r["archive_status_counts"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > event-cpi-g0b/code-head-sha.txt
+          (cd event-cpi-g0b && sha256sum *.json *.txt > OUTPUT_SHA256SUMS.txt)
+      - name: Preserve exact archive adjudication even if blocked
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-event-cpi-g0b-archived-header-${{ github.sha }}
+          path: |
+            event-cpi-g0b/
+            event-cpi-g0b-stdout.json
+          retention-days: 90
+          if-no-files-found: warn
