@@ -90,3 +90,88 @@ Prereg anterior al outcome commit a18cb43a6fb69eab948d840c6e6101c6a7251906, docs
 **CIERRE CIENTÍFICO:** Tres espacios de búsqueda W1/W2/W3 agotados y congelados sin superar hipótesis original. NO W4 oportunista sobre los mismos datos vistos. El próximo arquitecto investigará datos genuinamente nuevos/preregistros y potencia, no buscará rentabilidad por ajuste retrospectivo.
 
 ---
+
+## 4. G2 — BID/ASK HISTÓRICO ORIGINAL, FUENTE REAL PERO INSUFICIENTE
+
+**El viejo título “sin BID/ASK real” del checkpoint inicial está superado como SOURCE PARTIAL, NO como NET.** Se conservaron fuentes originales verificables de QORE Native G1 para reutilización read-only; no traer su metodología ni certificación Alpha2.
+
+### 4.1 Ventanas cortas históricas 29 exactos
+- QORE Native PR #849/#851 produjo ZIP originales BID/ASK; re-admisión Alpha2 SHA [Actions #38288561813](https://github.com/mezas3238-hue/qore-core/actions/runs/38288561813) SUCCESS. **37.430 observaciones BID y 37.342 ASK** en 29 mercados, SOLO las ventanas originales **2020-09-15** y **2023-09-19** 13:00–13:10 UTC (dos bloques de 10 minutos). Original tercera ventana 2026-09-15 mantenida con precios reservados NO leídos en este estudio.
+- Prereg calidad second-grid SHA commit cfd82a0b0e7a36e2bd27181742123bcc137e5430. [Actions #38289175880](https://github.com/mezas3238-hue/qore-core/actions/runs/38289175880) SUCCESS Ruff/14 tests. **29 × 2 × 600 = 34.800 observaciones de segundo**: 27.866 spread positivo; **4.297 BID=ASK cuarentena**; 2.637 ausente/stale; 0 crossed. Archivo estadístico firmado artifact #11764855653. Si BID/ASK es idéntico, no supone spread, comisión o fill gratis.
+- Censo QORE Native independiente original [PR #855](https://github.com/mezas3238-hue/qore-core/pull/855): piloto fuente tres ventanas de 10 minutos en los **33 puestos** con 31 símbolos exactos y dos nombres alternos **SP500→US500** y **NAS100→USTEC**, 127.928 eventos nativos. Son 33 slots SOURCE, **NO 33 contratos homologados** ni 33×10 años de bid/ask continuo.
+
+### 4.2 Cruce cuantitativo cobertura vs todas las operaciones W3
+El nuevo arquitecto no debe preguntar de nuevo si “las pocas ventanas 2020/2023 bastan”: **ya está demostrado que NO.**
+Prereg docs/research/QORE_ALPHA2_G2_W3_EVENT_VS_QUOTE_SOURCE_WINDOW_COVERAGE_PREREG_2026-10-12.md. Código src/qore/research/alpha2_g2_w3_quote_window_coverage.py. [GHA #38297579449](https://github.com/mezas3238-hue/qore-core/actions/runs/38297579449) SUCCESS 9/9 y artifact #11767809883:
+- Denominador exacto: 24.487 señales originales W3 / 24.399 pares gross, 33 mercados, incluidas las censuradas.
+- **Solo 2 entradas** previstas dentro de alguna ventana SOURCE29 histórica.
+- **0 trayectorias completas** que tengan entrada y salida de estrategia Y control en la misma ventana de 10 min.
+- Se leyeron timestamps SOURCE, no outcomes PnL ni precios históricos reservados 2026. Cero trayectorias económicamente calificadas.
+**Consecuencia:** la mayoría de las operaciones no tiene BID/ASK auténtico en entrada/salida; está PROHIBIDO fabricar PF/Sharpe/Sortino/DD net con spread estimado o aplicar solo a las dos coincidencias.
+
+### 4.3 Semántica Proto/tick y causalidad crítica
+- Serie histórica native cTrader ProtoOAGetTickData: primer TIMESTAMP y PRECIO absolutos, valores siguientes como deltas de **tiempo y precio CON SIGNO**; el decoder antiguo del PR #803 era defectuoso. Correcciones de fuente G1 PR #844 en adelante y pruebas SHA enteros/decimales. No revertir al decoder antiguo ni confundir M1 con ticks bid/ask.
+- Evento spot prospective puede traer solo un lado. Cada BID y ASK necesita reloj propio first-received, máximo frescura 5s en estos ensayos; reloj de EVENTO DEL PROVEEDOR descargado a posteriori **NO demuestra** dato disponible en decisión. El timestamp after-dequeue del collector es testigo conservador de primera observación por ese runner pero tampoco reloj del matching engine ni fill.
+- Los spread cero requieren cuarentena, no ejecución gratuita (Issue #856). Session breaks, rangos sin ticks, crossed/spikes, gap, quotes obsoletas y cuentas no equivalentes son estados SOURCE bloqueantes.
+
+---
+
+## 5. G2 — CAPTURA PROSPECTIVA REAL IC MARKETS DEMO, SIN ÓRDENES
+
+### 5.1 NZDUSD una fuente aislada de 45 segundos
+Prereg antes de ejecución commit 14f7b54ed5e1ffd1c179faf500fa8646837a6da9. Collector src/qore/research/alpha2_g2_nzdusd_forward_spot_receipt.py; tests y workflow .github/workflows/qore-alpha2-g2-forward-nzdusd-demo-receipts.yml.
+- [Original #38296610948](https://github.com/mezas3238-hue/qore-core/actions/runs/38296610948) SUCCESS, source HEAD ca32ad2311c5c6b4a9312073ca0b4c7b53109a75, original artifact #11767978684, **11 eventos recibidos**, cero órdenes y token-refresh.
+- [Auditor independiente #38297614422](https://github.com/mezas3238-hue/qore-core/actions/runs/38297614422) SUCCESS 7/7, artifact #11768424790; verificó SHA del evento/manifest dos veces, clock monotonicidad y calidad por lado. **4 updates BID y 8 ASK** (un mensaje puede actualizar ambos), 4 source spreads positivos, 1 zero cuarentena, 6 stale/missing, 0 crossed. No PnL/fill.
+
+### 5.2 29 instrumentos exactos simultáneos con first-seen, un solo DEMO
+Prereg fuente commit 34a2c20d285d86a16c95bac217a0dc9225a6d799; collector src/qore/research/alpha2_g2_29_exact_demo_forward_multispot.py; 29 ID validados contra catálogo autenticado, no aliases. **Excluidos por prereg:** NAS100, NZDUSD, SP500, XAGUSD. Estado independiente distinto de NZDUSD; NUNCA llamarlo “30 simultáneos”.
+- [GHA fuente #38298399112](https://github.com/mezas3238-hue/qore-core/actions/runs/38298399112) SUCCESS dos jobs, HEAD 33068c720fedb3d358a2f73e7323508abd8365f6, artifact original #11769446263. **1.033 eventos** en ventana fija 60s, **29/29 símbolos recibieron ambos lados**. One ProtoOASubscribeSpotsReq repeated exact 29 IDs, sin orden/refresh/secret persistido.
+- Prereg auditor 29 independiente commit 09c01e6d4c3b05844b7d1638d760efb4bab9fcf4. Código src/qore/research/alpha2_g2_29_forward_original_independent_qa.py. [GHA QA #38298920851](https://github.com/mezas3238-hue/qore-core/actions/runs/38298920851) SUCCESS 7/7, HEAD a80702b40e2242f7da05d392137cc76ce7124b8b, signed artifact #11770276257. Comprobó SHA ledger y global+local sequence original de todos los 1.033: **890 ASK>BID positivo**, **36 ASK=BID cuarentena**, **107 lado missing/stale**, 0 crossed.
+- Esto es capacidad de ingestión de datos **60s, after dequeue**, no SLA 24/7 ni cobertura de 10 años, costes, fills, profit ni certificado.
+
+Reportes: docs/research/QORE_ALPHA2_G2_FORWARD_RECEIPT_11_EVENTS_AND_W3_SOURCE_COVERAGE_24487_VERDICT_2026-10-12.md y docs/research/QORE_ALPHA2_G2_29_PROSPECTIVE_BIDASK_1033_INDEPENDENT_QA_VERDICT_2026-10-12.md.
+
+### 5.3 Otros ensayos de fuente, negativo válido
+EURCHF DEMO one-minute source pilot [GHA #38287610751](https://github.com/mezas3238-hue/qore-core/actions/runs/38287610751) SOURCE_BLOCKED después de test sintético; no fingir que accedió a ticks. Raw historial/recibo original tiene límites de permisos y sesiones. Separar “pruebas código PASS” de “broker fuente FAIL”.
+
+---
+
+## 6. G2 — MOTOR ECONÓMICO HIPOTÉTICO, PERO SIN NET VALIDADO
+
+Prereg económico commit fff976831ea68502f85322d76e73ebea96d19e2f, docs/research/QORE_ALPHA2_G2_CAUSAL_ECONOMICS_STRESS_ENGINE_PREREG_2026-10-12.md. Código src/qore/research/alpha2_g2_bidask_causal_contract.py y src/qore/research/alpha2_g2_causal_economic_stress.py; tests correspondientes. [GHA #38293812287](https://github.com/mezas3238-hue/qore-core/actions/runs/38293812287) SUCCESS **25/25 tests sintéticos**.
+
+Implementado y probado:
+1. Largo: entrada ASK / salida BID. Corto: entrada BID / salida ASK. Fuentes por broker, símbolo y cuenta exacta; as-of de quote conocido en decisión, age <=5s. Cero/cruzado FAIL, no fill gratis.
+2. Testigo contrato PIT original con proveedor ID, SHA256, lot/unidades, payout en moneda quote por 1 unidad de precio, fechas de conocimiento y vigencia, payoff lineal verificado, moneda cuenta/quote, conversión as-of. Alias no homologado FAIL.
+3. Costes como **6 campos Decimal EXPLÍCITOS**: comisión entrada, comisión salida, financiación, swap, slippage adverso entrada y salida. Float, bool, NaN, missing, valor negativo o timestamps futuros FAIL. Cero solo si la fuente original lo documenta explícitamente, no por default.
+4. Calculadora devuelve HYPOTHETICAL_QUOTE_COST_STRESS_NOT_NET_CERTIFICATION, broker_actual_net_attested=false, utc001_certified=false. El resultado sintético puede probar aritmética, NO precios/fees/fills reales. No aplicar slippage estimado dos veces si un fill original ya lo refleja.
+
+Pendiente P0: cantidades reales broker, condiciones por familia/cuenta/año y FX/payout point conversion, comisión contractual swaps, cobertura BIDASK *completa* de cada trayectoria, calendario macro first-published PIT, slippage/latencia y rechazos. El simple hecho de medir spread prospective no resuelve comisiones históricas, ni fuente LEGAL de quotes de toda la década. Issue #852.
+
+---
+
+## 7. P0 — CUATRO PUESTOS CONTRACTUALES Y BLOQUEO REAL DE API (NO OCULTAR FALLAS)
+
+**Canónicos G0:** NAS100, SP500, NZDUSD, XAGUSD. Posibles nombres de proveedor NAS100↔USTEC, SP500↔US500. No tratar parecido de gráficos/nombres como identidad contractual.
+
+Prereg primer request antes de resultados commit 4f2372d4cb96fe40a51c642d27d9ff56131bb190. Lectura src/qore/research/alpha2_g2_four_broker_contract_primitives.py, tests test_alpha2_g2_four_broker_contract_primitives.py, workflow qore-alpha2-g2-four-contract-source.yml. Versiones V2 y V3 **prerregistradas como modificaciones de protocolo** commits e2bc4db9339a07c9d94b303a27661e7a4b5bcbc0 y 26359559301edff5024e8b1cae8d3f514550fb3b. **11/11 pruebas sintéticas en cada versión**, PERO fuente nueva NUNCA pasó:
+- [#38300633695](https://github.com/mezas3238-hue/qore-core/actions/runs/38300633695) V1: falla fuente en segundo SymbolsList; [#38300858851](https://github.com/mezas3238-hue/qore-core/actions/runs/38300858851) diagnóstico distinguió P0_CATALOG_RESPONSE_FAILURE.
+- [#38301197700](https://github.com/mezas3238-hue/qore-core/actions/runs/38301197700) V2: reutilizar catálogo autenticado eliminó el paso duplicado; consulta SymbolById multi-ID devolvió P0_FULL_SYMBOL_RESPONSE_FAILURE.
+- [#38301475947](https://github.com/mezas3238-hue/qore-core/actions/runs/38301475947) V3 prereg máximo seis solicitudes individuales, SIN retries: P0_SYMBOLBYID_SINGLE_REQUEST_FAILED ya en primera. **STOP definitivo de esta ronda.** Causa permisos/rate limit/transporte/endpoint NO demostrada; no más sondeos adaptativos hasta evidencia de proveedor. Manifiestos SOURCE_BLOCKED archivados, cero órdenes y cero datos ficticios.
+
+**Evidencia OFFLINE verdaderamente admitida de otro arquitecto QORE Native:** original [PR #850](https://github.com/mezas3238-hue/qore-core/pull/850) y [source run #38284304699](https://github.com/mezas3238-hue/qore-core/actions/runs/38284304699), HEAD 716996e0f893af0aeb2b990ac11d644cf62a5c5f, source artifact #11762018327 y ZIP SHA256 7f927792e575c5cccb9932c55a8db6733430c34629681701c6acd98491ac5c2e. Nuevo auditor independiente sin conexión broker [Actions #38301861733](https://github.com/mezas3238-hue/qore-core/actions/runs/38301861733) SUCCESS 5/5 + SHA contrastado en GitHub API, audit artifact #11771250981. **USTEC DEMO provider symbolId 10014, digits2, pipPosition1, lotSize raw100, minVolume raw10, stepVolume raw10**. Esto documenta ficha USTEC DEMO anterior; NO equivale a contrato NAS100 G0 histórico ni US$100/punto, cuenta Atlas12 o comisiones.
+
+Matriz a preservar:
+
+| Original canónico | Fuentes externas que SÍ existen | Estado contrato para NET |
+|---|---|---|
+| NAS100 | USTEC candidato source cat #850, histórico ticks candidato PR #853/QA #854 | ALIAS_CONTRACT_BLOCKED, equivalencia original UNKNOWN |
+| SP500 | US500 source histórico PR #847/QA #848 | ALIAS_CONTRACT_BLOCKED, equivalencia original UNKNOWN |
+| NZDUSD | source G1 #844/#846, Alpha2 prospective #38296610948/QA | ORIGINAL_ACCOUNT_FEES_POINT_VALUE_BLOCKED |
+| XAGUSD | source histórico G1 #847/#848 | ORIGINAL_ACCOUNT_FEES_POINT_VALUE_BLOCKED |
+
+Aunque QORE Native tenga 33 slots con source BIDASK en instantes cortos, **0 de esos 4 contratos están homologados económicamente** entre las cohortes. Reunir original broker account/source, moneda depósito, fechas vigentes, lotSize/step, pip value, cotización/divisa, sessions/DST, swap, comisiones efectivas 2016–2024, puntos de equivalencia exacta y SHA. Issue #868.
+
+Reporte forense: docs/research/QORE_ALPHA2_G2_P0_FOUR_BROKER_CONTRACT_METADATA_AND_PROTOCOL_BLOCKERS_VERDICT_2026-10-12.md.
+
+---
