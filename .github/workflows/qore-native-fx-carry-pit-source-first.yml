@@ -1,0 +1,60 @@
+name: QORE Native FX carry first prove PIT 1M forwards - no fake economics
+
+on:
+  push:
+    branches:
+      - research/qore-native-fx-carry-pit-forward-first-20261012
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_fx_carry_pit_gate_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_fx_carry_pit_gate_v1.py'
+      - 'docs/research/QORE_NATIVE_FX_CARRY_PIT_SOURCE_GATE_AND_PREREG_2026-10-12.md'
+      - '.github/workflows/qore-native-fx-carry-pit-source-first.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scientific_data_precondition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic cross-quote PIT, no lookahead, FX pair network, missing data rejects
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_fx_carry_pit_gate_v1.py -v
+      - name: Scientific truth gate: no historical forward source, NO ECONOMIC BACKTEST
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_fx_carry_pit_gate_v1 output/FX_CARRY_PIT_DATA_REQUIREMENT_BLOCKED.json
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          r=json.loads(Path('output/FX_CARRY_PIT_DATA_REQUIREMENT_BLOCKED.json').read_text())
+          assert r['status']=='BLOCKED_NO_AUTHENTIC_PIT_CARRY_SOURCE'
+          assert r['fx_pairs_in_original_G0']==28
+          assert len(r['underlying_currencies'])==8
+          assert r['independent_currency_dimensions_at_most']==7
+          assert r['verified_historical_one_month_forward_quote_sets_28_of_28']==0
+          assert r['verified_historical_PIT_eight_currency_interest_rate_curves']==0
+          assert r['source_only_M5_sufficient_for_FX_carry'] is False
+          assert r['monthly_portfolio_backtest_executed'] is False
+          assert r['claimed_sharpe'] is None
+          assert r['holdout_opened'] is False
+          assert r['certified_traders']==0
+          print('FX_CARRY_PIT_SOURCE_FAIL_CLOSED_PASS_NO_FAKE_SHARPE')
+          PY
+          printf '%s\n' "$GITHUB_SHA" > output/exact-executed-code-sha.txt
+          (cd output && sha256sum *.json *.txt > SHA256SUMS.txt)
+      - name: Publish evidence only (no rates/quotes/PNL, no historical raw)
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-fx-carry-PIT-blocked-source-only-${{ github.sha }}
+          path: output/
+          retention-days: 30
+          if-no-files-found: error
