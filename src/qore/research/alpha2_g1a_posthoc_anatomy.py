@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter
 from pathlib import Path
 
 from qore.research.alpha2_intermarket import sha256_file
