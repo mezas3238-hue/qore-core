@@ -26,3 +26,12 @@
 ## Safety / evidence status
 
 Prior root cause attempts: **3 source variants**, all fail-closed; new source requests this audit: **0**. This report consumes no raw quote ZIP and no held-out 2026 prices. No W1/W2/W3 reoptimization or PnL, no MT5/VPS/CIBO/Shared/QDLE/PAPER/LIVE/MAIN. Continue #837 legal private archive P0, #868 current/historical contract identity, #852 full broker economics.
+
+
+## Implemented diagnostics addendum — 2026-10-12 (strictly synthetic)
+
+After this source analysis, froze the [no-broker failure taxonomy prereg](QORE_ALPHA2_G2_P0_SYMBOLBYID_SAFE_OFFLINE_FAILURE_CLASSIFIER_PREREG_2026-10-12.md) at ancestor `ab9853647f5a12e75f6511f630a6cfb50a573f78`; implemented `src/qore/research/alpha2_g2_p0_symbolbyid_failure_taxonomy.py` and negative tests `tests/research/test_alpha2_g2_p0_symbolbyid_failure_taxonomy.py` + synthetic-only `.github/workflows/qore-alpha2-g2-p0-symbolbyid-offline-failure-taxonomy.yml`.
+
+**[GitHub Actions #38316324978](https://github.com/mezas3238-hue/qore-core/actions/runs/38316324978) SUCCESS; exact HEAD `d48e64cca1062dffc79766bbe19d0df159ffa86b`; Ruff PASS, 30/30 pytest PASS.** The classifier emits only predefined safe categories, including whitelisting, SDK, protobuf fields/decoding, provider protocol rejection, transport and unknown; never returns raw broker message text or account secrets. Deliberately malformed and secret-looking strings are rejected by synthetic fixtures.
+
+**Epistemic limit:** the previous V1–V3 signed logs retained only sanitized `P0_SYMBOLBYID_SINGLE_REQUEST_FAILED`/related status, not the typed original Failure; the new classifier **cannot reconstruct** its lost cause. The V3 root cause remains **UNKNOWN** and no new login/API request was made. No re-entry to V3, no broker orders, no source zip read, no NET/UTC001 certification.
