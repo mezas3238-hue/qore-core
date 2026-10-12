@@ -376,3 +376,29 @@ Código `src/qore/research/alpha2_xsrev5_common_calendar.py`, CI `.github/workfl
 W1 PATR/W2 PADE = **`INCONCLUSIVE_UNDERPOWERED`**, no falsación. W3 CMTRL = **`PREDECLARED_GROSS_TEST_FAILED`** para su contraste y no prueba universal de efecto cero. TSMOM 252d sin escala = test no canónico fallido, TSMOM-RISK252 = **última prueba permitida, ahora fallida**, familia cerrada sobre este histórico. XSREV5 única reversión preinscrita, cerrar resultado sin retunear. El dataset 2016–2024 está expuesto, el 2024-09-17+ embargado; una apertura M5 tras señal UTC 00:00 no prueba fill con latencia real. Costes supuestos 1bp por lado NO reemplazan contratos, spreads, swaps, financiación ni noticia conocida-as-of. Todos estos experimentos **0 NET certificado, 0 trader certificado, 0 operaciones**.
 
 **P0 que no se negocia:** #837 conservar legalmente 728MB comprimidos de 33 ZIP originales 12 Atlas+21 ICMarkets en almacenamiento privado aprobado antes de 16-dic 2026, con restore independiente y SHA; aún NO guardados de modo permanente. #868 contrato broker Original12/alias y #852 fuente BID/ASK, comisiones, macro PIT, OOS realmente nuevo; ejecutar en paralelo con investigación y SIN pasar a MAIN/VPS/MT5/CIBO/Shared/QDLE/PAPER/LIVE.
+
+
+---
+
+## Anexo VI — XSREV5 all33 última reversión: resultado REAL e irreversibilidad de cierre
+
+**La línea científica paralela solicitada por el owner ya está FINALIZADA.** Reporte primario [QORE_ALPHA2_XSREV5_COMMON33_REVERSAL_5D_FINAL_VERDICT_2026-10-12.md](QORE_ALPHA2_XSREV5_COMMON33_REVERSAL_5D_FINAL_VERDICT_2026-10-12.md), prereg previo a outcomes `f9248d42a6cbced3d6e962b24e47c709cb91161c`. Resultados solo EXPLORATORY sobre 2016–2024 ya expuesto. No se han retocado estrategia, costes, quantiles, ranking, holding ni filtros tras mirar resultados.
+
+**Run definitivo:** [Actions #38320167392 intento 2](https://github.com/mezas3238-hue/qore-core/actions/runs/38320167392), **SUCCESS** exact HEAD `6226c6258e2ebfce843073f60eb2dab2b1fa7f22`. Preflight Ruff + **9/9 synthetic tests PASS**, extracción SHA original 12 Atlas+21 ICMarkets en runner efímero, sin publicar día OHLC. En intento original #38319216801 se detuvo en FINISH por error mecánico `{symbol}.sha256` versus `{symbol}.json.sha256` después de verificar los originales; corrección de escritura sidecar sin cambiar método, pruebas adversas nuevos, rerun solo job corregido. No tratar el primer error como resultado negativo, sino como fallo de plumbing reparado.
+
+**Artefacto original:** Actions #11779086497, ZIP SHA256 `419086e7d559a2b43f8050099621913e64a4ba23fab34c16addf512072fc2e08`. Descarga independiente y rehash ZIP e internos dos SHA **PASS**, JSON `alpha2-xsrev5-33-one-gross-minus-assumed-cost.json`. **2.068 días UTC** comunes elegibles a los 33 mercados, cobertura individual 2.069–2.084 días; **411 carteras semanales**, cada una long bottom7 y short top7 por retorno previo 5 common sessions, 1/14 exposición por pata, salida quinta sesión; **coste supuesto 1bp por lado = 2bps por cartera**, no NET. Auditor independiente de salida: **0/411 violaciones** 7/7/cardinalidad/disjoint, suma de 14 retornos de patas versus bruto o coste bruto−2bp, sin cambio por alias; source raw daily OHLC no publicado.
+
+| XSREV5 all33 | DEV | DIAG |
+|---|---:|---:|
+| Semanas operadas / total cash weeks | 308 / 314 | 103 / 106 |
+| Gross referencial bps/sem | +4,90004 | −0,06420 |
+| **Gross menos coste supuesto 2bps / sem** | **+2,93826** | **−2,00760** |
+| **IC95 block4wk B2000** | **[−5,13301; +12,36486]** | **[−15,13565; +11,55471]** |
+| Gate mínima muestra ≥52/26 | PASS | PASS |
+| Gate positive CI lower>0 | **FAIL** | **FAIL** |
+
+**Dictamen definitivo `XSREV5_GROSS_MINUS_ASSUMED_COST_FAIL`**. Media desarrollo favorable no basta: ambas CIs incluyen cero y diagnóstico tras costes hipotéticos es negativo. Heterogeneidad e intervalo ancho impiden aseverar que toda reversión está ausente; únicamente esta estrategia exacta no supera su gate preregistrada. **No probar XSREV3/10, quintiles distintos, FX-only winners o selección retrospectiva en este panel.**
+
+**Cierre conjunto:** último TSMOM-RISK252 escalado por volatilidad = `FINAL_TSMOM_FAIL_CLOSE_FAMILY_ON_EXPOSED_DATA`; XSREV5 = FAIL. Las dos investigaciones tienen evidencia real multi-día pero **ningún trader Alpha2 certificado, ninguna ejecución broker net demostrada, ningún edge robusto demostrado**. PATR/PADE = `INCONCLUSIVE_UNDERPOWERED`; CMTRL = `PREDECLARED_GROSS_TEST_FAILED`. Los 5 no-FX con TSMOM promedios positivos no alcanzan CI>0 y no autorizan subuniverse selection. Sesión `00:00 UTC` y OPEN M5 referencia pueden no ser precios alcanzables de una orden real, además de spreads/comisiones/funding/swap no verificados.
+
+**Próximo arquitecto: prohibido otra ronda de minería en el mismo 2016–2024**. Si se busca otra familia de edge o assets de futuros multi-mercado, primero nuevo prereg *genuinamente prospectivo* con marco de potencia semanal, OOS independiente licenciado y verdadera fuente as-of broker, no optimización de resultados aquí. #837 custodia legal y restore 728MB históricos antes Atlas12 2026-12-16 sigue urgente, #868 contrato original Atlas/ICMarkets, #852 BIDASK/NEWS PIT y toda certificación NET; investigación puede continuar en paralelo, pero **sin MAIN/VPS/MT5/Shared/CIBO/QDLE/PAPER/LIVE y PR #840 DRAFT**.
