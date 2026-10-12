@@ -100,6 +100,9 @@ def match_catalog(entries: Iterable[object]) -> dict[str, object]:
     seen: dict[str, dict[str, object]] = {}
     duplicates: set[str] = set()
     requested = {str(row["symbol"]) for row in owned["rows"]}
+    # SP500 is historically mapped to provider US500 in the original CIBO
+    # M5 atlas. Confirm this EXACT broker symbol by provider ID, never infer it.
+    requested.add("US500")
     for item in entries:
         name = getattr(item, "symbolName", None)
         if not isinstance(name, str) or name not in requested:

@@ -1,0 +1,61 @@
+# QORE Native — captura 24 M1 nativas (IC Markets cTrader DEMO)
+
+**Fecha:** 2026-10-12 · **Programa:** [#789](https://github.com/mezas3238-hue/qore-core/issues/789) · [#812](https://github.com/mezas3238-hue/qore-core/issues/812) · [M5 33/33 CI #38193802541](https://github.com/mezas3238-hue/qore-core/actions/runs/38193802541). **Misión:** equiparar la cobertura nativa M1 a los 33 instrumentos del cupo V1, sin trading, VPS ni OOS declaradamente virgen.
+
+## Fotografía previa verificable
+
+El M5 10Y de los **33** está guardado en 12 archivos CIBO del Atlas + **21 nuevas capturas reales IC Markets DEMO** ([workflow 23/23 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38193802541), 21 artefactos no expirados al 12-oct-2026).
+
+El M1 10Y de **9** originales existe en [Capitalizer CIBO Native #35548099334](https://github.com/mezas3238-hue/qore-core/actions/runs/35548099334), commit fuente `18c338aedd5013ce65a6cb6408ffbc2e904a6217`: AUDJPY, AUDUSD, EURUSD, GBPJPY, GBPUSD, USDCAD, USDJPY, NAS100/USTEC, XAUUSD. Son archivos históricos **ya estudiados**, no fold OOS fresco.
+
+**24 M1 ausentes de esos artefactos M1:** SP500, US30, XAGUSD, USDCHF, NZDUSD, EURGBP, EURJPY, EURCHF, EURCAD, EURAUD, EURNZD, GBPCHF, GBPCAD, GBPAUD, GBPNZD, AUDCAD, AUDCHF, AUDNZD, CADJPY, CADCHF, CHFJPY, NZDJPY, NZDCAD, NZDCHF.
+
+## Contrato de captura pre-resultados
+
+1. **Identidad nueva:** `QORE_NATIVE_ICMARKETS_DEMO_24_MISSING_NATIVE_M1_10Y_V1`, horario UTC `[2016-09-17T00:00Z, 2026-09-17T00:00Z)`. El objetivo significa **ventana de petición**, NO minutos de calendario 100% disponibles. No relleno, interpolación ni reconstrucción desde M5.
+2. **Fuente sin ambigüedad:** cuenta IC Markets cTrader DEMO autenticada, identificador efímero y brokerName proveniente de [preflight](../research/QORE_NATIVE_ICMARKETS_CTRADER_UNIVERSE33_INVENTORY_AND_MISSING_CAPTURE_2026-10-11.md). Solo permisos de lectura, sin trading, sin refresh de token en RAM, sin secretos en GitHub artifacts.
+3. **Resolución:** `ProtoOAGetTrendbarsReq period=1`, ventana ≤2 días exacta (2.880 minutos), sin `count`, timestamp UTC nativo y OHLC relativo al proveedor. Dedupe del mismo minuto solo si payloads idénticos; OHLC contradictorio aborta. Guardar JSONL por año más digest SHA256, manifiesto SHA y metadatos de proveedor.
+4. **Mapeo:** símbolo y provider exactos para 23 activos. Excepción **SP500→US500** basada en proveedor histórico del mismo Atlas CIBO 10Y, pero solo si el catálogo del account IC Markets DEMO actual contiene `US500` habilitado e identidad `symbolId` real. **Prohibido** inferir un alias tras resultados.
+5. **Gates antes de guardado válido:** exactamente 24 símbolos faltantes (nunca sobrescribir los 9), un símbolo único por job, ID de fuente concordante, `retained_m1>0`, 11 particiones anuales por periodo solicitado, comprobación SHA de CADA año y el manifiesto, `synthetic_m1=false`, sin autorización de LIVE/DEMO transaccional/CIBO/Shared/QDLE/MT5.
+6. **Pilot conservador y diverso:** SP500, XAGUSD y NZDUSD primero para adjudicar alias de índice, horarios de metales y FX. Despliegue 21 restantes en un nuevo commit y run **solo después de GREEN verificable del piloto**. No duplicar capturas ya completadas.
+7. **Retención:** GitHub Actions artifact configurado a 90 días. Esto **NO cumple durabilidad indefinida**. Antes del vencimiento hay que copiar 33×M5 y 33×M1 al almacén canónico con versión, permisos, digest por archivo y política de retención; prohibido reportar que el proyecto tiene 10 años almacenados permanentemente solo porque un run es SUCCESS.
+
+## Auditoría
+
+Los archivos heredados del consumidor Capitalizer fueron copiados/aislados en `src/qore/infrastructure/trader_lab/qore_native_icmarkets_missing_m1_capture_v1.py`, no se cambiaron nombres de funciones del CIBO original en producción. Autenticación M1 reutiliza la clase `_ReadOnlyIcMarketsHistoryClient` exclusiva de investigación desarrollada tras el fallo con `SCOPE_VIEW=0` en la captura M5. La identidad exacta de fuente se comprueba de nuevo **por cada símbolo**, no se asume por aprobación de job anterior.
+
+Workflow [QORE Native IC Markets 24 Missing Native M1](https://github.com/mezas3238-hue/qore-core/blob/research/qore-native-icmarkets-universe33-m1-capture-20261012/.github/workflows/qore-native-icmarkets-24-missing-m1-capture.yml) con captura piloto tras Ruff y pruebas unitarias. Run primer piloto [#38262534602](https://github.com/mezas3238-hue/qore-core/actions/runs/38262534602), congelado en commit `07a5d897703641ccf8317688f6abcdfb55b5766f` antes de recuperar velas del nuevo ensayo.
+
+**Cualquier volumen o comportamiento de retorno que luego se abra es evidencia consumida, NO holdout OOS virgen ni criterio de selección ex post.**
+
+## Estado inicial
+
+`M5_33_OF_33_ARCHIVED`; `M1_9_OF_33_PREVIOUSLY_ARCHIVED`; `M1_24_NEW_REQUESTED`; `PILOT_3_IN_GITHUB_CI`; `FULL_21_NEEDS_GREEN_PILOT`; `NO_LIVE`; `NO_NEW_EDGE_EVIDENCE`.
+
+
+## Addendum 12-oct — lote 21 restante preparado y bloqueado hasta éxito real del piloto
+
+Se implementó [workflow de continuación 21 M1](https://github.com/mezas3238-hue/qore-core/blob/research/qore-native-icmarkets-universe33-m1-capture-20261012/.github/workflows/qore-native-icmarkets-21-m1-after-pilot.yml) desde commit `cd45651d20857a6d367a4d4779e7aa4df07338d6` y se lanzó [GitHub Actions #38264253297](https://github.com/mezas3238-hue/qore-core/actions/runs/38264253297), actualmente **PENDING** por grupo de concurrencia común con el piloto [#38262534602](https://github.com/mezas3238-hue/qore-core/actions/runs/38262534602). Así no ejecuta y no factura un runner esperando la finalización de las capturas piloto.
+
+Cuando GitHub habilite el segundo run, el primer job **fail-closed** `pilot_source_artifacts_proof` consulta vía GitHub REST usando el `GITHUB_TOKEN` efímero:
+- run piloto exacto `38262534602`, commit `07a5d897703641ccf8317688f6abcdfb55b5766f`, `status=completed`, `conclusion=success`;
+- jobs exactos `pilot_capture_m1 (SP500)`, `(XAGUSD)`, `(NZDUSD)` `SUCCESS`;
+- artefactos originales EXACTOS de esos tres símbolos, tamaño no nulo y no expirados.
+
+Solo entonces se ejecutan `frozen_m1_contract`, `icmarkets_demo_catalog` y captura secuencial **de otros 21 símbolos**: US30, USDCHF, EURGBP, EURJPY, EURCHF, EURCAD, EURAUD, EURNZD, GBPCHF, GBPCAD, GBPAUD, GBPNZD, AUDCAD, AUDCHF, AUDNZD, CADJPY, CADCHF, CHFJPY, NZDJPY, NZDCAD, NZDCHF. `max-parallel=1` evita carreras con OAuth/rate limits; nunca descarga de nuevo los 9 M1 del Atlas ni 3 pilotos ya completados.
+
+**Barrera de seguridad adicional [CI #38263553900](https://github.com/mezas3238-hue/qore-core/actions/runs/38263553900) = SUCCESS:** la clase histórica acepta exclusivamente consultas de autenticación/catálogo/trendbars y rechaza `NewOrder`, `CancelOrder`, `ModifyOrder`, `Reconcile`, `RefreshToken`; Ruff y 18 pruebas sintéticas verdes en rama hija. Abarca futuros jobs del lote de 21, no modifica producción.
+
+**Persistencia pendiente:** [Issue #837](https://github.com/mezas3238-hue/qore-core/issues/837) exige respaldo permanente/restore SHA para que las 33×M5 y 33×M1 sobrevivan retención de GitHub Actions. Hasta tener 21 nuevos jobs `SUCCESS` con manifiestos íntegros se informa `M1_9/33_ARCHIVED + 3_PILOT_RUNNING + 21_QUEUED`, jamás `33/33 M1`.
+
+
+## Auditoría de retención y permisos de publicación — evidencia GitHub API (12-oct-2026)
+
+[Auditoría independiente #38265731976](https://github.com/mezas3238-hue/qore-core/actions/runs/38265731976), commit `ec8d6108400809c53b9cd144e701ac0848ff6ab1`, **SUCCESS**, `14/14` tests offline + Ruff y análisis de cinco runs mediante API GitHub, con [artefacto de metadatos #11754786569](https://github.com/mezas3238-hue/qore-core/actions/runs/38265731976/artifacts/11754786569).
+
+- El registro `QORE_NATIVE_DATA_ARCHIVE_EXPIRY_REGISTER_V1` coteja `run_id / source head SHA / symbol / exact artifact name / expiry / file size`, excluye duplicados, expirados y runs no concluidos. **Resultado actual verificable:** `M5=33/33` y `M1=9/33` disponibles como ZIP temporales en GitHub. Capturas M1 piloto y continuación **no se cuentan** antes de jobs y artifacts `SUCCESS`.
+- **Expiración concreta**, según GitHub API `expires_at`: 12 M5 antiguos [run #35166210458](https://github.com/mezas3238-hue/qore-core/actions/runs/35166210458) → `2026-12-16T00:21:18Z`; 9 M1 antiguos [#35548099334](https://github.com/mezas3238-hue/qore-core/actions/runs/35548099334) → `2026-12-20T00:33:57Z`; 21 M5 nuevos [#38193802541](https://github.com/mezas3238-hue/qore-core/actions/runs/38193802541) → `2027-01-10T01:56:00Z`. El auditor no debe sustituir estos valores por `now+90d`.
+- Estado del repositorio **verificado por GitHub API**: `mezas3238-hue/qore-core` tiene `visibility=public`. Esto puede afectar derechos de redistribución y exposición de datasets de proveedor: **NO subir dumps de mercado a Git commits o Releases públicos como solución automática de backup**. Antes de un vault, aprobar destino con control de acceso y permisos/licencias del proveedor IC Markets/cTrader, conservación y prueba de restauración.
+- El auditor únicamente ve metadatos de los ZIP: `source_zip_sha256_verified=false`, `permanent_storage_restore_proven=false`. Los archivos originales incluyen sus hashes por año en manifests de cada trabajo, pero la copia física de respaldo no está demostrada. Continuar [Issue #837](https://github.com/mezas3238-hue/qore-core/issues/837) antes de diciembre.
+
+**No inventar progreso de descargas M1 ni informar `33/33 M1` por un job en ejecución.** Ningún componente de esta auditoría requiere OAuth cTrader o toca la cuenta.
