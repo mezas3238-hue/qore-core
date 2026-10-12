@@ -23,8 +23,6 @@ from qore.research.alpha2_source33_artifact_expiry_inventory import (
     NEW21_PREFIX,
     NEW21_RUN,
     ORIGINAL12,
-    SIGNED33_PREFIX,
-    SOURCE33_RUN,
 )
 
 HEX256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
