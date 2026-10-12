@@ -122,6 +122,16 @@ def parse_index(text: str) -> dict[str, ArchivedEntry]:
     return indexed
 
 
+def decode_archived_header(raw: bytes) -> str:
+    """Decode legacy BLS releases without destroying CP1252 en-dash separators."""
+    for charset in ("utf-8", "cp1252"):
+        try:
+            return raw.decode(charset, errors="strict")
+        except UnicodeError:
+            continue
+    return raw.decode("latin-1").replace("\x96", "\u2013")
+
+
 def parse_header(text: str) -> tuple[str | None, str | None, int | None]:
     h = HeaderText()
     h.feed(text)
@@ -219,7 +229,7 @@ def inspect_entry(calendar_event: dict[str, Any], indexed: ArchivedEntry | None
     try:
         raw = fetch_official(indexed.url)
         row["archived_header_prefix_sha256"] = hashlib.sha256(raw).hexdigest()
-        heading_date, ref_month, ref_year = parse_header(raw.decode("utf-8", errors="replace"))
+        heading_date, ref_month, ref_year = parse_header(decode_archived_header(raw))
         if heading_date is None or ref_month is None or ref_year is None:
             row["status"] = "ARCHIVE_HEADER_UNPARSEABLE"
         elif (heading_date != calendar_event["ny_date"]
