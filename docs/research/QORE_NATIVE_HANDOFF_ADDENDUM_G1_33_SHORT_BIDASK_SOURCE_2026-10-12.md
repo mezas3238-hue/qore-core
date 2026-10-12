@@ -51,3 +51,14 @@ La QA as-of opera exclusivamente sobre snapshots a `last-known-bid + last-known-
 7. **Prohibido producción**: todas las ramas/pruebas son research Draft. Mantener `HISTORICAL_NET_BLOCKED`, `NATIVE_TRADERS_CERTIFIED_0_OF_3`, `NO_VPS_MT5_LIVE_CIBO_SHARED_QDLE_CHANGES`. El siguiente arquitecto puede consultar a DeepSeek como revisor metodológico externo, pero la evidencia debe verificarse en GitHub con SHA, fuente y CI antes de modificar cualquier gate.
 
 **Nota de identidad:** 33/33 source spots es la disponibilidad de cotizaciones cortas; **NO** significa 33/33 instrumentos contractual/históricamente equivalentes o 33×10Y tick data. Todos los artifacts pueden expirar; hashes expuestos documentan custodia actual, NO backup permanente.
+
+## 5. Forense de los 5.727 spread-zero source snapshots (nueva verificación)
+
+[PR #858](https://github.com/mezas3238-hue/qore-core/pull/858), prereg posterior a QA de fuente y previo a análisis forense, [Actions #38286343956](https://github.com/mezas3238-hue/qore-core/actions/runs/38286343956) **SUCCESS** con 6/6 tests, mismo artifact source original 29 mercados #11762222336, más QA integral #851 verificada.
+
+Del total de **5.727** snapshots BID=ASK dentro de edad máxima as-of de 5s:
+- **4.320** tienen BID y ASK *último conocido* con marcas temporales exactamente iguales al instante de evaluación (0ms; ≈75,4% del total). Esto NO demuestra entrega simultánea a la plataforma ni fill ejecutable; sí impide atribuir automáticamente todos los zeros a un lado anticuado.
+- **0** desfase entre 1 y 100 ms; **469** entre 101 y 500 ms; **313** entre 501 y 1.000 ms; **625** entre 1.001 y 5.000 ms.
+- La auditoría reproduce exactamente el recuento del parent QA29; [artefacto de estadísticas sin raw precios #11763457401](https://github.com/mezas3238-hue/qore-core/actions/runs/38286343956/artifacts/11763457401), SHA ZIP `46e12c05bdf13c6bc81107f7bfb4cb74e3875f13848058834668e6c020331823`.
+
+**P0 no resuelto:** confirmar con semántica oficial de cTrader/IC Markets si BID y ASK históricos identicamente timestamp y precio son verdaderamente cotizables, límites de resolución, precios derivados o datos paralelos del mismo feed. Sin prueba independiente en fuente/contratos, 4.320 nunca equivalen a spread cero ejecutable. [Issue #856](https://github.com/mezas3238-hue/qore-core/issues/856) sigue abierto. Los Gates `NET` y 0/3 cert permanecen bloqueados.
