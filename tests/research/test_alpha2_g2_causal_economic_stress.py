@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal as D
+from decimal import Decimal
 
 import pytest
 
@@ -38,8 +38,8 @@ def contract(**kw):
         "symbol": "EURUSD", "broker_source_id": "ctrader-icm-demo",
         "account_scope_id": "demo-pseudonym", "provider_symbol": "EURUSD",
         "provider_symbol_id": 1234, "account_currency": "USD",
-        "quote_currency": "USD", "trade_units": D("10"),
-        "cash_in_quote_per_unit_price": D("1"),
+        "quote_currency": "USD", "trade_units": Decimal("10"),
+        "cash_in_quote_per_unit_price": Decimal("1"),
         "contract_known_at": T-timedelta(days=1),
         "fee_schedule_known_at": T-timedelta(days=1),
         "contract_valid_until": T+timedelta(days=1),
@@ -53,19 +53,19 @@ def contract(**kw):
 
 def fees(**kw):
     values = {
-        "entry_commission_deposit": D("1"),
-        "exit_commission_deposit": D("2"),
-        "funding_deposit": D("0.1"),
-        "swap_deposit": D("0.5"),
-        "entry_adverse_slippage_price": D("0.1"),
-        "exit_adverse_slippage_price": D("0.2"),
+        "entry_commission_deposit": Decimal("1"),
+        "exit_commission_deposit": Decimal("2"),
+        "funding_deposit": Decimal("0.1"),
+        "swap_deposit": Decimal("0.5"),
+        "entry_adverse_slippage_price": Decimal("0.1"),
+        "exit_adverse_slippage_price": Decimal("0.2"),
     }
     values.update(kw)
     return ExplicitCostWitness(**values)
 
 
 def conversion(**kw):
-    values = {"rate_deposit_per_quote": D("1"), "known_at": EXIT,
+    values = {"rate_deposit_per_quote": Decimal("1"), "known_at": EXIT,
               "source_sha256": SHA}
     values.update(kw)
     return ConversionWitness(**values)
@@ -78,7 +78,7 @@ def inputs(**kw):
         "entry_decision": T, "exit_decision": EXIT,
         "contract": contract(), "costs": fees(),
         "conversion": conversion(), "direction": 1,
-        "cash_risk_in_deposit": D("100"),
+        "cash_risk_in_deposit": Decimal("100"),
         "source_mode": "PROSPECTIVE_RECEIVED_QUOTES",
     }
     data.update(kw)
@@ -88,15 +88,15 @@ def inputs(**kw):
 def test_long_pays_actual_two_sided_quoted_spread_adverse_slip_and_all_charges():
     result = quote_cost_stress(**inputs())
     assert result.status == STATUS
-    assert result.reference_entry_price == D("101")
-    assert result.reference_exit_price == D("103")
-    assert result.stressed_entry_price == D("101.1")
-    assert result.stressed_exit_price == D("102.8")
-    assert result.gross_reference_deposit == D("20")
-    assert result.gross_after_slippage_deposit == D("17")
-    assert result.fees_funding_swap_deposit == D("3.6")
-    assert result.stressed_surplus_deposit == D("13.4")
-    assert result.hypothetical_r_multiple == D("0.134")
+    assert result.reference_entry_price == Decimal("101")
+    assert result.reference_exit_price == Decimal("103")
+    assert result.stressed_entry_price == Decimal("101.1")
+    assert result.stressed_exit_price == Decimal("102.8")
+    assert result.gross_reference_deposit == Decimal("20")
+    assert result.gross_after_slippage_deposit == Decimal("17")
+    assert result.fees_funding_swap_deposit == Decimal("3.6")
+    assert result.stressed_surplus_deposit == Decimal("13.4")
+    assert result.hypothetical_r_multiple == Decimal("0.134")
     assert not result.executable_fill_attested
     assert not result.broker_actual_net_attested
     assert not result.utc001_certified
@@ -106,21 +106,21 @@ def test_short_also_pays_bidask_spread_both_adverse_slippages():
     result = quote_cost_stress(**inputs(
         direction=-1,exit_series=(q(at=EXIT,bid=98,ask=99),)
     ))
-    assert result.reference_entry_price == D("100")
-    assert result.reference_exit_price == D("99")
-    assert result.stressed_entry_price == D("99.9")
-    assert result.stressed_exit_price == D("99.2")
-    assert result.gross_after_slippage_deposit == D("7")
-    assert result.stressed_surplus_deposit == D("3.4")
+    assert result.reference_entry_price == Decimal("100")
+    assert result.reference_exit_price == Decimal("99")
+    assert result.stressed_entry_price == Decimal("99.9")
+    assert result.stressed_exit_price == Decimal("99.2")
+    assert result.gross_after_slippage_deposit == Decimal("7")
+    assert result.stressed_surplus_deposit == Decimal("3.4")
 
 
 def test_quote_currency_to_deposit_conversion_requires_fx_evidence_asof_exit():
     result = quote_cost_stress(**inputs(
         contract=contract(account_currency="EUR"),
-        conversion=conversion(rate_deposit_per_quote=D("2")),
+        conversion=conversion(rate_deposit_per_quote=Decimal("2")),
     ))
-    assert result.gross_after_slippage_deposit == D("34")
-    assert result.stressed_surplus_deposit == D("30.4")
+    assert result.gross_after_slippage_deposit == Decimal("34")
+    assert result.stressed_surplus_deposit == Decimal("30.4")
 
 
 def test_archived_tick_event_time_never_admitted_as_live_receipt():
@@ -157,13 +157,13 @@ def test_zero_spread_is_quarantined_not_free_cost():
 
 def test_negative_or_missing_commission_and_swap_rejected():
     with pytest.raises(BrokerEvidenceError, match="commission"):
-        fees(entry_commission_deposit=D("-0.01"))
+        fees(entry_commission_deposit=Decimal("-0.01"))
     with pytest.raises(TypeError, match="exit_commission_deposit"):
         ExplicitCostWitness(
-            entry_commission_deposit=D("1"), swap_deposit=D("0"),
-            funding_deposit=D("0"),
-            entry_adverse_slippage_price=D("0"),
-            exit_adverse_slippage_price=D("0"),
+            entry_commission_deposit=Decimal("1"), swap_deposit=Decimal("0"),
+            funding_deposit=Decimal("0"),
+            entry_adverse_slippage_price=Decimal("0"),
+            exit_adverse_slippage_price=Decimal("0"),
         )
     with pytest.raises(BrokerEvidenceError, match="six explicit cost"):
         quote_cost_stress(**inputs(costs=None))
@@ -173,7 +173,7 @@ def test_monetary_float_nan_bool_or_unverified_decimal_cannot_enter_ledger():
     with pytest.raises(BrokerEvidenceError, match="trade_units"):
         contract(trade_units=10.0)
     with pytest.raises(BrokerEvidenceError, match="trade_units"):
-        contract(trade_units=D("NaN"))
+        contract(trade_units=Decimal("NaN"))
     with pytest.raises(BrokerEvidenceError, match="swap"):
         fees(swap_deposit=float("nan"))
     with pytest.raises(BrokerEvidenceError, match="cash_risk"):
@@ -201,12 +201,12 @@ def test_stale_currency_conversion_and_fake_same_currency_rate_rejected():
     with pytest.raises(BrokerEvidenceError, match="FX conversion quote stale"):
         quote_cost_stress(**inputs(
             contract=contract(account_currency="EUR"),
-            conversion=conversion(rate_deposit_per_quote=D("2"),
+            conversion=conversion(rate_deposit_per_quote=Decimal("2"),
                                   known_at=EXIT-timedelta(seconds=6)),
         ))
     with pytest.raises(BrokerEvidenceError, match="same-currency"):
         quote_cost_stress(**inputs(
-            conversion=conversion(rate_deposit_per_quote=D("1.2"))
+            conversion=conversion(rate_deposit_per_quote=Decimal("1.2"))
         ))
 
 
@@ -221,19 +221,19 @@ def test_unverified_contract_metadata_sha_or_non_linear_instrument_blocked():
 
 def test_zero_explicit_costs_can_be_represented_but_never_defaulted():
     zero = fees(
-        entry_commission_deposit=D("0"), exit_commission_deposit=D("0"),
-        funding_deposit=D("0"),swap_deposit=D("0"),
-        entry_adverse_slippage_price=D("0"),
-        exit_adverse_slippage_price=D("0"),
+        entry_commission_deposit=Decimal("0"), exit_commission_deposit=Decimal("0"),
+        funding_deposit=Decimal("0"),swap_deposit=Decimal("0"),
+        entry_adverse_slippage_price=Decimal("0"),
+        exit_adverse_slippage_price=Decimal("0"),
     )
     result = quote_cost_stress(**inputs(costs=zero))
-    assert result.stressed_surplus_deposit == D("20")
+    assert result.stressed_surplus_deposit == Decimal("20")
     assert not result.broker_actual_net_attested
 
 
 def test_zero_risk_and_noncausal_exit_are_blocked():
     with pytest.raises(BrokerEvidenceError, match="cash_risk"):
-        quote_cost_stress(**inputs(cash_risk_in_deposit=D("0")))
+        quote_cost_stress(**inputs(cash_risk_in_deposit=Decimal("0")))
     with pytest.raises(BrokerEvidenceError, match="noncausal"):
         quote_cost_stress(**inputs(exit_decision=T))
 
@@ -241,7 +241,7 @@ def test_zero_risk_and_noncausal_exit_are_blocked():
 def test_extreme_slippage_cannot_produce_negative_stressed_order_price():
     with pytest.raises(BrokerEvidenceError, match="nonpositive"):
         quote_cost_stress(**inputs(
-            direction=-1,costs=fees(entry_adverse_slippage_price=D("101")),
+            direction=-1,costs=fees(entry_adverse_slippage_price=Decimal("101")),
         ))
 
 
