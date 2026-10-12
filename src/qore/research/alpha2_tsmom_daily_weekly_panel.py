@@ -14,7 +14,8 @@ from pathlib import Path
 from statistics import mean
 
 from qore.research.alpha2_intermarket import MARKETS, sha256_file
-from qore.research.alpha2_tsmom_daily_weekly import BEGIN, DEV_END, EMBARGO, IDENTITY as SOURCE_ID
+from qore.research.alpha2_tsmom_daily_weekly import BEGIN, DEV_END, EMBARGO
+from qore.research.alpha2_tsmom_daily_weekly import IDENTITY as SOURCE_ID
 
 IDENTITY = "QORE_ALPHA2_TSMOM_D1_EXPOSED_33_FROZEN_GROSS_WEEKLY_BOOTSTRAP_V1"
 FROZEN_BLOCK_WEEKS = 4
