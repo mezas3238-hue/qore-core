@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import random
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -237,6 +238,10 @@ def run_symbol(
     proof = verify_original(symbol, source_root, original_12_aggregate)
     if proof["native_m5_original_bars"] != row["m5_bars"]:
         raise ValueError("source 33 manifest and original ledger bar count drift")
+    if symbol not in new_source.EXISTING:
+        signed_manifest_sha = row.get("manifest_sha256", row.get("source_manifest_sha256"))
+        if signed_manifest_sha != proof["source_manifest_sha256"]:
+            raise ValueError("21 original source manifest SHA differs from signed 33 roster")
     calendar, counters = collect_blocks(source_root, symbol, symbol in new_source.EXISTING)
     events: list[dict[str, Any]] = []
     reasons: Counter[str] = Counter()
@@ -425,9 +430,17 @@ def aggregate_33(source33_root: Path, witnesses_root: Path) -> dict[str, Any]:
             raise ValueError("missing individual event ledger")
         for e in evs:
             d = date.fromisoformat(e["utc_date"])
+            iso = d.isocalendar()
             if (not START <= d < EMBARGO_DATE
-                    or not e.get("reference_open_close_not_executable") is True
-                    or abs(e["strategy_gross_bps"] - e["signal"] * (e["strategy_gross_bps"] / e["signal"])) > 1e-7
+                    or d.weekday() >= 5
+                    or e.get("iso_week") != f"{iso.year}-W{iso.week:02d}"
+                    or e.get("signal") not in (-1, 1)
+                    or e.get("baseline_signal") not in (-1, 1)
+                    or e.get("pattern") not in ("SWEEP_UP_RECLAIM", "SWEEP_DOWN_RECLAIM")
+                    or (e["signal"] == -1) != (e["pattern"] == "SWEEP_UP_RECLAIM")
+                    or e.get("reference_open_close_not_executable") is not True
+                    or any(not isinstance(e[k], (int, float)) or not math.isfinite(e[k])
+                           for k in ("strategy_gross_bps", "baseline_gross_bps", "paired_delta_bps"))
                     or abs((e["strategy_gross_bps"] - e["baseline_gross_bps"]) - e["paired_delta_bps"]) > 1e-7):
                 raise ValueError("event ledger time or paired metric drift")
         all_events[symbol] = evs
@@ -482,7 +495,7 @@ def main() -> None:
     one.add_argument("--original12-aggregate", type=Path, default=None)
     two = sub.add_parser("aggregate")
     two.add_argument("frozen_33_source_artifact", type=Path)
-    two.add_argument("33_signed_witnesses", type=Path)
+    two.add_argument("signed_witnesses33", type=Path)
     two.add_argument("output", type=Path)
     args = ap.parse_args()
     if args.mode == "symbol":
@@ -492,7 +505,7 @@ def main() -> None:
         )
         dest = args.output / f"qore-native-gross04-symbol-{args.symbol}.json"
     else:
-        result = aggregate_33(args.frozen_33_source_artifact, args.__dict__["33_signed_witnesses"])
+        result = aggregate_33(args.frozen_33_source_artifact, args.signed_witnesses33)
         dest = args.output / "qore-native-gross04-panel33-result.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
