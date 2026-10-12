@@ -74,3 +74,14 @@ Este es **source-only**, no un grid de 33 pruebas de edge. Incluir 33 activos NO
 **P0 para permitir descargas reales:** recuperar/reautorizar un grant cTrader de la **cuenta IC Markets DEMO exacta** con permiso `accounts`/view y actualizar el secreto correspondiente bajo GitHub Actions/vault con rotación **atómica y persistente** del access+refresh; no revelar datos secretos en Issue, PR ni chat. Después una ejecución nueva podrá obtener `brokerTitleShort` y el catálogo nativo y, solo si demuestra IC Markets DEMO, habilitar el trabajo de captura. Sin ese paso, repetir el workflow por fuerza bruta NO resuelve el bloqueo.
 
 **Prueba de honestidad:** `CAPTURE_BLOCKED_AUTH` ≠ `ICMARKETS_SYMBOL_UNAVAILABLE`. El rechazo no permite concluir que NZDUSD ni los cruces no existan en el broker. No afirmar un dato descargado que no fue realmente recibido.
+
+
+## 7. Retest después de restablecer OAuth — fuente validada; lectura histórica en ejecución
+
+El Owner actualizó credenciales en GitHub. En el reintento [#38191796877](https://github.com/mezas3238-hue/qore-core/actions/runs/38191796877), la autorización de aplicación y access token pasó: se superó `CTRADER_ACCESS_TOKEN_INVALID_NO_REFRESH_ATTEMPTED`, pero el campo OPCIONAL `brokerTitleShort` de la respuesta account-list no vino informado. La documentación oficial de Spotware lo enumera como campo opcional. **Se añadió verificación alternativa segura vía `ProtoOATraderReq → trader.brokerName` de la cuenta previamente autenticada**, manteniendo IC Markets DEMO como requisito obligatorio.
+
+[CI #38193509746](https://github.com/mezas3238-hue/qore-core/actions/runs/38193509746) confirmó `offline_inventory_contract=SUCCESS` y `broker_catalog_gate=SUCCESS`. **IC Markets DEMO y catálogo sí quedaron verificados**. Los primeros intentos EURJPY/USDCHF/NZDUSD del download heredado fallaron por otra incompatibilidad que ya conocía el equipo: `cTrader token lacks trading permission or account evidence`, porque el cliente operativo CIBO exige permiso TRADE incluso para leer históricos. Esa política de producción **NO debe cambiarse** para este trabajo.
+
+**Corrección aislada:** se creó un adaptador `_ReadOnlyIcMarketsHistoryClient` solamente en el lector histórico QORE Native, admitiendo `SCOPE_VIEW=0` o `SCOPE_TRADE=1` para cuentas explícitamente DEMO y rechazando refresh; no se ha permitido envío de órdenes ni modificado el SDK operativo común. Se agregaron tests de rechazo de scope inválido y refresh, y el workflow cancela ejecuciones obsoletas para no volver a descargar el mismo símbolo.
+
+**CI vigente del adaptador:** [run #38193802541](https://github.com/mezas3238-hue/qore-core/actions/runs/38193802541), commit `e0ca5a13c866a19d8505c68cffc473598984b340`. Hasta verificar cada artefacto/M5 real el conteo de capturas nuevas certificadas permanece en **cero**. No atribuir una nueva falla de captura al OAuth ya rehabilitado.
