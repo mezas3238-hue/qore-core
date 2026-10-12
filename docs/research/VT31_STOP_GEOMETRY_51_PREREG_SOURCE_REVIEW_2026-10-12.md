@@ -46,6 +46,27 @@ Esta propuesta no afirma que ICT haya definido el caso. Si el **ensayo experimen
 
 **Obligación de control de ejecución**: guardar el SHA completo del documento **aprobado**, firmas ARCH COG y OPS con `APROBAR/OBJETAR` y timestamp anterior al primer análisis individual de los 51, más identificador de cohorte y fuente. Si falta cualquiera, el guard exige `BLOCK_GEOMETRY_REPLAY` y `BLOCK_ECONOMIC_REPLAY`. Las firmas no se infieren de comentarios analíticos, del usuario, de los tests, ni de la mera existencia del PR. Un cambio futuro de README/documentación no puede desbloquear implícitamente el estudio.
 
+### Alcance vinculante de la irrevocabilidad: sensibilidades = protocolo distinto
+
+La clausula anterior se extiende **explícitamente a TODOS los parámetros operativos y a cualquier análisis de sensibilidad**, incluso cuando parezca un cambio pequeño, una corrección inocua o una mejora técnica del backtest. **Cada variante constituye un ensayo posterior con identidad nueva (p. ej. `QORE_C2_FULL_WICK_V2`), distinto de V1; jamás reemplaza la evidencia o resultados de V1.**
+
+| Cambio hipotético después de congelar el protocolo V1 | Clasificación de gobernanza |
+|---|---|
+| Buffer stop **1 tick → 2 ticks**, o buffer fijo/ATR | **Nuevo V2**. No es una sensibilidad interna que permita retitular V1 |
+| Wick **C2 → C1/C3**, far edge FVG o swing | **Nuevo V2**, con fuente y referencia del stop diferentes |
+| Stop dinámico, break-even, trailing, parciales o nuevo time-exit | **Nuevo V2**, con ciclo de vida y PnL no comparables a V1 |
+| Filtro temporal, umbral MSS, tolerancia de spread, elegibilidad de primeros FVG o fallback cuando swing es inválido | **Nuevo V2**; nunca reclasificar los 51 o elegir subconjunto por resultados |
+| Broker/contrato, `tick_size`, modelo de comisiones o fuente histórica materialmente distinta | **Nuevo ámbito de evaluación / protocolo versionado**; documentar cambio de fuente y no mezclar muestras |
+
+**Incluso las sensibilidades meramente descriptivas** deben publicarse separadas, etiquetadas `EXPLORATORY_SENSITIVITY_NOT_CONFIRMATORY`, y **no** pueden servir de criterio de selección para reabrir V1 ni de evidencia de que V1 fue validada por una cohorte independiente. La decisión congelada se mantiene aunque V2 resulte superior. Un hallazgo de error de código exige conservar la evidencia previa con estado `INVALIDATED_BY_BUG` y registrar una versión corregida con trazabilidad: no sobrescribir archivos de resultados de V1, no declarar que una corrección convierte retrospectivamente V1 en una prueba preregistrada independiente.
+
+**Dos protocolos coexistentes, sin mezcla de firmas**:
+
+- `B_SWING_GEOMETRY_OPTION1`: cuando el swing experimental B queda del lado incorrecto del CE, **propuesta** `NO_TRADE`. Esto es una decisión nueva de gobernanza para ese diseño; sus **51 casos históricos continúan `INDETERMINATE` y FAIL en A/B original**.
+- `QORE_C2_FULL_WICK_V1`: [propuesta integral G3 del otro arquitecto, PR #881](https://github.com/mezas3238-hue/qore-core/pull/881), con C2 como stop primario desde el nacimiento del nuevo protocolo. **No** es un fallback en B y no obtiene aprobación implícita de una firma sobre este documento. La última revisión conocida de esa acta era `859c93acadef17141ae31d7ed7c9b8e38a4e3421`, pero cualquier actualización exige volver a obtener su nuevo SHA.
+
+**Firma válida:** dos registros explícitos e independientes (`COG` y `OPS`) enlazados al mismo **SHA COMPLETO DEL COMMIT DEL PROTOCOLO** y el nombre de la decisión exacta, cada uno con `APROBAR` o `OBJETAR`, hora y justificación. Una firma de `B_SWING_GEOMETRY_OPTION1` no aprueba `QORE_C2_FULL_WICK_V1`, y viceversa. Una revisión externa favorable, un comentario de código de un solo arquitecto o una recomendación del usuario **no equivalen a firmas de ambas funciones**. Si el SHA cambia después de una firma, exigir reconfirmación de **ambos roles** sobre el nuevo SHA antes de `FROZEN_G3`. Ningún replay de geometría ni económico se libera automáticamente por esta revisión editorial; siguen vigentes los gates de datos Bid/Ask, OMS/ACK, costes y holdout.
+
 ### Dictamen cerrado sobre el **material ICT que ha podido verificarse**
 
 - **`ICT_STOP_UNDERDETERMINED_FOR_REVIEWED_2023_MATERIAL` — CONCLUSIÓN DE REVISIÓN DOCUMENTAL, no regla pendiente de decidir.** En la transcripción completa indexada de la clase del [15-05-2023, lección original](https://www.youtube.com/watch?v=tRq1hyGGtl4) ([ASR trazable](https://info.quagmyre.com/xwiki/bin/view/Forex/The-Inner-Circle-Trader/ICT-Youtube-Series-2023/ICT-YT-2023-05-15-ICT-Mentorship-ICT-Silver-Bullet-Time-Based-Trading-Model/?xpage=print)), las referencias **10:34–10:55**, **13:12–13:55** y **14:53–15:30** explican FVG, dirección, ventana y ejemplos de operaciones, **sin precisar de manera algorítmica que todo Silver Bullet deba usar C2, far-edge, swing protegido ni un buffer numérico universal**. Menciona en **10:34–10:55** que el ejemplo no hubiera alcanzado su stop según sus reglas de otros modelos, **no especifica precio inicial de stop para nuestra implementación**.
