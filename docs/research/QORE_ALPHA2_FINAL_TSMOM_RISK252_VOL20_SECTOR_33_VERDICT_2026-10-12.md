@@ -22,6 +22,8 @@
 
 **Bruto antes de coste supuesto**: full33 DEV +1,7126 bps/semana, DIAG −2,6685; no-FX DEV +4,5895, DIAG +8,2575; los costes hipotéticos mueven los estimandos. Los CIs son por semanas con todas las semanas cash=0; el recuento de 12.032 operaciones nominales agregadas (8.605+3.427) **NO es** el número independiente de observaciones; correlación entre símbolos y calendario importa.
 
+**Diagnóstico de saturación del cap de exposición (fijo 3×):** el output original registra solo **106/8.605 (1,23%)** operaciones FULL33 DEV y **57/3.427 (1,66%)** DIAG en el cap. Cruces FX **89/5.481 (1,62%)** DEV y **54/2.184 (2,47%)** DIAG; majors **16/1.827 (0,88%)** DEV y **3/728 (0,41%)** DIAG; no-FX5 **1/1.297 (0,08%)** DEV y **0/515 (0%)** DIAG. Estos son hechos descriptivos del artefacto SHA, NO un argumento para quitar o cambiar el cap; la familia queda cerrada y la exposición está escalada aun cuando no alcance el cap.
+
 ### Dictamen científico
 
 1. La **puerta primaria preregistrada FULL33** exige media *cost_proxy* y límite inferior IC95 >0 en **ambos** periodos. **FALLA** en DEV y DIAG, que además presentan medias negativas. `FINAL_TSMOM_FAIL_CLOSE_FAMILY_ON_EXPOSED_DATA`: prohíbe otra variante en este histórico gastado incluso si un futuro investigador detectara un sector promisorio.
