@@ -15,7 +15,7 @@ import math
 import random
 import zipfile
 from collections import Counter
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 from statistics import mean, stdev
 
@@ -89,7 +89,9 @@ def bis_policy_rates(zip_path:Path)->tuple[dict[str,dict[str,float]],dict]:
                 meta["source_refs"].add((row["SOURCE_REF:Publication Source"] or "")[:110])
                 meta["compilation_descriptors"].add(
                     (row["COMPILATION:Compilation"] or "")[:130])
-                annotation=(row.get("SUPP_INFO_BREAKS:Supplemental information and breaks") or "").strip()
+                annotation=(
+                    row.get("SUPP_INFO_BREAKS:Supplemental information and breaks") or ""
+                ).strip()
                 if annotation:
                     meta["break_annotations"].add(annotation[:160])
     cover={}
