@@ -53,7 +53,7 @@ def prep_day_source(
                          for r in days],
     }
     f.write_text(json.dumps(payload, separators=(",",":"))+"\n", encoding="utf-8")
-    (private / f"{symbol}.sha256").write_text(
+    (private / f"{symbol}.json.sha256").write_text(
         sha256_file(f)+"  "+f.name+"\n", encoding="utf-8"
     )
     return {"symbol":symbol,"daily":len(days),"SHA_audited":True,"NET":"BLOCKED"}
