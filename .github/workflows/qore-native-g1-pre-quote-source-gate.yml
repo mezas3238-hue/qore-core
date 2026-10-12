@@ -7,6 +7,8 @@ on:
     paths:
       - 'src/qore/infrastructure/trader_lab/qore_native_g1_pre_quote_source_gate_v1.py'
       - 'tests/infrastructure/trader_lab/test_qore_native_g1_pre_quote_source_gate_v1.py'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_pre_native_side_join_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_pre_native_side_join_v1.py'
       - '.github/workflows/qore-native-g1-pre-quote-source-gate.yml'
       - 'docs/research/QORE_NATIVE_G1_PRE_NATIVE_TICKS_SOURCE_PLAN_2026-10-12.md'
   pull_request:
@@ -31,9 +33,9 @@ jobs:
       - name: Verify fail-closed G1-PRE source contract
         run: |
           set -euo pipefail
-          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_pre_quote_source_gate_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_pre_quote_source_gate_v1.py
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_pre_quote_source_gate_v1.py src/qore/infrastructure/trader_lab/qore_native_g1_pre_native_side_join_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_pre_quote_source_gate_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_pre_native_side_join_v1.py
           python -m compileall -q src/qore/infrastructure/trader_lab/qore_native_g1_pre_quote_source_gate_v1.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_pre_quote_source_gate_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_pre_quote_source_gate_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_pre_native_side_join_v1.py
       - name: Declare source integrity CI scope
         run: |
           echo "SYNTHETIC CONTRACT TESTS ONLY, 0 REAL BROKER QUOTE RECORDS READ"
