@@ -173,8 +173,9 @@ def audit_symbol(symbol: str, source: Path, aggregate_row: dict[str, Any]) -> di
         expected_names = {
             f"RAW_M5_LEDGER/{year}.jsonl", f"DATA_QUALITY_LEDGER/{year}.jsonl"
         }
-        if set(raw_witness) != expected_names:
-            raise ValueError("missing annual raw/quality SHA")
+        if set(raw_witness) != expected_names | {part_name}:
+            raise ValueError("annual raw/quality/partition manifest SHA scope mismatch")
+        verified_file(source, raw_witness, part_name)
         raw = verified_file(source, raw_witness, f"RAW_M5_LEDGER/{year}.jsonl")
         verified_file(source, raw_witness, f"DATA_QUALITY_LEDGER/{year}.jsonl")
         n = 0
