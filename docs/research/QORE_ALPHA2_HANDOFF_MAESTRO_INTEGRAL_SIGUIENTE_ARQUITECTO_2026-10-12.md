@@ -227,3 +227,21 @@ Cuando se necesiten módulos cTrader originales que no están vendorizados en la
 ---
 
 **CIERRE FORMAL AL 12/10/2026:** investigación y G2 fuente documentados; tres hipótesis no soportadas, solo recepción y calidad de datos parcialmente verificadas; sin custodia duradera/licencia todavía, sin especificaciones históricas suficientes, sin PATH BIDASK neto, sin edge certificado y sin despliegue. **Handoff de continuación, NO entrega de trader operativo.**
+
+
+---
+
+## Anexo de continuación — 2026-10-12, P0 restore SHA local (sin transferencia)
+
+**Ronda posterior al handoff del commit original `4a7640f5a0d23d82ced7d5279b52600273a4260c`.** Se revisaron PR #840 e issues #837, #852 y #868, se confirmó que la investigación W1/W2/W3 sigue congelada y que la expiración de los ZIP originales continúa como P0. No se han tocado señales, PnL, histórico reservado, bróker, VPS ni producción.
+
+**Trabajo nuevo implementado en esta misma rama:**
+- Contrato previo al código: [QORE_ALPHA2_P0_PRIVATE_RESTORE_SHA_VERIFIER_CONTRACT_2026-10-12.md](QORE_ALPHA2_P0_PRIVATE_RESTORE_SHA_VERIFIER_CONTRACT_2026-10-12.md), ancestro **`e95af04b63a20a583d145896534514a7ae933a02`**.
+- Verificador **OFFLINE** `src/qore/research/alpha2_p0_private_restore_sha.py` con comparación de SHA256 por streaming y tamaño original para 33 ZIP, más SHA de 2 ZIP de metadatos (35 en total). Rechaza inventario ajeno al roster/cohortes/HEADs, SHA alterado, tamaños, alias, archivos faltantes/extra, rutas indirectas, symlink y hardlink. No descarga ni extrae fuentes.
+- Pruebas exclusivamente sintéticas `tests/research/test_alpha2_p0_private_restore_sha.py`, CI aislada `.github/workflows/qore-alpha2-p0-offline-private-restore-sha-ci.yml`. **GitHub Actions [#38308796703](https://github.com/mezas3238-hue/qore-core/actions/runs/38308796703) SUCCESS, 12/12 tests + Ruff PASS**, exact código HEAD **`827db26cde2c2a90b29834a57e044646b5822a68`**. El primer run #38308722701 falló solo en Ruff por dos imports no usados, corregidos en ese HEAD; no había llegado a pytest, no existió lectura de fuentes reales.
+
+**Significado estricto del PASS**: funcionamiento sintético del validador. El verificador podría funcionar sobre una restauración local privada *después* de aprobación del owner y evidencia licenciada. Nunca crea backup, verifica una cuenta/corredor, demuestra retención ni autentica por sí mismo un JSON de inventario. Su salida incluso con coincidencia 35/35 mantiene `SOURCE_ARCHIVED_PERMANENTLY=false`, `private_vault_authorized_and_durable_verified=false`, `independent_offsite_reader_verified=false`, `broker_retention_license_verified=false`, `yearly_raw_quality_partition_sha_verified=false` y `UTC001_certified=false`.
+
+**P0 aún pendiente, SIN solución material**: licencia/condiciones de datos, Data Vault privado aprobado, presupuesto/seguridad/retención, recuperación externa real y comprobación de 33×RAW/QUALITY anual, segunda restauración en entorno/operador separado; conservar Atlas12 antes de **2026-12-16T00:21:18Z**. Los original21 vencen después. No subir históricos brutos al repositorio público ni a artifacts CI; los profits vault de arquitectura QORE no equivalen automáticamente a un Data Vault de mercado autorizado. Si no se obtiene autorización, seguir `P0_ARCHIVE_BLOCKED_AWAITING_OWNER_AUTHORIZATION`; **no presentar un PASS sintético como preservación**.
+
+**Siguientes prioridades tras P0**: #868 identidad contractual original entre cuentas de NAS100/USTEC, SP500/US500, NZDUSD y XAGUSD (no reintentar cTrader SymbolById sin diagnóstico previo); #852 BID/ASK causal y primera recepción real, costes de entrada/salida, NEWS-PIT y fuentes prospectivas realmente independientes. W1/W2/W3 no se reabren en el histórico consumido; 0 candidatos UTC-001, 0 traders Alpha2 certificados y 0 órdenes.
