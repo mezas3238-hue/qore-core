@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from typing import Iterable
 
 from qore.research.alpha2_intermarket import MARKETS, Bar, _check_bar, sha256_file
 from qore.research.alpha2_lab_h4_extract import (
@@ -115,7 +115,9 @@ def directions_before_entry(days: list[Day], i: int) -> tuple[int, int]:
 
 
 def replay_days(symbol: str, days: list[Day]) -> dict:
-    if symbol not in MARKETS or any(a.utc_day >= b.utc_day for a, b in zip(days, days[1:], strict=True)):
+    if symbol not in MARKETS or any(
+        a.utc_day >= b.utc_day for a, b in zip(days, days[1:], strict=False)
+    ):
         raise ValueError("TSMOM_SYMBOL_OR_DAILY_ORDER_INVALID")
     events: list[dict] = []
     dropped: dict[str, int] = {}
