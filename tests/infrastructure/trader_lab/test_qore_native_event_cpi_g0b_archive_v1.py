@@ -73,7 +73,7 @@ def test_header_effective_release_checked_not_just_index(
     report = m.inspect_entry(row, archive)
     assert report["status"] == "ARCHIVED_RELEASE_HEADER_MATCH"
     assert report["archive_header_confirmed"] is True
-    assert report["archived_header_source_sha256"] == hashlib.sha256(stub).hexdigest()
+    assert report["archived_header_prefix_sha256"] == hashlib.sha256(stub).hexdigest()
     assert "actual" not in report and "forecast" not in report
 
 
