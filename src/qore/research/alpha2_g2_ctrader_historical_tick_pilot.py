@@ -52,21 +52,27 @@ def decode_newest_first(
             or not tick_rows):
         raise ValueError("BAD_WINDOW_OR_NO_HISTORIC_TICKS")
     previous: int | None = None
+    previous_price: int | None = None
     chronological: list[dict[str, int]] = []
-    for index, (stamp, price) in enumerate(tick_rows):
-        if type(stamp) is not int or type(price) is not int or price <= 0:
+    for index, (stamp, signed_price) in enumerate(tick_rows):
+        if type(stamp) is not int or type(signed_price) is not int:
             raise ValueError("BAD_CTRADER_TICK_TYPE_OR_PRICE")
         if index == 0:
-            absolute = stamp
+            absolute, price = stamp, signed_price
         else:
-            if stamp < 0 or previous is None:
-                raise ValueError("BAD_CTRADER_DELTA")
-            absolute = previous - stamp
+            # cTrader returns newest first: timestamp and tick price are both
+            # SIGNED deltas from previous reconstructed native record.
+            if stamp > 0 or previous is None or previous_price is None:
+                raise ValueError("BAD_CTRADER_SIGNED_DELTA")
+            absolute = previous + stamp
+            price = previous_price + signed_price
+        if price <= 0:
+            raise ValueError("BAD_CTRADER_TICK_TYPE_OR_PRICE")
         if not start_ms <= absolute < end_ms:
             raise ValueError("HISTORICAL_TICK_OUTSIDE_PRESET_WINDOW")
         if previous is not None and absolute > previous:
             raise ValueError("REVERSE_CHRONOLOGY_INCONSISTENT")
-        previous = absolute
+        previous, previous_price = absolute, price
         chronological.append({"provider_tick_at_ms": absolute,
                               "raw_tick_price_1e5": price})
     chronological.reverse()
