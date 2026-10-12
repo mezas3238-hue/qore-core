@@ -1,0 +1,92 @@
+name: QORE Native G1 E1 predecision fail closed NOT NET
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-e1-predecision-failclosed-20261012
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_e1_predecision_failclosed_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_e1_predecision_failclosed_v1.py'
+      - '.github/workflows/qore-native-g1-e1-predecision-failclosed.yml'
+      - 'docs/research/QORE_NATIVE_G1_E1_PREDECISION_FAILCLOSED_PREREG_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  guard_unit_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test synthetic causal rejection
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_g1_e1_predecision_failclosed_v1.py -v
+
+  signed_full33_e1_research_only:
+    needs: guard_unit_tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: src
+      QORE_E1_DATA_ROOT: ${{ github.workspace }}/original-E1-archive
+      QORE_E1_REPORT_DIR: ${{ github.workspace }}/report-E1-clock-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Restore previously signed 33 E1 archives (never broker API)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$QORE_E1_DATA_ROOT" "$QORE_E1_REPORT_DIR"
+          cp docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/artifact_register.txt "$QORE_E1_REPORT_DIR/"
+          test "$(wc -l < "$QORE_E1_REPORT_DIR/artifact_register.txt")" -eq 33
+          bash docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/fetch_original_signed_E1_zip_artifacts.sh
+      - name: Independently validate original signed E1 clocks without export of outcomes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/audit.py
+      - name: Reject all 33x7 research clocks as unverified actual orders
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_e1_predecision_failclosed_v1 "$QORE_E1_REPORT_DIR/original_E1_event_clocks_only.jsonl.gz" "$QORE_E1_REPORT_DIR/predecision_failclosed"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["QORE_E1_REPORT_DIR"])
+          source = json.loads((root/"summary.json").read_text())
+          result = json.loads((root/"predecision_failclosed"/"E1_PREDECISION_FAIL_CLOSED_SUMMARY.json").read_text())
+          assert source["all_original_research_E1_event_count"] == 373611
+          assert source["universe_markets_signed_source_verified"] == 33
+          assert source["net_authorized"] is False and source["certified_traders"] == 0
+          assert source["actual_BIDASK_requested_in_this_audit"] is False
+          assert result["research_opportunities_checked"] == 373611
+          assert result["distinct_markets"] == 33
+          assert result["distinct_market_method_cells"] == 231
+          assert result["research_clocks_rejected_as_orders"] == 373611
+          assert result["predecision_witnesses_verified"] == 0
+          assert result["executable_trades_proven"] == 0
+          assert result["historical_NET_authorized"] is False
+          assert result["certified_traders"] == 0
+          print("E1_PREDECISION_33X7_CLOCK_ONLY_REJECTION_PASS_NOT_NET")
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "$QORE_E1_REPORT_DIR/predecision_failclosed/code-sha.txt"
+          (cd "$QORE_E1_REPORT_DIR/predecision_failclosed" && sha256sum *.json *.gz *.txt > SHA256SUMS.txt)
+      - name: Upload temporary read-only blocked ledger
+        uses: actions/upload-artifact@v4
+        with:
+          name: QORE-NATIVE-G1-E1-predecision-blocked-NOT-NET-${{ github.sha }}
+          path: report-E1-clock-only/predecision_failclosed/
+          retention-days: 30
+          if-no-files-found: error
