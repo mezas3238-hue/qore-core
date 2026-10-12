@@ -10,11 +10,11 @@ import csv
 import hashlib
 import json
 import math
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from statistics import median, pstdev
-from typing import Iterable, Mapping, Sequence
 
 MARKETS = (
     "NAS100", "SP500", "US30", "XAUUSD", "XAGUSD",
