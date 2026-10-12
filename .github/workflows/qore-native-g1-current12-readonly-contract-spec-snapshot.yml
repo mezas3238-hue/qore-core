@@ -1,0 +1,87 @@
+name: QORE Native G1 original12 current ICMarkets DEMO read-only contract-spec snapshot NO NET
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-current12-readonly-broker-spec-snapshot-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-current12-readonly-contract-spec-snapshot.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_current12_demobroker_symbol_specs_snapshot_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_current12_demobroker_symbol_specs_snapshot_v1.py'
+      - 'docs/research/QORE_NATIVE_G1_ORIGINAL12_CURRENT_READONLY_BROKER_SPECS_PREREG_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-native-g1-current12-readonly-specs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prereg_contract_no_orders_unit_gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research-only broker SDK and tests
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Frozen 12 read-only symbols, no market data/orders, fail-closed negative tests
+        run: |
+          set -euo pipefail
+          test -s docs/research/QORE_NATIVE_G1_ORIGINAL12_CURRENT_READONLY_BROKER_SPECS_PREREG_2026-10-12.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_current12_demobroker_symbol_specs_snapshot_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_current12_demobroker_symbol_specs_snapshot_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_current12_demobroker_symbol_specs_snapshot_v1.py
+
+  read_only_current_demo_original12_native_specs:
+    needs: prereg_contract_no_orders_unit_gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only SDK
+        run: python -m pip install -e '.[ctrader]'
+      - name: Read only current IC Markets DEMO SymbolsList + SymbolById for 12 original provider IDs
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_current12_demobroker_symbol_specs_snapshot_v1 current12-snapshot
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          row=json.loads(Path("current12-snapshot/CURRENT12_BROKER_NATIVE_SOURCE_METADATA_NOT_HISTORIC_NET.json").read_text())
+          assert row["status"]=="CURRENT12_DEMO_NATIVE_SYMBOL_SPECS_PASS_HISTORIC_CONTRACT_UNVERIFIED"
+          assert len(row["rows"])==12
+          assert all(x["historic_G0_digits_pip_position_agree"] for x in row["rows"])
+          assert all(not x["broker_execution_contract_historically_certified"] for x in row["rows"])
+          assert not row["historical_contract_equivalence_proven"]
+          assert not row["NET_authorized"] and row["certified_traders"]==0
+          assert row["broker_orders_submitted"]==0
+          assert row["actual_broker_tick_requests"]==0
+          assert row["actual_broker_trendbar_requests"]==0
+          print("CURRENT12_DEMO_READONLY_SOURCE_SPECS_FROZEN_NO_HISTORY_OR_NET")
+          PY
+          printf '%s\n' "$GITHUB_SHA" > current12-snapshot/code-sha.txt
+          (cd current12-snapshot && sha256sum *.json code-sha.txt > ORIGINAL_SOURCE_AUDIT_SHA256SUMS.txt)
+      - name: Preserve sanitized current metadata only, no account ids/tokens or original quotes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-current12-readonly-specs-NOT-HISTORIC-NET-${{ github.sha }}
+          path: current12-snapshot/
+          retention-days: 90
+          if-no-files-found: warn
