@@ -24,14 +24,14 @@ def test_same_millisecond_updates_can_be_zero_or_positive():
 
 
 def test_one_side_lag_causes_zero_from_either_direction_not_from_future():
-    bid=[(0,100000),(200,100005)]
+    bid=[(0,100000),(200,100005),(400,100005)]
     ask=[(100,100000),(300,100005)]
     out=f.investigate(bid,ask)
     assert out["source_quality_counts"]["missing_side"]==1
-    assert out["source_quality_counts"]["zero_spread"]==2
-    assert out["zero_last_known_bid_older"]==1
+    assert out["source_quality_counts"]["zero_spread"]==3
+    assert out["zero_last_known_bid_older"]==2
     assert out["zero_last_known_ask_older"]==1
-    assert out["zero_last_known_max_side_lag_ms_buckets"]["1_100"]==2
+    assert out["zero_last_known_max_side_lag_ms_buckets"]["1_100"]==3
     assert out["source_quality_counts"]["zero_same_millisecond"]==0
 
 
