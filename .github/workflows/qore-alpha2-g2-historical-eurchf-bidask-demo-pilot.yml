@@ -1,0 +1,71 @@
+name: QORE Alpha2 G2 EURCHF historical BIDASK DEMO read-only PILOT
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-historical-eurchf-bidask-demo-pilot.yml'
+      - 'src/qore/research/alpha2_g2_ctrader_historical_tick_pilot.py'
+      - 'tests/research/test_alpha2_g2_ctrader_historical_tick_pilot.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: alpha2-g2-bidask-demo-only-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  prereg_and_protocol_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Freeze SOURCE prereg and assert no retrospective tuning
+        run: |
+          git merge-base --is-ancestor 785ecfa28e8cce01df0d2e0203c68a53f38e79f3 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G2_EURCHF_DEMO_HISTORICAL_BIDASK_TICK_PILOT_PREREG_2026-10-12.md
+      - name: Ruff and official reverse timestamp syntax + causal G2 tests
+        run: |
+          ruff check src/qore/research/alpha2_g2_ctrader_historical_tick_pilot.py tests/research/test_alpha2_g2_ctrader_historical_tick_pilot.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_ctrader_historical_tick_pilot.py tests/research/test_alpha2_g2_bidask_causal_contract.py
+  READONLY_ICMARKETS_DEMO_EURCHF_ONE_MINUTE:
+    needs: prereg_and_protocol_tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact project cTrader optional read-only SDK
+        run: python -m pip install -e '.[ctrader]'
+      - name: Read broker account DEMO only, request EURCHF BID ASK history exactly one minute (zero orders)
+        run: |
+          mkdir -p source-out
+          python -m qore.research.alpha2_g2_ctrader_historical_tick_pilot source-out
+      - name: Emit exact HEAD reproducibility witness (even if source blocker)
+        if: always()
+        run: |
+          mkdir -p source-out
+          printf '%s\n' "$GITHUB_SHA" > source-out/exact-code-head-sha.txt
+          (cd source-out && sha256sum *.jsonl *.json exact-code-head-sha.txt 2>/dev/null > COMPLETE_SHA256SUMS.txt || true)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: alpha2-g2-eurchf-demo-historical-bidask-${{ github.sha }}
+          path: source-out/
+          if-no-files-found: error
+          retention-days: 90
