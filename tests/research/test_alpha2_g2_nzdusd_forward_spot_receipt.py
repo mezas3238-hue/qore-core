@@ -5,7 +5,7 @@ import pytest
 
 from qore.research.alpha2_g2_nzdusd_forward_spot_receipt import (
     MAX_SIDE_AGE,
-    SourceBlocked,
+    SourceBlockedError,
     classify_received_pair,
     normalize_spot_event,
 )
@@ -21,7 +21,7 @@ class FakeEvent:
         self.ask=ask
         self.timestamp=stamp
 
-    def HasField(self, key):
+    def HasField(self, key):  # noqa: N802 -- exact protobuf API fixture
         return getattr(self,key,None) is not None
 
 
@@ -68,7 +68,7 @@ def test_quote_age_max_five_seconds_and_zero_crossed_quarantine():
 
 
 def test_wrong_provider_symbol_id_blocked_not_remapped():
-    with pytest.raises(SourceBlocked,match="SYMBOL_ID_CHANGED"):
+    with pytest.raises(SourceBlockedError,match="SYMBOL_ID_CHANGED"):
         normalize_spot_event(
             FakeEvent(bid=105500,symbol=54321),
             expected_symid=SYM,received_at=T,sequence=0,
@@ -77,31 +77,31 @@ def test_wrong_provider_symbol_id_blocked_not_remapped():
 
 def test_future_provider_stamp_is_rejected_not_backfilled():
     future=int((T+timedelta(milliseconds=1)).timestamp()*1000)
-    with pytest.raises(SourceBlocked,match="FUTURE"):
+    with pytest.raises(SourceBlockedError,match="FUTURE"):
         normalize_spot_event(FakeEvent(bid=105500,stamp=future),
                              expected_symid=SYM,received_at=T,sequence=0)
 
 
 def test_missing_quote_sides_are_not_replaced_by_zeros():
-    with pytest.raises(SourceBlocked,match="SIDE_VALUES_ABSENT"):
+    with pytest.raises(SourceBlockedError,match="SIDE_VALUES_ABSENT"):
         normalize_spot_event(FakeEvent(),expected_symid=SYM,
                              received_at=T,sequence=0)
-    with pytest.raises(SourceBlocked,match="SIDE_VALUES_ABSENT"):
+    with pytest.raises(SourceBlockedError,match="SIDE_VALUES_ABSENT"):
         normalize_spot_event(FakeEvent(bid=0),expected_symid=SYM,
                              received_at=T,sequence=0)
 
 
 def test_boolean_and_negative_native_bidask_fail_closed():
-    with pytest.raises(SourceBlocked,match="INTEGER_INVALID"):
+    with pytest.raises(SourceBlockedError,match="INTEGER_INVALID"):
         normalize_spot_event(FakeEvent(bid=True),
                              expected_symid=SYM,received_at=T,sequence=0)
-    with pytest.raises(SourceBlocked,match="INTEGER_INVALID"):
+    with pytest.raises(SourceBlockedError,match="INTEGER_INVALID"):
         normalize_spot_event(FakeEvent(bid=-1),
                              expected_symid=SYM,received_at=T,sequence=0)
 
 
 def test_naive_clock_rejected():
-    with pytest.raises(SourceBlocked,match="NOT_UTC"):
+    with pytest.raises(SourceBlockedError,match="NOT_UTC"):
         normalize_spot_event(FakeEvent(bid=105500),
                              expected_symid=SYM,
                              received_at=datetime(2026,10,12),sequence=0)
