@@ -63,7 +63,7 @@ def _validate_days(all33: dict[str,list[Day]]) -> list[date]:
     if set(all33) != set(MARKETS) or len(MARKETS)!=33:
         raise ValueError("XSREV5_NEEDS_EACH_OF_33_ORIGINAL_MARKETS")
     sets = []
-    for sym, days in all33.items():
+    for days in all33.values():
         if any(a.utc_day >= b.utc_day for a,b in zip(days,days[1:],strict=False)):
             raise ValueError("XSREV5_DAILY_ORDER_INVALID")
         if not days:
