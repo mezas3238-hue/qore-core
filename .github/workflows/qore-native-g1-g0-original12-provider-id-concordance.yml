@@ -1,0 +1,133 @@
+name: QORE Native G1 Original12 G0 vs G1 broker provider ID source concordance NOT CONTRACT
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-g0-g1-original12-provider-id-concordance-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-g0-original12-provider-id-concordance.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_g0_12_original_provider_id_concordance_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_g0_12_original_provider_id_concordance_v1.py'
+      - 'docs/research/QORE_NATIVE_G1_G0_12_PROVIDER_ID_CONCORDANCE_PREREG_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  reconcile_original12_g0_g1_provider_native_identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install source-only auditor/test dependencies, not broker SDK
+        run: python -m pip install -e '.[dev]'
+      - name: Verify prereg and synthetic negative broker identity tests
+        run: |
+          set -euo pipefail
+          test -s docs/research/QORE_NATIVE_G1_G0_12_PROVIDER_ID_CONCORDANCE_PREREG_2026-10-12.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_g0_12_original_provider_id_concordance_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_g0_12_original_provider_id_concordance_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_g0_12_original_provider_id_concordance_v1.py
+      - name: Verify immutable original six signed source artifact ZIP SHA256 before downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          from qore.infrastructure.trader_lab import qore_native_g1_g0_12_original_provider_id_concordance_v1 as a
+          pinned={
+              "G0":(10476615509,35166210458),
+              "G1_29":(11762222336,38283737706),
+              "US500":(11761419260,38282585181),
+              "XAGUSD":(11761892358,38282585181),
+              "USTEC":(11762668603,38285063753),
+              "USTEC_SPEC":(11762018327,38284304699),
+          }
+          assert set(a.SOURCE_DIGESTS)==set(pinned)
+          for key,(artifact,run) in pinned.items():
+              url=f"https://api.github.com/repos/mezas3238-hue/qore-core/actions/artifacts/{artifact}"
+              req=urllib.request.Request(url,headers={
+                  "Authorization":"Bearer "+os.environ["GH_TOKEN"],
+                  "Accept":"application/vnd.github+json",
+              })
+              with urllib.request.urlopen(req,timeout=15) as res:
+                  obj=json.load(res)
+              assert obj["id"]==artifact and obj["expired"] is False
+              assert obj["workflow_run"]["id"]==run
+              assert obj["digest"]=="sha256:"+a.SOURCE_DIGESTS[key]
+          print("G0_AND_G1_SIX_SOURCE_ZIPS_SHA_AND_RUN_VERIFIED")
+          PY
+      - name: Restore source-only artifact g0
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: source-replay/g0
+      - name: Restore source-only artifact g1-29
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-29-remaining-BID-ASK-source-NOT-NET-f8262bd7cdea1fbfb2287c3c1fe0dae3be2b0efc
+          run-id: '38283737706'
+          github-token: ${{ github.token }}
+          path: source-replay/g1-29
+      - name: Restore source-only artifact g1-us500
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-crossasset-SP500-source-NOT-NET-626909b960525dbf3ca0c7ab0a554b56d03c0170
+          run-id: '38282585181'
+          github-token: ${{ github.token }}
+          path: source-replay/g1-us500
+      - name: Restore source-only artifact g1-xagusd
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-crossasset-XAGUSD-source-NOT-NET-626909b960525dbf3ca0c7ab0a554b56d03c0170
+          run-id: '38282585181'
+          github-token: ${{ github.token }}
+          path: source-replay/g1-xagusd
+      - name: Restore source-only artifact g1-ustec
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-USTEC-candidate-source-NOT-NAS100-certified-1626667cb8a2ac40702a021e8422d9fdec252e75
+          run-id: '38285063753'
+          github-token: ${{ github.token }}
+          path: source-replay/g1-ustec
+      - name: Restore source-only artifact current-ustec-spec
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-NAS100-USTEC-source-alias-catalog-only-716996e0f893af0aeb2b990ac11d644cf62a5c5f
+          run-id: '38284304699'
+          github-token: ${{ github.token }}
+          path: source-replay/current-ustec-spec
+      - name: Independently compare 12 original CIBO historical native provider symbol IDs to current DEMO quote source IDs
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_g0_12_original_provider_id_concordance_v1 source-replay results
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/QORE_G0_G1_ORIGINAL12_PROVIDER_ID_SOURCE_CONCORDANCE_NOT_CONTRACT_NET.json")
+          d=json.loads(p.read_text())
+          assert d["g0_and_g1_provider_symbol_name_and_id_same_count"]==12
+          assert d["total_g0_historical_year_partitions_sha_verified"]==132
+          assert d["nas100_to_ustec_broker_execution_contract_certified"] is False
+          assert d["sp500_to_us500_broker_execution_contract_certified"] is False
+          assert d["g0_g1_account_identity_proven"] is False
+          assert d["g0_g1_historic_execution_contracts_proven"] is False
+          assert not d["historical_execution_NET_authorized"]
+          assert d["traders_certified"]==0
+          print("G0_G1_12_HISTORICAL_PROVIDER_NAME_ID_CONCORDANT_NOT_CONTRACT_NET")
+          PY
+          printf '%s\n' "$GITHUB_SHA" > results/source-auditor-head-sha.txt
+          (cd results && sha256sum *.json source-auditor-head-sha.txt > REPORT_SHA256SUMS.txt)
+      - name: Save metadata-only concordance, never raw ticks or accounts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-G0-original12-provider-ID-concordance-NOT-CONTRACT-NET-${{ github.sha }}
+          path: results/
+          retention-days: 90
+          if-no-files-found: error
