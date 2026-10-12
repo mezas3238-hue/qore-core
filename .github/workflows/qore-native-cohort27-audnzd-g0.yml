@@ -1,0 +1,104 @@
+name: QORE Native 27th M5 AUDNZD G0 source-only
+
+on:
+  push:
+    branches:
+      - research/qore-native-cohort27-audnzd-source-g0-20261012
+    paths:
+      - '.github/workflows/qore-native-cohort27-audnzd-g0.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_cohort27_audnzd_g0_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_cohort27_audnzd_g0_v1.py'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: qore-native27-audnzd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_cohort27_audnzd_g0_v1.py tests/infrastructure/trader_lab/test_qore_native_cohort27_audnzd_g0_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_cohort27_audnzd_g0_v1.py
+
+  verify_audnzd:
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Fetch completed IC Markets DEMO original M5 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-AUDNZD-e0ca5a13c866a19d8505c68cffc473598984b340
+          run-id: '38193802541'
+          github-token: ${{ github.token }}
+          path: original-audnzd
+      - name: Rehash 11 annual raw and quality original provider years
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_cohort27_audnzd_g0_v1 audit original-audnzd audnzd-proof
+          printf '%s\n' "$GITHUB_SHA" > audnzd-proof/code-head-sha.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-native-cohort27-audnzd-sha-${{ github.sha }}
+          path: audnzd-proof/
+          retention-days: 90
+          if-no-files-found: warn
+
+  publish_27:
+    needs: verify_audnzd
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Retrieve exact immutable 26 G0 parent manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-cohort26-unified-2391063da42abdb733783ea9fb1781314419a946
+          run-id: '38203866777'
+          github-token: ${{ github.token }}
+          path: immutable26
+      - name: Retrieve exact current source SHA audit AUDNZD
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-cohort27-audnzd-sha-${{ github.sha }}
+          path: verified-audnzd
+      - name: Build exact 27 nonoverlapping source manifest with immutable SHA
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_cohort27_audnzd_g0_v1 combine immutable26 verified-audnzd result27
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          o=json.loads(Path("result27/qore-native-cohort27-unified.json").read_text())
+          assert o["market_count"]==27 and not o["economic_net_authorized"]
+          assert o["ohlc_or_pnl_not_examined"] and o["production_untouched"]
+          assert len(o["markets"])==27 and o["traders_certified"]==0
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result27/code-head-sha.txt
+          (cd result27 && sha256sum qore-native-cohort27-unified.json code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-cohort27-unified-${{ github.sha }}
+          path: result27/
+          retention-days: 90
+          if-no-files-found: error
