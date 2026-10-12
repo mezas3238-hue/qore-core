@@ -15,16 +15,11 @@ from typing import Any
 from qore.infrastructure.trader_lab.qore_native_market33_source_census_v1 import (
     FAMILIES,
 )
-from qore.research.alpha2_g2_29_real_bidask_reuse import (
-    ID as QUOTE_SOURCE_ID,
-    SOURCE_29,
-    WINDOWS,
-)
+from qore.research.alpha2_g2_29_real_bidask_reuse import ID as QUOTE_SOURCE_ID
+from qore.research.alpha2_g2_29_real_bidask_reuse import SOURCE_29, WINDOWS
 from qore.research.alpha2_intermarket import MARKETS, sha256_file
-from qore.research.alpha2_w3_cmtrl_native_m5 import (
-    IDENTITY as W3_SOURCE_ID,
-    SOURCE33_SHA,
-)
+from qore.research.alpha2_w3_cmtrl_native_m5 import IDENTITY as W3_SOURCE_ID
+from qore.research.alpha2_w3_cmtrl_native_m5 import SOURCE33_SHA
 
 W3_HEAD = "e7ec0e4d1cfb8b80effb9e2c1eea23524d6e716c"
 SOURCE29_HEAD = "bffb5e8ff5bb9ce12e515bb2558d12001472d9a3"
