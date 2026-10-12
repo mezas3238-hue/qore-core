@@ -4,8 +4,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from qore.research.alpha2_g2_w3_quote_window_coverage import (
-    inspect_events,
     in_same_quote_window,
+    inspect_events,
 )
 
 T = datetime(2023,9,19,13,5,tzinfo=UTC)
