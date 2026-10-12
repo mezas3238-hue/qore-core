@@ -139,7 +139,7 @@ def test_sparse_days_and_weekend_are_not_synthesized():
     assert quality["dropped_sparse_UTC_days"] == 1
 
 
-def test_out_of_order_and_embargo_and_UTC_future_source_rejected():
+def test_out_of_order_and_embargo_and_utc_future_source_rejected():
     a = datetime(2021, 6, 1, tzinfo=UTC)
     x = Bar(a, 100, 101, 99, 100)
     with pytest.raises(ValueError, match="NOT_STRICT_M5"):
