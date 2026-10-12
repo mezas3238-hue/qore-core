@@ -8,7 +8,13 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 
 from qore.research.alpha2_fx28_carry_one_test import (
-    CCYS, FX28, ForwardWitness, _block3, one_month, summarize, validate_roster
+    CCYS,
+    FX28,
+    ForwardWitness,
+    _block3,
+    one_month,
+    summarize,
+    validate_roster,
 )
 
 
