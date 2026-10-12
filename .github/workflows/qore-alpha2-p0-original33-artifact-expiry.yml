@@ -1,0 +1,61 @@
+name: QORE Alpha2 P0 original 33 10year M5 source artifact SHA expiry vault audit
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-p0-original33-artifact-expiry.yml'
+      - 'src/qore/research/alpha2_source33_artifact_expiry_inventory.py'
+      - 'tests/research/test_alpha2_source33_artifact_expiry_inventory.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  read_only_github_metadata_exact_original_33_m5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Pre-registered no-raw source expiry audit and 33 SHA negative tests
+        run: |
+          git merge-base --is-ancestor cc566b60eaea12d29cedff1314989ff9b4b586c8 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_P0_SOURCE33_ARTIFACT_EXPIRATION_ARCHIVE_READINESS_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_source33_artifact_expiry_inventory.py tests/research/test_alpha2_source33_artifact_expiry_inventory.py
+          pytest -q -o addopts='' tests/research/test_alpha2_source33_artifact_expiry_inventory.py
+      - name: GitHub-only REST ORIGINAL artifact expiry SHA metadata, no ZIP price bytes
+        run: |
+          set -euo pipefail
+          mkdir -p github-metadata
+          for runid in 35166210458 38193802541 38207337960
+          do
+            gh api "repos/mezas3238-hue/qore-core/actions/runs/$runid/artifacts?per_page=100" > "github-metadata/artifacts-run-$runid.json"
+            gh api "repos/mezas3238-hue/qore-core/actions/runs/$runid" > "github-metadata/run-$runid.json"
+          done
+          python -m qore.research.alpha2_source33_artifact_expiry_inventory github-metadata risk-report
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("risk-report/alpha2-source33-github-artifact-expiry-digest-inventory.json").read_text())
+          assert x["original_m5_source_markets_verified"]==33
+          assert x["total_compressed_original33_m5_bytes"]>600_000_000
+          assert x["original12_aggregate_manifest_available"]
+          assert not x["authorized_private_durable_vault_backup_verified"]
+          assert not x["broker_data_redistribution_license_verified"]
+          assert x["trade_orders_sent"]==0 and not x["UTC001_certified"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > risk-report/exact-code-head-sha.txt
+          (cd risk-report && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-p0-original33-expiry-sha-metadata-only-${{ github.sha }}
+          path: risk-report/
+          retention-days: 90
+          if-no-files-found: error
