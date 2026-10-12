@@ -12,7 +12,7 @@ from qore.research.alpha2_g2_ctrader_historical_tick_pilot import (
 
 
 def test_newest_first_first_absolute_then_backward_deltas():
-    rows = [(START_MS + 900, 109975), (500, 109973), (250, 109972)]
+    rows = [(START_MS + 900, 109975), (-500, -2), (-250, -1)]
     data = decode_newest_first(rows)
     assert [x["provider_tick_at_ms"] for x in data] == [
         START_MS + 150, START_MS + 400, START_MS + 900,
@@ -54,7 +54,7 @@ def test_end_exclusive_and_reverse_overflow_invalid():
     with pytest.raises(ValueError, match="OUTSIDE"):
         decode_newest_first([(END_MS,109970)])
     with pytest.raises(ValueError, match="OUTSIDE"):
-        decode_newest_first([(START_MS + 100,109970),(200,109971)])
+        decode_newest_first([(START_MS + 100,109970),(-200,-1)])
     with pytest.raises(ValueError,match="BAD_CTRADER_TICK_TYPE"):
         decode_newest_first([(START_MS+100, True)])
 
@@ -73,3 +73,18 @@ def test_fixed_pilot_is_in_consumed_not_holdout_period():
     end=datetime.fromtimestamp(END_MS/1000,tz=UTC)
     assert end-start==timedelta(minutes=1)
     assert end < datetime(2024, 9, 17, tzinfo=UTC)
+
+def test_signed_time_and_signed_price_delta_must_reconstruct_real_quote():
+    raw = [(START_MS + 900, 121234), (-350, -7), (0, 3)]
+    observed = decode_newest_first(raw)
+    assert [v["provider_tick_at_ms"] for v in observed] == [
+        START_MS + 550, START_MS + 550, START_MS + 900,
+    ]
+    assert [v["raw_tick_price_1e5"] for v in observed] == [
+        121230, 121227, 121234,
+    ]
+
+
+def test_positive_time_delta_is_invalid_even_if_newer_quote_is_in_window():
+    with pytest.raises(ValueError, match="BAD_CTRADER_SIGNED_DELTA"):
+        decode_newest_first([(START_MS+300, 120000), (100, 1)])
