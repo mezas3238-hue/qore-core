@@ -35,7 +35,7 @@ No se afirma que cada cambio de precio M5 sea una ejecución compradora/vendedor
 
 ### Comparaciones y falsación predefinidas
 
-- Único contraste inferencial: diferencia PATR-NO, **PADE bruto − control de tendencia retardada de dos horas**, pareados misma oportunidad y mismo riesgo nominal, panel completo 33. PnL absoluto PADE como segundo requisito económico (no p exploratorio adicional).
+- Único contraste inferencial: diferencia pre-registrada **PADE bruto − control de tendencia retardada de dos horas**, pareados misma oportunidad y mismo riesgo nominal, panel completo 33. PnL absoluto PADE como segundo requisito económico (no p exploratorio adicional).
 - Reportar 33 filas de mercado incluidas las de 0 eventos, cuatro familias, origen 12/21, years/folds, censura por razón, meses/semanas y simultaneidad. Desarrollo requiere ≥**150 pareadas y 52 semanas**; diagnóstico ≥**50 pareadas y 26 semanas**; cada cohorte también debe superar ≥20 eventos diagnósticos para considerarse generalizable entre orígenes.
 - Bootstrap de calendario sincronizado 1/2/4 semanas, 4000 réplicas por era, semilla 20261012, un solo conjunto de semanas para todos los mercados (preserva shocks cruzados) y semanas de cero actividad; diferencia positiva, IC95 con extremo inferior >0 bajo todos los bloques y bruto medio positivo en **ambas eras**. Sensibilidad de coste ida-vuelta `0,1,3,5,10,20 bps` sólo hipotética, no resultados NET.
 - Cualquier fallo => `NO_SUPPORT`, `UNDERPOWERED` o `SOURCE/REPLAY_BLOCKED` según corresponda; no seleccionar una subfamilia ganadora a posteriori. No reabrir ni retunear con el mismo historial. Si pasa grosso modo, sólo `GROSS_RESEARCH_CANDIDATE`, nunca certificación.
