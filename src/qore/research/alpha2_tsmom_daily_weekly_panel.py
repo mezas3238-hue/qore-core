@@ -8,7 +8,7 @@ import argparse
 import json
 import math
 import random
-from collections import Counter, defaultdict
+from collections import defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 from statistics import mean
