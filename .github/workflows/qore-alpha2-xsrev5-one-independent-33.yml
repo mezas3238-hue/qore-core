@@ -1,0 +1,105 @@
+name: QORE Alpha2 ONE XSREV5 33 common-day 5session rank reversal
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-xsrev5-one-independent-33.yml'
+      - 'src/qore/research/alpha2_xsrev5_common_calendar.py'
+      - 'tests/research/test_alpha2_xsrev5_common_calendar.py'
+      - 'docs/research/QORE_ALPHA2_FINAL_TSMOM_RISKSCALED_AND_XSREV5_FROZEN_PREREG_2026-10-12.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: alpha2-XSREV5-ONE-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  freeze_and_synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Strict frozen prereg and synthetic exact33 causal rank
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor f9248d42a6cbced3d6e962b24e47c709cb91161c "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_FINAL_TSMOM_RISKSCALED_AND_XSREV5_FROZEN_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_xsrev5_common_calendar.py tests/research/test_alpha2_xsrev5_common_calendar.py
+          pytest -q -o addopts='' tests/research/test_alpha2_xsrev5_common_calendar.py
+  exact33_shared_day_source_ephemeral_ONLY:
+    needs: freeze_and_synthetic
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: mezas3238-hue/qore-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Restore ONLY original frozen manifest and Original12 aggregate source
+        run: |
+          set -euo pipefail
+          gh run download 38207337960 --repo "$GH_REPO" \
+            --name qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff --dir signed33
+          gh run download 35166210458 --repo "$GH_REPO" \
+            --name qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d --dir atlas-aggregate
+      - name: SHA first, 12 Atlas original instruments, ephemeral daily prices never uploaded
+        run: |
+          set -euo pipefail
+          mkdir -p broker-original ephemeral-33
+          for s in AUDJPY AUDUSD EURUSD GBPJPY GBPUSD NAS100 SP500 US30 USDCAD USDJPY XAGUSD XAUUSD
+          do
+            gh run download 35166210458 --repo "$GH_REPO" \
+              --name "qore-cibo-market-atlas-10y-windowed-$s-ab782b8e9f890f86a2b6500070f0556b4b685e3d" --dir "broker-original/$s"
+            python -m qore.research.alpha2_xsrev5_common_calendar extract "$s" "broker-original/$s" signed33 ephemeral-33 --aggregate12 atlas-aggregate
+            rm -rf "broker-original/$s"
+          done
+      - name: SHA first, 21 ICMarkets original instruments, ephemeral daily prices never uploaded
+        run: |
+          set -euo pipefail
+          for s in USDCHF NZDUSD EURGBP EURJPY EURCHF EURCAD EURAUD EURNZD GBPCHF GBPCAD GBPAUD GBPNZD AUDCAD AUDCHF AUDNZD CADJPY CADCHF CHFJPY NZDJPY NZDCAD NZDCHF
+          do
+            gh run download 38193802541 --repo "$GH_REPO" \
+              --name "qore-native-icmarkets-10Y-provider-M5-$s-e0ca5a13c866a19d8505c68cffc473598984b340" --dir "broker-original/$s"
+            python -m qore.research.alpha2_xsrev5_common_calendar extract "$s" "broker-original/$s" signed33 ephemeral-33
+            rm -rf "broker-original/$s"
+          done
+      - name: One prereg all33 common-day contrarian test with weekly block CI
+        run: |
+          set -euo pipefail
+          python -m qore.research.alpha2_xsrev5_common_calendar finish ephemeral-33 reversal-panel
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("reversal-panel/alpha2-xsrev5-33-one-gross-minus-assumed-cost.json").read_text())
+          assert x["all33_exact_original_sources"]==33
+          assert x["fixed_quintile7_each_side"]
+          assert x["2016_2024_previously_exposed_exploratory"] is True
+          assert x["raw_market_daily_OHLC_published"] is False
+          assert x["COST_HYPOTHESIS_ONLY_NOT_REAL_BROKER_NET"] is True
+          assert x["orders"]==0 and x["UTC001_certified"] is False
+          assert x["status"] in (
+              "XSREV5_GROSS_MINUS_ASSUMED_COST_FAIL",
+              "XSREV5_EXPLORATORY_SIGNAL_REQUIRES_TRUE_OOS",
+              "INCONCLUSIVE_UNDERPOWERED",
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > reversal-panel/exact-code-head-sha.txt
+          (cd reversal-panel && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+          rm -rf ephemeral-33 broker-original atlas-aggregate signed33
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-XSREV5-ONE-GROSS_MINUS_ASSUMED_COST-${{ github.sha }}
+          path: reversal-panel/
+          retention-days: 90
+          if-no-files-found: error
