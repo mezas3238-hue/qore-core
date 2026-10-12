@@ -1,0 +1,145 @@
+name: QORE Alpha2 W2 four-class provider native volume G0 NO OHLC
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-w2-volume-source-pilot.yml'
+      - 'src/qore/research/alpha2_w2_volume_source_probe.py'
+      - 'tests/research/test_alpha2_w2_volume_source_probe.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  prereg_w2_source_guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Validate W2-G0 pilot prereg ancestor and source-only tests
+        run: |
+          git merge-base --is-ancestor 613c22cc46d10b32e0a044c635c48a4f3fe2b591 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_W2_FOUR_MARKET_VOLUME_SOURCE_FEASIBILITY_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_w2_volume_source_probe.py tests/research/test_alpha2_w2_volume_source_probe.py
+          pytest -q -o addopts='' tests/research/test_alpha2_w2_volume_source_probe.py
+  four_volumes_original_SHA:
+    needs: prereg_w2_source_guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        symbol: [NAS100, XAUUSD, EURUSD, EURCHF]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: signed33
+      - name: Original12 source aggregate (only original cohort)
+        if: matrix.symbol != 'EURCHF'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original-aggregate
+      - name: Original12 source native raw (only original cohort)
+        if: matrix.symbol != 'EURCHF'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: native-M5
+      - name: Cross FX original native provider
+        if: matrix.symbol == 'EURCHF'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-EURCHF-e0ca5a13c866a19d8505c68cffc473598984b340
+          run-id: '38193802541'
+          github-token: ${{ github.token }}
+          path: native-M5
+      - name: Source SHA first; provider volume only; NO OHLC
+        run: |
+          if test "$SYMBOL" = EURCHF; then
+            python -m qore.research.alpha2_w2_volume_source_probe "$SYMBOL" native-M5 signed33 volume-out
+          else
+            python -m qore.research.alpha2_w2_volume_source_probe "$SYMBOL" native-M5 signed33 volume-out --aggregate12 original-aggregate
+          fi
+          printf '%s\n' "$GITHUB_SHA" > volume-out/exact-code-head-sha.txt
+          (cd volume-out && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-w2-g0-volume-${{ matrix.symbol }}-${{ github.sha }}
+          path: volume-out/
+          retention-days: 90
+          if-no-files-found: error
+  pilot_census:
+    needs: four_volumes_original_SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: alpha2-w2-g0-volume-*-${{ github.sha }}
+          path: pilot-signed
+      - name: Verify all four signed original G0 source witnesses; no price outcomes
+        run: |
+          mkdir -p pilot-census
+          python - <<'PY'
+          import json,hashlib,pathlib
+          sources=sorted(pathlib.Path("pilot-signed").rglob("alpha2-w2-volume-source-*.json"))
+          assert len(sources)==4,(len(sources),"four provider source files required")
+          records={}
+          for p in sources:
+              witness=(p.parent/"OUTPUT_SHA256SUMS.txt").read_text().splitlines()
+              checks={q[1]:q[0] for line in witness if len(q:=line.split())==2}
+              for name,digest in checks.items():
+                  assert hashlib.sha256((p.parent/name).read_bytes()).hexdigest()==digest
+              d=json.loads(p.read_text())
+              assert d["identity"]=="QORE_ALPHA2_W2_PILOT_NATIVE_VOLUME_SOURCE_ONLY_V1"
+              assert d["ohlc_fields_accessed"] is False and d["price_returns_or_PnL_read"] is False
+              assert d["broker_volume_semantics"]=="PROVIDER_VOLUME_SEMANTICS_UNVERIFIED"
+              assert d["market"] not in records
+              records[d["market"]]=d
+          assert set(records)=={"NAS100","XAUUSD","EURUSD","EURCHF"}
+          out={"identity":"QORE_ALPHA2_W2_FOUR_MARKET_SOURCE_PILOT_G0_ONLY",
+               "markets":4,
+               "source_coverage":{s:{"row_count":v["m5_rows_pre_embargo"],
+                                      "category_count":v["categories"],
+                                      "source_cohort":v["source"]["source_cohort"]}
+                                  for s,v in sorted(records.items())},
+               "broker_tick_volume_semantics_not_certified":True,
+               "ohlc_or_outcomes_accessed":False,"net_certification":False}
+          target=pathlib.Path("pilot-census/w2-source-pilot-summary.json")
+          target.write_text(json.dumps(out,sort_keys=True,indent=2)+"\n")
+          print(json.dumps(out,sort_keys=True))
+          PY
+          printf '%s\n' "$GITHUB_SHA" > pilot-census/exact-code-head-sha.txt
+          (cd pilot-census && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-w2-four-provider-volume-pilot-${{ github.sha }}
+          path: pilot-census/
+          retention-days: 90
+          if-no-files-found: error
