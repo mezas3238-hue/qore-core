@@ -31,3 +31,19 @@ Workflow [QORE Native IC Markets 24 Missing Native M1](https://github.com/mezas3
 ## Estado inicial
 
 `M5_33_OF_33_ARCHIVED`; `M1_9_OF_33_PREVIOUSLY_ARCHIVED`; `M1_24_NEW_REQUESTED`; `PILOT_3_IN_GITHUB_CI`; `FULL_21_NEEDS_GREEN_PILOT`; `NO_LIVE`; `NO_NEW_EDGE_EVIDENCE`.
+
+
+## Addendum 12-oct — lote 21 restante preparado y bloqueado hasta éxito real del piloto
+
+Se implementó [workflow de continuación 21 M1](https://github.com/mezas3238-hue/qore-core/blob/research/qore-native-icmarkets-universe33-m1-capture-20261012/.github/workflows/qore-native-icmarkets-21-m1-after-pilot.yml) desde commit `cd45651d20857a6d367a4d4779e7aa4df07338d6` y se lanzó [GitHub Actions #38264253297](https://github.com/mezas3238-hue/qore-core/actions/runs/38264253297), actualmente **PENDING** por grupo de concurrencia común con el piloto [#38262534602](https://github.com/mezas3238-hue/qore-core/actions/runs/38262534602). Así no ejecuta y no factura un runner esperando la finalización de las capturas piloto.
+
+Cuando GitHub habilite el segundo run, el primer job **fail-closed** `pilot_source_artifacts_proof` consulta vía GitHub REST usando el `GITHUB_TOKEN` efímero:
+- run piloto exacto `38262534602`, commit `07a5d897703641ccf8317688f6abcdfb55b5766f`, `status=completed`, `conclusion=success`;
+- jobs exactos `pilot_capture_m1 (SP500)`, `(XAGUSD)`, `(NZDUSD)` `SUCCESS`;
+- artefactos originales EXACTOS de esos tres símbolos, tamaño no nulo y no expirados.
+
+Solo entonces se ejecutan `frozen_m1_contract`, `icmarkets_demo_catalog` y captura secuencial **de otros 21 símbolos**: US30, USDCHF, EURGBP, EURJPY, EURCHF, EURCAD, EURAUD, EURNZD, GBPCHF, GBPCAD, GBPAUD, GBPNZD, AUDCAD, AUDCHF, AUDNZD, CADJPY, CADCHF, CHFJPY, NZDJPY, NZDCAD, NZDCHF. `max-parallel=1` evita carreras con OAuth/rate limits; nunca descarga de nuevo los 9 M1 del Atlas ni 3 pilotos ya completados.
+
+**Barrera de seguridad adicional [CI #38263553900](https://github.com/mezas3238-hue/qore-core/actions/runs/38263553900) = SUCCESS:** la clase histórica acepta exclusivamente consultas de autenticación/catálogo/trendbars y rechaza `NewOrder`, `CancelOrder`, `ModifyOrder`, `Reconcile`, `RefreshToken`; Ruff y 18 pruebas sintéticas verdes en rama hija. Abarca futuros jobs del lote de 21, no modifica producción.
+
+**Persistencia pendiente:** [Issue #837](https://github.com/mezas3238-hue/qore-core/issues/837) exige respaldo permanente/restore SHA para que las 33×M5 y 33×M1 sobrevivan retención de GitHub Actions. Hasta tener 21 nuevos jobs `SUCCESS` con manifiestos íntegros se informa `M1_9/33_ARCHIVED + 3_PILOT_RUNNING + 21_QUEUED`, jamás `33/33 M1`.
