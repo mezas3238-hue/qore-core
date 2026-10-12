@@ -12,6 +12,7 @@ import hashlib
 import io
 import json
 import re
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -36,6 +37,14 @@ SOURCE_COLUMNS = frozenset((
     "theoretical_M5_target_close_utc", "duration_minutes",
     "broker_provenance", "news_asof_filtered", "real_broker_fill",
     "outcome_exported",
+))
+# Verified against frozen E1 producer: six rule signs require last M5 bar
+# closed exactly at research entry / first theoretical target open.
+# TREND_MULTI_DAY strategy sign uses prior sessions but paired baseline
+# still relies on current 12-16 UTC M5 close.
+SAME_BOUNDARY_SIGNAL_METHODS = frozenset((
+    "REVERSAL_12H", "PERSISTENCE_12H", "SWEEP_RECLAIM",
+    "RANGE_BREAK_CONT", "POST_OPEN_CONT", "OPEN_INITIAL_REACTION",
 ))
 BLOCK_REASON = "E1_RESEARCH_CLOCK_NOT_A_CAUSAL_TRADE_DECISION"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -137,6 +146,9 @@ def assess_predecision_shape(record: dict, witness: dict | None) -> dict:
             or eligible >= expiry or not LOWER <= close
             or expiry > EMBARGO):
         raise ValueError("WITNESS_CAUSAL_CLOCK_OR_EMBARGO_VIOLATION")
+    if record["method_id"] in SAME_BOUNDARY_SIGNAL_METHODS and (
+            close < start or feature < start):
+        raise ValueError("WITNESS_SIGNAL_M5_CLOSE_BEFORE_BAR_FINISHED")
     # The E1 reference clock is not an entry-order time; do not require equal
     # clocks or overwrite the research clock with a reconstructed trade.
     return {
@@ -165,6 +177,7 @@ def audit_legacy_clock_ledger(source: Path, destination: Path,
     seen_symbols = set()
     seen_cells = set()
     count = 0
+    boundary_counts: Counter[str] = Counter()
     sha_input = hashlib.sha256()
     try:
         with gzip.open(source, "rb") as reader, tmp.open("wb") as raw:
@@ -179,7 +192,12 @@ def audit_legacy_clock_ledger(source: Path, destination: Path,
                     seen_ids.add(identity)
                     seen_symbols.add(record["symbol"])
                     seen_cells.add((record["symbol"], record["method_id"]))
+                    boundary = ("SIGNAL_M5_CLOSE_EQUALS_E1_TARGET_OPEN_NO_LATENCY"
+                                if record["method_id"] in SAME_BOUNDARY_SIGNAL_METHODS
+                                else "TREND_SIGNAL_EARLIER_BASELINE_CLOSE_AT_TARGET_OPEN")
+                    boundary_counts[boundary] += 1
                     result = {
+                        "boundary_race_class": boundary,
                         "opportunity_sha256": identity,
                         "symbol": record["symbol"], "method_id": record["method_id"],
                         "research_entry_clock_utc": record["entry_research_utc"],
@@ -209,6 +227,7 @@ def audit_legacy_clock_ledger(source: Path, destination: Path,
         "distinct_market_method_cells": len(seen_cells),
         "predecision_witnesses_verified": 0,
         "research_clocks_rejected_as_orders": count,
+        "boundary_race_classes": dict(sorted(boundary_counts.items())),
         "executable_trades_proven": 0,
         "raw_legacy_lines_sha256": sha_input.hexdigest(),
         "blocked_ledger_gzip_sha256": digest(output.read_bytes()),
