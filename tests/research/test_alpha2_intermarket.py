@@ -1,6 +1,6 @@
 """Causal/fail-closed synthetic tests; no real prices or PnL are inspected."""
 from datetime import UTC, datetime
-from math import exp, sin
+from math import cos, exp, sin
 
 import pytest
 
