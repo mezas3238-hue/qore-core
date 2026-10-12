@@ -7,7 +7,7 @@ from qore.infrastructure.trader_lab.qore_native_universe_33_source_registry_v1 i
     GROUPS, M5_10Y, M5_7Y, M1_10Y, inventory, universe,
 )
 from qore.infrastructure.trader_lab.qore_native_icmarkets_catalog_preflight_v1 import (
-    classify_accounts, match_catalog, select_complete_credential_bundle,
+    _ic_markets_label, classify_accounts, match_catalog, select_complete_credential_bundle,
 )
 from qore.infrastructure.trader_lab.qore_native_icmarkets_missing_m5_capture_v1 import (
     require_capture_candidate,
@@ -74,6 +74,25 @@ class Universe33Tests(unittest.TestCase):
         self.assertEqual(classify_accounts([acc()], 0), (50, "IC Markets"))
         self.assertEqual(classify_accounts([acc(broker="IC Markets Global")], 1),
                          (50, "IC Markets Global"))
+
+    def test_optional_broker_short_title_needs_second_stage_proof(self):
+        account = acc(broker="")
+        self.assertEqual(classify_accounts([account], 0), (50, None))
+        with self.assertRaisesRegex(ValueError, "REQUIRE_EXACT_ONE"):
+            classify_accounts([account, acc(id=51, broker="")], 0)
+
+    def test_optional_broker_unlabeled_not_selected_over_known_ic_markets(self):
+        value = classify_accounts([
+            acc(id=50, broker=""),
+            acc(id=52, broker="IC Markets"),
+        ], 0)
+        self.assertEqual(value, (52, "IC Markets"))
+
+    def test_spoofed_broker_name_rejected(self):
+        for label in ("Not IC Markets", "My IC Markets", "another broker"):
+            self.assertFalse(_ic_markets_label(label))
+        for label in ("IC Markets", "ICMarkets", "IC Markets Global"):
+            self.assertTrue(_ic_markets_label(label))
 
     def test_scope_outside_view_or_trade_fails(self):
         for scope in (-1, 2, None, True):
