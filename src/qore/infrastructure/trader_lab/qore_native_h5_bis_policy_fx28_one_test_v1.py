@@ -125,7 +125,11 @@ def parse_policy_rates(raw:bytes,ccy:str)->dict[date,float]:
                 raise ValueError("H5_BIS_POLICY_RATE_RANGE_INVALID")
             found[d]=number
     if matching_series!=1 or len(found)<98:
-        raise ValueError("H5_BIS_NO_SINGLE_EIGHT_CURRENCY_SERIES_OR_LOW_COVERAGE")
+        raise ValueError(
+            f"H5_BIS_INCOMPLETE_{ccy}_series={matching_series}_count={len(found)}"
+            f"_first={min(found).isoformat() if found else 'NONE'}"
+            f"_last={max(found).isoformat() if found else 'NONE'}"
+        )
     return found
 
 
@@ -343,6 +347,16 @@ def run(source_tmp:Path,output:Path)->dict:
     repo=os.getenv("GITHUB_REPOSITORY","mezas3238-hue/qore-core")
     token=os.getenv("GH_TOKEN")
     if not token:raise ValueError("H5_READONLY_TOKEN_MISSING")
+    # Source-only preflight FIRST, before costlier 28 ZIP archive retrieval.
+    # Does not inspect any FX return or tune an economic parameter.
+    rates={}
+    rate_evidence=[]
+    for ccy in sorted(CURRENCY_BIS):
+        raw,meta=fetch_policy(ccy)
+        values=parse_policy_rates(raw,ccy)
+        rates[ccy]=values
+        rate_evidence.append(meta)
+        print("H5_REAL_BIS_POLICY_SOURCE_PASS",ccy,len(values),flush=True)
     source_tmp.mkdir(parents=True,exist_ok=True)
     reg=src.get_artifact_register(repo,token)
     data={}
@@ -364,14 +378,6 @@ def run(source_tmp:Path,output:Path)->dict:
             print("H5_G0_SHA28_PASS",s,len(bars),flush=True)
         finally:
             archive.unlink(missing_ok=True)
-    rates={}
-    rate_evidence=[]
-    for ccy in sorted(CURRENCY_BIS):
-        raw,meta=fetch_policy(ccy)
-        values=parse_policy_rates(raw,ccy)
-        rates[ccy]=values
-        rate_evidence.append(meta)
-        print("H5_REAL_BIS_POLICY_SOURCE_PASS",ccy,len(values),flush=True)
     if len(source_reports)!=28 or len(rate_evidence)!=8:
         raise ValueError("H5_G0_28_AND_BIS_8_NOT_ATTESTED")
     if any(x.get("source_sha_verified_11_annual_partitions") is not True
