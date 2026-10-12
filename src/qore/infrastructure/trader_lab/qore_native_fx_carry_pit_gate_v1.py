@@ -140,9 +140,13 @@ def rank_one_month(payload: dict) -> dict:
     for s,p in pos.items():
         exposures[s[:3]] += p
         exposures[s[3:]] -= p
-    if sum(exposures.values()) != 0 or sum(pos.values()) != 0:
+    # 1/12 has an infinite decimal representation: Decimal precision can
+    # leave <=1e-28 cancellation noise even for algebraically flat baskets.
+    tolerance = Decimal("1e-20")
+    if (abs(sum(exposures.values())) > tolerance or
+        abs(sum(pos.values())) > tolerance):
         raise ValueError("FX_CARRY_CURRENCY_EXPOSURE_NOT_SELF_FINANCING")
-    if sum(abs(p) for p in pos.values()) != Decimal(1):
+    if abs(sum(abs(p) for p in pos.values()) - Decimal(1)) > tolerance:
         raise ValueError("FX_CARRY_GROSS_EXPOSURE_NOT_ONE")
     return {
         "identity": IDENTITY,
