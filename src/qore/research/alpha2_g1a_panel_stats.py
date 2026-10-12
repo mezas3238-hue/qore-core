@@ -5,7 +5,7 @@ import argparse
 import json
 import math
 from collections import Counter, defaultdict
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from statistics import mean
 
