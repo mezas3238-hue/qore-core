@@ -32,7 +32,7 @@ SUCCESS = "FORWARD_RECEIVED_NZDUSD_DEMO_SPOT_SOURCE_PRESENT"
 BLOCKED = "FORWARD_DEMO_SPOT_SOURCE_BLOCKED_NO_NET"
 
 
-class SourceBlocked(ValueError):
+class SourceBlockedError(ValueError):
     pass
 
 
@@ -49,7 +49,7 @@ class ReadOnlySpotClient(_ReadOnlyIcMarketsHistoryClient):
                      "ProtoOASpotEvent"):
             klass = getattr(proto, name, None)
             if not isinstance(klass, type):
-                raise SourceBlocked("SPOT_DEMO_SDK_READONLY_MESSAGE_MISSING")
+                raise SourceBlockedError("SPOT_DEMO_SDK_READONLY_MESSAGE_MISSING")
             self._bindings.messages[name] = klass
 
 
@@ -60,12 +60,12 @@ def _optional_present_integer(event: object, field: str) -> int | None:
             if check(field) is False:
                 return None
         except (TypeError, ValueError):
-            raise SourceBlocked("SPOT_FIELD_PRESENCE_UNVERIFIED") from None
+            raise SourceBlockedError("SPOT_FIELD_PRESENCE_UNVERIFIED") from None
     value = getattr(event, field, None)
     if value is None:
         return None
     if type(value) is not int or value < 0:
-        raise SourceBlocked("SPOT_FIELD_INTEGER_INVALID")
+        raise SourceBlockedError("SPOT_FIELD_INTEGER_INVALID")
     if value == 0:
         return None
     return value
@@ -76,12 +76,12 @@ def normalize_spot_event(
     sequence: int,
 ) -> dict:
     if type(expected_symid) is not int or expected_symid <= 0:
-        raise SourceBlocked("BROKER_SYMBOL_SCOPE_INVALID")
+        raise SourceBlockedError("BROKER_SYMBOL_SCOPE_INVALID")
     if getattr(event, "symbolId", None) != expected_symid:
-        raise SourceBlocked("BROKER_SPOT_SYMBOL_ID_CHANGED")
+        raise SourceBlockedError("BROKER_SPOT_SYMBOL_ID_CHANGED")
     if (type(received_at) is not datetime or received_at.tzinfo is None
             or received_at.utcoffset() != timedelta(0)):
-        raise SourceBlocked("SPOT_FIRST_SEEN_CLOCK_NOT_UTC")
+        raise SourceBlockedError("SPOT_FIRST_SEEN_CLOCK_NOT_UTC")
     bid = _optional_present_integer(event, "bid")
     ask = _optional_present_integer(event, "ask")
     event_at_ms = _optional_present_integer(event, "timestamp")
@@ -89,11 +89,11 @@ def normalize_spot_event(
         try:
             event_at = datetime.fromtimestamp(event_at_ms / 1000, tz=UTC)
         except (OSError, OverflowError, ValueError):
-            raise SourceBlocked("SPOT_PROVIDER_EVENT_CLOCK_INVALID") from None
+            raise SourceBlockedError("SPOT_PROVIDER_EVENT_CLOCK_INVALID") from None
         if event_at > received_at:
-            raise SourceBlocked("SPOT_EVENT_IN_FUTURE_RELATIVE_TO_RECEIPT")
+            raise SourceBlockedError("SPOT_EVENT_IN_FUTURE_RELATIVE_TO_RECEIPT")
     if bid is None and ask is None:
-        raise SourceBlocked("SPOT_SIDE_VALUES_ABSENT")
+        raise SourceBlockedError("SPOT_SIDE_VALUES_ABSENT")
     return {
         "sequence":sequence,
         "source_symbol":SYMBOL,
@@ -113,7 +113,7 @@ def classify_received_pair(
             or now - bid_seen > MAX_SIDE_AGE or now - ask_seen > MAX_SIDE_AGE):
         return "MISSING_OR_STALE_BIDASK"
     if bid <= 0 or ask <= 0:
-        raise SourceBlocked("INVALID_DEMO_BIDASK_PRICE")
+        raise SourceBlockedError("INVALID_DEMO_BIDASK_PRICE")
     if ask < bid:
         return "CROSSED_QUOTE_QUARANTINED"
     if ask == bid:
@@ -127,17 +127,17 @@ def _preflight_exact_demo_symbol() -> tuple[int, int]:
             or proof.get("account_is_live") is not False
             or proof.get("broker_identity_verified_from_account") is not True
             or proof.get("token_refreshed") is not False):
-        raise SourceBlocked("EXACT_ICMARKETS_DEMO_SOURCE_NOT_VERIFIED")
+        raise SourceBlockedError("EXACT_ICMARKETS_DEMO_SOURCE_NOT_VERIFIED")
     row=proof.get("catalog",{}).get("catalog_exact_matches",{}).get(SYMBOL)
     if (row is None or SYMBOL not in proof["catalog"]["available_exact"]
             or row.get("broker_symbol")!=SYMBOL
             or row.get("enabled") is not True
             or type(row.get("symbol_id")) is not int
             or row["symbol_id"]<=0):
-        raise SourceBlocked("DEMO_NZDUSD_EXACT_SYMBOL_NOT_ENABLED")
+        raise SourceBlockedError("DEMO_NZDUSD_EXACT_SYMBOL_NOT_ENABLED")
     account=proof.get("_ephemeral_account_id")
     if type(account) is not int or account <= 0:
-        raise SourceBlocked("DEMO_EPHEMERAL_ACCOUNT_NOT_VERIFIED")
+        raise SourceBlockedError("DEMO_EPHEMERAL_ACCOUNT_NOT_VERIFIED")
     return account,row["symbol_id"]
 
 
@@ -154,7 +154,7 @@ def _capture(output: Path) -> dict:
     try:
         ready=client.connect_and_authenticate()
         if isinstance(ready,Failure) or client.account_id!=account:
-            raise SourceBlocked("DEMO_SOURCE_SESSION_NOT_AUTHENTICATED")
+            raise SourceBlockedError("DEMO_SOURCE_SESSION_NOT_AUTHENTICATED")
         subscribed=client.request(
             "ProtoOASubscribeSpotsReq",
             {"ctidTraderAccountId":account,"symbolId":[symid],
@@ -165,7 +165,7 @@ def _capture(output: Path) -> dict:
         if (isinstance(subscribed,Failure)
                 or not isinstance(subscribed.value,
                                   client._bindings.messages["ProtoOASubscribeSpotsRes"])):
-            raise SourceBlocked("DEMO_SUBSCRIBE_SPOTS_REQUEST_BLOCKED")
+            raise SourceBlockedError("DEMO_SUBSCRIBE_SPOTS_REQUEST_BLOCKED")
         started=monotonic()
         while monotonic()-started<DURATION_SECONDS:
             remaining=DURATION_SECONDS-(monotonic()-started)
@@ -178,7 +178,7 @@ def _capture(output: Path) -> dict:
                 continue
             received_at=datetime.now(UTC)  # after event dequeue: conservative first-seen
             if last_received is not None and received_at < last_received:
-                raise SourceBlocked("FIRST_SEEN_LOCAL_CLOCK_REVERSED")
+                raise SourceBlockedError("FIRST_SEEN_LOCAL_CLOCK_REVERSED")
             last_received=received_at
             raw=normalize_spot_event(
                 event.value,expected_symid=symid,received_at=received_at,
@@ -198,13 +198,13 @@ def _capture(output: Path) -> dict:
             classes[state]=classes.get(state,0)+1
             rows.append(raw)
             if len(rows)>MAX_ROWS:
-                raise SourceBlocked("DEMO_SPOT_EVENT_RATE_BUDGET_EXCEEDED")
+                raise SourceBlockedError("DEMO_SPOT_EVENT_RATE_BUDGET_EXCEEDED")
     finally:
         client.close()
     if not rows or not any(r["native_bid_1e5"] is not None for r in rows) or not any(
         r["native_ask_1e5"] is not None for r in rows
     ):
-        raise SourceBlocked("DEMO_NO_BOTH_SIDES_OBSERVED")
+        raise SourceBlockedError("DEMO_NO_BOTH_SIDES_OBSERVED")
     destination=output/"nzdusd-demo-forward-first-seen-spot-events.jsonl"
     with destination.open("w",encoding="utf-8") as file:
         for row in rows:
@@ -257,7 +257,7 @@ def execute(output: Path) -> dict:
             "FIRST_SEEN_LOCAL_CLOCK_REVERSED",
             "DEMO_SPOT_EVENT_RATE_BUDGET_EXCEEDED",
         }
-        msg=str(exc) if type(exc) is SourceBlocked else ""
+        msg=str(exc) if type(exc) is SourceBlockedError else ""
         result["safe_blocker"]=msg if msg in codes else "PROSPECTIVE_SOURCE_UNAVAILABLE_SAFE"
     report=output/"alpha2-g2-nzdusd-prospective-demo-source-manifest.json"
     report.write_text(json.dumps(result,sort_keys=True,indent=2)+"\n",encoding="utf-8")
