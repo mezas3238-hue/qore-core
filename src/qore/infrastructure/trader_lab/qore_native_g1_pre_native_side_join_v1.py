@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -93,6 +94,10 @@ def join_historical(
             last_ask = ask[j]
             j += 1
         if last_bid is None or last_ask is None:
+            continue
+        # Do not carry a silent/stale side forward for arbitrarily long gaps.
+        max_age = timedelta(seconds=float(gate.MAX_ASOF_AGE_SECONDS))
+        if clock - last_bid.clock > max_age or clock - last_ask.clock > max_age:
             continue
         pairs.append({
             "canonical_symbol": symbol,
