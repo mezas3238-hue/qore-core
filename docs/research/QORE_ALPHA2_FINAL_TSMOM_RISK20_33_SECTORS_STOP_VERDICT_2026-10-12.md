@@ -35,3 +35,8 @@ Weekly 4week-bootstrap CIs are wide despite >12k event returns because co-moveme
 - Independent XSREV5 reversal protocol was preregistered **in the same ancestor** before any of its outcomes; this is the **single complementary test**, not a hidden TSMOM fourth variant. Complete its QA/results separately, without survivor exclusion.
 - Original12 and New21 archival legal private vault and restore (#837) remains P0 before first expiry **2026-12-16T00:21:18Z**, broker/source contracts (#868), actual source 33 bid/ask and NET/OOS (#852) remain blocked.
 - Research isolated PR #840 DRAFT. **0/3 traders Alpha2 certified; 0 broker orders; NO VPS/MT5/Shared/CIBO/QDLE/PAPER/LIVE/MAIN.**
+
+
+### Bibliographic reproducibility caveat (primary paper, not post-result hypothesis tuning)
+
+The actual MOP 2012 [published Section 3.2](https://doi.org/10.1016/j.jfineco.2011.11.003) defines the strategy for **instrument s and month t**, tests lagged **k months**, holds for **h months**, and scales by ex-ante volatility each month; their primary universe is **58 futures**, not our CFD/FX basket. Accordingly, the owner's proposed 'weekly rebalance is canonical MOP' was not exact. Here **weekly 5-source-session hold and 20-source-day volatility** were deliberately frozen as **MOP-inspired approximation** and never represented as faithful re-creation of that paper. Closing this **one** TSMOM variant in the exposed 33 markets does NOT close a method on bond/commodity futures or with original monthly schedules. This clarification does **not change code, coefficients, or tested results** and is NOT permission for more 2016–2024 tuning.
