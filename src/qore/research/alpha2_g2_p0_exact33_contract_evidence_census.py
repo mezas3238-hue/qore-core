@@ -53,7 +53,7 @@ RUNS = {
         "alpha2-g2-original850-ustec-independent-catalog-QA-",
     ),
 }
-HEX40 = re.compile(r"[0-9a-f]{40}\\Z")
+HEX40 = re.compile(r"[0-9a-f]{40}\Z")
 
 
 def _required_roster() -> None:
