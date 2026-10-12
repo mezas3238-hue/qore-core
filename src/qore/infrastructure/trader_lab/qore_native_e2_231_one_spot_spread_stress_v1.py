@@ -44,7 +44,7 @@ def stress(e2:dict[str,Any], screenshot:dict[str,Any])->dict[str,Any]:
             gross=original["gross_mean_bps"]
             baseline=original["control_gross_mean_bps"]
             delta=original["paired_delta_mean_bps"]
-            if not original["net_broker_certification"] is False:
+            if original.get("net_broker_certification") is not False:
                 raise ValueError("original E2 net data is not certified")
             base[period]={
                 "historic_gross_reference_bps":gross,
