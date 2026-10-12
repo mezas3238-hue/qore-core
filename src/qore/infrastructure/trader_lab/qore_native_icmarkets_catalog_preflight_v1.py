@@ -252,7 +252,7 @@ def main() -> None:
             "catalog": None,
         }
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
-    print("QORE_33_ICMARKETS_CATALOG_GATE", report["status"])
+    print("QORE_33_ICMARKETS_CATALOG_GATE", report["status"], report.get("safe_blocker", "NO_BLOCKER"))
     if report["status"] != "ICMARKETS_DEMO_CATALOG_VERIFIED":
         raise SystemExit(4)
 
