@@ -24,13 +24,13 @@ def row(
     }
 
 
-def test_matched_known_B_only_contact_has_exact_plus_one() -> None:
+def test_matched_known_b_only_contact_has_exact_plus_one() -> None:
     s = MODULE._summary([row("INVALIDATED", "VALID_CE", b_hit=True)])
     assert s["paired_lower_diff"] == s["paired_upper_diff"] == 1
     assert s["B_only_known"] == 1
 
 
-def test_matched_known_A_only_contact_has_exact_minus_one() -> None:
+def test_matched_known_a_only_contact_has_exact_minus_one() -> None:
     s = MODULE._summary([row("VALID_CE", "INVALIDATED", a_hit=True)])
     assert s["paired_lower_diff"] == s["paired_upper_diff"] == -1
     assert s["A_only_known"] == 1
@@ -42,13 +42,13 @@ def test_matching_both_known_contacts_does_not_invent_advantage() -> None:
     assert s["both_known"] == 1
 
 
-def test_B_known_A_indeterminate_is_zero_to_plus_one() -> None:
+def test_b_known_a_indeterminate_is_zero_to_plus_one() -> None:
     s = MODULE._summary([row("INDETERMINATE", "VALID_CE", b_hit=True)])
     assert s["paired_lower_diff"] == 0
     assert s["paired_upper_diff"] == 1
 
 
-def test_A_known_B_indeterminate_is_minus_one_to_zero() -> None:
+def test_a_known_b_indeterminate_is_minus_one_to_zero() -> None:
     s = MODULE._summary([row("VALID_CE", "INDETERMINATE", a_hit=True)])
     assert s["paired_lower_diff"] == -1
     assert s["paired_upper_diff"] == 0
@@ -60,7 +60,7 @@ def test_both_unknown_is_minus_one_to_plus_one() -> None:
     assert s["both_unknown"] == 1
 
 
-def test_valid_CE_without_spread_side_evidence_does_not_count() -> None:
+def test_valid_ce_without_spread_side_evidence_does_not_count() -> None:
     s = MODULE._summary([row("VALID_CE", "VALID_CE")])
     assert s["A_known"] == s["B_known"] == 0
     assert s["A_max"] == s["B_max"] == 0
@@ -86,7 +86,7 @@ def test_canonical_example_with_missingness_can_reverse_observed_sign() -> None:
     row("VALID_CE", "INVALIDATED", b_hit=True),
     row("made_up", "VALID_CE"),
 ])
-def test_clean_CE_cannot_coexist_with_nonvalid_source_class(bad: dict) -> None:
+def test_clean_ce_cannot_coexist_with_nonvalid_source_class(bad: dict) -> None:
     with pytest.raises(ValueError):
         MODULE._summary([bad])
 
