@@ -1,0 +1,94 @@
+name: QORE Native H4-GROSS-01 EURUSD prereg 12h vs 4h (research only)
+
+on:
+  push:
+    branches:
+      - research/qore-native-first-h4-gross-prereg-20261012
+    paths:
+      - '.github/workflows/qore-native-h4-gross01-eurusd.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_h4_gross01_eurusd_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_h4_gross01_eurusd_v1.py'
+      - 'docs/research/QORE_NATIVE_H4_GROSS01_EURUSD_PRE_OUTCOME_PREREG_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-native-h4-gross01-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prereg_and_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Source prereg SHA must be ancestor of analytical code before market data
+        run: |
+          set -euo pipefail
+          prereg=a4424ba3027018bab54f03aff668894f63f47da9
+          git cat-file -e "$prereg^{commit}"
+          git merge-base --is-ancestor "$prereg" "$GITHUB_SHA"
+          test -s docs/research/QORE_NATIVE_H4_GROSS01_EURUSD_PRE_OUTCOME_PREREG_2026-10-12.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_h4_gross01_eurusd_v1.py tests/infrastructure/trader_lab/test_qore_native_h4_gross01_eurusd_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_h4_gross01_eurusd_v1.py
+  eurusd_one_frozen_experiment:
+    needs: prereg_and_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Fetch original frozen twelve aggregate; no new broker OAuth
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original-aggregate
+      - name: Fetch only EURUSD original 10Y native M5 (no 23-way selection)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-EURUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original-eurusd
+      - name: Run exactly one frozen H4 phenomenon and hypothetical costs; no net trading
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_h4_gross01_eurusd_v1 original-eurusd original-aggregate gross01
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("gross01/qore-native-h4-gross01-eurusd.json").read_text())
+          assert d["prereg_commit_before_outcomes"]=="a4424ba3027018bab54f03aff668894f63f47da9"
+          assert d["source_symbol"]=="EURUSD" and d["raw_11_annual_sha_verified"]
+          assert d["split_2022_09_17"]=="2022-09-17"
+          assert d["reserved_2024_09_17_onward_OHLC_not_accessed"] is True
+          assert d["status"]=="GROSS_PHENOMENON_ONLY_NEWS_UNFILTERED"
+          assert d["net_certified"] is False
+          assert d["capital_or_live_authorized"] is False
+          assert d["news_calendar_known_asof_verified"] is False
+          assert d["traders_certified"]==0
+          print("SCIENTIFIC_FROZEN_GROSS_01",d["development"]["verdict"],d["temporal_diagnostic"]["verdict"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > gross01/exact-test-code-sha.txt
+          (cd gross01 && sha256sum qore-native-h4-gross01-eurusd.json exact-test-code-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - name: Archive neutral signed metrics, confidence and gross cost stress
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-native-h4-gross01-eurusd-${{ github.sha }}
+          path: gross01/
+          retention-days: 90
+          if-no-files-found: warn
