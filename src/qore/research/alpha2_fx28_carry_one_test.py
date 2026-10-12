@@ -9,7 +9,7 @@ import argparse
 import json
 import math
 import random
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
