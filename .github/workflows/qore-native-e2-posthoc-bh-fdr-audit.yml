@@ -1,0 +1,60 @@
+name: QORE Native E2 signed Holm vs BH FDR posthoc audit no-price-access
+
+on:
+  push:
+    branches:
+      - research/qore-native-e2-posthoc-fdr-audit-20261012
+    paths:
+      - '.github/workflows/qore-native-e2-posthoc-bh-fdr-audit.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_e2_posthoc_bh_sensitivity_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_e2_posthoc_bh_sensitivity_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  signed_231_posthoc_BH_sensitivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]' 'numpy>=2,<3'
+      - name: Static original-results invariants plus BH tests
+        run: |
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_e2_posthoc_bh_sensitivity_v1.py tests/infrastructure/trader_lab/test_qore_native_e2_posthoc_bh_sensitivity_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_e2_posthoc_bh_sensitivity_v1.py
+      - name: Download signed original E2 231-results artifact; no OHLC ledgers
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e2-all231-gross-Holm-dfe78f115957a40f4188c30e78bd7f88c2ce6c42
+          run-id: '38257207836'
+          github-token: ${{ github.token }}
+          path: signed-e2-original
+      - name: Rehash original source and recompute FDR-BH 5%, 10% on EXACT same 231 p-values
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_e2_posthoc_bh_sensitivity_v1 signed-e2-original signed-posthoc
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("signed-posthoc/qore-native-e2-33x7-posthoc-bh-fdr-audit.json").read_text())
+          assert r["identity"]=="QORE_NATIVE_33X7_E2_POSTHOC_FDR_SENSITIVITY_V1"
+          assert r["parent_signed_json_sha256"]=="5161dbdf157805af3e37957ec25acad3657962a50c99d214883005cb03945f80"
+          assert r["reuses_original_231_p_values_no_price_data"] and r["posthoc_after_Holm_result_known"]
+          for period in ("development","temporal_diagnostic"):
+              assert r["outcomes_by_period"][period]["n_all_cells"]==231
+              assert len(r["outcomes_by_period"][period]["all_cells_qvalues_including_nulls"])==231
+          assert r["not_certified_regardless_of_q"] and r["traders_certified"]==0
+          PY
+          printf '%s\n' "$GITHUB_SHA" > signed-posthoc/exact-posthoc-code-sha.txt
+          (cd signed-posthoc && sha256sum qore-native-e2-33x7-posthoc-bh-fdr-audit.json exact-posthoc-code-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-e2-231-holm-bh-fdr-posthoc-${{ github.sha }}
+          path: signed-posthoc/
+          retention-days: 90
+          if-no-files-found: error
