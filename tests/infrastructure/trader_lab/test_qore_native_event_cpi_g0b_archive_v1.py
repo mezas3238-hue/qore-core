@@ -40,6 +40,26 @@ def test_actual_embargo_header_and_month_must_both_match() -> None:
     assert m.parse_header(html) == ("2026-09-11", "August", 2026)
 
 
+
+def test_legacy_2022_release_embargo_missing_weekday_is_valid() -> None:
+    header = """<html><body>
+    Transmission of material in this release is embargoed until
+    8:30 a.m. (ET) May 11, 2022 USDL-22-0835
+    CONSUMER PRICE INDEX - APRIL 2022
+    </body></html>"""
+    assert m.parse_header(header) == ("2022-05-11", "April", 2022)
+
+
+def test_legacy_non_utf8_ascii_header_is_parseable() -> None:
+    raw = (b"Transmission of material in this release is embargoed until "
+           b"8:30 a.m. (ET) Tuesday, October 18, 2016 "
+           b"CONSUMER PRICE INDEX - SEPTEMBER 2016"
+           + bytes([0x96]))
+    assert m.parse_header(raw.decode("utf-8", errors="replace")) == (
+        "2016-10-18", "September", 2016
+    )
+
+
 def test_posted_schedule_with_missing_archive_is_unconfirmed() -> None:
     row = {"ny_date": "2026-09-11", "ref_month": "August",
            "ref_year": 2026}
