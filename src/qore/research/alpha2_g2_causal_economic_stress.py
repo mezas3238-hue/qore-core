@@ -53,6 +53,8 @@ class EconomicContractWitness:
     cash_in_quote_per_unit_price: Decimal
     contract_known_at: datetime
     fee_schedule_known_at: datetime
+    contract_valid_until: datetime
+    fee_schedule_valid_until: datetime
     contract_sha256: str
     fees_sha256: str
     verified_linear_payoff: bool
@@ -76,6 +78,15 @@ class EconomicContractWitness:
                self.cash_in_quote_per_unit_price, positive=True)
         _stamp("contract_known_at", self.contract_known_at)
         _stamp("fee_schedule_known_at", self.fee_schedule_known_at)
+        _stamp("contract_valid_until", self.contract_valid_until)
+        _stamp("fee_schedule_valid_until", self.fee_schedule_valid_until)
+        if (self.contract_valid_until <= self.contract_known_at
+                or self.fee_schedule_valid_until <= self.fee_schedule_known_at):
+            raise BrokerEvidenceError("broker contract/fee validity period missing")
+        if self.provider_symbol != self.symbol:
+            raise BrokerEvidenceError(
+                "historical provider alias requires separate exact contract proof"
+            )
         _sha("contract_sha256", self.contract_sha256)
         _sha("fees_sha256", self.fees_sha256)
 
@@ -149,10 +160,17 @@ def quote_cost_stress(
     _stamp("exit_decision", exit_decision)
     if entry_decision >= exit_decision:
         raise BrokerEvidenceError("noncausal entry/exit order")
-    if (contract.contract_known_at > entry_decision
-            or contract.fee_schedule_known_at > entry_decision
+    if (not contract.contract_known_at <= entry_decision < contract.contract_valid_until
+            or not contract.fee_schedule_known_at <= entry_decision
+            < contract.fee_schedule_valid_until
             or conversion.known_at > exit_decision):
-        raise BrokerEvidenceError("contract, costs or conversion known only from future")
+        raise BrokerEvidenceError("contract, fees or conversion unknown/expired as of trade")
+    if (contract.account_currency == contract.quote_currency
+            and conversion.rate_deposit_per_quote != Decimal("1")):
+        raise BrokerEvidenceError("same-currency conversion must be exactly unity")
+    if (contract.account_currency != contract.quote_currency
+            and exit_decision-conversion.known_at > timedelta(seconds=5)):
+        raise BrokerEvidenceError("FX conversion quote stale at exit")
     if not isinstance(costs, ExplicitCostWitness):
         raise BrokerEvidenceError("six explicit cost fields and source required")
     _money("cash_risk_in_deposit", cash_risk_in_deposit, positive=True)
