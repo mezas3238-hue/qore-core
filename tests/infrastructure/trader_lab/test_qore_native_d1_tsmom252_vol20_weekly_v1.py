@@ -55,8 +55,7 @@ class Frozen252WeeklyTest(unittest.TestCase):
         returns=[closes[j]/closes[j-1]-1 for j in range(233,253)]
         vol=statistics.stdev(returns)*math.sqrt(252)
         self.assertAlmostEqual(expected,min(3,0.10/vol),places=12)
-        self.assertEqual(t.risk_target(bars(n=253,direction=-1)), -expected
-                         if False else t.risk_target(bars(n=253,direction=-1)))
+        self.assertLess(t.risk_target(bars(n=253,direction=-1)),0.)
 
     def test_non_future_signal_independent_of_todays_close(self):
         a=bars(360)
@@ -124,8 +123,9 @@ class Frozen252WeeklyTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"STRICT_LOOKBACK"):
             t.risk_target(b[:252])
         bad=copy.deepcopy(b[:253])
-        bad[200]["date"]+=dt.timedelta(days=9)
-        self.assertEqual(t.risk_target(bad),0.) if False else None
+        for item in bad[200:]:
+            item["date"] += dt.timedelta(days=14)
+        self.assertEqual(t.risk_target(bad),0.)
 
     def test_reject_timestamps_before_frozen_first_entry(self):
         b=bars(n=400)
