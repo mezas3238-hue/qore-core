@@ -77,7 +77,7 @@ def test_present_source_zeros_are_not_missing_or_fee_authorization():
 
 
 def test_boolean_spoof_and_bad_trade_volume_invalid():
-    with pytest.raises(SourceBlockedError,match="PRICE_PRECISION"):
+    with pytest.raises(SourceBlockedError,match="INTEGER_FIELD_TYPE"):
         extract_detail("XAGUSD",91,FakeProto(91,digits=True))
     with pytest.raises(SourceBlockedError,match="SIZE_UNVERIFIED"):
         extract_detail("XAGUSD",91,FakeProto(91,lotSize=0))
