@@ -62,6 +62,7 @@ def test_fail_closed_bad_quote_and_missing_symbols() -> None:
         a.spread_stats(x)
     x=original()
     x["rows"][0]["canonical_symbol"]=x["rows"][1]["canonical_symbol"]
+    x["rows"][0]["displayed_symbol"]=x["rows"][1]["displayed_symbol"]
     with pytest.raises(ValueError,match="repeated"):
         a.spread_stats(x)
     x=original()
