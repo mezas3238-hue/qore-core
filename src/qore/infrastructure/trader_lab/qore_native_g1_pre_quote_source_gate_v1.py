@@ -11,7 +11,6 @@ import argparse
 import hashlib
 import json
 import re
-from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
