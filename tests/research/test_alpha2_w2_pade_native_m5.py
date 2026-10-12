@@ -75,7 +75,7 @@ def test_twenty_h1_missing_censors_signal_instead_of_filling():
     )
 
 
-def test_complete_h1_exact_twelve_native_M5_without_interpolation():
+def test_complete_h1_exact_twelve_native_m5_without_interpolation():
     at = datetime(2022, 7, 8, 11, tzinfo=UTC)
     rows = {}
     for i in range(12):
