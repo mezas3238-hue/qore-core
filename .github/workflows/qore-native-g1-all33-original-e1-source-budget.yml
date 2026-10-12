@@ -1,0 +1,91 @@
+name: QORE Native G1 E1 All33 original research clock and read-only BIDASK shard budget
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-e1-all33-clock-budget-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-all33-original-e1-source-budget.yml'
+      - 'docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-native-g1-all33-E1-original-clock-budget-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate_all_33_original_e1_clocks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      GH_TOKEN: ${{ github.token }}
+      QORE_E1_DATA_ROOT: ${{ github.workspace }}/original-E1-archive
+      QORE_E1_REPORT_DIR: ${{ github.workspace }}/report-E1-clock-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build artifact custody and verify scope before any download
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$QORE_E1_REPORT_DIR" "$QORE_E1_DATA_ROOT"
+          cp docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/artifact_register.txt "$QORE_E1_REPORT_DIR/"
+          test "$(wc -l < "$QORE_E1_REPORT_DIR/artifact_register.txt")" -eq 33
+          grep -q 'AUDCAD 11750299285' "$QORE_E1_REPORT_DIR/artifact_register.txt"
+          grep -q 'NAS100 11750049650' "$QORE_E1_REPORT_DIR/artifact_register.txt"
+          echo 'E1_ORIGINAL_33_SOURCE_CUSTODY_REGISTER_VALID'
+      - name: Restore ONLY 33 previously signed E1 source research ZIP files, each SHA256 verified
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/fetch_original_signed_E1_zip_artifacts.sh
+      - name: Reconstruct all 373611 signed source research clock-only events and deduplicate max30min windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          python docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/audit.py
+      - name: Fixed 2021 and 2023 pre-exposed calendar source request budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          python docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/calendar_pilot.py
+          python docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/phase0_source_plan.py
+      - name: Independent fail-closed source-only ledger and budget consistency checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/verify_reports.py
+          printf '%s\n' "$GITHUB_SHA" > "$QORE_E1_REPORT_DIR/auditor-code-sha.txt"
+          (cd "$QORE_E1_REPORT_DIR" && sha256sum *.json *.csv *.txt *.gz > GENERATED_SHA256SUMS.txt)
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          folder=Path(os.environ["QORE_E1_REPORT_DIR"])
+          report=json.loads((folder/"summary.json").read_text())
+          assert report["all_original_research_E1_event_count"]==373611
+          assert report["deduplicated_native_quote_history_shards_max_30min"]==412012
+          assert report["minimum_original_BIDASK_side_history_requests"]==824024
+          assert report["net_authorized"] is False and report["certified_traders"]==0
+          assert report["actual_BIDASK_requested_in_this_audit"] is False
+          phase0=json.loads((folder/"phase0_four_market_source_plan_NOT_NET.json").read_text())
+          assert phase0["original_E1_source_events"]==45
+          assert phase0["source_bounded_shards"]==49
+          assert phase0["minimum_BIDASK_requests"]==98
+          assert phase0["broker_api_calls_executed"]==0
+          assert not phase0["historical_NET_authorized"]
+          print("SIGNED_33_E1_CLOCK_SHARD_SOURCE_PLAN_QA_PASS_NOT_NET")
+          PY
+      - name: Publish clock-only source evidence; no broker quotes, no strategy returns, NO NET
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-33x7-original-source-clocks-and-shards-NOT-NET-${{ github.sha }}
+          path: report-E1-clock-only/
+          retention-days: 90
+          compression-level: 6
+          if-no-files-found: error
