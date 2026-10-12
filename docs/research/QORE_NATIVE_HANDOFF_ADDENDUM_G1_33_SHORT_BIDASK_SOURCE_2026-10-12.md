@@ -81,3 +81,30 @@ Auditor nuevo independiente [PR #860](https://github.com/mezas3238-hue/qore-core
 382 snapshots source stale, 3 missing y 0 crossed. Los **6.640** zeros sobreviven a redecodificar los bytes serializados originales, refutando su explicación exclusiva como falla del decoder original (aunque pueden existir problemas de fuente o semántica). Un timestamp mismo ms no es prueba de bid/ask efectivamente ejecutable ni spread gratuito. Causas y contract equivalence **P0 sin resolver** en [Issue #856](https://github.com/mezas3238-hue/qore-core/issues/856). El source antiguo 127.928 + nuevos 34.761 = **162.689 eventos bid/ask totales en muestras cortas**, con instrumentos repetidos en ventanas distintas, **NO** 33 mercados con histórico continuo ni fuente NET.
 
 Próxima misión del arquitecto: obtener interpretación de cTrader/IC Markets respecto a BID=ASK históricos, testigo forward cotizado sin órdenes, comparar contracts históricos 12 CIBO, soporte licenses/vault con restauración verificada, y elaborar plan de cobertura por shards de calidad hasta poder mapear todas las entradas/salidas de nuevas hipótesis preregistradas. **NINGUNA métrica NET ni trader certificado, 0/3; 231 Holm/FDR/E3 NO_SUPPORT intactos.**
+
+## 7. Control temporal: BID/ASK mismo ms también produce spreads POSITIVOS
+
+Forense **EXPLORATORIO post-hoc, NO hipótesis prereg alpha** en [PR #861](https://github.com/mezas3238-hue/qore-core/pull/861), [Actions #38290229370](https://github.com/mezas3238-hue/qore-core/actions/runs/38290229370) SUCCESS, 7/7 tests y mismo original Protobuf verificado desde #860. HEAD `89a523a76bb823ee9ba2cd735c067988bc33ad2b`; reporte `artifact #11764801993`, ZIP SHA256 `a433df35eb72b667d553c8aafbb44a4d5d5a145f8bdbc1d56b2e4507f20e9507`.
+
+Entre **12.381** instantes únicos en que BID y ASK actualizan simultáneamente con timestamp del mismo milisegundo, **5.371 tienen precios idénticos** y **7.010 tienen ASK>BID (spread positivo)**. No se detectaron spreads cruzados, y los 6.640 zeros del QA original y 15.355 positivos concuerdan exactamente. **Mismo ms no es causa suficiente de cero**, aunque 5.371 de los zeros coincidan en ms. Los episodios máximos consecutivos (en instantes de actualización, NO minutos negociables) son EURUSD 93 y 86, GBPUSD 101 y 10, USDJPY 66 y 8 (2021/2023); controles XAGUSD y SP500/US500 cero episodios.
+
+**Fuente externa:** Spotware explica que los feeds históricos BID y ASK se actualizan separadamente, a veces simultáneamente, y que OnTick se emite con cambio de cualquiera de los dos lados (https://community.ctrader.com/forum/connect-api-support/24165/). Su guía histórica define quote type separado, escala 100.000, `hasMore` y límite de 604.800.000 ms por solicitud (https://help.ctrader.com/open-api/symbol-data/). Es compatible con as-of last-known-side, **NO prueba spread cero ejecutable o fills**. Bloqueo #856 sigue abierto.
+
+## 8. Gate causal no-económico sobre 20 pares de timestamps ficticios
+
+Nuevo contrato de ingeniería definido ANTES de ejecutar los checkpoints aunque después de examinar el histórico FX: [PR #862](https://github.com/mezas3238-hue/qore-core/pull/862), prereg commit `72a31b325ace26cb9aec698793faefc748633ae0`, script `src/qore/infrastructure/trader_lab/qore_native_g1_causal_quote_checkpoint_pair_gate_v1.py`, [Actions #38290734217](https://github.com/mezas3238-hue/qore-core/actions/runs/38290734217) **SUCCESS**, 8/8 tests y SHA/protobuf parent #860 pass. Source-only artifact #11766210564 ZIP SHA256 `35f9593df32d2a1e2b549aeb20ca273890f7b056d604990a364128b16667a346`.
+
+**Política previa:** último BID y ASK con timestamp de evento `<= decisión`, edad individual `<= 5000ms`, spread estrictamente positivo (cero/cruzado/ausencia/stale => rechazo), prueba idéntica tanto en tiempo de entrada como salida. Prohibido usar ticks futuros, promedios inventados, M1/M5 sintéticos, asignar fee 0 o reclamar fill. Los checkpoints son **horarios creados para probar calidad de fuente** (+5/+15 y +10/+25min del inicio de cada una de dos ventanas), **NO operaciones reales de trader ni entradas E2/E3**.
+
+| Símbolo | Pares de checkpoints con los dos lados válidos en ambos tiempos |
+|---|---:|
+| EURUSD | 1/4 |
+| GBPUSD | 2/4 |
+| USDJPY | 3/4 |
+| XAGUSD | 4/4 |
+| SP500→US500 | 1/4 |
+| **Total** | **11/20 (9 bloqueados correctamente)** |
+
+En las 20 evaluaciones iniciales, `OK_POSITIVE_BIDASK=13`, `ZERO_SPREAD=5`, `STALE_SIDE=2`. En las 20 finales, `OK_POSITIVE_BIDASK=17`, `ZERO_SPREAD=2`, `STALE_SIDE=1`; crossed/missing=0. Contadores no suponen independencia entre entry/exit ni tamaño de muestra estadístico de una estrategia.
+
+**Clave del handoff:** avanzar ahora a testigos originales de **eventos de trading realmente preregistrados con timestamps de decisión y cierre**, que necesitarán histórico nativo bid/ask correspondiente y contratos/costes originales demostrados. Hasta entonces **G1_SOURCE_GATE_PRE_COST_OK** significa ingeniería causal probada, **NO G1 NET económico desbloqueado**. 231 gross Holm/FDR/E3 tienen cero edge positivo replicado, 0/3 traders certificados, no VPS/MT5/LIVE/CIBO/Shared/QDLE. Resolver tickets #856, #857 y #837 primero.
