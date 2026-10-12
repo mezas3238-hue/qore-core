@@ -25,6 +25,18 @@ El documento original G1 validó 373.611 oportunidades E1 de siete métodos en 3
 4. Publicar artefactos de reloj-only, summary, digest SHA y código exacto. ZIP de Actions sigue siendo temporal, no `Data Vault` duradero.
 5. Si cualquier control falla, FAIL total; **no** modificar E1 original ni seleccionar subconjuntos por retornos para pasar Gate.
 
+## Revisión adicional de la regla E1 original: carrera cierre de M5 / apertura teórica
+
+Inspección de la implementación E1 congelada, rama de [handoff #855, líneas 131–215](https://github.com/mezas3238-hue/qore-core/blob/research/qore-native-master-handoff-g1-33-sources-addendum-20261012/src/qore/infrastructure/trader_lab/qore_native_e1_33x7_seven_gross_per_market_v1.py#L131-L215), fuente original E1 SHA `dfe78f115957a40f4188c30e78bd7f88c2ce6c42`. No se consultó PnL.
+
+**Hallazgo causal:** las señales de **6 de las 7 familias** usan el cierre de la última barra M5 que termina **exactamente cuando comienza el target teórico**. Ninguna de esas evaluaciones trae un modelo verificado de latencia señal→procesamiento→orden→fill. Son: `REVERSAL_12H`, `PERSISTENCE_12H` (M5 hasta 16:00); `SWEEP_RECLAIM`, `RANGE_BREAK_CONT` (M5 12:00–13:00); `OPEN_INITIAL_REACTION` y `POST_OPEN_CONT` (primeros 15/30 min de sesión). La apertura teórica target se valora en el mismo timestamp en que se cierra el último M5 de señal. No demuestra lookahead del signo original, pero sí **falta de justificación causal del precio de entrada teórico como ejecución**.
+
+**Excepción:** `TREND_MULTI_DAY` calcula la dirección de estrategia con tres sesiones anteriores, por lo que su signo podría conocerse antes de las 16:00; **pero su baseline emparejado** usa el tramo actual 12:00–16:00, también al límite del target. No agrupar indiscriminadamente las siete señales en la misma carrera; separar señal de estrategia y baseline.
+
+**Regla de filtro añadida:** para las seis señales de cierre coincidente, un testigo que afirme que la barra cerrada o sus features estaban disponibles **antes** de `research_entry_clock_utc` se rechaza. Incluso un testigo temporalmente coherente y un algoritmo ultra rápido siguen sin demostrar fill al OPEN de esa misma barra ni la calidad y el coste de BID/ASK. El futuro replay debe evaluar primer tick admisible después del cierre y la latencia realista por separado; no desplazar el clock original ni utilizar outcomes para escoger retrasos.
+
+La clasificación por familia en el ledger no es una séptima estrategia nueva ni medición de beneficios: es una advertencia técnica que facilita la reproducción y falsación de #863.
+
 ## Después de esta entrega — P0 aún abiertos
 
 - **#863:** construir emisor de evidencia de decisión desde reglas de señales realmente disponibles antes del orden; congelar disponibilidad de barras, secuencia de eventos, stop/target/expiración, orden/fill/salida y contraste scalar-vs-Ultra Fast; autenticar bytes y SHA del testigo independiente. No adjudicar automáticamente en función del reloj E1 ni del resultado futuro.
