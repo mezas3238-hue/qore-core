@@ -11,8 +11,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from qore.research.alpha2_intermarket import MARKETS
 from qore.research.alpha2_g2_29_real_bidask_reuse import SOURCE_29
+from qore.research.alpha2_intermarket import MARKETS
 from qore.research.alpha2_source33_artifact_expiry_inventory import (
     NEW21,
     ORIGINAL12,
