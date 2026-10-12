@@ -134,6 +134,14 @@ def _native_fetch(
                 raise SourceBlock("NATIVE_TICK_PROTOCOL_REQUEST_FIELD_INVALID")
             if "response could not be decoded" in str(result.error):
                 raise SourceBlock("NATIVE_TICK_PROTOCOL_RESPONSE_UNDECODABLE")
+            allowed_submessages = {
+                "HISTORY_ONLY_MESSAGE_NOT_ALLOWED": "NATIVE_TICK_BLOCKED_ADAPTER_REQUEST_WHITELIST",
+                "cTrader request message is not admitted by this runtime": "NATIVE_TICK_SDK_MESSAGE_NOT_ADMITTED",
+                "cTrader request rejected:": "NATIVE_TICK_SERVER_ERROR_UNCLASSIFIED",
+            }
+            for signal, reason in allowed_submessages.items():
+                if signal in str(result.error):
+                    raise SourceBlock(reason)
             raise SourceBlock("NATIVE_TICK_PROVIDER_PROTOCOL_FAILURE")
         raise SourceBlock("NATIVE_TICK_PROVIDER_QUERY_FAILED")
     response = result.value
