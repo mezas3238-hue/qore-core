@@ -1,0 +1,83 @@
+name: QORE Native H3 one 5D cross-sectional reversal 33 markets preregulated
+
+on:
+  push:
+    branches:
+      - research/qore-native-d1-xsrev5-33-one-test-20261012
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_d1_xsrev5_33_h3_one_test_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_d1_xsrev5_33_h3_one_test_v1.py'
+      - 'docs/research/QORE_NATIVE_D1_XSREV5_33_SINGLE_H3_PREREG_2026-10-12.md'
+      - '.github/workflows/qore-native-d1-xsrev5-33-h3-single.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-native-XSREV5-H3-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  synthetic_causal_regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic 33-market rank, 5 sessions, neutral basket, no outcome leaks
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_d1_xsrev5_33_h3_one_test_v1.py -v
+
+  one_signed_economic_panel:
+    needs: synthetic_causal_regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: src
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run exactly one preregistered H3 33-market 5D XS reversal source SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_d1_xsrev5_33_h3_one_test_v1 temporary-originals research-outputs
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('research-outputs/H3_XSREV5_33_SINGLE_FROZEN_1BP_SIDE_NOT_BROKER_NET.json')
+          r=json.loads(path.read_text())
+          assert r['identity']=='QORE_NATIVE_D1_XSREV5_FIXED33_H3_PREREG_V1'
+          assert r['sources_count']==33
+          assert len(r['source_reports'])==33
+          assert all(x['source_sha_verified_11_annual_partitions'] is True for x in r['source_reports'])
+          assert r['roster_family_counts']=={'FX_28':28,'INDICES_3':3,'METALS_2':2}
+          assert r['formation_completed_common_sessions']==5
+          assert r['holding_common_sessions']==5
+          assert r['quintile_floor_assets_long_and_short']==6
+          assert r['transaction_cost_bp_per_notional_side']==1.
+          assert r['calendar_33_complete_case']['common_dates_33_assets']>=500
+          assert r['performance']['DEV']['portfolio_rebalance_events']>0
+          assert r['performance']['DIAG']['portfolio_rebalance_events']>0
+          assert r['2024_09_17_onward_economic_holdout_read'] is False
+          assert r['broker_NET_certified'] is False
+          assert r['certified_traders']==0
+          print('H3_ONE_FROZEN_5D_33_ECONOMIC_TEST_COMPLETE_NOT_BROKER_NET')
+          PY
+          printf '%s\n' "$GITHUB_SHA" > research-outputs/executed-code-SHA.txt
+          (cd research-outputs && sha256sum *.json *.txt > FINAL_SHA256SUMS.txt)
+      - name: Retain compact H3 metrics, no raw broker quotes
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-H3-xsrev5-33-one-prereg-NOT-BROKER-NET-${{ github.sha }}
+          path: research-outputs/
+          retention-days: 30
+          if-no-files-found: error
