@@ -1,13 +1,13 @@
 """Causal/fail-closed synthetic tests; no real prices or PnL are inspected."""
-from datetime import datetime, timedelta, timezone
-from math import cos, exp, sin
+from datetime import UTC, datetime
+from math import exp, sin
 
 import pytest
 
 from qore.research.alpha2_intermarket import (
     H4,
-    MARKETS,
     M5,
+    MARKETS,
     RESEARCH_CUTOFF,
     Bar,
     _correlation_beta,
@@ -24,7 +24,7 @@ def test_universe_is_33_unique_and_class_bounded() -> None:
 
 
 def test_full_m5_block_creates_one_h4_without_synthesis() -> None:
-    t = datetime(2023, 1, 2, tzinfo=timezone.utc)
+    t = datetime(2023, 1, 2, tzinfo=UTC)
     rows = [Bar(t + M5 * k, 100.0, 101.0, 99.0, 100.0 + k * 0.001)
             for k in range(48)]
     out = aggregate_complete_h4(rows)
@@ -33,13 +33,13 @@ def test_full_m5_block_creates_one_h4_without_synthesis() -> None:
 
 
 def test_incomplete_h4_is_dropped_not_patched() -> None:
-    t = datetime(2023, 1, 2, tzinfo=timezone.utc)
+    t = datetime(2023, 1, 2, tzinfo=UTC)
     rows = [Bar(t + M5 * k, 100, 101, 99, 100) for k in range(48) if k != 8]
     assert aggregate_complete_h4(rows) == {}
 
 
 def test_duplicate_timestamp_blocks_entire_input() -> None:
-    t = datetime(2023, 1, 2, tzinfo=timezone.utc)
+    t = datetime(2023, 1, 2, tzinfo=UTC)
     row = Bar(t, 100, 101, 99, 100)
     with pytest.raises(ValueError, match="duplicate"):
         aggregate_complete_h4([row, row])
@@ -47,7 +47,7 @@ def test_duplicate_timestamp_blocks_entire_input() -> None:
 
 def test_invalid_price_or_naive_timestamp_fails() -> None:
     with pytest.raises(ValueError, match="OHLC"):
-        aggregate_complete_h4([Bar(datetime(2023, 1, 1, tzinfo=timezone.utc),
+        aggregate_complete_h4([Bar(datetime(2023, 1, 1, tzinfo=UTC),
                                    100, 98, 99, 100)])
     with pytest.raises(ValueError, match="UTC"):
         aggregate_complete_h4([Bar(datetime(2023, 1, 1), 100, 101, 99, 100)])
@@ -67,7 +67,7 @@ def test_embargo_price_window_is_enforced() -> None:
 
 
 def test_no_price_future_can_change_frozen_decision() -> None:
-    t0 = datetime(2022, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2022, 1, 1, tzinfo=UTC)
     at = t0 + 170 * H4
     symbols = ("EURUSD", "GBPUSD", "USDJPY", "AUDUSD",
                "NZDUSD", "USDCAD", "EURJPY", "GBPJPY")
