@@ -1,0 +1,59 @@
+name: QORE Native H4 ALFRED two real historical vintage 8 currencies SOURCE ONLY
+
+on:
+  push:
+    branches:
+      - research/qore-native-h4-oecd8-3m-rate-coverage-20261012
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_h4_alfred8_vintage_source_probe_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_h4_alfred8_vintage_source_probe_v1.py'
+      - '.github/workflows/qore-native-h4-alfred8-vintage-source-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  alfred_vintage_source_real:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic ALFRED expected vintage headers and historical asof controls
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_h4_alfred8_vintage_source_probe_v1.py -v
+      - name: Verify actual historic vintage 2019 and 2023 on 8 currencies through ALFRED source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_h4_alfred8_vintage_source_probe_v1 original-vintage-metadata/ALFRED_H4_EIGHT_2019_2023_VINTAGES_ONLY.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('original-vintage-metadata/ALFRED_H4_EIGHT_2019_2023_VINTAGES_ONLY.json').read_text())
+          assert d['currency_count']==8
+          assert d['historical_vintage_asof_dates']==['2019-12-31','2023-12-29']
+          assert len(d['series'])==8
+          assert all(v['no_numeric_rates_exported'] for v in d['series'].values())
+          assert d['not_1month_forward_quotes'] is True
+          assert d['not_pit_monthly_all_2016_2024_yet'] is True
+          assert d['spot_M5_not_accessed'] is True
+          assert d['holdout_2024_09_17_onward_not_accessed'] is True
+          assert d['FX_carry_backtest_performed'] is False
+          assert d['claimed_Sharpe'] is None
+          assert d['certified_traders']==0
+          print('H4_ALFRED_HISTORICAL_ASOF_VINTAGES_SOURCE_PROVEN_NOT_PNL')
+          PY
+          printf '%s\n' "$GITHUB_SHA" > original-vintage-metadata/executed-code-sha.txt
+          (cd original-vintage-metadata && sha256sum *.json *.txt > SHA256SUMS.txt)
+      - name: Publish only vintage completeness/hashes not raw historical rates
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-h4-ALFRED-8-two-vintages-source-only-${{ github.sha }}
+          path: original-vintage-metadata/
+          retention-days: 30
+          if-no-files-found: error
