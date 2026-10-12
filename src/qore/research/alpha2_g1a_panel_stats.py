@@ -211,10 +211,10 @@ def aggregate(root: Path, *, exact_head: str) -> dict:
         and eras[era]["paired_delta_mean_bps_proxy"] is not None
         and eras[era]["paired_delta_mean_bps_proxy"] > 0
         and all(
-            eras[era]["bootstrap_calendar_synced_all_markets"][f"{l}wk"]["ci95_bps"]
+            eras[era]["bootstrap_calendar_synced_all_markets"][f"{block_size}wk"]["ci95_bps"]
             is not None and
-            eras[era]["bootstrap_calendar_synced_all_markets"][f"{l}wk"]["ci95_bps"][0] > 0
-            for l in (1, 2, 4)
+            eras[era]["bootstrap_calendar_synced_all_markets"][f"{block_size}wk"]["ci95_bps"][0] > 0
+            for block_size in (1, 2, 4)
         )
         for era in ERAS
     )
