@@ -1,0 +1,210 @@
+name: QORE Native GROSS04 ALL33 sweep/reclaim prereg panel — research NO LIVE
+
+on:
+  push:
+    branches:
+      - research/qore-native-33-panel-liquidity-sweep-gross04-20261012
+    paths:
+      - '.github/workflows/qore-native-gross04-all33-sweep-reclaim.yml'
+      - 'docs/research/QORE_NATIVE_GROSS04_ALL33_SWEEP_RECLAIM_PANEL_PREREG_2026-10-12.md'
+      - 'src/qore/infrastructure/trader_lab/qore_native_gross04_panel33_sweep_reclaim_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_gross04_panel33_sweep_reclaim_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-native-gross04-33-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  freeze_and_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Freeze hypothesis before ANY of 33 market prices and test causal invariants
+        run: |
+          set -euo pipefail
+          prereg=9b147f0a385213dd4b0183b3205c6c9d467581ad
+          git cat-file -e "$prereg^{commit}"
+          git merge-base --is-ancestor "$prereg" "$GITHUB_SHA"
+          test -s docs/research/QORE_NATIVE_GROSS04_ALL33_SWEEP_RECLAIM_PANEL_PREREG_2026-10-12.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_gross04_panel33_sweep_reclaim_v1.py tests/infrastructure/trader_lab/test_qore_native_gross04_panel33_sweep_reclaim_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_gross04_panel33_sweep_reclaim_v1.py
+
+  original12_market_source_and_gross:
+    needs: freeze_and_tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        symbol: [AUDJPY, AUDUSD, EURUSD, GBPJPY, GBPUSD, NAS100, SP500, US30, USDCAD, USDJPY, XAGUSD, XAUUSD]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Immutable 33-market SHA source census — no 33 PnL preselection
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: frozen33
+      - name: Original12 Atlas SHA source aggregate witness
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original12-aggregate
+      - name: Download exact original M5 for one of the 12 markets
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: raw-original
+      - name: Verify source SHA before calculating this symbol's prereg gross events
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_gross04_panel33_sweep_reclaim_v1 symbol "$SYMBOL" raw-original frozen33 research-witness --original12-aggregate original12-aggregate
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          name=os.environ["SYMBOL"]
+          j=json.loads(Path(f"research-witness/qore-native-gross04-symbol-{name}.json").read_text())
+          assert j["source_symbol"] == name
+          assert j["prereg_sha"] == "9b147f0a385213dd4b0183b3205c6c9d467581ad"
+          assert j["source_provenance"]["original_raw_11_year_sha_checked"] is True
+          assert j["source_provenance"]["source_cohort"] == "ORIGINAL12_DEMO"
+          assert j["embargo_2024_09_17_ohlc_untouched"] and not j["net_certified"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > research-witness/exact-code-head-sha.txt
+      - name: Keep signed witness including negative or no events
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-native-gross04-source-${{ matrix.symbol }}-${{ github.sha }}
+          path: research-witness/
+          retention-days: 90
+          if-no-files-found: warn
+
+  new21_market_source_and_gross:
+    needs: freeze_and_tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        symbol: [USDCHF, NZDUSD, EURGBP, EURJPY, EURCHF, EURCAD, EURAUD, EURNZD, GBPCHF, GBPCAD, GBPAUD, GBPNZD, AUDCAD, AUDCHF, AUDNZD, CADJPY, CADCHF, CHFJPY, NZDJPY, NZDCAD, NZDCHF]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Immutable original 33 source census, no broker price splice
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: frozen33
+      - name: Download one original IC Markets DEMO native M5 10Y source
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-${{ matrix.symbol }}-e0ca5a13c866a19d8505c68cffc473598984b340
+          run-id: '38193802541'
+          github-token: ${{ github.token }}
+          path: raw-original
+      - name: Rehash 11-year RAW+QUALITY original per new source before OHLC GROSS04
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_gross04_panel33_sweep_reclaim_v1 symbol "$SYMBOL" raw-original frozen33 research-witness
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          name=os.environ["SYMBOL"]
+          j=json.loads(Path(f"research-witness/qore-native-gross04-symbol-{name}.json").read_text())
+          assert j["source_symbol"] == name
+          assert j["prereg_sha"] == "9b147f0a385213dd4b0183b3205c6c9d467581ad"
+          assert j["source_provenance"]["original_raw_11_year_sha_checked"] is True
+          assert j["source_provenance"]["source_cohort"] == "NEW21_ICMARKETS_DEMO"
+          assert j["embargo_2024_09_17_ohlc_untouched"] and not j["net_certified"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > research-witness/exact-code-head-sha.txt
+      - name: Keep signed witness including negative or no events
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-native-gross04-source-${{ matrix.symbol }}-${{ github.sha }}
+          path: research-witness/
+          retention-days: 90
+          if-no-files-found: warn
+
+  pooled_all33_market_test:
+    needs: [original12_market_source_and_gross, new21_market_source_and_gross]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Frozen signed 33 original M5 census
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: frozen33
+      - name: Independently SHA-verified 33 per-market gross witnesses from THIS head only
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-native-gross04-source-*-${{ github.sha }}
+          path: original-market-witnesses33
+      - name: One precommitted all33 paired null test, synchronized weekly bootstrap
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_gross04_panel33_sweep_reclaim_v1 aggregate frozen33 original-market-witnesses33 final-gross-panel33
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("final-gross-panel33/qore-native-gross04-panel33-result.json").read_text())
+          assert a["market_count"] == 33
+          assert a["prereg_sha_before_market_outcomes"] == "9b147f0a385213dd4b0183b3205c6c9d467581ad"
+          assert a["status"] == "GROSS_PANEL_NEWS_UNFILTERED_NOT_TRADABLE"
+          assert a["family_winners_not_selected"] and a["future_2024_onward_OHLC_not_opened"]
+          for period in ("development", "temporal_diagnostic"):
+              assert a[period]["market_count"]==33
+              assert len(a[period]["all_33_symbols_including_nulls"])==33
+              assert a[period]["net_certified"] is False
+          assert a["news_known_asof_calendar_not_verified"]
+          assert not a["net_execution_certified"] and a["traders_certified"] == 0
+          print("ONE_HYPOTHESIS_33_MARKETS",a["development"]["verdict"],a["temporal_diagnostic"]["verdict"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > final-gross-panel33/exact-code-head-sha.txt
+          (cd final-gross-panel33 && sha256sum qore-native-gross04-panel33-result.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - name: Publish full 33 and all negative/null outcomes
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-gross04-all33-panel-outcomes-${{ github.sha }}
+          path: final-gross-panel33/
+          retention-days: 90
+          if-no-files-found: error
