@@ -27,6 +27,8 @@ jobs:
         run: |
           set -euo pipefail
           root=src/qore/infrastructure/trader_lab
+          git show e0ca5a13c866a19d8505c68cffc473598984b340:src/qore/infrastructure/ctrader_demo_account_discovery.py > src/qore/infrastructure/ctrader_demo_account_discovery.py
+          test "$(git hash-object src/qore/infrastructure/ctrader_demo_account_discovery.py)" = e8d9b080bb88a4dee5f24feaded4ed2ccc779642
           git show ab782b8e9f890f86a2b6500070f0556b4b685e3d:"$root/cibo_market_atlas_10y_m5_consumer_v1.py" > "$root/cibo_market_atlas_10y_m5_consumer_v1.py"
           git show ab782b8e9f890f86a2b6500070f0556b4b685e3d:"$root/cibo_market_atlas_10y_windowed_runtime_v1.py" > "$root/cibo_market_atlas_10y_windowed_runtime_v1.py"
           git show e0ca5a13c866a19d8505c68cffc473598984b340:"$root/qore_native_universe_33_source_registry_v1.py" > "$root/qore_native_universe_33_source_registry_v1.py"
@@ -69,6 +71,8 @@ jobs:
         run: |
           set -euo pipefail
           root=src/qore/infrastructure/trader_lab
+          git show e0ca5a13c866a19d8505c68cffc473598984b340:src/qore/infrastructure/ctrader_demo_account_discovery.py > src/qore/infrastructure/ctrader_demo_account_discovery.py
+          test "$(git hash-object src/qore/infrastructure/ctrader_demo_account_discovery.py)" = e8d9b080bb88a4dee5f24feaded4ed2ccc779642
           git show ab782b8e9f890f86a2b6500070f0556b4b685e3d:"$root/cibo_market_atlas_10y_m5_consumer_v1.py" > "$root/cibo_market_atlas_10y_m5_consumer_v1.py"
           git show ab782b8e9f890f86a2b6500070f0556b4b685e3d:"$root/cibo_market_atlas_10y_windowed_runtime_v1.py" > "$root/cibo_market_atlas_10y_windowed_runtime_v1.py"
           git show e0ca5a13c866a19d8505c68cffc473598984b340:"$root/qore_native_universe_33_source_registry_v1.py" > "$root/qore_native_universe_33_source_registry_v1.py"
