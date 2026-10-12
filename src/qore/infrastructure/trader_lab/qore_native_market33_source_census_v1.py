@@ -60,6 +60,8 @@ def census(manifest: dict[str, Any]) -> dict[str, Any]:
         or manifest.get("status") != "G0_33_OF_33_PROVIDER_M5_SHA_VERIFIED_NO_ECONOMICS"
         or manifest.get("market_count") != 33
         or manifest.get("parent30_bars") != final33.PARENT_30_M5_BARS
+        or manifest.get("parent30_manifest_sha256") != final33.PARENT_30_JSON_SHA
+        or manifest.get("parent30_producer_head_sha") != final33.PARENT_30_CODE_SHA
         or manifest.get("market_outcomes_unexamined") is not True
         or manifest.get("historical_bidask_spread_verified") is not False
         or manifest.get("net_execution_economics_authorized") is not False
@@ -110,7 +112,11 @@ def census(manifest: dict[str, Any]) -> dict[str, Any]:
         family_rows[grp].append(sample)
         origin_rows["original12_demo" if is_original else "new21_icmarkets_demo"].append(sample)
     summed = sum(r["native_m5_bars"] for r in all_rows)
+    expected_extra = sum(r["native_m5_bars"] for r in all_rows if r["symbol"] in final33.SOURCE_TAIL)
     if (
+        manifest.get("added_tail_three_bars") != expected_extra
+        or summed - expected_extra != final33.PARENT_30_M5_BARS
+        or 
         summed != manifest.get("all_33_original_m5_bars")
         or sum(r["native_m5_bars"] for r in origin_rows["original12_demo"]) != 8726985
         or len(origin_rows["original12_demo"]) != 12
