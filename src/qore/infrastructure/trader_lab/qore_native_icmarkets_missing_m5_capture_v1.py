@@ -14,7 +14,11 @@ import sys
 from pathlib import Path
 
 from qore.infrastructure.ctrader_open_api_client import (
-    CTraderOpenApiProtocolError, SpotwareCTraderOpenApiClient,
+    CTraderOpenApiConnectionError,
+    CTraderOpenApiProtocolError,
+    SpotwareCTraderOpenApiClient,
+    _ensure_reactor_running,
+    _method,
 )
 from qore.infrastructure.trader_lab import cibo_market_atlas_10y_m5_consumer_v1 as base
 from qore.infrastructure.trader_lab import cibo_market_atlas_10y_windowed_runtime_v1 as windowed
@@ -24,13 +28,111 @@ from qore.infrastructure.trader_lab.qore_native_icmarkets_catalog_preflight_v1 i
 from qore.infrastructure.trader_lab.qore_native_universe_33_source_registry_v1 import (
     M5_10Y, universe,
 )
-from qore.kernel.result import Failure
+from qore.kernel.result import Failure, Success
 
 IDENTITY = "QORE_NATIVE_ICMARKETS_DEMO_UNIVERSE33_M5_10Y_NEW_CAPTURE_V1"
 PARENT_IDENTITY = "CIBO_MARKET_ATLAS_10Y_CONSUMPTION_V1"
 SCHEMA = "qore.native.icmarkets_demo_universe33_m5_10y.v1"
 CAPTURE_START = "2016-09-17T00:00:00+00:00"
 CAPTURE_END = "2026-09-17T00:00:00+00:00"
+
+
+class _ReadOnlyIcMarketsHistoryClient(SpotwareCTraderOpenApiClient):
+    """History-only DEMO adapter accepting SCOPE_VIEW=0 without SDK changes."""
+
+    def _refresh_tokens(self):
+        return Failure(CTraderOpenApiProtocolError(
+            "REAUTH_REQUIRED_NO_TOKEN_REFRESH_PERMITTED"
+        ))
+
+    def connect_and_authenticate(self):
+        if self.is_ready:
+            return Success(None)
+        self._disconnected.clear()
+        try:
+            _ensure_reactor_running(self._bindings.reactor)
+            _method(self._bindings.reactor, "callFromThread")(
+                _method(self._client, "startService")
+            )
+        except (CTraderOpenApiProtocolError, CTraderOpenApiConnectionError) as exc:
+            return Failure(exc)
+        if not self._connected.wait(self._request_timeout_seconds):
+            return Failure(CTraderOpenApiConnectionError(
+                "IC Markets DEMO historical TLS connection timeout"
+            ))
+        app = self._authenticate_request("ProtoOAApplicationAuthReq", {
+            "clientId": self._credentials.client_id,
+            "clientSecret": self._credentials.client_secret,
+        }, "icmarkets-history-app")
+        if isinstance(app, Failure):
+            return app
+        if not isinstance(
+            app.value, self._bindings.messages["ProtoOAApplicationAuthRes"]
+        ):
+            return Failure(CTraderOpenApiProtocolError("unexpected app auth"))
+
+        accounts = self._authenticate_request(
+            "ProtoOAGetAccountListByAccessTokenReq",
+            {"accessToken": self._access_token},
+            "icmarkets-history-account-list",
+        )
+        if isinstance(accounts, Failure):
+            return accounts  # Never refresh/rotate GitHub Actions secrets.
+        if not isinstance(
+            accounts.value,
+            self._bindings.messages["ProtoOAGetAccountListByAccessTokenRes"],
+        ):
+            return Failure(CTraderOpenApiProtocolError(
+                "unexpected account-list message"
+            ))
+        scope = getattr(accounts.value, "permissionScope", None)
+        if type(scope) is not int or scope not in (0, 1):
+            return Failure(CTraderOpenApiProtocolError(
+                "historical source requires explicit VIEW or TRADE scope"
+            ))
+        entries = getattr(accounts.value, "ctidTraderAccount", None)
+        if entries is None:
+            return Failure(CTraderOpenApiProtocolError(
+                "historical account evidence absent"
+            ))
+        matching = [
+            a for a in entries
+            if getattr(a, "ctidTraderAccountId", None)
+            == self._credentials.ctid_trader_account_id
+        ]
+        if len(matching) != 1:
+            return Failure(CTraderOpenApiProtocolError(
+                "exact source broker account mismatch"
+            ))
+        account = matching[0]
+        present = getattr(account, "HasField", None)
+        try:
+            live_explicit = (
+                present("isLive") is True
+                if callable(present) else hasattr(account, "isLive")
+            )
+        except (TypeError, ValueError):
+            live_explicit = False
+        if not live_explicit or getattr(account, "isLive", None) is not False:
+            return Failure(CTraderOpenApiProtocolError(
+                "source account is LIVE or unclassified"
+            ))
+        auth = self._authenticate_request("ProtoOAAccountAuthReq", {
+            "ctidTraderAccountId": self._credentials.ctid_trader_account_id,
+            "accessToken": self._access_token,
+        }, "icmarkets-history-account-auth")
+        if isinstance(auth, Failure):
+            return auth
+        if not isinstance(
+            auth.value, self._bindings.messages["ProtoOAAccountAuthRes"]
+        ) or getattr(auth.value, "ctidTraderAccountId", None) != (
+            self._credentials.ctid_trader_account_id
+        ):
+            return Failure(CTraderOpenApiProtocolError(
+                "exact account authorization response mismatch"
+            ))
+        self._ready = True
+        return Success(None)
 
 
 def require_capture_candidate(symbol: str, enabled_exact: set[str]) -> None:
@@ -64,13 +166,9 @@ def activate_capture(symbol: str, account_id: int) -> None:
     base.QUALITY_SCHEMA = SCHEMA + ".quality"
     windowed.install_windowed_transport()
 
-    # The legacy client refreshes tokens only in RAM and can invalidate
-    # other GH jobs; DISABLE this path for this research identity.
-    def refuse_refresh(self: SpotwareCTraderOpenApiClient):
-        return Failure(CTraderOpenApiProtocolError(
-            "REAUTH_REQUIRED_NO_TOKEN_REFRESH_PERMITTED"
-        ))
-    SpotwareCTraderOpenApiClient._refresh_tokens = refuse_refresh
+    # Bind an isolated read-only adapter for THIS research Atlas reader only.
+    # Shared production client remains unchanged.
+    base.SpotwareCTraderOpenApiClient = _ReadOnlyIcMarketsHistoryClient
 
 
 def main() -> None:
