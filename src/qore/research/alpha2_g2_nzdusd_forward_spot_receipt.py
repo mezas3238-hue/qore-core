@@ -9,7 +9,6 @@ import argparse
 import hashlib
 import json
 import os
-import re
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from pathlib import Path
@@ -40,14 +39,14 @@ class SourceBlocked(ValueError):
 class ReadOnlySpotClient(_ReadOnlyIcMarketsHistoryClient):
     _HISTORY_ONLY_REQUEST_NAMES = (
         _ReadOnlyIcMarketsHistoryClient._HISTORY_ONLY_REQUEST_NAMES
-        | frozenset({"ProtoOASubscribeSpotsReq","ProtoOAUnsubscribeSpotsReq"})
+        | frozenset({"ProtoOASubscribeSpotsReq"})
     )
 
     def __init__(self, *, credentials):
         super().__init__(credentials=credentials, request_timeout_seconds=25.0)
         proto = import_module("ctrader_open_api.messages.OpenApiMessages_pb2")
         for name in ("ProtoOASubscribeSpotsReq", "ProtoOASubscribeSpotsRes",
-                     "ProtoOAUnsubscribeSpotsReq", "ProtoOASpotEvent"):
+                     "ProtoOASpotEvent"):
             klass = getattr(proto, name, None)
             if not isinstance(klass, type):
                 raise SourceBlocked("SPOT_DEMO_SDK_READONLY_MESSAGE_MISSING")
@@ -240,7 +239,7 @@ def execute(output: Path) -> dict:
     try:
         result.update(_capture(output))
         result["status"]=SUCCESS
-    except (SourceBlocked,ValueError,TypeError,RuntimeError,OSError,ImportError) as exc:
+    except Exception as exc:  # sanitized, never emit untrusted provider/token errors
         codes={
             "EXACT_ICMARKETS_DEMO_SOURCE_NOT_VERIFIED",
             "DEMO_NZDUSD_EXACT_SYMBOL_NOT_ENABLED",
