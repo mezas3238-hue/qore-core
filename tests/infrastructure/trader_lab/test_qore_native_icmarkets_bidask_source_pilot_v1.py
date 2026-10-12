@@ -26,7 +26,7 @@ def test_three_predeclared_windows_are_utc_and_fixed():
 
 def test_native_differential_epoch_ms_decode_newest_first():
     ticks = source.decode_native(
-        (FakeTick(1100, 110000), FakeTick(50, 110002), FakeTick(50, 110001)),
+        (FakeTick(1100, 110000), FakeTick(-50, 2), FakeTick(-50, -1)),
         1000, 1100,
     )
     assert ticks == [(1100, 110000), (1050, 110002), (1000, 110001)]
@@ -35,10 +35,10 @@ def test_native_differential_epoch_ms_decode_newest_first():
 def test_outside_and_negative_tick_deltas_block():
     with pytest.raises(source.SourceBlock, match="TICK_TIME_OUTSIDE"):
         source.decode_native((FakeTick(200, 1000),), 0, 199)
-    with pytest.raises(source.SourceBlock, match="NEGATIVE_TICK_DELTA"):
-        source.decode_native((FakeTick(200, 1000), FakeTick(-1, 1001)), 0, 200)
+    with pytest.raises(source.SourceBlock, match="INVERTED_NATIVE_TIME_DELTA"):
+        source.decode_native((FakeTick(200, 1000), FakeTick(1, 1)), 0, 201)
     with pytest.raises(source.SourceBlock, match="BAD_PROVIDER_TICK"):
-        source.decode_native((FakeTick(200, 0),), 0, 200)
+        source.decode_native((FakeTick(200, 100), FakeTick(-1, -200)), 0, 200)
 
 
 def test_hasmore_exact_disjoint_split_keeps_source_ticks():
@@ -94,3 +94,20 @@ def test_official_sdk_quote_req_res_are_admitted_only_to_pilot_instance():
         assert "ProtoOANewOrderReq" not in pilot._HISTORY_ONLY_REQUEST_NAMES
     finally:
         pilot.close()
+
+def test_signed_timestamp_and_signed_price_relative_to_previous_native_tick():
+    # Public example Spotware support forum July 2019, with cumulative negative
+    # delta milliseconds and alternating signed PRICE deltas.
+    raw = (
+        FakeTick(1420235941367, 120015),
+        FakeTick(-505, 1),
+        FakeTick(-2668, -2),
+        FakeTick(-729, -1),
+        FakeTick(-1277, 1),
+    )
+    decoded = source.decode_native(raw, 1420235930000, 1420235941367)
+    assert [ts for ts, _ in decoded] == [
+        1420235941367, 1420235940862, 1420235938194,
+        1420235937465, 1420235936188,
+    ]
+    assert [px for _, px in decoded] == [120015, 120016, 120014, 120013, 120014]
