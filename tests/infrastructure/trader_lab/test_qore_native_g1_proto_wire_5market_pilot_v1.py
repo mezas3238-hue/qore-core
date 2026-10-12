@@ -95,7 +95,7 @@ def test_original_tick_field_framed_bytes_sha_and_prices(tmp_path: Path, monkeyp
 def test_hasmore_original_wire_is_kept_but_not_counted_as_accepted(tmp_path: Path, monkeypatch):
     start, _ = p.window_milliseconds(p.WINDOWS[0])
     def fetch(client, sym, side, a, b, seq):
-        if b - a > 2:
+        if b - a > 1:
             return {"has_more": True, "tick_data": (NativeTick(b, 200000),)}
         return {"has_more": False, "tick_data": (NativeTick(b, 200001),)}
     # Limit side duration to six milliseconds in this synthetic test only
