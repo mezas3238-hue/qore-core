@@ -55,6 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           python docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/calendar_pilot.py
+          python docs/research/QORE_NATIVE_E1_SOURCE_CLOCK_BUDGET/phase0_source_plan.py
       - name: Independent fail-closed source-only ledger and budget consistency checks
         shell: bash
         run: |
@@ -72,6 +73,12 @@ jobs:
           assert report["minimum_original_BIDASK_side_history_requests"]==824024
           assert report["net_authorized"] is False and report["certified_traders"]==0
           assert report["actual_BIDASK_requested_in_this_audit"] is False
+          phase0=json.loads((folder/"phase0_four_market_source_plan_NOT_NET.json").read_text())
+          assert phase0["original_E1_source_events"]==45
+          assert phase0["source_bounded_shards"]==49
+          assert phase0["minimum_BIDASK_requests"]==98
+          assert phase0["broker_api_calls_executed"]==0
+          assert not phase0["historical_NET_authorized"]
           print("SIGNED_33_E1_CLOCK_SHARD_SOURCE_PLAN_QA_PASS_NOT_NET")
           PY
       - name: Publish clock-only source evidence; no broker quotes, no strategy returns, NO NET
