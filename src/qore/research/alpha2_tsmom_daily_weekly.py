@@ -115,7 +115,7 @@ def directions_before_entry(days: list[Day], i: int) -> tuple[int, int]:
 
 
 def replay_days(symbol: str, days: list[Day]) -> dict:
-    if symbol not in MARKETS or any(a.utc_day >= b.utc_day for a, b in zip(days, days[1:])):
+    if symbol not in MARKETS or any(a.utc_day >= b.utc_day for a, b in zip(days, days[1:], strict=True)):
         raise ValueError("TSMOM_SYMBOL_OR_DAILY_ORDER_INVALID")
     events: list[dict] = []
     dropped: dict[str, int] = {}
