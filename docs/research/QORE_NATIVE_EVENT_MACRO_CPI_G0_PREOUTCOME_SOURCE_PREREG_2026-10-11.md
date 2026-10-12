@@ -1,0 +1,32 @@
+# QORE NATIVE EVENT-MACRO CPI — G0 SOURCE/COBERTURA SIN RETORNOS (prereg 2026-10-11)
+
+**Congelado ANTES de ejecutar el censo CPI × CIBO.** Propósito exclusivo: adjudicar si existe infraestructura documental/temporal suficiente para siquiera diseñar una hipótesis futura. No estudiar movimientos, magnitudes, retornos, spreads inferidos ni dirección; `NO_PNL / NO_TRADES / NO_SIGNAL`. Referencia de decisión previa [PR #806](https://github.com/mezas3238-hue/qore-core/pull/806), programa [#789](https://github.com/mezas3238-hue/qore-core/issues/789).
+
+## Fuentes ya verificadas documentalmente
+
+1. Fuente federal primaria: BLS `https://www.bls.gov/schedule/{2016..2026}/` para fechas/horas CPI por año, `https://www.bls.gov/bls/news-release/cpi.htm` para originales de comunicados y anomalías; `https://www.bls.gov/schedule/news_release/cpi.htm` calendario próximo/revisado. Todos horarios **Eastern Time**, normalizados mediante IANA `America/New_York`; no aplicar offset fijo -4/-5. El calendario histórico consultado en 2026 **NO demuestra qué día conocía el calendario cada participante ex ante**. Metadatos retrospectivos, `historical_planned_as_of_unverified`.
+2. BLS archive indica **octubre de referencia 2025 sin publicación por falta de appropriations en 2025**, y el calendario del **IPC septiembre 2025 pasó a publicarse 2025-10-24**; contar solo releases fechados verificables, **no construir 12 fechas/año sintéticas**. Un `CPI for October 2025` ficticio sería error. La sola presencia en calendario NO equivale a cotejo de comunicado efectivo por día.
+3. Fuente de precios solo para **presencia de timestamps**, sin abrir OHLC ni series de retornos: CIBO original NAS100/USTEC provider-native M1 [run #35548099334](https://github.com/mezas3238-hue/qore-core/actions/runs/35548099334), artefacto [#10618862813](https://github.com/mezas3238-hue/qore-core/actions/runs/35548099334/artifacts/10618862813), 2016-09-17 00:00 UTC a 2026-09-17 00:00 UTC exclusivo. Validar hash de manifiesto y todas particiones, símbolo USTEC, orden UTC, descartar todo fuera de intervalo. **No** abrir archivo pre-2016 sellado; nada de OAuth/ticks/BID/ASK.
+4. **Consenso previo CPI:** BLS publica realizado y calendarios, **NO es proveedor de forecasts as-of**. No asumir forecasts después del release ni reconstruir `surprise` desde dato revisado. Fuente de expectativas requiere proveedor con timestamps y derechos de uso, sin identificar ninguno como verificado. Estado esperado `CONSENSUS_ASOF_UNVERIFIED`.
+5. **Costes CPI-specific NAS100:** spread BID/ASK histórico, fill/fricción de minuto evento, latencia, comisiones, símbolo/lot contract, calendario broker **NO verificados** en este G0. No usar coste `0` ni coste normal como proxy de anuncio. Estados explícitos `COST_EVENT_UNVERIFIED` y `BROKER_RTH_UNVERIFIED`.
+
+## Contrato G0 técnico antes de observar fuentes/análisis
+
+- Descargar **solamente 11 calendarios oficiales BLS de años 2016–2026**, HTTPS host www.bls.gov; **0** calendarios de terceros y **0** indicadores de consenso proxy. Parsear filas que mencionan literalmente `Consumer Price Index for <month> <year>` y hora `08:30 AM` Eastern. Registrar año de publicación, fecha NY, mes referencia, URL oficial de procedencia, calidad parser, HTTP/fallo; si calendario no accesible, reportar SOURCE_BLOCKED; no sustituir fechas estimadas.
+- No tomar un calendario vigente de próximas publicaciones como prueba de fecha **pasada** sin su registro/auditoría. No marcar `RELEASE_CONFIRMED` si solo hay fila de schedule; etiqueta `BLS_CALENDAR_ROW_RETROSPECTIVE` (requiere cotejar comunicado). Un mes con release faltante será `UNMATCHED_REFERENCE_MONTH` y deberá investigarse sin construir fecha; documentar excepción de 2025 sin declarar duplicado.
+- Descarga de artefacto CIBO original preservada en Github Actions, jamás mutar fuente. Cotejar raw SHA256 anual con manifest, solo consumir campos de identidad y tiempo `opened_at`, `utc_timestamp_in_minutes` y **NO** leer precios `open_relative, high_relative, low_relative, close_relative` para resultados. En 2016–2026 solo analizar filas con eventos BLS fechados y dentro de rango. Exigir un mismo intervalo NY para todos:
+  - `PRE10`: 08:20–08:29 inclusive (10 M1)
+  - `PRINT0`: 08:30 (1 M1)
+  - `AFTER30`: 08:31–09:00 inclusive (30 M1)
+  - `AFTER60`: 09:01–09:30 inclusive (30 M1).
+  Se publican **solo bitmaps/cuenta de minutos presentes**, jamás candles o precios. Una vela M1 08:30 presente NO garantiza ejecución a las 08:30:00 ni bid/ask.
+- Mantener señal de sample power: ~12 anuncios CPI/ano, ~10 años, **aprox 120 eventos**, no 10000 retornos independientes. Reportar N exacto y años completos/partial, días sin M1 y `calendar_not_asof`. No estimar significación ni efecto, no declarar N suficiente sin requerimiento de potencia económico específico pre-retornos.
+- **G0 PASS limitado** solo si calendario BLS íntegro y existe intersección temporal verificable con CIBO (N por años y cobertura); este PASS sería **SOURCE_METADATA_COVERAGE_ONLY** y NO permiso para backtest, porque aún falta consenso as-of, spread evento y validación de publicación efectiva. Si falla descarga de calendario `SOURCE_BLS_UNAVAILABLE`, si fuente M1 no recuperable `SOURCE_CIBO_UNAVAILABLE`, si algún error de integridad `SOURCE_INTEGRITY_FAILURE`. Ninguno se trata como evidencia de que CPI no produce edge.
+- Ninguna fecha, horario, dummy forecast, evento o cotejo se elegirá tras calcular magnitud de precio porque **no se calculará magnitud en G0**. La lista de eventos se registra y se sella por hashes de metadatos.
+- Calcular únicamente intervalos de tiempo, conteos, fechas, SHA, URLs, calidad/ausencias; **nunca** PnL, PF, Sharpe, MDD, win rate, forward return, spread estimado por OHLC, stops/targets. Código fail-closed, no acceder a VPS/MT5, no modificación de CIBO/Shared. Resultado G0 no acredita trader.
+
+## Criterio de salida
+
+Publicar reporte por año + por evento, hash del calendario fuente/artefacto, casos especiales CPI 2025, incidencias de scraping/permisos y matriz de faltantes `CONSENSUS_ASOF / COSTE_EVENTO / RTH_BROKER / DATA_COMPLETE`. Si hay bloqueo, certificarlo documentalmente, sin afirmar que el proveedor no tiene datos; abrir acción humana mínima para permiso/alternativa oficial.
+
+**La siguiente decisión económica G1 solo será posible con fecha real auditada, expectativa as-of o regla independiente de sorpresa, mecanismo predictivo falsable y estimación de costes y potencia.**
