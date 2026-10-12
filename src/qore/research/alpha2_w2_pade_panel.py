@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from statistics import mean
@@ -40,7 +40,8 @@ def source_load(root: Path, exact_head: str) -> dict[str, dict]:
         digest = path.with_name(label + ".sha256").read_text(encoding="utf-8").strip()
         if digest != f"{sha256_file(path)}  {label}":
             raise ValueError("market GROSS JSON independent SHA mismatch")
-        if (path.parent / "exact-code-head-sha.txt").read_text(encoding="utf-8").strip() != exact_head:
+        worker_sha = (path.parent / "exact-code-head-sha.txt").read_text(encoding="utf-8").strip()
+        if worker_sha != exact_head:
             raise ValueError("non-identical W2 economic replay worker HEAD")
         x = json.loads(path.read_text(encoding="utf-8"))
         symbol = x.get("symbol")
