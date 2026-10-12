@@ -34,6 +34,9 @@ SIDE_COST=0.0002
 ABS_WEIGHT=1/12
 LONGS=SHORTS=6
 LAG_MONTHS=2
+# PRE-ECON source-only correction: BIS Japan monthly M.JP starts Sep-2016.
+# Month m-2 rule therefore first has 8/8 rates at the Nov-2016 decision.
+FIRST_RATE_COMPLETE_DECISION_MONTH=date(2016,11,1)
 START_RATE_MONTH=date(2016,1,1)
 LAST_RATE_MONTH=date(2024,8,1)
 SOURCE_ENDPOINT="https://stats.bis.org/api/v1/data/WS_CBPOL/"
@@ -124,11 +127,20 @@ def parse_policy_rates(raw:bytes,ccy:str)->dict[date,float]:
             if not math.isfinite(number) or not -20<number<100:
                 raise ValueError("H5_BIS_POLICY_RATE_RANGE_INVALID")
             found[d]=number
-    if matching_series!=1 or len(found)<98:
+    required_start=date(2016,9,1)
+    required_end=date(2024,7,1)
+    cursor=required_start
+    needed=[]
+    while cursor<=required_end:
+        needed.append(cursor)
+        cursor=date(cursor.year+1,1,1) if cursor.month==12 else date(cursor.year,cursor.month+1,1)
+    missing=[d.isoformat() for d in needed if d not in found]
+    if matching_series!=1 or missing:
         raise ValueError(
             f"H5_BIS_INCOMPLETE_{ccy}_series={matching_series}_count={len(found)}"
             f"_first={min(found).isoformat() if found else 'NONE'}"
             f"_last={max(found).isoformat() if found else 'NONE'}"
+            f"_missing_first3={missing[:3]}"
         )
     return found
 
@@ -259,7 +271,7 @@ def score(dailies:dict,rates:dict[str,dict[date,float]])->dict:
             old=d
             requested=(d.year,d.month)
             fee=0.
-            if requested!=last_month:
+            if requested!=last_month and d>=FIRST_RATE_COMPLETE_DECISION_MONTH:
                 last_month=requested
                 target,spreads=policy_basket(rates,d)
                 # Rates m-2, no OHLC information from decision day.
@@ -327,6 +339,8 @@ def score(dailies:dict,rates:dict[str,dict[date,float]])->dict:
         "preregistered_SPOT_ONLY_verdict":verdict,
         "rate_tenor":"BIS_POLICY_RATE_MONTHLY_EOP_NOT_3M_INTERBANK_NOT_FORWARD",
         "policy_rate_decision_lag_full_months":LAG_MONTHS,
+        "first_eligible_8_of_8_policy_decision_month":"2016-11-01",
+        "first_two_DEV_calendar_months_are_cash_due_to_missing_prior_JPY":True,
         "num_fx_pairs":28,"num_base_currencies":8,
         "long_top_pairs":6,"short_bottom_pairs":6,
         "cost_bps_per_notional_side":2,
