@@ -1,0 +1,100 @@
+name: VT31 P0 Paired Identification Bounds 3Y (no broker fills)
+
+on:
+  push:
+    branches:
+      - agent/vt31-p0-paired-bounds-20261012
+    paths:
+      - scripts/vt31_p0_partial_identification_from_ledger.py
+      - tests/infrastructure/test_vt31_p0_partial_identification.py
+      - .github/workflows/vt31-p0-partial-identification.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  ARTIFACT_ID: "11750991244"
+  FROZEN_SOURCE_SHA256: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+  SCENARIO_RUN_CODE_SHA: "90deb73a47cbc09b88580595800607f2516323b7"
+
+jobs:
+  paired-source-partial-identification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install read-only math test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Static checks and adversarial independent arithmetic tests
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_p0_partial_identification_from_ledger.py tests/infrastructure/test_vt31_p0_partial_identification.py
+          ruff check scripts/vt31_p0_partial_identification_from_ledger.py tests/infrastructure/test_vt31_p0_partial_identification.py
+          mkdir -p output
+          PYTHONPATH=src pytest -q -o addopts='' tests/infrastructure/test_vt31_p0_partial_identification.py --junitxml=output/pytest-vt31-bounds.xml | tee output/pytest-summary.txt
+      - name: Restore EXACT published paired ledger artifact and validate provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence output
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}" --jq '{id,expired,name,workflow_run}' > output/upstream-artifact-metadata.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("output/upstream-artifact-metadata.json").read_text())
+          assert p["id"]==11750991244 and p["expired"] is False
+          assert "vt31-fixed-spread-1p60-simulation-real-3y-" in p["name"]
+          PY
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > artifact-source.zip
+          unzip -q artifact-source.zip -d evidence
+          (cd evidence && sha256sum -c SHA256SUMS)
+          test "$(tr -d '\n' < evidence/source-git-sha.txt)" = "${SCENARIO_RUN_CODE_SHA}"
+          test "$(tr -d '\n' < evidence/market-evidence-sha256.txt)" = "${FROZEN_SOURCE_SHA256}"
+          test -f evidence/vt31-fixed-spread-1p60-source-3y.json
+          sha256sum evidence/vt31-fixed-spread-1p60-source-3y.json > output/upstream-ledger-sha256.txt
+      - name: Full 2140 matched-ID unknown-bounds assessment
+        run: |
+          set -euo pipefail
+          python scripts/vt31_p0_partial_identification_from_ledger.py \
+            --input evidence/vt31-fixed-spread-1p60-source-3y.json \
+            --output output/vt31-p0-paired-bounds.json | tee output/vt31-p0-summary.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("output/vt31-p0-paired-bounds.json").read_text())
+          a=p["all"]
+          assert a["n"]==2140
+          assert a["known_diff"]==345
+          assert a["A_known"]==232 and a["B_known"]==577
+          assert a["A_unknown"]==637 and a["B_unknown"]==670
+          assert a["paired_lower_diff"] == -292
+          assert a["paired_upper_diff"] == 1015
+          assert p["B_unknown_causes"] == {
+            "CE_AND_CANCELLATION_SAME_M1_UNKNOWN":619,
+            "UNPROVEN_PROTECTED_STOP_GEOMETRY":51,
+          }
+          assert p["precommitted_B_unknown_gate_passed"] is False
+          assert p["broker_fills_count"] == 0
+          assert p["net_profit_factor"] is None
+          assert p["holdout_opened"] is False
+          assert p["production_authorized"] is False
+          PY
+      - name: SHA256 evidence manifest
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > output/analysis-commit-sha.txt
+          (cd output && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd output && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-p0-paired-bounds-${{ github.sha }}
+          path: output/
+          retention-days: 90
+          if-no-files-found: error
