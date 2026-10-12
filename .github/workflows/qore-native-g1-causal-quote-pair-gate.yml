@@ -1,0 +1,68 @@
+name: QORE Native G1 causal source-only paired quote checkpoints NO NET
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-causal-decision-quote-eligibility-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-causal-quote-pair-gate.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_causal_quote_checkpoint_pair_gate_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_causal_quote_checkpoint_pair_gate_v1.py'
+      - 'docs/research/QORE_NATIVE_G1_CAUSAL_ASOF_PAIR_SOURCE_GATE_PREREG_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  causal_source_checkpoints:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Research-only original protobuf QA dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Source gate strict causal synthetic negative tests
+        run: |
+          set -euo pipefail
+          test -s docs/research/QORE_NATIVE_G1_CAUSAL_ASOF_PAIR_SOURCE_GATE_PREREG_2026-10-12.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_causal_quote_checkpoint_pair_gate_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_causal_quote_checkpoint_pair_gate_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_causal_quote_checkpoint_pair_gate_v1.py
+      - name: Restore original verified field-only source Protobuf without account wrapper
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-original-tick-field-proto-wire-NOT-NET-8dfae03e8212566d7d334c2598931e57c7b55d64
+          run-id: '38288411671'
+          github-token: ${{ github.token }}
+          path: original-source
+      - name: Run 20 frozen entry exit fictitious checkpoints through independent Protobuf verifier and source-only asof
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_causal_quote_checkpoint_pair_gate_v1 original-source checkpoint-only
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("checkpoint-only/G1_CAUSAL_SOURCE_ONLY_CHECKPOINT_PAIR_GATE.json").read_text())
+          assert r["status"] == "G1_SOURCE_CHECKPOINT_20_CAUSAL_ASOF_GATE_ASSESSED_NO_NET"
+          assert r["source_test_pairs"] == 20
+          assert r["source_only_rejected_pairs"]+r["eligible_positive_both_times"]==20
+          assert sum(r["entry_states"].values())==sum(r["exit_states"].values())==20
+          assert r["frozen_checkpoints_are_fictitious_not_strategy_entries"]
+          assert r["source_field_protobuf_independent_redecode_verified"]
+          assert not r["real_signal_trade_entry_or_exit_tested"]
+          assert not r["broker_fills_commission_slippage_swap_measured"]
+          assert not r["historical_NET_authorized"] and r["certified_traders"]==0
+          print("REAL_SOURCE_ASOF_CLOCK_20_CHECKPOINT_PAIR_GATE_PASS_NOT_NET")
+          PY
+          printf '%s\n' "$GITHUB_SHA" > checkpoint-only/auditor-sha.txt
+          (cd checkpoint-only && sha256sum *.json auditor-sha.txt > REPORT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-causal-source-pair-checkpoint-NOT-NET-${{ github.sha }}
+          path: checkpoint-only/
+          retention-days: 90
+          if-no-files-found: error
