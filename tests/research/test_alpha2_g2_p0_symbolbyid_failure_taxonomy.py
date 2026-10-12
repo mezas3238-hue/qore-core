@@ -45,7 +45,7 @@ def test_fixed_strict_categories(error, expected):
 @pytest.mark.parametrize("malicious", [
     "cTrader request rejected: token_should_NOT_leak",
     "cTrader request rejected: CLIENT_ID=abcdef",
-    "cTrader request rejected: LOWERCASE",
+    "cTrader request rejected: lowercase",
     "cTrader request rejected: " + "A" * 65,
     "cTrader request rejected: ACCOUNT_BLOCKED account=1234",
     "cTrader response could not be decoded secret=ABCDE",
