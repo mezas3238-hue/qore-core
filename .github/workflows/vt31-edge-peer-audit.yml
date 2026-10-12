@@ -1,0 +1,29 @@
+name: VT31 Preregistered Directional Peer Audit (Synthetic Only)
+
+on:
+  push:
+    branches:
+      - agent/vt31-pr874-independent-peer-review-20261012
+    paths:
+      - tests/infrastructure/test_vt31_edge_directional_peer_audit.py
+      - .github/workflows/vt31-edge-peer-audit.yml
+      - scripts/vt31_edge_directional_15m_preregistered_3y_v1.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-timing-and-math-fixtures:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'pytest>=8,<10'
+      - name: Verify independent peer tests (no data or brokers)
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q -o addopts='' tests/infrastructure/test_vt31_edge_directional_peer_audit.py
