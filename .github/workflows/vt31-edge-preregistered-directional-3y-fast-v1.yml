@@ -1,0 +1,97 @@
+name: VT31 Scientific Edge Directional Preregistered 3Y M1 V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-edge-directional-preregistered-20261012
+    paths:
+      - scripts/vt31_edge_directional_15m_preregistered_3y_v1.py
+      - .github/workflows/vt31-edge-preregistered-directional-3y-fast-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-scientific-preregistered-directional-3y-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  M1_ARTIFACT: "11459859004"
+  SOURCE_LEDGER_ARTIFACT: "11657461650"
+  NAS100_SHA256: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+
+jobs:
+  preregistered-directive-null-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Frozen prereg must already exist before code and result
+        run: |
+          set -euo pipefail
+          test -s docs/research/VT31_PREREG_EDGE_DIRECTIONAL_3Y_M1_2026-10-12.md
+          git log -1 --format="%H" -- docs/research/VT31_PREREG_EDGE_DIRECTIONAL_3Y_M1_2026-10-12.md
+          python -m pip install "ijson>=3.3,<4"
+          python -m py_compile scripts/vt31_edge_directional_15m_preregistered_3y_v1.py
+          python scripts/vt31_edge_directional_15m_preregistered_3y_v1.py --self-test
+      - name: Restore exact frozen market M1 and original-source 2140 event identities
+        run: |
+          set -euo pipefail
+          mkdir -p input/m1 input/events result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${M1_ARTIFACT}/zip" > market.zip
+          unzip -q market.zip -d input/m1
+          test -s input/m1/NAS100/market-evidence.json
+          echo "${NAS100_SHA256}  input/m1/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_LEDGER_ARTIFACT}/zip" > original-2140-ledger.zip
+          unzip -q original-2140-ledger.zip -d input/events
+          find input/events -type f -maxdepth 4 -print
+          test -s input/events/vt31-ict-cleanroom-3y-m1-offer-ledger.json
+      - name: Pre-registered causal 15m signal-direction versus cost and week-flip null
+        run: |
+          set -euo pipefail
+          python scripts/vt31_edge_directional_15m_preregistered_3y_v1.py \
+            --market input/m1/NAS100/market-evidence.json \
+            --ledger input/events/vt31-ict-cleanroom-3y-m1-offer-ledger.json \
+            --out result/vt31-directional-15m-prereg-3y.json \
+            | tee result/vt31-directional-15m-summary.json
+      - name: Verify no invented PnL, broker fills or selected-best horizon
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("result/vt31-directional-15m-prereg-3y.json").read_text())
+          assert r["original_candidate_count"]==2140
+          assert r["m1_count"]==1059784
+          assert r["pre_registered_primary_minutes"]==15
+          assert r["source_market"]=="NAS100_M1_FROZEN_3Y"
+          assert len(r["horizons"])==4
+          assert r["horizons"]["15"]["is_preregistered_primary"] is True
+          assert all(
+              e["is_preregistered_primary"] == (h=="15")
+              for h,e in r["horizons"].items()
+          )
+          assert r["ce_limit_fills_confirmed"]==0
+          assert r["economic_edge_status"]=="EDGE_ECONOMICO_NO_DEMOSTRADO"
+          assert r["bid_ask_tick_data"]=="ABSENT"
+          assert r["fresh_holdout_opened"] is False
+          assert r["main_or_live_modified"] is False
+          print("SCIENCE CHECK PASS: no CE fills, no genuine PF/DD, no LIVE.")
+          PY
+      - name: Freeze source, prereg and execution commit IDs
+        run: |
+          git rev-parse HEAD > result/git-sha.txt
+          git log -1 --format="%H" -- docs/research/VT31_PREREG_EDGE_DIRECTIONAL_3Y_M1_2026-10-12.md > result/preregistered-commit-sha.txt
+          echo "${M1_ARTIFACT}" > result/market-artifact-id.txt
+          echo "${SOURCE_LEDGER_ARTIFACT}" > result/ledger-artifact-id.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-preregistered-directional-edge-m1-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
