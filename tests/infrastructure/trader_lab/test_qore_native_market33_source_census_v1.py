@@ -1,7 +1,6 @@
 """All 33 markets must appear exactly once, with broker source provenance."""
 from __future__ import annotations
 
-import copy
 from pathlib import Path
 import pytest
 
