@@ -342,3 +342,37 @@ Fórmula de reversal original a cinco sesiones para **33/33 en fecha COMÚN**: r
 
 ### Prioridad / stop de programa
 Los dos tests se hicieron posibles **sin esperar licencias+vault**. #837 sigue fuente histórica P0 antes de 16-dic-2026, no declarada preservada; #852 source BIDASK/NET/PIT/OOS y #868 original12 contract equivalence P0. El programa NO debe continuar una iteración indefinida de estrategias sobre los mismos 2016–2024 ya vistos. Para resultados positivos futuros exigir hipótesis independiente, datos nuevos prospectivos, poder estadístico por calendario, costes contrato verificables y todas puertas UTC001. **0 Traders Alpha2 certificados, 0 broker órdenes, no main/VPS/MT5/Shared/CIBO/QDLE/PAPER/LIVE. PR #840 DRAFT.**
+
+
+---
+
+## Anexo V — final TSMOM-RISK252 VOL20 y prereg XSREV5
+
+**El owner corrigió la ausencia de `vol scaling` en TSMOM 252d y propuso un ÚLTIMO experimento por familia de TSMOM, más una única reversal cross-sectional 5d, con criterios de parada irreversibles.** Ambas hipótesis se preregistraron **antes** de sus outcomes económicos, en `docs/research/QORE_ALPHA2_FINAL_TSMOM_RISKSCALED_AND_XSREV5_FROZEN_PREREG_2026-10-12.md` commit `f9248d42a6cbced3d6e962b24e47c709cb91161c`. Este prereg NO convierte 2016–2024 expuesto en OOS genuino.
+
+### A — TSMOM-RISK252, RESULTADO REAL COMPLETO y STOP absoluto
+
+[Informe de resultados](QORE_ALPHA2_FINAL_TSMOM_RISK252_VOL20_SECTOR_33_VERDICT_2026-10-12.md) + [Actions #38318945616](https://github.com/mezas3238-hue/qore-core/actions/runs/38318945616) **35/35 jobs PASS**, HEAD original `09db573527b5e9f607edf75949902c6319d6ab21`. Original33 11-year RAW/QUALITY SHA audited **antes** de OHLC. Target vol anual fija 10%, SD retornos log 20 sesiones anteriores, lookback 252, cap exposición 3×, una entrada semana, holding 5 sesiones. Coste **supuesto** 1 bp por cada lado de notional, multiplica exposición `2*abs(w)` bps. NO precio BIDASK disponible/executable, NO NET real.
+
+**Evidencia panel original** Actions artifact #11776789637 ZIP SHA256 `63b27be5ea371e863f7df4587b2a700140455f13096be6733112a14629132bd7`. SHA ZIP e internos de 2 archivos rehasheados PASS. **`FINAL_TSMOM_FAIL_CLOSE_FAMILY_ON_EXPOSED_DATA`**, no hay nueva variante autorizada.
+
+| Universo fijo | DEV bps/sem −coste supuesto | CI95 DEV 4wk | DIAG bps/sem −coste supuesto | CI95 DIAG 4wk |
+|---|---:|---|---:|---|
+| Full33 (8.605 / 3.427 eventos) | **−0,55044** | [−6,14630,+5,00548] | **−5,29240** | [−17,02716,+5,69845] |
+| 21 FX cruces | −1,31666 | [−7,95948,+5,72782] | −7,92231 | [−22,10199,+4,59083] |
+| 7 FX mayores | −1,06283 | [−10,77381,+8,99467] | −6,11246 | [−21,28103,+9,58369] |
+| 5 no-FX índices/metales | +3,38504 | [−7,79979,+15,16782] | +6,90132 | [−14,06004,+26,19852] |
+
+**Dato factual:** 21 cruces FX = 63,64%; 7 mayores FX =21,21%; FX total **28/33=84,85%** y **solo 5/33 no-FX**. Un sector no-FX con medias positivas pero IC cruzando cero no prueba edge y no autoriza seleccionar retrospectivamente esos cinco. No confundir estos CFDs con futuros multi-sector incluyendo bonos de Moskowitz–Ooi–Pedersen 2012. No inferir que 'toda tendencia es falsa': una configuración y universo exploratorio fallaron.
+
+### B — XSREV5, prueba independiente en curso / aún SIN dictamen económico
+
+Mismo prereg `f9248d42...`. Reversal cross-sectional rankea retorno de cinco sesiones COMUNES anteriores a la fecha de decisión con 33/33 precios presentes; long bottom7, short top7, pesos +1/14 y −1/14, 5 sesiones comunes de mantenimiento, coste hipotético 1bp/lado ⇒ **2bp por semana operada**, DEV/DIAG 4wk block CI B2000 y gates mínimos 52/26 semanas. Ninguna optimización por lookback o quintiles posteriormente; todo se cierra al observar el test.
+
+Código `src/qore/research/alpha2_xsrev5_common_calendar.py`, CI `.github/workflows/qore-alpha2-xsrev5-one-independent-33.yml`. El antiguo run #38319147236 FALLÓ preflight Ruff (cero datos). #38319216801 pasó sintéticos y verificó/extrajo en el runner temporal los 33 originales, pero falló al construir panel por error mecánico: extractor escribió `{symbol}.sha256`, verificador exigió `{symbol}.json.sha256`. **No existe resultado económico de ese run; no declararlo negativo ni positivo.** Corrección `6226c6258e2ebfce843073f60eb2dab2b1fa7f22` y pruebas de integración SHA adversas `13449860c358f0e47135209a9fa57cf5ee3dd01a`, relanzada [Actions #38320167392](https://github.com/mezas3238-hue/qore-core/actions/runs/38320167392): leer su estado completo y artefacto, **no inferir de que un test sintético pasa que el resultado market está cerrado**. La fuente diaria privada queda únicamente en workspace efímero runner, el output permitido son agregados/ranks/cost-proxy; no subir crudo a repo público.
+
+### C — Fronteras de método y siguiente arquitecto
+
+W1 PATR/W2 PADE = **`INCONCLUSIVE_UNDERPOWERED`**, no falsación. W3 CMTRL = **`PREDECLARED_GROSS_TEST_FAILED`** para su contraste y no prueba universal de efecto cero. TSMOM 252d sin escala = test no canónico fallido, TSMOM-RISK252 = **última prueba permitida, ahora fallida**, familia cerrada sobre este histórico. XSREV5 única reversión preinscrita, cerrar resultado sin retunear. El dataset 2016–2024 está expuesto, el 2024-09-17+ embargado; una apertura M5 tras señal UTC 00:00 no prueba fill con latencia real. Costes supuestos 1bp por lado NO reemplazan contratos, spreads, swaps, financiación ni noticia conocida-as-of. Todos estos experimentos **0 NET certificado, 0 trader certificado, 0 operaciones**.
+
+**P0 que no se negocia:** #837 conservar legalmente 728MB comprimidos de 33 ZIP originales 12 Atlas+21 ICMarkets en almacenamiento privado aprobado antes de 16-dic 2026, con restore independiente y SHA; aún NO guardados de modo permanente. #868 contrato broker Original12/alias y #852 fuente BID/ASK, comisiones, macro PIT, OOS realmente nuevo; ejecutar en paralelo con investigación y SIN pasar a MAIN/VPS/MT5/CIBO/Shared/QDLE/PAPER/LIVE.
