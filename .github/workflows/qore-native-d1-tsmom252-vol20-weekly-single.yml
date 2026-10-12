@@ -1,0 +1,82 @@
+name: QORE Native ONE daily TSMOM252 vol20 weekly 33 source economic proxy
+
+on:
+  push:
+    branches:
+      - research/qore-native-d1-tsmom252-vol20-weekly-one-test-20261012
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_d1_tsmom252_vol20_weekly_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_d1_tsmom252_vol20_weekly_v1.py'
+      - 'docs/research/QORE_NATIVE_D1_TSMOM252_VOL20_WEEKLY_33_PREREG_2026-10-12.md'
+      - '.github/workflows/qore-native-d1-tsmom252-vol20-weekly-single.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-d1-tsmom252-one-run-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prereg_synthetic_QA:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test no lookahead, 252D direction, 20D volatility, 3x cap, weekly rebalance, embargo
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_d1_tsmom252_vol20_weekly_v1.py -v
+
+  signed_historical_33_fixed_panel:
+    needs: prereg_synthetic_QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    env:
+      PYTHONPATH: src
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: One frozen TSMOM252 VOL20 weekly economic study, source SHA original
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_d1_tsmom252_vol20_weekly_v1 source-temporary original-result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('original-result/TSMOM252_VOL20_WEEKLY_33_COST1BP_SIDE_NOT_BROKER_NET.json')
+          j=json.loads(p.read_text())
+          assert j['original_market_count']==33
+          assert j['market_families']=={'FX':28,'INDICES':3,'METALS':2}
+          assert len(j['source_reports'])==33
+          assert all(s['source_sha_verified_11_annual_partitions'] for s in j['source_reports'])
+          assert j['lookback_completed_trading_days']==252
+          assert j['vol_realized_completed_daily_close_returns']==20
+          assert j['rebalance']=='FIRST_VALID_SESSION_OF_ISO_WEEK_ONLY'
+          assert j['transaction_cost_bp_per_notional_side']==1.0
+          assert j['max_abs_asset_notional']==3.0
+          assert j['2024_09_17_onward_holdout_economics_read'] is False
+          assert j['broker_NET_certified'] is False
+          assert j['certified_traders']==0
+          assert j['performance']['DEV']['rebalances']>0
+          assert j['performance']['DIAG']['rebalances']>0
+          print('TSMOM252_VOL20_ONE_HYPOTHESIS_GATES_PASSED_NO_BROKER_NET')
+          PY
+          printf '%s\n' "$GITHUB_SHA" > original-result/exact-executed-code-sha.txt
+          (cd original-result && sha256sum *.json *.txt > FINAL_SHA256SUMS.txt)
+      - name: Publish only report not raw M5, net not certified, 30d retention
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-D1-TSMOM252-vol20-weekly-one33-NOT-BROKER-NET-${{ github.sha }}
+          path: original-result/
+          retention-days: 30
+          if-no-files-found: error
