@@ -190,32 +190,36 @@ def _read_demo_contract_source()->dict:
             raise SourceBlockedError("P0_TWO_EXACT_FX_METAL_BROKER_NAMES_MISSING")
         if not any(name in catalog for name in ("SP500","US500")):
             raise SourceBlockedError("P0_US500_SP500_BROKER_NAME_MISSING")
-        ids=sorted(catalog.values())
-        specs=client.request(
-            "ProtoOASymbolByIdReq",
-            {"ctidTraderAccountId":account,"symbolId":ids},
-            client_msg_id="alpha2-g2-p0-four-broker-symbol-details",
-            timeout_seconds=35,
-        )
-        if isinstance(specs,Failure):
-            raise SourceBlockedError("P0_FULL_SYMBOL_RESPONSE_FAILURE")
-        if not isinstance(
-            specs.value,client._bindings.messages["ProtoOASymbolByIdRes"]
-        ):
-            raise SourceBlockedError("P0_FULL_SYMBOL_RESPONSE_WRONG_PROTO")
-        detail_response_account=getattr(specs.value,"ctidTraderAccountId",None)
-        if type(detail_response_account) is not int or detail_response_account<=0:
-            raise SourceBlockedError("P0_FULL_SYMBOL_RESPONSE_ACCOUNT_ID_MISSING")
-        if detail_response_account!=account:
-            raise SourceBlockedError("P0_FULL_SYMBOL_RESPONSE_ACCOUNT_ID_MISMATCH")
+        # V3: original G1 broker USTEC source proved single-ID requests.
+        # Bounded at six exact names, no retries/rate-limit workarounds.
         provided={}
-        for row in getattr(specs.value,"symbol",()):
-            sid=getattr(row,"symbolId",None)
-            if sid not in ids or sid in provided:
-                raise SourceBlockedError("P0_SYMBOLBYID_PROVIDER_DETAIL_DUPLICATE_OR_UNREQUESTED")
-            provided[sid]=row
-        if set(provided)!=set(ids):
-            raise SourceBlockedError("P0_FULL_SYMBOL_DETAILS_INCOMPLETE")
+        for name,sid in sorted(catalog.items()):
+            specs=client.request(
+                "ProtoOASymbolByIdReq",
+                {"ctidTraderAccountId":account,"symbolId":[sid]},
+                client_msg_id="alpha2-g2-p0-exact-source-"+name.lower(),
+                timeout_seconds=35,
+            )
+            if isinstance(specs,Failure):
+                raise SourceBlockedError("P0_SYMBOLBYID_SINGLE_REQUEST_FAILED")
+            if not isinstance(
+                specs.value,client._bindings.messages["ProtoOASymbolByIdRes"]
+            ):
+                raise SourceBlockedError("P0_SYMBOLBYID_SINGLE_RESPONSE_WRONG_PROTO")
+            returned_account=getattr(
+                specs.value,"ctidTraderAccountId",None
+            )
+            if type(returned_account) is not int or returned_account<=0:
+                raise SourceBlockedError("P0_SYMBOLBYID_SINGLE_RESPONSE_ACCOUNT_MISSING")
+            if returned_account!=account:
+                raise SourceBlockedError("P0_SYMBOLBYID_SINGLE_RESPONSE_ACCOUNT_MISMATCH")
+            original=tuple(getattr(specs.value,"symbol",()))
+            if (len(original)!=1 or
+                    getattr(original[0],"symbolId",None)!=sid or sid in provided):
+                raise SourceBlockedError("P0_SYMBOLBYID_SINGLE_RESPONSE_ID_DIFFERENT")
+            provided[sid]=original[0]
+        if set(provided)!=set(catalog.values()):
+            raise SourceBlockedError("P0_SYMBOLBYID_SINGLE_RESPONSES_INCOMPLETE")
         named={
             name:extract_detail(name,sid,provided[sid])
             for name,sid in catalog.items()
@@ -278,6 +282,12 @@ def execute(destination:Path)->dict:
             "P0_CATALOG_RESPONSE_ACCOUNT_ID_MISSING",
             "P0_CATALOG_RESPONSE_ACCOUNT_ID_MISMATCH",
             "P0_ALL_FOUR_BROKER_NAME_CANDIDATES_UNAVAILABLE",
+            "P0_SYMBOLBYID_SINGLE_REQUEST_FAILED",
+            "P0_SYMBOLBYID_SINGLE_RESPONSE_WRONG_PROTO",
+            "P0_SYMBOLBYID_SINGLE_RESPONSE_ACCOUNT_MISSING",
+            "P0_SYMBOLBYID_SINGLE_RESPONSE_ACCOUNT_MISMATCH",
+            "P0_SYMBOLBYID_SINGLE_RESPONSE_ID_DIFFERENT",
+            "P0_SYMBOLBYID_SINGLE_RESPONSES_INCOMPLETE",
             "P0_FULL_SYMBOL_RESPONSE_FAILURE",
             "P0_FULL_SYMBOL_RESPONSE_WRONG_PROTO",
             "P0_FULL_SYMBOL_RESPONSE_ACCOUNT_ID_MISSING",
