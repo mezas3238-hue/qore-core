@@ -1,0 +1,81 @@
+name: QORE Native H5 one-shot BIS 8 policy rates FX28 2bp monthly proxy carry
+
+on:
+  push:
+    branches:
+      - research/qore-native-h5-policy-rate-fx-proxy8-28-20261012
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_h5_bis_policy_fx28_one_test_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_h5_bis_policy_fx28_one_test_v1.py'
+      - 'docs/research/QORE_NATIVE_H5_POLICY8_RATE_DIFFERENTIAL_FX28_ONE_TEST_PREREG_2026-10-12.md'
+      - '.github/workflows/qore-native-h5-policy8-fx28-one-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-H5-policy8-fx28-one-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prereg_synthetic_QA:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: H5 policy eight and synthetic no-lookahead cost 2bp and source controls
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_h5_bis_policy_fx28_one_test_v1.py -v
+
+  signed_historical_8_policy_28_fx_one_test:
+    needs: prereg_synthetic_QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    env:
+      PYTHONPATH: src
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Execute ONE H5 FX28 eight official BIS policy rate ranking 2bp/side before holdout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_h5_bis_policy_fx28_one_test_v1 private-source-temp h5-hypothesis-results
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('h5-hypothesis-results/H5_FX_POLICY_CARRY28_MONTHLY_BIS8_2BP_ASSUMED_ONLY.json')
+          r=json.loads(p.read_text())
+          assert r['num_fx_pairs']==28 and r['num_base_currencies']==8
+          assert len(r['source_G0_hash_reports'])==28
+          assert all(x['source_sha_verified_11_annual_partitions'] is True for x in r['source_G0_hash_reports'])
+          assert len(r['policy_rate_evidence'])==8
+          assert r['policy_rate_decision_lag_full_months']==2
+          assert r['cost_bps_per_notional_side']==2
+          assert r['long_top_pairs']==6 and r['short_bottom_pairs']==6
+          assert r['performance']['DEV']['rebalance_decisions']>0
+          assert r['performance']['DIAG']['rebalance_decisions']>0
+          assert r['B_component_is_idealized_yield_not_executable'] is True
+          assert r['economic_holdout_2024_09_17_onward_read'] is False
+          assert r['broker_NET_certified'] is False
+          assert r['certified_traders']==0
+          print('H5_ONE_8POLICY_FX28_COST2BP_REAL_DIAG_COMPLETE_NO_BROKER_NET')
+          PY
+          printf '%s\n' "$GITHUB_SHA" > h5-hypothesis-results/exact-executed-code-sha.txt
+          (cd h5-hypothesis-results && sha256sum *.json *.txt > FINAL_SHA256SUMS.txt)
+      - name: Retain compact economic stats without commercial M5 or policy time series
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-H5-FX-policy8-28-one-shot-NOT-BROKER-NET-${{ github.sha }}
+          path: h5-hypothesis-results/
+          retention-days: 30
+          if-no-files-found: error
