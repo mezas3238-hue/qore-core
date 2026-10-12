@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 from collections import Counter
 from dataclasses import asdict, dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
