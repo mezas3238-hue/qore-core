@@ -19,7 +19,7 @@ from datetime import date
 from pathlib import Path
 from statistics import mean, stdev
 
-from qore.research.alpha2_fx28_carry_one_test import FX28, CCYS
+from qore.research.alpha2_fx28_carry_one_test import CCYS, FX28
 from qore.research.alpha2_tsmom_daily_weekly import Day
 
 IDENTITY="QORE_ALPHA2_FX28_BIS_POLICY_PREVMONTH_LAG15_6X6_V1"
