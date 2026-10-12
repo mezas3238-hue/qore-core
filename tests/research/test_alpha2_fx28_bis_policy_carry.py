@@ -66,14 +66,14 @@ def fake_days() -> dict[str, dict[date,Day]]:
     return all28
 
 
-def test_frozen_eight_country_BIS_area_and_previous_month_clock():
+def test_frozen_eight_country_bis_area_and_previous_month_clock():
     assert BIS_CCY_AREA["EUR"]=="XM"
     assert set(BIS_CCY_AREA)=={"AUD","CAD","CHF","EUR","GBP","JPY","NZD","USD"}
     assert previous_month(2022,1)=="2021-12"
     assert previous_month(2018,2)=="2018-01"
 
 
-def test_synthetic_bis_flat_ingest_8_m_and_NO_source_rate_upload(tmp_path:Path):
+def test_synthetic_bis_flat_ingest_8_m_and_no_source_rate_upload(tmp_path:Path):
     r,info=bis_policy_rates(make_bis_zip(tmp_path))
     assert len(r)==8
     assert all("2018-01" in months for months in r.values())
@@ -110,7 +110,10 @@ def test_missing_any_of_eight_policy_factors_rejects_entire_portfolio(tmp_path:P
     out=evaluate(rates,fake_days())
     assert out["candidate_months"]==0
     assert out["status"]=="POLICY28_NOT_IDENTIFIABLE_MISSING_RATES_OR_PRICE"
-    assert "MISSING_PREVIOUS_MONTH_POLICY_RATE_ONE_OF_EIGHT" in out["censored_candidate_month_counts"]
+    assert (
+        "MISSING_PREVIOUS_MONTH_POLICY_RATE_ONE_OF_EIGHT"
+        in out["censored_candidate_month_counts"]
+    )
 
 
 def test_missing_fx_pair_rejects_entire_all28_not_reweight(tmp_path:Path):
