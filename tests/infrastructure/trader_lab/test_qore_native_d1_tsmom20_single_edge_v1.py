@@ -58,8 +58,8 @@ class FrozenDailyMomentumTest(unittest.TestCase):
         for i in range(len(bars)):
             bars[i]["entry_ts"] = dt.datetime.combine(
                 bars[i]["date"], dt.time(0, 0), tzinfo=dt.UTC)
-        rows, _ = t.market_experiment("EURUSD", bars)
-        self.assertEqual(rows, [])
+        with self.assertRaisesRegex(ValueError, "NO_TRADING_ROWS"):
+            t.market_experiment("EURUSD", bars)
 
     def test_cost_roundtrip_side_not_2bps_every_single_day(self):
         bars = synthetic_sessions()
