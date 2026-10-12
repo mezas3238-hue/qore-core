@@ -3,7 +3,7 @@ on:
   push:
     branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
     paths:
-      - '.github/workflows/qore-alpha2-w3-original-posthoc-census.yml'
+      - '.github/workflows/qore-alpha2-w3-first-original-posthoc-census.yml'
       - 'src/qore/research/alpha2_w3_posthoc_census.py'
   workflow_dispatch:
 permissions:
@@ -26,7 +26,7 @@ jobs:
           run-id: '38284821503'
           github-token: ${{ github.token }}
           path: original-first-result
-      - name: Audit original 265-signal source and blockers without new OHLC
+      - name: Audit original 24487-signal source and blockers without new OHLC
         run: |
           python -m qore.research.alpha2_w3_posthoc_census original-first-result posthoc
           printf '%s\n' "$GITHUB_SHA" > posthoc/posthoc-code-sha.txt
