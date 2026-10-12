@@ -1,0 +1,74 @@
+name: VT31 P0 CE Economic Identifiability Witness (Read Only)
+on:
+  push:
+    branches:
+      - agent/vt31-p0-ce-economics-witness-20261012
+    paths:
+      - scripts/vt31_p0_ce_economic_witness_audit.py
+      - tests/infrastructure/test_vt31_p0_ce_economic_witness_audit.py
+      - .github/workflows/vt31-p0-ce-economics-witness.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  LEDGER_ARTIFACT: '11657461650'
+
+jobs:
+  p0-executable-evidence-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'pytest>=8,<10'
+      - name: Run independent OHLC counterexample and source-contract tests
+        env:
+          PYTHONPATH: .
+        run: |
+          set -euo pipefail
+          python -m pytest -q -o addopts='' tests/infrastructure/test_vt31_p0_ce_economic_witness_audit.py
+          python scripts/vt31_p0_ce_economic_witness_audit.py --self-test
+      - name: Recover original 2140 immutable source ledger from OPS run
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${LEDGER_ARTIFACT}" \
+            | tee source-artifact-metadata.json \
+            | jq -e '(.expired == false) and (.workflow_run.id == 38018602495)'
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${LEDGER_ARTIFACT}/zip" > source-ledger.zip
+          unzip -t source-ledger.zip
+          unzip -q source-ledger.zip -d input
+          test -s input/vt31-ict-cleanroom-3y-m1-offer-ledger.json
+          sha256sum input/vt31-ict-cleanroom-3y-m1-offer-ledger.json | tee result/ledger-sha256.txt
+          sha256sum source-artifact-metadata.json > result/artifact-metadata-sha256.txt
+          git rev-parse HEAD > result/code-head-sha.txt
+          echo "${LEDGER_ARTIFACT}" > result/ledger-artifact-id.txt
+      - name: Auditable 3Y CE economics field presence without fictional fills
+        env:
+          PYTHONPATH: .
+        run: |
+          set -euo pipefail
+          python scripts/vt31_p0_ce_economic_witness_audit.py \
+            --ledger input/vt31-ict-cleanroom-3y-m1-offer-ledger.json \
+            --output result/vt31-ce-economic-proof-coverage-3y.json
+          python - <<'PY'
+          import json
+          r=json.load(open('result/vt31-ce-economic-proof-coverage-3y.json'))
+          assert r['source_candidates']==2140
+          assert r['can_calculate_true_net_profit_factor'] is False
+          assert r['can_calculate_true_net_expectancy'] is False
+          assert r['global_source_broker_ack_count']==0
+          assert r['intraminute_identifiability_counterexample']['real_VT31_trades']==0
+          assert r['sealed_fresh_holdout_preserved'] is True
+          print('G3 P0 SCIENCE CHECK: ledger field audit, no trades/fills/PF invented.')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-p0-economic-witness-${{ github.sha }}
+          path: result/
+          retention-days: 90
+          if-no-files-found: error
