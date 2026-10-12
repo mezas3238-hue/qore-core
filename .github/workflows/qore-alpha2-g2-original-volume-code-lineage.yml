@@ -1,0 +1,39 @@
+name: QORE Alpha2 G2 raw provider volume exact producer SHA lineage
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-original-volume-code-lineage.yml'
+      - 'src/qore/research/alpha2_g2_original_producer_volume_lineage.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original12_and_new21_source_ast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'ruff>=0.5,<1'
+      - name: Verify old12 and new21 producer HEAD in actual graph
+        run: |
+          git cat-file -t ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          git cat-file -t e0ca5a13c866a19d8505c68cffc473598984b340
+          ruff check src/qore/research/alpha2_g2_original_producer_volume_lineage.py
+      - name: Frozen Git blob SHA and AST native volume lineage witness (no source data access)
+        run: |
+          mkdir -p evidence
+          python -m qore.research.alpha2_g2_original_producer_volume_lineage evidence/alpha2-g2-raw-volume-original-provider-lineage.json
+          printf '%s\n' "$GITHUB_SHA" > evidence/lineage-code-head-sha.txt
+          (cd evidence && sha256sum *.json lineage-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-g2-old12-new21-native-volume-lineage-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
