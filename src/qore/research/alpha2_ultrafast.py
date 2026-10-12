@@ -10,15 +10,29 @@ import argparse
 import csv
 import json
 import math
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 
 from qore.research.alpha2_intermarket import (
-    ATR_BARS, CONSENSUS_STRENGTH_SIGMA, DONOR_LIMIT, ENTRY_DELAY, H4,
-    LOOKBACK, MARKETS, MAX_HOLD, MAX_RESPONSE_FRACTION, MIN_ABS_CORR,
-    MIN_DONORS, MIN_PAIR, RESEARCH_CUTOFF, Bar, Signal, _check_bar, sha256_file,
+    ATR_BARS,
+    CONSENSUS_STRENGTH_SIGMA,
+    DONOR_LIMIT,
+    ENTRY_DELAY,
+    H4,
+    LOOKBACK,
+    MARKETS,
+    MAX_HOLD,
+    MAX_RESPONSE_FRACTION,
+    MIN_ABS_CORR,
+    MIN_DONORS,
+    MIN_PAIR,
+    RESEARCH_CUTOFF,
+    Bar,
+    Signal,
+    _check_bar,
+    sha256_file,
 )
 from qore.research.alpha2_lab_h4_extract import SOURCE33_SHA
 
