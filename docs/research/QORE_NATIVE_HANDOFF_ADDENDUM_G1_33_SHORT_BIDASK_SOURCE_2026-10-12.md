@@ -62,3 +62,22 @@ Del total de **5.727** snapshots BID=ASK dentro de edad máxima as-of de 5s:
 - La auditoría reproduce exactamente el recuento del parent QA29; [artefacto de estadísticas sin raw precios #11763457401](https://github.com/mezas3238-hue/qore-core/actions/runs/38286343956/artifacts/11763457401), SHA ZIP `46e12c05bdf13c6bc81107f7bfb4cb74e3875f13848058834668e6c020331823`.
 
 **P0 no resuelto:** confirmar con semántica oficial de cTrader/IC Markets si BID y ASK históricos identicamente timestamp y precio son verdaderamente cotizables, límites de resolución, precios derivados o datos paralelos del mismo feed. Sin prueba independiente en fuente/contratos, 4.320 nunca equivalen a spread cero ejecutable. [Issue #856](https://github.com/mezas3238-hue/qore-core/issues/856) sigue abierto. Los Gates `NET` y 0/3 cert permanecen bloqueados.
+
+## 6. Nuevo testigo Protobuf original y ampliación temporal independiente (2026-10-12)
+
+La investigación avanzó de **solo JSONL int/decimal reconstruidos** a **bytes Protobuf originales de cada campo `ProtoOATickData`**, sin guardar account ID/tokens de la envolvente. Preregistro de 5 activos y 2 ventanas nuevas×30 minutos ANTES de capturar nuevos precios: [PR #859](https://github.com/mezas3238-hue/qore-core/pull/859) commit `8d72803ce988c800286b7ac19c4aa2ed47301ba1`. Real source GHA [#38288411671](https://github.com/mezas3238-hue/qore-core/actions/runs/38288411671) SUCCESS, source artifact #11764163362, SHA ZIP `b4eb9e66d76bcd439d4db8f2b8707afa06fe2d211a275c8af8b8605714b58684`. Ventanas: 2021-03-16, 2023-03-21, 13:00-13:30 UTC, no coincidentes con 2020/2023-sept/2026-sept fuente anteriores. Instrumentos: EURUSD/GBPUSD/USDJPY (dirigidos por problema de spread cero), controles XAGUSD y SP500/US500 (selección ex ante, **no muestra aleatoria**).
+
+Auditor nuevo independiente [PR #860](https://github.com/mezas3238-hue/qore-core/pull/860) GHA [#38288815999](https://github.com/mezas3238-hue/qore-core/actions/runs/38288815999) SUCCESS; SHA y páginas `hasMore`, Protobuf tick field framing, decoder independiente precio/tiempo delta signed y reconciliación byte-exact de 34.761 ticks enteros/decimales PASARON. Reporte #11764626981, SHA ZIP `83ae0ae936631af362481a126dde3ef4b6d70ef9cdefdb785821130040494fc4`. Documento íntegro: `docs/research/QORE_NATIVE_G1_PROTO_WIRE_ORIGINAL_FIELD_SECOND_AUDIT_RESULTS_2026-10-12.md` en rama PR #860.
+
+| Fuente en ventanas nuevas | BID | ASK | Zero as-of | Zero mismo ms | Positivos |
+|---|---:|---:|---:|---:|---:|
+| EURUSD | 3541 | 3454 | **3194** | 2740 | 766 |
+| GBPUSD | 4568 | 4140 | **1814** | 1465 | 3791 |
+| USDJPY | 4470 | 4532 | **1632** | 1166 | 4210 |
+| XAGUSD | 3848 | 3943 | 0 | 0 | 5154 |
+| SP500→US500 | 1157 | 1108 | 0 | 0 | 1434 |
+| **TOTAL** | **17.584** | **17.177** | **6.640** | **5.371** | **15.355** |
+
+382 snapshots source stale, 3 missing y 0 crossed. Los **6.640** zeros sobreviven a redecodificar los bytes serializados originales, refutando su explicación exclusiva como falla del decoder original (aunque pueden existir problemas de fuente o semántica). Un timestamp mismo ms no es prueba de bid/ask efectivamente ejecutable ni spread gratuito. Causas y contract equivalence **P0 sin resolver** en [Issue #856](https://github.com/mezas3238-hue/qore-core/issues/856). El source antiguo 127.928 + nuevos 34.761 = **162.689 eventos bid/ask totales en muestras cortas**, con instrumentos repetidos en ventanas distintas, **NO** 33 mercados con histórico continuo ni fuente NET.
+
+Próxima misión del arquitecto: obtener interpretación de cTrader/IC Markets respecto a BID=ASK históricos, testigo forward cotizado sin órdenes, comparar contracts históricos 12 CIBO, soporte licenses/vault con restauración verificada, y elaborar plan de cobertura por shards de calidad hasta poder mapear todas las entradas/salidas de nuevas hipótesis preregistradas. **NINGUNA métrica NET ni trader certificado, 0/3; 231 Holm/FDR/E3 NO_SUPPORT intactos.**
