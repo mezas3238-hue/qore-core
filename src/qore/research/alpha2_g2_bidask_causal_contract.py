@@ -116,7 +116,10 @@ def causal_side_reference(
     if type(quote) is not QuoteObservation:
         raise BrokerEvidenceError("broker quote not authenticated")
     QuoteObservation.__post_init__(quote)
-    if position_direction not in (-1, 1) or action not in ("entry", "exit"):
+    if quote.spread <= 0:
+        raise BrokerEvidenceError("SOURCE_ZERO_OR_CROSSED_SPREAD_QUARANTINED_NO_FILL")
+    if (type(position_direction) is not int or position_direction not in (-1, 1)
+            or action not in ("entry", "exit")):
         raise BrokerEvidenceError("invalid trading side/action")
     if action == "entry":
         return quote.ask if position_direction == 1 else quote.bid
