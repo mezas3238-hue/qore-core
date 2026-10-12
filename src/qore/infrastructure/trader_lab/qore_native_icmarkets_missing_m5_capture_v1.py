@@ -37,6 +37,11 @@ CAPTURE_START = "2016-09-17T00:00:00+00:00"
 CAPTURE_END = "2026-09-17T00:00:00+00:00"
 
 
+def _history_scope_allowed(scope: object) -> bool:
+    """VIEW=0 and TRADE=1 can read history; never use scope to place orders."""
+    return type(scope) is int and scope in (0, 1)
+
+
 class _ReadOnlyIcMarketsHistoryClient(SpotwareCTraderOpenApiClient):
     """History-only DEMO adapter accepting SCOPE_VIEW=0 without SDK changes."""
 
@@ -86,7 +91,7 @@ class _ReadOnlyIcMarketsHistoryClient(SpotwareCTraderOpenApiClient):
                 "unexpected account-list message"
             ))
         scope = getattr(accounts.value, "permissionScope", None)
-        if type(scope) is not int or scope not in (0, 1):
+        if not _history_scope_allowed(scope):
             return Failure(CTraderOpenApiProtocolError(
                 "historical source requires explicit VIEW or TRADE scope"
             ))
