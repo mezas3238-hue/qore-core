@@ -1,0 +1,101 @@
+name: QORE Native OPEN-DRIVE-03 NAS100 NY 0930 cash-open gross (read-only)
+
+on:
+  push:
+    branches:
+      - research/qore-native-open-drive03-nas100-prereg-20261012
+    paths:
+      - '.github/workflows/qore-native-nas100-ny-open-drive03.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_nas100_ny_open_drive03_gross_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_nas100_ny_open_drive03_gross_v1.py'
+      - 'docs/research/QORE_NATIVE_OPEN_DRIVE03_NAS100_NY_PREREG_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-native-open-drive03-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify_prereg_and_causality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Preregistered BEFORE first price read, DST and no lookahead tests
+        run: |
+          set -euo pipefail
+          prereg=4b26a2da961da6f778028835efaa7ea899ebda9d
+          git cat-file -e "$prereg^{commit}"
+          git merge-base --is-ancestor "$prereg" "$GITHUB_SHA"
+          test -s docs/research/QORE_NATIVE_OPEN_DRIVE03_NAS100_NY_PREREG_2026-10-12.md
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_nas100_ny_open_drive03_gross_v1.py tests/infrastructure/trader_lab/test_qore_native_nas100_ny_open_drive03_gross_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_nas100_ny_open_drive03_gross_v1.py
+
+  run_exact_one_NAS100:
+    needs: verify_prereg_and_causality
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download original Atlas frozen twelve-market index, no broker OAuth
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: frozen-original-index
+      - name: Download only original NAS100 provider USTEC M5 source
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: frozen-nas100
+      - name: Validate 11 original raw source SHA and run one frozen NY opening gross test
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_nas100_ny_open_drive03_gross_v1 frozen-nas100 frozen-original-index gross03
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path("gross03/qore-native-nas100-ny-open-drive03-gross.json")
+          x=json.loads(p.read_text())
+          assert x["prereg_committed_before_any_outcome"]=="4b26a2da961da6f778028835efaa7ea899ebda9d"
+          assert x["fixed_symbol"]=="NAS100" and x["original_provider_alias"]=="USTEC"
+          assert x["all_11_annual_raw_and_quality_SHA_verified"] is True
+          assert x["later_OHLC_not_accessed"] is True
+          assert x["embargo_from_utc"]=="2024-09-17T00:00:00+00:00"
+          assert x["news_asof_calendar_verified"] is False
+          assert x["broker_executable_bidask_verified"] is False
+          assert x["net_certified"] is False and x["live_or_paper_authorized"] is False
+          assert x["traders_certified"] == 0 and x["production_untouched"] is True
+          assert x["three_attempts_accounted_for"][0].endswith("NO_SUPPORT")
+          for k in ("development","temporal_diagnostic"):
+              assert "weekly_bootstrap_delta_CI98_333pct" in x[k]
+          print("FROZEN_NAS100_NY_OPEN_DRIVE03_RESULT",
+                x["development"]["verdict"],
+                x["temporal_diagnostic"]["verdict"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > gross03/exact-code-head-sha.txt
+          (cd gross03 && sha256sum qore-native-nas100-ny-open-drive03-gross.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - name: Archive full signed neutral or negative results and cost stress
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-nas100-ny-open-drive03-${{ github.sha }}
+          path: gross03/
+          retention-days: 90
+          if-no-files-found: warn
