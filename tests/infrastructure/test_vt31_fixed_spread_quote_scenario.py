@@ -40,7 +40,7 @@ def test_sell_limit_uses_actual_snapshot_bid_not_ask() -> None:
     )
 
 
-def test_synthetic_M1_assumes_mid_and_1p60_total_spread_only() -> None:
+def test_synthetic_m1_assumes_mid_and_1p60_total_spread_only() -> None:
     at = datetime(2026, 10, 12, 14, tzinfo=UTC)
     bar = M1Bar(
         opened_at=at, closed_at=at + timedelta(minutes=1),
@@ -55,7 +55,7 @@ def test_synthetic_M1_assumes_mid_and_1p60_total_spread_only() -> None:
     assert q.ask_high == Decimal("110.80")
 
 
-def test_M1_long_quote_side_threshold_is_ask_low() -> None:
+def test_m1_long_quote_side_threshold_is_ask_low() -> None:
     at = datetime(2026, 10, 12, 14, tzinfo=UTC)
     q = SyntheticM1QuoteBounds.from_mid_m1(M1Bar(
         at, at + timedelta(minutes=1),
@@ -65,7 +65,7 @@ def test_M1_long_quote_side_threshold_is_ask_low() -> None:
     assert q.eligible_quote_side_reachable(Side.LONG, Decimal("100.80"))
 
 
-def test_M1_short_quote_side_threshold_is_bid_high() -> None:
+def test_m1_short_quote_side_threshold_is_bid_high() -> None:
     at = datetime(2026, 10, 12, 14, tzinfo=UTC)
     q = SyntheticM1QuoteBounds.from_mid_m1(M1Bar(
         at, at + timedelta(minutes=1),
