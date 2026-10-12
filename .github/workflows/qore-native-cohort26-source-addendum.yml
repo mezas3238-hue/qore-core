@@ -1,0 +1,127 @@
+name: QORE Native frozen cohort23 + next 3 independent M5 SHA G0
+
+on:
+  push:
+    branches:
+      - research/qore-native-cohort26-source-addendum3-20261012
+    paths:
+      - '.github/workflows/qore-native-cohort26-source-addendum.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_cohort26_source_addendum_v1.py'
+      - 'src/qore/infrastructure/trader_lab/qore_native_cohort23_m5_source_union_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_cohort26_source_addendum_v1.py'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: qore-native-cohort26-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Exact 23+3 no broker/order/PnL/alias mixing
+        run: |
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_cohort26_source_addendum_v1.py tests/infrastructure/trader_lab/test_qore_native_cohort26_source_addendum_v1.py src/qore/infrastructure/trader_lab/qore_native_cohort23_m5_source_union_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_cohort26_source_addendum_v1.py tests/infrastructure/trader_lab/test_qore_native_cohort23_m5_source_union_v1.py
+
+  audit_added3:
+    needs: source_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [GBPNZD, AUDCAD, AUDCHF]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download original newly completed 10Y M5 IC Markets DEMO source
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-${{ matrix.symbol }}-e0ca5a13c866a19d8505c68cffc473598984b340
+          run-id: '38193802541'
+          github-token: ${{ github.token }}
+          path: original-added3
+      - name: SHA proof of original RAW/quality for all eleven years, 5min chronology
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_cohort26_source_addendum_v1 verify "$SYMBOL" original-added3 new3-proof
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          s=os.environ["SYMBOL"]
+          d=json.loads(Path(f"new3-proof/qore-native-cohort26-new-{s}.json").read_text())
+          assert d["status"]=="G0_NEW_PROVIDER_M5_SHA_PASS"
+          assert d["symbol"]==s and len(d["years"])==11
+          assert d["source_integrity_checked"] and not d["g1_net_authorized"]
+          assert not d["ohlc_prices_returns_or_pnl_analyzed"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > new3-proof/code-head-sha.txt
+      - name: Upload original-source SHA witness
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-cohort26-added-${{ matrix.symbol }}-${{ github.sha }}
+          path: new3-proof/
+          if-no-files-found: warn
+          retention-days: 90
+
+  combine_26:
+    needs: audit_added3
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download EXACT previous 23 SHA-verifed aggregate
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-cohort23-unified-manifest-cb9a21f77131b07db2da964ba123bd8c282ded23
+          run-id: '38202227551'
+          github-token: ${{ github.token }}
+          path: parent23-frozen
+      - name: Download EXACT three SHA witnesses only from this commit
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-native-cohort26-added-*-${{ github.sha }}
+          path: new3-witnesses
+      - name: Fail-closed and publish unified 26-market research index
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_cohort26_source_addendum_v1 combine parent23-frozen new3-witnesses result26
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          j=json.loads(Path("result26/qore-native-cohort26-unified.json").read_text())
+          assert j["market_count"]==26 and j["new_three_count"]==3
+          assert j["parent_23_original_m5_bars"]==16924567
+          assert j["source_provenance_separated"] and j["prices_not_stitched"]
+          assert j["no_market_outcomes_opened"] and not j["g1_net_authorized"]
+          assert j["traders_certified"]==0 and j["production_untouched"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result26/code-head-sha.txt
+          (cd result26 && sha256sum qore-native-cohort26-unified.json code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - name: Publish immutable 26-source SHA manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-cohort26-unified-${{ github.sha }}
+          path: result26/
+          retention-days: 90
+          if-no-files-found: error
