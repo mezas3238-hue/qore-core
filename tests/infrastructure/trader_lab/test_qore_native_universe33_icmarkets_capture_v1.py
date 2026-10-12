@@ -10,6 +10,7 @@ from qore.infrastructure.trader_lab.qore_native_icmarkets_catalog_preflight_v1 i
     _ic_markets_label, classify_accounts, match_catalog, select_complete_credential_bundle,
 )
 from qore.infrastructure.trader_lab.qore_native_icmarkets_missing_m5_capture_v1 import (
+    _ReadOnlyIcMarketsHistoryClient, _history_scope_allowed,
     require_capture_candidate,
 )
 
@@ -117,6 +118,18 @@ class Universe33Tests(unittest.TestCase):
     def test_unlisted_symbol_cannot_be_downloaded(self):
         with self.assertRaisesRegex(ValueError, "BROKER_SYMBOL_NOT_EXACT_ENABLED_MATCH"):
             require_capture_candidate("NZDUSD", set())
+
+    def test_history_client_accepts_view_scope_without_trading_permission(self):
+        self.assertTrue(_history_scope_allowed(0))
+        self.assertTrue(_history_scope_allowed(1))
+        for unsafe in (None, -1, 2, True, "0"):
+            self.assertFalse(_history_scope_allowed(unsafe))
+        self.assertNotIn("ProtoOANewOrderReq", _ReadOnlyIcMarketsHistoryClient.connect_and_authenticate.__code__.co_consts)
+
+    def test_refresh_is_denied_in_research_only_adapter(self):
+        # No SDK session instantiated; the override is synchronous and pure.
+        result = _ReadOnlyIcMarketsHistoryClient._refresh_tokens(None)
+        self.assertIn("REAUTH_REQUIRED", str(result.error))
 
     def test_mixed_oauth_bundles_refused(self):
         # Both incomplete even though their union would be complete.
