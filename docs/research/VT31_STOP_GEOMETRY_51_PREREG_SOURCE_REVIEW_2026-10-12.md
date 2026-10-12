@@ -6,6 +6,57 @@
 
 **ADVERTENCIA TEMPORAL:** este documento es preregistro para la **SIGUIENTE** adjudicación (que aún no se ha ejecutado), redactado DESPUÉS de conocer el tamaño agregado 51/2140 y los resultados A/B públicos. **No puede declararse preregistro original del A/B de 2026-10-10, ni restaurar independencia estadística en esos datos**. La regla A/B preinscrita en `d4db56fb45228d74a065349a97e562f2fbc6f657` sigue inmutable y B sigue FAIL 31,31 % unknown vs límite 10 %.
 
+## ADENDA G3 — delimitación de los 51, decisión QORE propuesta y congelamiento irrevocable (12-10-2026)
+
+**Dictamen de auditoría geométrica (sin abrir el replay):** los 51 no son desacuerdos cuantificados entre métodos de stop de ICT. El código B cae en `UNPROVEN_PROTECTED_STOP_GEOMETRY` cuando su **único** swing protegido no queda del lado de pérdida del CE: LONG `pivot >= CE`; SHORT `pivot <= CE`. **B no puede formular una orden auditable con stop protector en esos casos bajo su propia regla.** Un valor así no es un stop-loss elegible; tampoco prueba que C2 lo habría solucionado. El diagnóstico aplica a B experimental, no a la regla de producción vigente ni a un modelo nuevo.
+
+### Tabla G-A — Sin contradicción de orientación del swing B en la clasificación agregada
+
+| Sesión original | Candidatos fuera de la etiqueta `UNPROVEN_PROTECTED_STOP_GEOMETRY` | Alcance inferencial |
+|---|---:|---|
+| London 03–04 NY | **751** | No se detectó ese fallo puntual de orientación; **no** significa trade válida ni stop realmente negociable |
+| NY AM 10–11 NY | **707** | Incluye posibles conflictos CE/cancelación en la misma M1 |
+| NY PM 14–15 NY | **631** | Pendientes otros requisitos de entrada/ejecución |
+| **Total** | **2.089** | `2140−51`, no 2.089 fills ni 2.089 stops certificados |
+
+**Precisión sobre el rótulo:** “fuera de la etiqueta” es verificable en los agregados; **no** sustituye una auditoría individual de que todas las 2.089 referencias disponibles son de hecho válidas. En estos 2.089 permanecen las **619** secuencias `CE_AND_CANCELLATION_SAME_M1_UNKNOWN`; no convertirlas en contactos válidos. Esta **Tabla G-A** es un grupo geométrico, **NO** es el brazo experimental A de la prueba A/B anterior.
+
+### Tabla G-B — Swing B del lado incorrecto de CE, sin stop protector en su propia definición
+
+| Sesión original | `UNPROVEN_PROTECTED_STOP_GEOMETRY` | Tratamiento del ensayo B original |
+|---|---:|---|
+| London 03–04 NY | **15** | `INDETERMINATE`, sin operación económica auditable |
+| NY AM 10–11 NY | **14** | `INDETERMINATE`, sin sustitución retrospectiva |
+| NY PM 14–15 NY | **22** | `INDETERMINATE`, sin stop optimizado |
+| **Total** | **51** | Etiqueta histórica inmutable del B preregistrado |
+
+**Reconciliación obligatoria:** 2.089 + 51 = **2.140** candidatos, y dentro de los 670 indeterminados B se conserva la partición **619 + 51 = 670**. Ninguna tabla constituye nueva prueba sobre el resultado de los 51, ni validación de C2 o del swing: sólo separa las causas ya reportadas.
+
+### Decisión normativa propuesta — **OPCIÓN 1, `QORE_NO_TRADE_IF_PROTECTED_SWING_WRONG_SIDE`**
+
+Esta propuesta no afirma que ICT haya definido el caso. Si el **ensayo experimental B original** exigía swing protegido y ese swing queda del lado incorrecto del CE, la política prospectiva por defecto para **esa familia de estrategias basadas en swing** sería: `NO_TRADE / STOP_UNDEFINED`, sin introducir orden ni asignar R. Es la **Opción 1 conservadora**; reduce densidad de oportunidades, no demuestra rentabilidad.
+
+- **Opción 2 — `FVG_CANDLE_FALLBACK`**: conservarla como **sensibilidad doctrinal separada**, definida antes de nuevos datos/retornos, y **NO** hacer fallback automático por caso dentro de B. Dado que elegir C1/C2/C3 cambia reglas y riesgo, requiere nueva identidad de experimento QORE independiente, definición exacta de vela, tick oficial y cohortes completas. Una eventual geometría válida no convierte a uno de los 51 históricos B en un fill.
+- **Opción 3 — `DISTANCE_ATR_OR_FIXED`**: **NO AUTORIZADA** en este preregistro. Es un parámetro QORE sin respaldo primario preciso, susceptible de calibración retrospectiva; requeriría hipótesis independiente fijada ex ante, no una búsqueda adicional para salvar 51 casos.
+- **Compatibilidad con [PR #881 — nueva propuesta QORE V1](https://github.com/mezas3238-hue/qore-core/pull/881)**: ese otro carril elige `QORE_C2_FULL_WICK_V1` **como stop primario desde el principio para un NUEVO trader/protocolo de investigación**, no como rescate de B en los 51 fallidos. Las propuestas no se pueden combinar silenciosamente: opción 1 gobierna la *familia swing-B*; C2 primario sólo puede gobernar el *nuevo protocolo C2* tras aprobación. **No hay doble firma** para ninguna de ellas en este corte; PR #881 figura `DECISION_DRAFT_UNSIGNED`.
+
+### Cláusula de congelamiento **no revocable por resultados económicos**
+
+> **Para el experimento identificado por su commit y protocolo firmado, la decisión metodológica aprobada es irrevocable respecto a ese mismo ensayo:** se declara **ANTES** de consultar resultados económicos o trayectoria posterior de esos casos. Una vez firmada y congelada, queda **prohibido** modificar la referencia inicial del stop, introducir fallback, aumentar distancia, modificar buffer o cambiar qué casos se descartan **aunque el Profit Factor, drawdown, expectancy o cualquier resultado posterior favorezca otra alternativa**. Si se considera imprescindible cambiar la regla, se debe **cerrar el ensayo original con su resultado intacto**, marcar explícitamente como `SUPERSEDED_NOT_RETROACTIVELY_RELABELED`, crear **nuevo protocolo prospectivo y nueva identidad/versionado** con preregistro separado y evaluación apropiada no consumida. No se permitirá recalcular y presentar la cohorte 3Y ya examinada como validación independiente; ningún ensayo modificado sustituye los fallos anteriores.
+
+**Obligación de control de ejecución**: guardar el SHA completo del documento **aprobado**, firmas ARCH COG y OPS con `APROBAR/OBJETAR` y timestamp anterior al primer análisis individual de los 51, más identificador de cohorte y fuente. Si falta cualquiera, el guard exige `BLOCK_GEOMETRY_REPLAY` y `BLOCK_ECONOMIC_REPLAY`. Las firmas no se infieren de comentarios analíticos, del usuario, de los tests, ni de la mera existencia del PR. Un cambio futuro de README/documentación no puede desbloquear implícitamente el estudio.
+
+### Dictamen cerrado sobre el **material ICT que ha podido verificarse**
+
+- **`ICT_STOP_UNDERDETERMINED_FOR_REVIEWED_2023_MATERIAL` — CONCLUSIÓN DE REVISIÓN DOCUMENTAL, no regla pendiente de decidir.** En la transcripción completa indexada de la clase del [15-05-2023, lección original](https://www.youtube.com/watch?v=tRq1hyGGtl4) ([ASR trazable](https://info.quagmyre.com/xwiki/bin/view/Forex/The-Inner-Circle-Trader/ICT-Youtube-Series-2023/ICT-YT-2023-05-15-ICT-Mentorship-ICT-Silver-Bullet-Time-Based-Trading-Model/?xpage=print)), las referencias **10:34–10:55**, **13:12–13:55** y **14:53–15:30** explican FVG, dirección, ventana y ejemplos de operaciones, **sin precisar de manera algorítmica que todo Silver Bullet deba usar C2, far-edge, swing protegido ni un buffer numérico universal**. Menciona en **10:34–10:55** que el ejemplo no hubiera alcanzado su stop según sus reglas de otros modelos, **no especifica precio inicial de stop para nuestra implementación**.
+- En la [lección del autor **22-05-2023, Evolving ICT Silver Bullet Example**](https://www.youtube.com/watch?v=DkOuO0eNwUA) ([ASR con timecodes](https://info.quagmyre.com/xwiki/bin/view/Forex/The-Inner-Circle-Trader/ICT-Youtube-Series-2023/ICT-YT-2023-05-22-ICT-Mentorship-2023-Evolving-ICT-Silver-Bullet-Example/)), en torno a **01:29–01:45** el autor describe un stop por encima del FVG para un ejemplo SHORT, luego hacia **06:50–07:05** comunica su stop revisado. **Eso acredita la existencia de un ejemplo, no una regla universal C2 vs gap vs swing para todos los casos**.
+- La frase referida en la discusión como “más allá de la vela que formó el gap” **no se atribuye como cita textual verificada de la lección del 15-05-2023**, pues no se localizó allí tal prescripción con timestamp y alcance inequívocos. Si otro revisor aporta nueva grabación y timecode que la sustenten, se agregará como **evidencia doctrinal nueva, con control de versión**; no se cambiará retroactivamente la fórmula ni el ensayo ya congelado.
+- **Límite de la prueba de fuentes**: se verificaron **transcripciones externas de las presentaciones originales**, no se hizo una auditoría audiovisual exhaustiva de cada diapositiva y de toda la obra de ICT. La conclusión es `NO_ACREDITADO_EN_FUENTES_REVISADAS`, no la afirmación metafísica de que el autor **jamás** prescribió otro stop.
+
+**Estado deliberado:** `GEOMETRY_DIAGNOSIS_CLOSED / ICT_SOURCE_SCOPE_REVIEWED / QORE_OPTION_1_DRAFT_UNSIGNED / DUAL_SIGNOFF_MISSING / REPLAY_BLOCKED`. Primero decidir/fijar por los dos arquitectos; **después** auditar geometría sin PnL; y **sólo** tras fuente sub-M1/OMS y política integral aprobada plantear economía.
+
+---
+
 ## 1. Hallazgo causal que delimita exactamente el problema
 
 En `scripts/vt31_shadow_opposite_pivot_ab_v1.py`, función `Shadow.on_m1`, la clasificación `UNPROVEN_PROTECTED_STOP_GEOMETRY` se dispara **antes** de examinar CE, DOL, FVG, stop real o PnL si:
