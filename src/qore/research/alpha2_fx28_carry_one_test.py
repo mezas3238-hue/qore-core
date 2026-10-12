@@ -20,8 +20,8 @@ from qore.research.alpha2_intermarket import MARKETS
 IDENTITY = "QORE_ALPHA2_FX28_CARRY_1M_FORWARDS_FIXED6X6_V1"
 FACTOR_REQUIRED = "HISTORICAL_FX_1M_FORWARD_ASOF_SOURCE_PROVENANCE"
 PREREG_COMMIT = "f94fda3d51602a39548d767b87e379ac5fd742b5"
-FX28 = tuple(s for s in MARKETS if len(s) == 6)
 CCYS = frozenset({"AUD", "CAD", "CHF", "EUR", "GBP", "JPY", "NZD", "USD"})
+FX28 = tuple(s for s in MARKETS if len(s) == 6 and s[:3] in CCYS and s[3:] in CCYS)
 ALL_PAIRS = {frozenset((x, y)) for x in CCYS for y in CCYS if x != y}
 COST_PER_SIDE_BPS = 2.0
 PAIRS_PER_SIDE = 6
