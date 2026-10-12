@@ -20,9 +20,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Restore PINNED original read-only cTrader modules from signed SOURCE commits
+        run: |
+          set -euo pipefail
+          root=src/qore/infrastructure/trader_lab
+          git show ab782b8e9f890f86a2b6500070f0556b4b685e3d:"$root/cibo_market_atlas_10y_m5_consumer_v1.py" > "$root/cibo_market_atlas_10y_m5_consumer_v1.py"
+          git show ab782b8e9f890f86a2b6500070f0556b4b685e3d:"$root/cibo_market_atlas_10y_windowed_runtime_v1.py" > "$root/cibo_market_atlas_10y_windowed_runtime_v1.py"
+          git show e0ca5a13c866a19d8505c68cffc473598984b340:"$root/qore_native_universe_33_source_registry_v1.py" > "$root/qore_native_universe_33_source_registry_v1.py"
+          git show e0ca5a13c866a19d8505c68cffc473598984b340:"$root/qore_native_icmarkets_catalog_preflight_v1.py" > "$root/qore_native_icmarkets_catalog_preflight_v1.py"
+          git show e0ca5a13c866a19d8505c68cffc473598984b340:"$root/qore_native_icmarkets_missing_m5_capture_v1.py" > "$root/qore_native_icmarkets_missing_m5_capture_v1.py"
+          test "$(git hash-object "$root/cibo_market_atlas_10y_m5_consumer_v1.py")" = 370c33bd91c5be3b6ee3d3030a95cf52c18ca28a
+          test "$(git hash-object "$root/cibo_market_atlas_10y_windowed_runtime_v1.py")" = a8ad7fca6b5b6e3a4a61076f6f81be5c26b7e116
+          test "$(git hash-object "$root/qore_native_icmarkets_missing_m5_capture_v1.py")" = cb3e325ffec3b02e07453cb851578be9b4639697
+          echo "PINNED_CTRADER_SOURCE_MODULES_OK_NO_REPOSITORY_CHANGE"
       - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
       - name: Freeze SOURCE prereg and assert no retrospective tuning
         run: |
@@ -47,9 +62,24 @@ jobs:
       QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Restore PINNED original read-only cTrader modules from signed SOURCE commits
+        run: |
+          set -euo pipefail
+          root=src/qore/infrastructure/trader_lab
+          git show ab782b8e9f890f86a2b6500070f0556b4b685e3d:"$root/cibo_market_atlas_10y_m5_consumer_v1.py" > "$root/cibo_market_atlas_10y_m5_consumer_v1.py"
+          git show ab782b8e9f890f86a2b6500070f0556b4b685e3d:"$root/cibo_market_atlas_10y_windowed_runtime_v1.py" > "$root/cibo_market_atlas_10y_windowed_runtime_v1.py"
+          git show e0ca5a13c866a19d8505c68cffc473598984b340:"$root/qore_native_universe_33_source_registry_v1.py" > "$root/qore_native_universe_33_source_registry_v1.py"
+          git show e0ca5a13c866a19d8505c68cffc473598984b340:"$root/qore_native_icmarkets_catalog_preflight_v1.py" > "$root/qore_native_icmarkets_catalog_preflight_v1.py"
+          git show e0ca5a13c866a19d8505c68cffc473598984b340:"$root/qore_native_icmarkets_missing_m5_capture_v1.py" > "$root/qore_native_icmarkets_missing_m5_capture_v1.py"
+          test "$(git hash-object "$root/cibo_market_atlas_10y_m5_consumer_v1.py")" = 370c33bd91c5be3b6ee3d3030a95cf52c18ca28a
+          test "$(git hash-object "$root/cibo_market_atlas_10y_windowed_runtime_v1.py")" = a8ad7fca6b5b6e3a4a61076f6f81be5c26b7e116
+          test "$(git hash-object "$root/qore_native_icmarkets_missing_m5_capture_v1.py")" = cb3e325ffec3b02e07453cb851578be9b4639697
+          echo "PINNED_CTRADER_SOURCE_MODULES_OK_NO_REPOSITORY_CHANGE"
       - name: Install exact project cTrader optional read-only SDK
         run: python -m pip install -e '.[ctrader]'
       - name: Read broker account DEMO only, request EURCHF BID ASK history exactly one minute (zero orders)
