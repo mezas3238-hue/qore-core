@@ -14,13 +14,6 @@ from importlib import import_module
 from pathlib import Path
 from time import monotonic
 
-from qore.infrastructure.trader_lab import cibo_market_atlas_10y_m5_consumer_v1 as original
-from qore.infrastructure.trader_lab.qore_native_icmarkets_catalog_preflight_v1 import (
-    probe_catalog,
-)
-from qore.infrastructure.trader_lab.qore_native_icmarkets_missing_m5_capture_v1 import (
-    _ReadOnlyIcMarketsHistoryClient,
-)
 from qore.kernel.result import Failure
 
 IDENTITY = "QORE_ALPHA2_G2_ICMARKETS_DEMO_NZDUSD_FORWARD_RECEIPT_V1"
@@ -36,21 +29,32 @@ class SourceBlockedError(ValueError):
     pass
 
 
-class ReadOnlySpotClient(_ReadOnlyIcMarketsHistoryClient):
-    _HISTORY_ONLY_REQUEST_NAMES = (
-        _ReadOnlyIcMarketsHistoryClient._HISTORY_ONLY_REQUEST_NAMES
-        | frozenset({"ProtoOASubscribeSpotsReq"})
+def _read_only_spot_client(credentials: object) -> object:
+    """Load the signed historical client only after ephemeral GH restore.
+
+    Synthetic CI must never depend on an absent historical source module.
+    """
+    from qore.infrastructure.trader_lab.qore_native_icmarkets_missing_m5_capture_v1 import (
+        _ReadOnlyIcMarketsHistoryClient,
     )
 
-    def __init__(self, *, credentials):
-        super().__init__(credentials=credentials, request_timeout_seconds=25.0)
-        proto = import_module("ctrader_open_api.messages.OpenApiMessages_pb2")
-        for name in ("ProtoOASubscribeSpotsReq", "ProtoOASubscribeSpotsRes",
-                     "ProtoOASpotEvent"):
-            klass = getattr(proto, name, None)
-            if not isinstance(klass, type):
-                raise SourceBlockedError("SPOT_DEMO_SDK_READONLY_MESSAGE_MISSING")
-            self._bindings.messages[name] = klass
+    class ReadOnlySpotClient(_ReadOnlyIcMarketsHistoryClient):
+        _HISTORY_ONLY_REQUEST_NAMES = (
+            _ReadOnlyIcMarketsHistoryClient._HISTORY_ONLY_REQUEST_NAMES
+            | frozenset({"ProtoOASubscribeSpotsReq"})
+        )
+
+        def __init__(self, *, credentials: object):
+            super().__init__(credentials=credentials, request_timeout_seconds=25.0)
+            proto = import_module("ctrader_open_api.messages.OpenApiMessages_pb2")
+            for name in ("ProtoOASubscribeSpotsReq", "ProtoOASubscribeSpotsRes",
+                         "ProtoOASpotEvent"):
+                klass = getattr(proto, name, None)
+                if not isinstance(klass, type):
+                    raise SourceBlockedError("SPOT_DEMO_SDK_READONLY_MESSAGE_MISSING")
+                self._bindings.messages[name] = klass
+
+    return ReadOnlySpotClient(credentials=credentials)
 
 
 def _optional_present_integer(event: object, field: str) -> int | None:
@@ -112,6 +116,8 @@ def classify_received_pair(
     if (bid is None or ask is None or bid_seen is None or ask_seen is None
             or now - bid_seen > MAX_SIDE_AGE or now - ask_seen > MAX_SIDE_AGE):
         return "MISSING_OR_STALE_BIDASK"
+    if bid_seen > now or ask_seen > now:
+        raise SourceBlockedError("FUTURE_LOCAL_BIDASK_SIDE_RECEIPT")
     if bid <= 0 or ask <= 0:
         raise SourceBlockedError("INVALID_DEMO_BIDASK_PRICE")
     if ask < bid:
@@ -122,6 +128,10 @@ def classify_received_pair(
 
 
 def _preflight_exact_demo_symbol() -> tuple[int, int]:
+    from qore.infrastructure.trader_lab.qore_native_icmarkets_catalog_preflight_v1 import (
+        probe_catalog,
+    )
+
     proof=probe_catalog()
     if (proof.get("status")!="ICMARKETS_DEMO_CATALOG_VERIFIED"
             or proof.get("account_is_live") is not False
@@ -145,7 +155,9 @@ def _capture(output: Path) -> dict:
     account,symid=_preflight_exact_demo_symbol()
     os.environ["QORE_CTRADER_DEMO_ACCOUNT_ID"]=str(account)
     os.environ.pop("QORE_CTRADER_ACCOUNT_ID",None)
-    client=ReadOnlySpotClient(credentials=original._credentials())
+    from qore.infrastructure.trader_lab import cibo_market_atlas_10y_m5_consumer_v1 as original
+
+    client=_read_only_spot_client(original._credentials())
     rows=[]
     last_bid=last_ask=None
     bid_seen=ask_seen=None
