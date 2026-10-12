@@ -29,3 +29,8 @@
 **P0 compartido para OPS y COG:** (a) doctrina original ICT y contratos de stop/target precedencia; (b) fuente BID/ASK real históricamente equivalente con UTC y tick/contract/currency info oficial; (c) replay PAPER de orden limitada CE con ACK independiente de quote touch (simulated y broker confirmed en categorías separadas), cancel races y límites de ambigüedad; (d) caso contrario cerrar por `DATOS_INSUFICIENTES` con plazo acordado. B 31.31% UNKNOWN permanece FAIL, no habilitarla por haber 577 posibles contactos en spread sintético.
 
 **Prohibiciones:** no editar metodología, no optimizar horizontes, no abrir fresh holdout, no MAIN/VPS/LIVE ni certificar, no sustituir histórico bid/ask por screenshot puntual. Enviar esta revisión al autor del PR #874 y a Issue #727 para colaboración real.
+
+## CI de auditoría independiente — resultado verificado después de publicación
+- [GitHub Actions run #38312069323](https://github.com/mezas3238-hue/qore-core/actions/runs/38312069323) — **SUCCESS**, HEAD `22829319c653bf1e595015beed21ac6c11d880a4`, job `independent-timing-and-math-fixtures` `115019914646`.
+- Log del job: **9 passed in 0.17s**. Fixture tests únicamente, sin descarga de 3Y, sin ticks Bid/Ask, sin broker ACK ni resimulación de PnL. Este PASS no valida por sí solo ni el artefacto estadístico original ni un edge comerciable.
+- PR de auditoría [#875](https://github.com/mezas3238-hue/qore-core/pull/875) **DRAFT**, base PR #874; cambio documental posterior no altera código examinado ni la ejecución citada.
