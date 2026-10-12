@@ -70,7 +70,7 @@ def test_negative_momentum_has_short_direction_and_gross_gain_downtrend():
 def test_control_can_differ_caused_by_last_five_reversal():
     d = sample_days()
     for i in range(255, 262):
-        d[i] = Day(d[i].utc_day, 10200 + 262 - i, 10000 + 262 - i, 36)
+        d[i] = Day(d[i].utc_day, 10200 + 262 - i, 10200 + 262 - i, 36)
     primary, control = directions_before_entry(d, 262)
     assert primary == 1
     assert control == -1
