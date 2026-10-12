@@ -1,0 +1,172 @@
+name: QORE Alpha2 G1A First Gross Native M5 PATR vs Baseline
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g1a-gross-first-m5.yml'
+      - 'src/qore/research/alpha2_g1a_native_m5_gross.py'
+      - 'src/qore/research/alpha2_g1a_panel_stats.py'
+      - 'tests/research/test_alpha2_g1a_native_m5_gross.py'
+      - 'tests/research/test_alpha2_g1a_panel_stats.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: alpha2-g1a-one-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  freeze_and_synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'numpy>=2,<3' 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Prove exact GROSS pre-outcome protocol ancestor plus source-gated runner
+        run: |
+          git merge-base --is-ancestor 6ee8848f03719e8a0d6626f038d6ad8ec5fc33c7 "$GITHUB_SHA"
+          git merge-base --is-ancestor a369914550ed0b1da23b40b35b91fb23dde61346 "$GITHUB_SHA"
+          git merge-base --is-ancestor a0841226934f1140817a52db72c47141623a8aa4 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G1A_FIRST_GROSS_PAIRED_M5_REPLAY_PREREG_2026-10-12.md
+      - name: First-online stop-first gap censorship and bootstrap tests before OHLC
+        run: |
+          ruff check src/qore/research/alpha2_g1a_native_m5_gross.py src/qore/research/alpha2_g1a_panel_stats.py tests/research/test_alpha2_g1a_native_m5_gross.py tests/research/test_alpha2_g1a_panel_stats.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g1a_native_m5_gross.py tests/research/test_alpha2_g1a_panel_stats.py tests/research/test_alpha2_ultrafast.py
+  original12_gross:
+    needs: freeze_and_synthetic
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        symbol: [AUDJPY, AUDUSD, EURUSD, GBPJPY, GBPUSD, NAS100, SP500, US30, USDCAD, USDJPY, XAGUSD, XAUUSD]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: signed33
+      - uses: actions/download-artifact@v4
+        with:
+          name: alpha2-patr-ultra-fast-33-signal-only-a0841226934f1140817a52db72c47141623a8aa4
+          run-id: '38268654596'
+          github-token: ${{ github.token }}
+          path: signed-signals
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: atlas-aggregate
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: provider-native
+      - name: Native SHA 11-year verified before first outcome; 224 frozen signals only
+        run: |
+          python -m qore.research.alpha2_g1a_native_m5_gross "$SYMBOL" provider-native signed33 signed-signals gross-out --aggregate12 atlas-aggregate
+          printf '%s\n' "$GITHUB_SHA" > gross-out/exact-code-head-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-g1a-${{ matrix.symbol }}-${{ github.sha }}
+          path: gross-out/
+          retention-days: 90
+          if-no-files-found: error
+  new21_gross:
+    needs: freeze_and_synthetic
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        symbol: [USDCHF, NZDUSD, EURGBP, EURJPY, EURCHF, EURCAD, EURAUD, EURNZD, GBPCHF, GBPCAD, GBPAUD, GBPNZD, AUDCAD, AUDCHF, AUDNZD, CADJPY, CADCHF, CHFJPY, NZDJPY, NZDCAD, NZDCHF]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: signed33
+      - uses: actions/download-artifact@v4
+        with:
+          name: alpha2-patr-ultra-fast-33-signal-only-a0841226934f1140817a52db72c47141623a8aa4
+          run-id: '38268654596'
+          github-token: ${{ github.token }}
+          path: signed-signals
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-${{ matrix.symbol }}-e0ca5a13c866a19d8505c68cffc473598984b340
+          run-id: '38193802541'
+          github-token: ${{ github.token }}
+          path: provider-native
+      - name: Exact SHA-audited IC Markets M5 gross research, no net claim
+        run: |
+          python -m qore.research.alpha2_g1a_native_m5_gross "$SYMBOL" provider-native signed33 signed-signals gross-out
+          printf '%s\n' "$GITHUB_SHA" > gross-out/exact-code-head-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-g1a-${{ matrix.symbol }}-${{ github.sha }}
+          path: gross-out/
+          retention-days: 90
+          if-no-files-found: error
+  paired_panel_inference:
+    needs: [original12_gross, new21_gross]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'numpy>=2,<3'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: alpha2-g1a-*-${{ github.sha }}
+          path: gross33
+      - name: One 33-market 224-signal gross and calendar synced block-bootstrap
+        run: |
+          python -m qore.research.alpha2_g1a_panel_stats gross33 aggregate --source-head "$GITHUB_SHA"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("aggregate/alpha2-g1a-paired-33-first-gross-panel.json").read_text())
+          assert d["markets"]==33 and d["original_signals"]==224
+          assert not d["utc001_certified"] and d["net_pf_sharpe_sortino_dd_not_computed"]
+          assert d["2024_09_17_onward_prices_not_read"]
+          assert d["research_verdict"] in ("UNDERPOWERED","NO_SUPPORT_FOR_PREDECLARED_GROSS_GATE","GROSS_CANDIDATE_REQUIRES_BIDASK_AND_REAL_OOS")
+          PY
+          printf '%s\n' "$GITHUB_SHA" > aggregate/exact-code-head-sha.txt
+          (cd aggregate && sha256sum alpha2-g1a-paired-33-first-gross-panel.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-g1a-paired-gross-panel-${{ github.sha }}
+          path: aggregate/
+          retention-days: 90
+          if-no-files-found: error
