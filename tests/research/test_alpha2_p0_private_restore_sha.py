@@ -123,7 +123,7 @@ def test_missing_or_extra_zip_denied(tmp_path):
     (root / "ATLAS_ORIGINAL12" / "AUDJPY.zip").unlink()
     with pytest.raises(ValueError, match="MISSING_OR_EXTRA_FILE"):
         verify_local_restore(report, root)
-    report, root = synthetic_35(tmp_path)
+    report, root = synthetic_35(tmp_path / 'second')
     (root / "META" / "unregistered.zip").write_bytes(b"synthetic")
     with pytest.raises(ValueError, match="MISSING_OR_EXTRA_FILE"):
         verify_local_restore(report, root)
@@ -165,7 +165,7 @@ def test_forged_run_sha_and_partial_symbols_denied(tmp_path):
     report["original_code_heads"][str(SOURCE33_RUN)] = "f" * 40
     with pytest.raises(ValueError, match="PROVENANCE_DRIFT"):
         verify_local_restore(report, root)
-    report, root = synthetic_35(tmp_path)
+    report, root = synthetic_35(tmp_path / 'second')
     report["per_original_market_artifact_ids_digests_expiry"].pop("AUDJPY")
     with pytest.raises(ValueError, match="NOT_EXACT33"):
         verify_local_restore(report, root)
@@ -179,7 +179,7 @@ def test_replayed_digest_or_boolean_byte_count_denied(tmp_path):
     ]
     with pytest.raises(ValueError, match="DUPLICATE_OR_IDENTITY_DRIFT"):
         verify_local_restore(report, root)
-    report, root = synthetic_35(tmp_path)
+    report, root = synthetic_35(tmp_path / 'second')
     report["per_original_market_artifact_ids_digests_expiry"]["AUDJPY"][
         "bytes"
     ] = True
