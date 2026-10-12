@@ -1,0 +1,82 @@
+name: QORE Native G1 original protobuf bid ask zero episodes and positive same-ms control NO NET
+
+on:
+  push:
+    branches:
+      - research/qore-native-g1-dualside-original-wire-zero-episodes-20261012
+    paths:
+      - '.github/workflows/qore-native-g1-original-proto-dualside-zero-episodes.yml'
+      - 'src/qore/infrastructure/trader_lab/qore_native_g1_original_proto_zero_episodes_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_g1_original_proto_zero_episodes_v1.py'
+      - 'docs/research/QORE_NATIVE_G1_ORIGINAL_WIRE_BID_ASK_ZERO_EPISODES_EXPLORATORY_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replay_original_proto_dualside_qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Fail-closed source-only simultaneous and positive control tests
+        run: |
+          set -euo pipefail
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_g1_original_proto_zero_episodes_v1.py tests/infrastructure/trader_lab/test_qore_native_g1_original_proto_zero_episodes_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_g1_original_proto_zero_episodes_v1.py
+      - name: Verify original 5-market Protobuf source ZIP SHA source HEAD
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          p="https://api.github.com/repos/mezas3238-hue/qore-core/actions/artifacts/11764163362"
+          req=urllib.request.Request(p,headers={
+             "Authorization":"Bearer "+os.environ["GH_TOKEN"],
+             "Accept":"application/vnd.github+json",
+          })
+          with urllib.request.urlopen(req,timeout=15) as response: data=json.load(response)
+          assert data["id"]==11764163362 and data["expired"] is False
+          assert data["workflow_run"]["id"]==38288411671
+          assert data["workflow_run"]["head_sha"]=="8dfae03e8212566d7d334c2598931e57c7b55d64"
+          assert data["digest"]=="sha256:b4eb9e66d76bcd439d4db8f2b8707afa06fe2d211a275c8af8b8605714b58684"
+          print("ORIGINAL_PROVIDER_PROTO_SOURCE_ZIP_SHA_AND_HEAD_PASS")
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-original-tick-field-proto-wire-NOT-NET-8dfae03e8212566d7d334c2598931e57c7b55d64
+          run-id: '38288411671'
+          github-token: ${{ github.token }}
+          path: exact-original-source
+      - name: Revalidate second Protobuf decoder then zero episodes and simultaneous positive control
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_g1_original_proto_zero_episodes_v1 exact-original-source episode-source-report
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("episode-source-report/G1_NATIVE_PROTO_ZERO_EPISODES_EXPLORATORY_NOT_NET.json").read_text())
+          assert report["independent_protobuf_second_decode_gate_passed"]
+          assert report["source_markets_verified"]==5
+          assert report["asof_total_quality_counts"]["zero_spread"]==6640
+          assert report["asof_total_quality_counts"]["zero_same_millisecond"]==5371
+          assert report["native_same_ms_positive_spread"]>0
+          assert not report["broker_executability_of_equal_quotes_proven"]
+          assert not report["historical_NET_authorized"]
+          assert report["certified_traders"]==0
+          print("ORIGINAL_PROTO_SOURCE_SAME_MS_ZERO_VS_POSITIVE_FORENSIC_PASS_NO_NET")
+          PY
+          printf '%s\n' "$GITHUB_SHA" > episode-source-report/forensic-auditor-sha.txt
+          (cd episode-source-report && sha256sum *.json forensic-auditor-sha.txt > FORENSIC_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-G1-original-proto-dualside-source-episodes-NOT-NET-${{ github.sha }}
+          path: episode-source-report/
+          retention-days: 90
+          if-no-files-found: error
