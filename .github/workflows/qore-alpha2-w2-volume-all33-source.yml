@@ -135,7 +135,7 @@ jobs:
         run: |
           mkdir -p source33-report
           python - <<'PY'
-          import json, hashlib
+          import json, hashlib, os
           from pathlib import Path
           paths=sorted(Path("volume33").rglob("alpha2-w2-volume-source-*.json"))
           assert len(paths)==33,f"Must include exactly 33 native sources, got {len(paths)}"
@@ -146,7 +146,7 @@ jobs:
               assert set(entries)=={p.name,"exact-code-head-sha.txt"}
               for name,digest in entries.items():
                   assert hashlib.sha256((p.parent/name).read_bytes()).hexdigest()==digest
-              assert (p.parent/"exact-code-head-sha.txt").read_text().strip()=="$GITHUB_SHA"
+              assert (p.parent/"exact-code-head-sha.txt").read_text().strip()==os.environ["GITHUB_SHA"]
               obj=json.loads(p.read_text())
               assert obj["identity"]=="QORE_ALPHA2_W2_FULL33_NATIVE_VOLUME_SOURCE_ONLY_V1"
               assert obj["ohlc_fields_accessed"] is False and obj["price_returns_or_PnL_read"] is False
