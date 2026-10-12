@@ -41,3 +41,10 @@ Descomposición auditada: 29 × 2 × 600 = 34.800 muestras fijas y completas; si
 ## Piloto propio cTrader independiente bloqueado
 
 Solicitud DEMO read-only EURCHF ventana 2023-06-12 (prereg antes de fuente). [Run #38287610751](https://github.com/mezas3238-hue/qore-core/actions/runs/38287610751): preflight 14 tests sintéticos PASS, autenticación/solicitud de fuente bloqueó de modo seguro (código AUTH_OR_SOURCE_UNAVAILABLE_SAFE_BLOCK); manifestó bloqueo firmado, sin órdenes ni refresh. No confundir estos intentos con los 29 mercados anteriores recuperados por otro arquitecto. Decoder propio se corrigió para tiempo y precio signed deltas de cTrader, no reabrió históricos. Usar prioridad fuente compartida demostrada antes que repetir solicitudes inútiles.
+
+
+## G2 quaratena ejecutiva incorporada a código y verificada (post-calidad)
+
+Como consecuencia operativa del censo **pre-registrado** (sin alterar sus conteos), se endureció `src/qore/research/alpha2_g2_bidask_causal_contract.py`: `causal_side_reference` rechaza explícitamente `BID==ASK` con `SOURCE_ZERO_OR_CROSSED_SPREAD_QUARANTINED_NO_FILL`, manteniendo el original rechazo del crossed quote en `QuoteObservation`. Se rechazan además direcciones booleanas disfrazadas de +/-1. La ejecución [Actions #38289518769](https://github.com/mezas3238-hue/qore-core/actions/runs/38289518769), exact HEAD `d5896289da77da0772f95901863788f1818cdecd`, SUCCESS **9/9 tests**, prueba también cero spread LONG entry y SHORT exit, sin órdenes.
+
+**No convierte 27.866 cotizaciones positivas de muestras aisladas en referencias ejecutables**: se exige fuente as-of delivery real y costes/contratos PIT. Los datos originales fuente siguen etiquetados quote_source_quality; PF/Sharpe/Sortino/DD NET de Alpha2 permanecen `NOT_COMPUTED`.
