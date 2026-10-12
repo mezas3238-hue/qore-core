@@ -1,0 +1,63 @@
+name: QORE Native H4 OECD 8 currency 3M rates SOURCE COVERAGE ONLY
+
+on:
+  push:
+    branches:
+      - research/qore-native-h4-oecd8-3m-rate-coverage-20261012
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_h4_oecd8_fred_3m_source_audit_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_h4_oecd8_fred_3m_source_audit_v1.py'
+      - 'docs/research/QORE_NATIVE_H4_EIGHT_CURRENCY_OECD_3M_FRED_SOURCE_CANDIDATE_2026-10-12.md'
+      - '.github/workflows/qore-native-h4-oecd8-3m-source-coverage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eight_rate_evidence_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic 8-series parser, 104 months, forbidden PNL and historical dates
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_h4_oecd8_fred_3m_source_audit_v1.py -v
+      - name: Fetch eight real FRED OECD 3M monthly source files into volatile memory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_h4_oecd8_fred_3m_source_audit_v1 evidence-only/H4_EIGHT_CURRENCY_3M_FRED_SOURCE_COVERAGE.json
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          r=json.loads(Path('evidence-only/H4_EIGHT_CURRENCY_3M_FRED_SOURCE_COVERAGE.json').read_text())
+          assert r['identity']=='QORE_NATIVE_H4_EIGHT_CURRENCY_OECD_3M_SOURCE_COVERAGE_AUDIT_V1'
+          assert r['currency_count']==8
+          assert len(r['series'])==8
+          assert r['monthly_spot_periods_in_audit']==104
+          assert r['not_one_month_tenor'] is True
+          assert r['not_forward_quotes'] is True
+          assert r['not_verified_2016_2024_asof_vintages'] is True
+          assert r['no_historical_rates_republished'] is True
+          assert r['no_historical_prices_or_returns_evaluated'] is True
+          assert r['monthly_carry_backtest_executed'] is False
+          assert r['historical_holdout_2024_09_17_onward_economics_read'] is False
+          assert r['sharpe_or_CAGR'] is None
+          assert r['FX_carry_edge_certified'] is False
+          assert r['certified_traders']==0
+          print('H4_RATE_SOURCE_EIGHT_CURRENCY_AUDIT_PIT_NOT_PROVEN_NO_BACKTEST')
+          PY
+          printf '%s\n' "$GITHUB_SHA" > evidence-only/executed-code-sha.txt
+          (cd evidence-only && sha256sum *.json *.txt > SHA256SUMS.txt)
+      - name: Publish metadata only, NEVER economic rates or licensed raw
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-h4-8-currency-3m-rate-source-only-${{ github.sha }}
+          path: evidence-only/
+          retention-days: 30
+          if-no-files-found: error
