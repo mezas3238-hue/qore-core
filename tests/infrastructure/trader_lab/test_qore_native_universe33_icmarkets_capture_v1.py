@@ -1,12 +1,13 @@
 """No-network tests for owner-defined 33-universe and safe broker preflight."""
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from qore.infrastructure.trader_lab.qore_native_universe_33_source_registry_v1 import (
     GROUPS, M5_10Y, M5_7Y, M1_10Y, inventory, universe,
 )
 from qore.infrastructure.trader_lab.qore_native_icmarkets_catalog_preflight_v1 import (
-    classify_accounts, match_catalog,
+    classify_accounts, match_catalog, select_complete_credential_bundle,
 )
 from qore.infrastructure.trader_lab.qore_native_icmarkets_missing_m5_capture_v1 import (
     require_capture_candidate,
@@ -97,6 +98,37 @@ class Universe33Tests(unittest.TestCase):
     def test_unlisted_symbol_cannot_be_downloaded(self):
         with self.assertRaisesRegex(ValueError, "BROKER_SYMBOL_NOT_EXACT_ENABLED_MATCH"):
             require_capture_candidate("NZDUSD", set())
+
+    def test_mixed_oauth_bundles_refused(self):
+        # Both incomplete even though their union would be complete.
+        with patch.dict("os.environ", {
+            "QORE_CTRADER_DEMO_CLIENT_ID": "a",
+            "QORE_CTRADER_DEMO_CLIENT_SECRET": "b",
+            "QORE_CTRADER_DEMO_ACCESS_TOKEN": "",
+            "QORE_CTRADER_DEMO_REFRESH_TOKEN": "",
+            "QORE_CTRADER_CLIENT_ID": "",
+            "QORE_CTRADER_CLIENT_SECRET": "",
+            "QORE_CTRADER_ACCESS_TOKEN": "c",
+            "QORE_CTRADER_REFRESH_TOKEN": "d",
+        }, clear=True):
+            with self.assertRaisesRegex(ValueError, "NO_COMPLETE_CTRADER_OAUTH_BUNDLE"):
+                select_complete_credential_bundle()
+
+    def test_complete_demo_bundle_wins_as_single_grant(self):
+        with patch.dict("os.environ", {
+            "QORE_CTRADER_DEMO_CLIENT_ID": "demo-id",
+            "QORE_CTRADER_DEMO_CLIENT_SECRET": "demo-secret",
+            "QORE_CTRADER_DEMO_ACCESS_TOKEN": "demo-access",
+            "QORE_CTRADER_DEMO_REFRESH_TOKEN": "demo-refresh",
+            "QORE_CTRADER_CLIENT_ID": "generic-id",
+            "QORE_CTRADER_CLIENT_SECRET": "generic-secret",
+            "QORE_CTRADER_ACCESS_TOKEN": "generic-access",
+            "QORE_CTRADER_REFRESH_TOKEN": "generic-refresh",
+        }, clear=True):
+            self.assertEqual(select_complete_credential_bundle(), "DEMO_ALIAS_BUNDLE")
+            import os
+            self.assertEqual(os.environ["QORE_CTRADER_ACCESS_TOKEN"], "demo-access")
+            self.assertEqual(os.environ["QORE_CTRADER_CLIENT_ID"], "demo-id")
 
     def test_unknown_symbol_not_autoadmitted(self):
         with self.assertRaisesRegex(ValueError, "UNIVERSE33_OUT_OF_SCOPE"):
