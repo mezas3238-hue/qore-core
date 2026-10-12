@@ -8,7 +8,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from collections import Counter, defaultdict
 from datetime import UTC, date, datetime
 from pathlib import Path
 from statistics import mean
