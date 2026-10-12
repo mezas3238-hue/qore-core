@@ -167,30 +167,29 @@ def _read_demo_contract_source()->dict:
         authenticated=client.connect_and_authenticate()
         if isinstance(authenticated,Failure) or client.account_id!=account:
             raise SourceBlockedError("P0_DEMO_CLIENT_AUTH_FAILURE")
-        answer=client.request(
-            "ProtoOASymbolsListReq",
-            {"ctidTraderAccountId":account,"includeArchivedSymbols":False},
-            client_msg_id="alpha2-g2-p0-4name-2alias-exact-catalog",
-            timeout_seconds=35,
-        )
-        if isinstance(answer,Failure):
-            raise SourceBlockedError("P0_CATALOG_RESPONSE_FAILURE")
-        if not isinstance(
-            answer.value,client._bindings.messages["ProtoOASymbolsListRes"]
-        ):
-            raise SourceBlockedError("P0_CATALOG_RESPONSE_WRONG_PROTO")
-        response_account=getattr(answer.value,"ctidTraderAccountId",None)
-        if type(response_account) is not int or response_account<=0:
-            raise SourceBlockedError("P0_CATALOG_RESPONSE_ACCOUNT_ID_MISSING")
-        if response_account!=account:
-            raise SourceBlockedError("P0_CATALOG_RESPONSE_ACCOUNT_ID_MISMATCH")
-        catalog=source_catalog(tuple(getattr(answer.value,"symbol",())))
-        # Require known exact source names NZDUSD and XAGUSD, and one
-        # broker name for each index; alias only labels source candidates.
-        if ("NZDUSD" not in catalog or "XAGUSD" not in catalog
-                or not any(n in catalog for n in ("NAS100","USTEC"))
-                or not any(n in catalog for n in ("SP500","US500"))):
-            raise SourceBlockedError("P0_ALL_FOUR_BROKER_NAME_CANDIDATES_UNAVAILABLE")
+        # V2: reuse the SAME verified, authenticated DEMO source catalog.
+        # No second SymbolList request (original adapter returned Failure).
+        # The verified census does NOT ask USTEC by name; absence is explicit.
+        verified=proof.get("catalog",{})
+        matches=verified.get("catalog_exact_matches",{})
+        exact_enabled=set(verified.get("available_exact",()))
+        catalog={}
+        for name in sorted(NAMES):
+            item=matches.get(name)
+            if not isinstance(item,dict) or name not in exact_enabled:
+                continue
+            sid=item.get("symbol_id")
+            if (item.get("broker_symbol")!=name or
+                    item.get("enabled") is not True or
+                    type(sid) is not int or sid<=0):
+                raise SourceBlockedError("P0_BROKER_VERIFIED_CATALOG_ITEM_INVALID")
+            catalog[name]=sid
+        if len(set(catalog.values()))!=len(catalog):
+            raise SourceBlockedError("P0_BROKER_VERIFIED_CATALOG_ID_COLLISION")
+        if not {"NZDUSD","XAGUSD"}.issubset(catalog):
+            raise SourceBlockedError("P0_TWO_EXACT_FX_METAL_BROKER_NAMES_MISSING")
+        if not any(name in catalog for name in ("SP500","US500")):
+            raise SourceBlockedError("P0_US500_SP500_BROKER_NAME_MISSING")
         ids=sorted(catalog.values())
         specs=client.request(
             "ProtoOASymbolByIdReq",
@@ -221,9 +220,25 @@ def _read_demo_contract_source()->dict:
             name:extract_detail(name,sid,provided[sid])
             for name,sid in catalog.items()
         }
-        return {"catalog_enabled_exact":catalog,
-                "full_current_demo_symbol_details":named,
-                "four_canonical_matrix":build_canonical_matrix(catalog,named)}
+        matrix=build_canonical_matrix(catalog,named)
+        resolved=sum(
+            value["provider_detail_name"] is not None for value in matrix.values()
+        )
+        # Audit label even when 3 of 4 broker specs available: no guesses.
+        source_state=(
+            STATUS if resolved==4 else
+            "CURRENT_DEMO_3OF4_CONTRACT_PRIMITIVES_PARTIAL_NOT_EQUIVALENT"
+            if resolved==3 else BLOCKED
+        )
+        return {
+            "catalog_enabled_exact":catalog,
+            "broker_catalog_source":"AUTHENTICATED_PREFLIGHT_SINGLE_SOURCE",
+            "catalog_names_not_covered":sorted(NAMES-set(catalog)),
+            "full_current_demo_symbol_details":named,
+            "four_canonical_matrix":matrix,
+            "current_contract_primitive_market_count":resolved,
+            "source_state":source_state,
+        }
     finally:
         client.close()
 
@@ -248,12 +263,16 @@ def execute(destination:Path)->dict:
     try:
         payload=_read_demo_contract_source()
         result.update(payload)
-        result["status"]=STATUS
+        result["status"]=payload["source_state"]
     except Exception as exc:  # no raw auth / account / SDK exception leak
         static={
             "P0_ICMARKETS_DEMO_CATALOG_NOT_VERIFIED",
             "P0_DEMO_ACCOUNT_SOURCE_INVALID",
             "P0_DEMO_CLIENT_AUTH_FAILURE",
+            "P0_BROKER_VERIFIED_CATALOG_ITEM_INVALID",
+            "P0_BROKER_VERIFIED_CATALOG_ID_COLLISION",
+            "P0_TWO_EXACT_FX_METAL_BROKER_NAMES_MISSING",
+            "P0_US500_SP500_BROKER_NAME_MISSING",
             "P0_CATALOG_RESPONSE_FAILURE",
             "P0_CATALOG_RESPONSE_WRONG_PROTO",
             "P0_CATALOG_RESPONSE_ACCOUNT_ID_MISSING",
@@ -292,7 +311,9 @@ def main()->None:
         "net_certified":False,
         "safe_blocker":value.get("safe_blocker"),
     },sort_keys=True))
-    if value["status"]!=STATUS:
+    if value["status"] not in (
+        STATUS,"CURRENT_DEMO_3OF4_CONTRACT_PRIMITIVES_PARTIAL_NOT_EQUIVALENT",
+    ):
         raise SystemExit(4)
 
 
