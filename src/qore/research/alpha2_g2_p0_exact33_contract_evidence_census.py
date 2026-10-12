@@ -97,7 +97,7 @@ def _verify_one(name: str, run: Any, artifacts: Any) -> dict:
         or a.get("name") != prefix + head
         or a.get("digest") != digest
         or re.fullmatch(r"sha256:[0-9a-f]{64}", str(a.get("digest"))) is None
-        or HEX64.fullmatch(head) is None
+        or HEX40.fullmatch(head) is None
         or a.get("expired") is not False
         or type(a.get("size_in_bytes")) is not int
         or a["size_in_bytes"] <= 0
