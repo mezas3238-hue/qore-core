@@ -4,9 +4,7 @@ from math import cos, exp, sin
 
 import pytest
 
-from qore.research.alpha2_intermarket import (
-    H4, MARKETS, Bar, signal_at,
-)
+from qore.research.alpha2_intermarket import H4, MARKETS, Bar, signal_at
 from qore.research.alpha2_ultrafast import optimized_signals
 
 
