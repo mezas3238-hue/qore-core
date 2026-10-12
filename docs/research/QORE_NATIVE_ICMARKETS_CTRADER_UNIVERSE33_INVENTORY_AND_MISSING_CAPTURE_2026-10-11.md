@@ -60,3 +60,17 @@ Código:
 Este es **source-only**, no un grid de 33 pruebas de edge. Incluir 33 activos NO multiplica los falsos positivos sin control: futuras pruebas requieren hipótesis económica predefinida, agrupación FX por moneda compartida, controles por clase, multiplicidad y holdout independiente. La cobertura de instrumentos y la certificación de estrategias son trabajos diferentes.
 
 **Aprobación para crear archivos históricos read-only en GitHub: sí (directiva Owner). Promoción a Trader, PAPER, VPS, órdenes y LIVE: NO.**
+
+
+## 6. RESULTADO DE LA CAPTURA SOLICITADA — EJECUTADO Y BLOQUEADO POR TOKEN
+
+**Evidencia final de GitHub Actions:** [run #38191796877](https://github.com/mezas3238-hue/qore-core/actions/runs/38191796877), commit probado `043151189b73483b0dc7a886c812265e81d767e2`.
+
+- `offline_inventory_contract=SUCCESS`: catálogo QORE de 33 generado, pruebas sintéticas y Ruff correctas.
+- `broker_catalog_gate=FAILURE`: el informe seguro (sin credenciales) y los logs dieron exactamente `CTRADER_ACCESS_TOKEN_INVALID_NO_REFRESH_ATTEMPTED`. El antiguo access token presente en GitHub Actions fue rechazado por cTrader al solicitar la lista de cuentas; el código **NO solicitó una renovación** para no invalidar credenciales por refresh sin persistencia.
+- `capture_missing_m5=SKIPPED` por dependencia correcta del gate. **0/21 archivos M5 nuevos**, **0/24 archivos M1 nuevos**. No se conoce catálogo real ni asociación confirmada con broker IC Markets: ambos deben permanecer `UNVERIFIED`.
+- No se exige volver a copiar M5 de los doce del Atlas o EURJPY/USDCHF 7Y: todos los artefactos anteriores permanecen intactos.
+
+**P0 para permitir descargas reales:** recuperar/reautorizar un grant cTrader de la **cuenta IC Markets DEMO exacta** con permiso `accounts`/view y actualizar el secreto correspondiente bajo GitHub Actions/vault con rotación **atómica y persistente** del access+refresh; no revelar datos secretos en Issue, PR ni chat. Después una ejecución nueva podrá obtener `brokerTitleShort` y el catálogo nativo y, solo si demuestra IC Markets DEMO, habilitar el trabajo de captura. Sin ese paso, repetir el workflow por fuerza bruta NO resuelve el bloqueo.
+
+**Prueba de honestidad:** `CAPTURE_BLOCKED_AUTH` ≠ `ICMARKETS_SYMBOL_UNAVAILABLE`. El rechazo no permite concluir que NZDUSD ni los cruces no existan en el broker. No afirmar un dato descargado que no fue realmente recibido.
