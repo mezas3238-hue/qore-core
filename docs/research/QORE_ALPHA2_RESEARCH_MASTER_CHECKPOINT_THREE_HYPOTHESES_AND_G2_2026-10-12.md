@@ -91,3 +91,5 @@ Prioridad operativa ahora: probar contratos y disponibilidad real vía captura f
 - **THIS IS NOT EXECUTION/CERTIFICATION:** 60sec quote source availability after client dequeue, not broker matching-engine fill, 24×7 coverage, historical 2016–2024 same-account costs, macro PIT, OOS alpha or UTC001. No historical reserved 2026 quote ticks opened. Keep 33 original M5 source hashes and W1/W2/W3 NO_SUPPORT frozen; 0 Alpha2 certified.
 
 **Priority next:** verify exact current broker contracts for 4 excluded markets and dual account Original12↔new21 provenance, prepare durable segmented 29/33 receiver per session with source SHA/data retention, authenticate actual per-unit price payout and fee schedules, then independent OOS pre-reg and release only if UTC001 per year/fold NET certified. Main/VPS/MT5/Shared/CIBO/QDLE/PAPER/LIVE untouched.
+
+**P0 ownership separado y accionable:** [Issue #868](https://github.com/mezas3238-hue/qore-core/issues/868) exige prueba contractual NAS100/USTEC y SP500/US500, compatibilidad Original12 versus new21 y verificación NZDUSD/XAGUSD. Ninguna homologación por parecido de nombres; todas las discrepancias bloquean NET y Alpha2.
