@@ -1,0 +1,46 @@
+name: VT31 Edge Preregistered Four Horizons Evidence Audit V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-edge-directional-preregistered-20261012
+    paths:
+      - .github/workflows/vt31-edge-preregistered-result-audit-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  EVIDENCE_ARTIFACT: "11774781034"
+  PRE_REGISTERED_RUN: "38310949637"
+
+jobs:
+  readonly-horizons-and-checksum:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve UNCHANGED preregistered result and print all horizons
+        run: |
+          set -euo pipefail
+          mkdir -p readback
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT}/zip" > evidence.zip
+          unzip -q evidence.zip -d readback
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('readback/vt31-directional-15m-prereg-3y.json').read_text())
+          assert report["pre_registered_primary_minutes"] == 15
+          assert report["original_candidate_count"]==2140
+          assert report["market_sha256"]=="0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+          assert report["source_ledger_artifact_id"]==11657461650
+          assert report["economic_edge_status"]=="EDGE_ECONOMICO_NO_DEMOSTRADO"
+          assert report["horizons"]["15"]["preregistered_directional_screen_passed"] is False
+          print("READ ONLY EVIDENCE ARTIFACT",11774781034,"original RUN",38310949637)
+          for k,v in report["horizons"].items():
+              print(json.dumps({"minutes":k,"n":v["valid_exact_contiguous_M1"],"coverage":v["coverage_pct"],"gross":v["mean_gross_directional_pts"],"net":v["mean_net_fixed_1p60_hypothetical_pts"],"sessions":v["sessions"],"primary":v["is_preregistered_primary"]},sort_keys=True))
+          print("PREREG PRIMARY 15m:",json.dumps(report["horizons"]["15"],sort_keys=True))
+          PY
