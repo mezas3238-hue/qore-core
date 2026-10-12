@@ -74,23 +74,31 @@ def window_milliseconds(window: tuple[str, str]) -> tuple[int, int]:
 
 
 def decode_native(raw: tuple[object, ...], begin: int, finish: int) -> list[tuple[int, int]]:
-    """cTrader first ms is absolute; following ms are backwards deltas."""
+    """cTrader first ms and price absolute; later signed deltas accumulated."""
     result: list[tuple[int, int]] = []
-    previous: int | None = None
+    previous_at: int | None = None
+    previous_price: int | None = None
     for row in raw:
-        millis, integer_price = getattr(row, "timestamp", None), getattr(row, "tick", None)
-        if type(millis) is not int or type(integer_price) is not int or integer_price <= 0:
+        millis, signed_price = getattr(row, "timestamp", None), getattr(row, "tick", None)
+        if type(millis) is not int or type(signed_price) is not int:
             raise SourceBlock("BAD_PROVIDER_TICK")
-        if previous is None:
-            now = millis
+        if previous_at is None:
+            # The first item is an absolute timestamp and integer price.
+            now, integer_price = millis, signed_price
         else:
-            if millis < 0:
-                raise SourceBlock("NEGATIVE_TICK_DELTA")
-            now = previous - millis
-        if now < begin or now > finish or (previous is not None and now > previous):
+            # Spotware ticks are newest-first; subsequent signed time and PRICE
+            # deltas are relative to the PREVIOUS reconstructed tick.
+            assert previous_price is not None
+            if millis > 0:
+                raise SourceBlock("INVERTED_NATIVE_TIME_DELTA")
+            now = previous_at + millis
+            integer_price = previous_price + signed_price
+        if integer_price <= 0:
+            raise SourceBlock("BAD_PROVIDER_TICK")
+        if now < begin or now > finish or (previous_at is not None and now > previous_at):
             raise SourceBlock("TICK_TIME_OUTSIDE_QUERY")
         result.append((now, integer_price))
-        previous = now
+        previous_at, previous_price = now, integer_price
     return result
 
 
