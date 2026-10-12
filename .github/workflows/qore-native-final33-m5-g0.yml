@@ -40,6 +40,8 @@ jobs:
     timeout-minutes: 15
     outputs:
       all_published: ${{ steps.proof.outputs.all_published }}
+      available_json: ${{ steps.proof.outputs.available_json }}
+      available_count: ${{ steps.proof.outputs.available_count }}
     steps:
       - id: proof
         name: Do NOT promote 33 unless all exact 3 original artifacts published by producer run
@@ -57,11 +59,14 @@ jobs:
           payload=json.loads(subprocess.check_output(["gh","api",url],text=True))
           artifacts={x["name"]:x for x in payload.get("artifacts",[])}
           missing=[]
+          available=[]
           for symbol in symbols:
               key=f"qore-native-icmarkets-10Y-provider-M5-{symbol}-{parent}"
               x=artifacts.get(key)
               if x is None or x.get("expired") is not False or x.get("size_in_bytes",0)<=0:
                   missing.append(symbol)
+              else:
+                  available.append(symbol)
           ready=not missing
           report={
               "identity":"QORE_NATIVE_FINAL33_SOURCE_PUBLICATION_PRECHECK_V1",
@@ -69,6 +74,7 @@ jobs:
               "source_code_sha":parent,
               "tail_symbols":list(symbols),
               "missing_artifacts":missing,
+              "available_to_audit_but_NOT_in_G0_33":available,
               "all_three_source_artifacts_published_not_verified":ready,
               "g0_33_certified":False,
               "bidask_or_pnl_not_read":True,
@@ -77,8 +83,10 @@ jobs:
           Path("readiness/published-only.json").write_text(json.dumps(report,indent=2)+"\n")
           with open(os.environ["GITHUB_OUTPUT"],"a") as output:
               output.write(f"all_published={'true' if ready else 'false'}\n")
+              output.write(f"available_json={json.dumps(available,separators=(',',':'))}\n")
+              output.write(f"available_count={len(available)}\n")
           print("ORIGINAL_3_SOURCE_ARTIFACTS_READY" if ready else "SOURCE_PENDING_NOT_33",
-                "missing",",".join(missing))
+                "missing",",".join(missing),"audit_available",",".join(available))
           PY
       - uses: actions/upload-artifact@v4
         with:
@@ -89,14 +97,14 @@ jobs:
 
   audit_last_three_originals:
     needs: published_originals_preflight
-    if: ${{ needs.published_originals_preflight.outputs.all_published == 'true' }}
+    if: ${{ needs.published_originals_preflight.outputs.available_count != '0' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
       fail-fast: false
       max-parallel: 3
       matrix:
-        symbol: [NZDJPY, NZDCAD, NZDCHF]
+        symbol: ${{ fromJSON(needs.published_originals_preflight.outputs.available_json) }}
     env:
       SYMBOL: ${{ matrix.symbol }}
     steps:
@@ -136,7 +144,8 @@ jobs:
           if-no-files-found: warn
 
   publish_exact_source33:
-    needs: audit_last_three_originals
+    needs: [published_originals_preflight, audit_last_three_originals]
+    if: ${{ needs.published_originals_preflight.outputs.all_published == 'true' && needs.audit_last_three_originals.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
