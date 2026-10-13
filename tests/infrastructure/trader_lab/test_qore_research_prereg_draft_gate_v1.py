@@ -14,6 +14,11 @@ from qore.infrastructure.trader_lab import qore_research_prereg_draft_gate_v1 as
 from qore.infrastructure.trader_lab import qore_research_zero_budget_intake_v1 as q
 
 
+_SUBPROCESS_PATCH = (
+    "qore.infrastructure.trader_lab.qore_research_prereg_draft_gate_v1.subprocess.run"
+)
+
+
 def _draft() -> dict[str, Any]:
     return {
         "proposal_code": "research.proposal.independent-native-mechanism",
@@ -224,13 +229,13 @@ class TestPreregDraftGate(unittest.TestCase):
         frozen = json.dumps(_manifest([spec])).encode()
         fake_ok = subprocess_result(0, frozen)
         fake_fail = subprocess_result(1, b"")
-        with patch("qore.infrastructure.trader_lab.qore_research_prereg_draft_gate_v1.subprocess.run", side_effect=[fake_fail, fake_ok]):
+        with patch(_SUBPROCESS_PATCH, side_effect=[fake_fail, fake_ok]):
             with self.assertRaisesRegex(ValueError, "GIT_ANCESTRY_OR_SOURCE_NOT_VERIFIED"):
                 p.verify_prereg_before_outcome_git(
                     "a" * 40, "b" * 40, prereg_path="docs/research/prereg.json",
                     draft_sha256=digest, proposal_code=spec["proposal_code"],
                 )
-        with patch("qore.infrastructure.trader_lab.qore_research_prereg_draft_gate_v1.subprocess.run", side_effect=[fake_ok, fake_ok]):
+        with patch(_SUBPROCESS_PATCH, side_effect=[fake_ok, fake_ok]):
             with self.assertRaisesRegex(ValueError, "HISTORICAL_DRAFT_WAS_CHANGED"):
                 p.verify_prereg_before_outcome_git(
                     "a" * 40, "b" * 40, prereg_path="docs/research/prereg.json",
@@ -244,7 +249,7 @@ class TestPreregDraftGate(unittest.TestCase):
         ).encode()).hexdigest()
         historical = json.dumps(_manifest([spec])).encode()
         with patch.object(
-            "qore.infrastructure.trader_lab.qore_research_prereg_draft_gate_v1.subprocess.run",
+            _SUBPROCESS_PATCH,
             side_effect=[subprocess_result(0, b""), subprocess_result(0, historical)],
         ) as patched:
             self.assertTrue(p.verify_prereg_before_outcome_git(
