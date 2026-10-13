@@ -198,6 +198,8 @@ def adversarial_assessment(
         CrtPureEpistemicReadiness.CONDITIONALLY_SUPPORTED,
     }:
         challenge.append("METACOGNITION_NOT_WELL_SUPPORTED")
+        # Preserve the reason, not just a generic flag, in the cognitive WHY.
+        challenge.extend(metacognition.reasons)
     challenge.extend(state.uncertainties)
 
     verdict = (
