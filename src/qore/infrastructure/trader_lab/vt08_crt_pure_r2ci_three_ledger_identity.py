@@ -76,6 +76,7 @@ def _reconcile_three(
         structural_ids.add(key[:3])
 
     selected_by: dict[tuple[str, str, str, tuple[str, ...]], set[str]] = defaultdict(set)
+    selected_structural: dict[tuple[str, str, str], set[str]] = defaultdict(set)
     missing_r2g: Counter[str] = Counter()
     for row in r2g:
         key = _exact(
@@ -83,6 +84,7 @@ def _reconcile_three(
             tuple(row["reference_ids"]),
         )
         policy = row["competition_policy"]
+        selected_structural[key[:3]].add(policy)
         if key not in r2f_ids:
             if key[:3] in structural_ids:
                 missing_r2g["STRUCTURAL_MATCH_REFERENCE_ID_DIFFERENCE"] += 1
@@ -108,6 +110,8 @@ def _reconcile_three(
             status = "ALREADY_EVALUATED_NEWEST"
         elif chosen:
             status = "EVALUATED_OTHER_R2G_POLICY_ONLY"
+        elif key[:3] in selected_structural:
+            status = "PARTIAL_R2G_REFERENCE_ID_MISMATCH"
         else:
             status = "NOT_SELECTED_IN_ARCHIVED_R2G_POLICIES"
         selected_counts[status] += 1
