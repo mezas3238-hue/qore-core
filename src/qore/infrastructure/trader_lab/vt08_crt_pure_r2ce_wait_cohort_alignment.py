@@ -8,14 +8,21 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from collections.abc import Callable
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2by_audusd_cognitive_experience_wf as r2by,
+)
+from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2bz_usdjpy_cognitive_experience_wf as r2bz,
+)
+from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2cc_audusd_cognitive_wait_resolution_wf as r2cc,
+)
+from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2cd_usdjpy_cognitive_wait_resolution_wf as r2cd,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
@@ -95,12 +102,16 @@ def _reference_check(market: str, control: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _aud_initial_decision(model: Any, row: Any) -> Any:
+    return r2by._decision(model=model, record=row)
+
+
 def run_market(market: str) -> dict[str, Any]:
     if market == "AUDUSD":
         module: Any = r2cc
         start, end, training_years = r2cc.START, r2cc.END, r2cc.TRAINING_YEARS
         records, source_diagnostics = r2cc._build_records()
-        initial_decision = lambda model, row: r2by._decision(model=model, record=row)
+        initial_decision = _aud_initial_decision
         initial_fit = r2by._fit
         year_start = r2cc._year_start
         slice_records = r2cc._slice
@@ -109,7 +120,7 @@ def run_market(market: str) -> dict[str, Any]:
         module = r2cd
         start, end, training_years = r2cd.START, r2cd.END, r2bz.TRAINING_YEARS
         records, source_diagnostics = r2bz._build_records()
-        initial_decision = lambda model, row: r2bz._decision(model, row)
+        initial_decision = r2bz._decision
         initial_fit = r2bz._fit
         year_start = r2bz._year_start
         slice_records = r2bz._slice
