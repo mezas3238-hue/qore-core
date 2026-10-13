@@ -50,7 +50,7 @@ def test_original_archive_exact_trade_reconciliation(tmp_path: Path) -> None:
         "target_arm": r2cj.ARM,
         "full_window": {"trades": 1, "profit_factor": None, "total_r": 1.5},
         "annual": {
-            "2018_2019": {"trades": 1, "profit_factor": None, "total_r": 1.5}
+            "2017_2018": {"trades": 1, "profit_factor": None, "total_r": 1.5}
         },
     }
     out = r2cj._check_frozen("AUDUSD", "AQ", (row,), report)
