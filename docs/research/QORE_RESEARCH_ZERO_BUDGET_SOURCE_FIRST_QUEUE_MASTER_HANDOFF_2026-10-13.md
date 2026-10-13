@@ -1,3 +1,5 @@
+> **HANDOFF MAESTRO INTEGRAL MÁS RECIENTE:** [QORE Futures A / QORE Research / CF11 / Trader Lab — todos los trabajos, bloqueos y continuidad](QORE_FUTURES_A_QORE_RESEARCH_CF11_TRADER_LAB_MASTER_HANDOFF_INTEGRAL_2026-10-13.md). Este documento es un handoff PARCIAL específico de la cola source-first; para relevo completo utilizar primero el integral.
+
 # QORE Research — Handoff maestro: cola científica con presupuesto cero
 
 **13 de octubre de 2026. Estado: implementación y GitHub Actions SUCCESS. Presupuesto autorizado de datos: USD 0. Sin merge ni LIVE.**
