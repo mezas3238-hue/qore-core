@@ -419,3 +419,34 @@ W1 PATR/W2 PADE = **`INCONCLUSIVE_UNDERPOWERED`**, no falsación. W3 CMTRL = **`
 **Issue [#886](https://github.com/mezas3238-hue/qore-core/issues/886)** asigna al otro arquitecto único objetivo: fuente licenciada **historia PIT F1M forward/points 2016–2024** para 28 instrumentos + spot value dates; documentar cobertura antes de PnL, o declarar factor no-identificable. Una fuente candidata explícita (acceso aún NO autorizado ni verificado) es **LSEG WMR FX 1M histories via Bloomberg**, sujetos a licencias/terminal. Si solo existen series de tipos oficiales de 8 monedas, permitir **otro prereg y otro nombre** como 'policy-rate differential carry proxy', no falsación del forward carry original. Si solo siete forwards USD, cruzarlos sintéticamente sin bases/conventions sería estimador distinto. Ni siquiera si un proxy sale bien puede certificar el CFD financiero.
 
 **Siguiente prioridad científica**: desbloquear esta sola variable de FX carry, NO reabrir TSMOM/XSREV5, y sin dedicar rondas a custodia para aparentar hacer investigación. #837 vault es urgencia paralela antes 16-dic, pero NO la razón de no poder identificar carry. PR #840 DRAFT, 0 edge net validado, 0 traders certificados y 0 órdenes.
+
+
+---
+
+## Anexo VIII — FX28 POLICY-RATE CARRY: test económico REAL del BIS, FAIL de su gate preregistrado
+
+**El owner detectó una familia pertinente a un universo 28/33 FX:** cross-sectional policy-rate carry, no WMR 1M forwards. Confirmamos que estos dos experimentos NO son el mismo: el test de forward puro sigue `CARRY_NOT_IDENTIFIABLE_SPOT_ONLY` y no puede declararse fallido. **Se preregistró explícitamente un nuevo PROXY antes de ver cualquier resultado** [FX28 Policy Carry Prereg](QORE_ALPHA2_FX28_POLICY_CARRY_SINGLE_PREREG_2026-10-12.md), commit `e669a1d2100f94a0c17e3773b177a3ead3661e16`.
+
+**Fuente pública resuelta y descargada**: BIS dataset `WS_CBPOL` monthly EOP, export flat oficial `https://data.bis.org/static/bulk/WS_CBPOL_csv_flat.zip`, ZIP original SHA256 `6a616df4397881703cfe2a13cb9e1460b2defd3a26aceb14613fd6da1f3bb773`. Coordinado con bancos centrales Fed/ECB/BoE/BoJ/SNB/RBA/RBNZ/BoC; ocho países AU CA CH XM GB JP NZ US para AUD/CAD/CHF/EUR/GBP/JPY/NZD/USD. 97 meses Aug2016-Aug2024 en siete monedas, JPY 96 meses Sep2016-Aug2024 (NO imputar Aug2016). BIS es reconstrucción retrospectiva y sus tasas PUEDEN tener cambios de metodología: **CHF hasta Jun12 2019 midpoint del target 3M Libor**, desde Jun13 2019 SNB policy rate; fuente compuesta documenta continuidad pragmática pero no tasa homogénea; EUR MRO hasta Sep17 2024. No decir "sin vintage" incondicional.
+
+**Ejecución económica fuente real**: [GitHub Actions #38324333304](https://github.com/mezas3238-hue/qore-core/actions/runs/38324333304), **COMPLETED SUCCESS** code HEAD `b3fdeda87042d5c6124917897581d8cada61cb78`, Ruff PASS, **6/6 synthetic causal PASS**, original SHA 11y verificadas **7 FX Atlas+21 FX ICMarkets=28**, BIS 8/8 tasas, intersección 2084 días UTC. Escala mensual prereg signal del **mes previo EOM**, entrada después del **16** (lag al menos15 días), ranking r_base−r_quote high6 long low6 short, w±1/12; hold hasta antes del 16 del siguiente mes; referencia M5 OPEN/CLOSE, 2bps costo supuesto POR LADO en basket notional1=4bps/mes, separación **spot-only** + **devengo ficticio de diferencial de policy rates**, NO SWAP REAL/forward/NET. 3-calendar-month circular block bootstrap B2000 seed20261012; gate doble desarrollo+diagnóstico CI inferior>0, muestras ≥24/12. Históricos 2016–2024 ya expuestos, no OOS virgen.
+
+**Artefacto original** Actions #11780900569 ZIP SHA256 `8ba1746a70956ee42cd8cb5fbd84afda8d37d4c46ea4b67c3d05f546065b5fc6`, **ZIP e internos 2/2 rehasheados PASS de forma independiente**. [Informe real completo de cierre](QORE_ALPHA2_FX28_POLICY_CARRY_BIS_ONE_REAL_RESULT_2026-10-12.md). Audit adicional: 94/94 carteras long6/short6 disjuntas, suma spot+policy−4bps coincide resultado, no OHLC ni filas originales tasas publicadas.
+
+| Métrica modelada mensual | DEV 2016–21 | DIAG 2022–24 |
+|---|---:|---:|
+| Meses validos y calendario | **62/64** | **32/32** |
+| Spot-only referencia bps | −8,96574 | −5,68278 |
+| **Interés hipotético policy spread** bps | +10,38464 | +19,24501 |
+| Gross model | +1,41890 | +13,56223 |
+| **Modelo menos COSTO supuesto 2bp/side** bps | **−2,45610** | **+9,56223** |
+| **IC95 block3m** | **[−27,97939,+22,76375]** | **[−37,48652,+54,20363]** |
+| **Sharpe anualizado DEL MODELO no broker NET** | **−0,06892** | **+0,26361** |
+| Sample gate 24/12 | PASS | PASS |
+| Both mean and CI95 low>0 | FAIL | FAIL |
+
+**Dictamen congelado `POLICY28_PREDECLARED_MODEL_SCREEN_FAILED_STOP`.** La prima devengada teórica positiva es contrarrestada por depreciación relativa en spot. DEV media net_cost_proxy negativa, DIAG media positiva pero IC cruza cero y Sharpe diagnóstico **0,26** incluso con devengo ficticio (no cumple 0,5). Todos los CIs incluyen cero, no afirmar signo verdadero cero ni la inexistencia universal de FX carry. Tampoco afirmar que el carry forward fallaría: FX forward incluye condiciones efectivas de financiación, base intermonedas, plazos, swaps reales. **Parar esta especificación**, no probar top4/8, fecha15/20, filtrar JPY/CHF, calcular otra tasa retrospectivamente, periodo favorable 2023/24. No atribuir Sharpe/PF/DD real de bróker ni posibilidad de fill.
+
+**Concentración efectiva de moneda**: 28 pares FX = 8 monedas y ≤7 factores de rates. DEV media absoluta CHF **0,4194**, NZD **0,2903**; DIAG JPY **0,3411**, NZD **0,3255** (fraction total gross notional1); máximos mensuales por moneda **0,5833 DEV, 0,5000 DIAG**. No diversificación nominal de 28 contratos independientes. Retorno sintético en quote/base no USD portfolio NAV.
+
+**La prioridad siguiente NO es infraestructura interminable:** el mecanismo policy-rate carry concreto fue realmente probado y no dio edge bajo gate preinscrito. Mantener resultados y buscar decisiones estratégicas informadas. Futuro test verdadero forward requiere fuente `F1M` histórica y nuevos controles, *no rebrand del policy test*. No diluir tiempo en otro parámetro de estas familias sobre años gastados. Issue #886 lleva todo el cruce con segundo arquitecto, y #837 archivo original, #852 PIT broker spread, #868 identidad son tareas de calidad independientes. PR #840 DRAFT, 0 Alpha2 certificado, 0 órdenes, NO VPS/MT5/PAPER/LIVE/CIBO/Shared/QDLE.
