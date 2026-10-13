@@ -1,0 +1,70 @@
+name: QORE Native H6 source GO-NOGO BIS8 2010 FX28 Dukascopy sample no PnL
+
+on:
+  push:
+    branches:
+      - research/qore-native-h6-risk-scaled-carry-2010-preflight-20261012
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_h6_2010_fx_policy_source_preflight_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_h6_2010_fx_policy_source_preflight_v1.py'
+      - 'docs/research/QORE_NATIVE_H6_RISK_SCALED_CARRY_2010_EXTENSION_PREREG_SOURCE_FIRST_2026-10-12.md'
+      - '.github/workflows/qore-native-h6-2010-source-first.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: H6 ten no-lookahead source-metadata-only synthetic tests
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_h6_2010_fx_policy_source_preflight_v1.py -v
+
+  one_historical_source_preflight:
+    needs: synthetic_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe 2010-15 BIS rates eight + Dukascopy 28 symbols on two sample-hours only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_h6_2010_fx_policy_source_preflight_v1 h6-source-only-results/H6_BIS8_DUKA28_2010_2015_ONE_GO_NOGO.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('h6-source-only-results/H6_BIS8_DUKA28_2010_2015_ONE_GO_NOGO.json').read_text())
+          assert d['identity']=='QORE_NATIVE_H6_EXTENDED_SOURCE_BIS8_DUKA28_SINGLE_GO_NOGO_NO_OUTCOMES'
+          assert d['status'] in ('H6_DATA_CONDITION_NOT_MET',
+                                'TWO_HOUR_SAMPLES_GO_FOR_EXPANDED_DATA_ACQUISITION_ONLY')
+          assert len(d['BIS_source_reports'])==8
+          assert d['Dukascopy_sample_count']==56
+          assert d['FX_H6_vol20_Sortino_economic_returns_calculated'] is False
+          assert d['holdout_from_2024_09_17_read'] is False
+          assert d['no_bidask_or_rate_values_exported'] is True
+          assert d['certified_traders']==0
+          print('H6_ONE_REAL_SOURCE_FEASIBILITY_CHECK_DONE_NO_PNL_NO_HOLDOUT')
+          PY
+          printf '%s\n' "$GITHUB_SHA" > h6-source-only-results/exact-executed-code-sha.txt
+          (cd h6-source-only-results && sha256sum *.json *.txt > SHA256SUMS.txt)
+      - name: Publish only sample existence and aggregate source metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-h6-2010-go-nogo-source-only-${{ github.sha }}
+          path: h6-source-only-results/
+          if-no-files-found: error
+          retention-days: 30
