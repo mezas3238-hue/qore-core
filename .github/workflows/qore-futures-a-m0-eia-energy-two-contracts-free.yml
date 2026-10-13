@@ -1,0 +1,94 @@
+name: QORE Futures A M0 EIA energy 2-contract daily free source
+
+on:
+  push:
+    branches:
+      - research/qore-commodity-futures-mission-a-data-contract-20261013
+    paths:
+      - '.github/workflows/qore-futures-a-m0-eia-energy-two-contracts-free.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eia_daily_first_second_futures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install legacy XLS parser for US government XLS files
+        run: pip install xlrd==2.0.2
+      - name: Fetch and inventory 4 official free EIA XLS source files
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import urllib.request
+          from pathlib import Path
+
+          import xlrd
+
+          sources = [
+              ("WTI", 1, "https://www.eia.gov/dnav/pet/hist_xls/RCLC1d.xls"),
+              ("WTI", 2, "https://www.eia.gov/dnav/pet/hist_xls/RCLC2d.xls"),
+              ("NG", 1, "https://www.eia.gov/dnav/ng/hist_xls/RNGC1d.xls"),
+              ("NG", 2, "https://www.eia.gov/dnav/ng/hist_xls/RNGC2d.xls"),
+          ]
+          result = {
+              "authority": "US_EIA_GOVERNMENT_PUBLIC_DATA",
+              "budget_spent_usd": 0,
+              "dataset_type": "DAILY_FRONT_AND_SECOND_CONTRACT_PRICES_NOT_OHLCV",
+              "native_exchange_contract_ids_provided": False,
+              "published_asof_vintages_verified": False,
+              "per_contract_execution_data_provided": False,
+              "economic_PnL_calculated": False,
+              "observations": [],
+          }
+          for root, contract, url in sources:
+              row = {"root": root, "contract_rank": contract, "url": url}
+              try:
+                  req = urllib.request.Request(
+                      url, headers={"User-Agent": "QORE-SOURCE-AUDIT/1.0"}
+                  )
+                  with urllib.request.urlopen(req, timeout=25) as r:
+                      data = r.read(16 * 1024 * 1024 + 1)
+                  if len(data) > 16 * 1024 * 1024:
+                      raise ValueError("LIMIT_16_MIB")
+                  wb = xlrd.open_workbook(file_contents=data, on_demand=True)
+                  row["access"] = "SUCCESS"
+                  row["sha256_original_xls"] = hashlib.sha256(data).hexdigest()
+                  row["bytes_original_xls"] = len(data)
+                  row["sheets"] = []
+                  for sheet in wb.sheets():
+                      types_by_first_seven_rows = []
+                      for i in range(min(sheet.nrows, 7)):
+                          types_by_first_seven_rows.append(
+                              [int(sheet.cell(i, j).ctype) for j in range(min(sheet.ncols, 4))]
+                          )
+                      row["sheets"].append({
+                          "name": sheet.name,
+                          "rows": sheet.nrows,
+                          "columns": sheet.ncols,
+                          "first_7_row_cell_types_only": types_by_first_seven_rows,
+                      })
+              except Exception as exc:
+                  row["access"] = "ERROR"
+                  row["reason"] = type(exc).__name__ + ":" + str(exc)[:140]
+              print(json.dumps(row, sort_keys=True))
+              result["observations"].append(row)
+          Path("eia_energy_free_source_metadata.json").write_text(
+              json.dumps(result, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print("EIA_PRICE_SERIES_NOT_D1_OHLC_NOT_NATIVE_CONTRACT_NOT_CERTIFIED")
+          PY
+      - name: Preserve only metadata and hashes, not raw prices
+        uses: actions/upload-artifact@v4
+        with:
+          name: futures-a-m0-eia-energy-public-metadata
+          path: eia_energy_free_source_metadata.json
+          retention-days: 30

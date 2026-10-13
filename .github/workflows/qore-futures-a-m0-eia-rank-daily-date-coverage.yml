@@ -1,0 +1,49 @@
+name: QORE Futures A M0 EIA front2 historical dates cost-zero
+
+on:
+  push:
+    branches:
+      - research/qore-commodity-futures-mission-a-data-contract-20261013
+    paths:
+      - '.github/scripts/qore_futures_a_m0_eia_daily_rank_coverage_v1.py'
+      - '.github/workflows/qore-futures-a-m0-eia-rank-daily-date-coverage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eia_date_overlap_metadata_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install parser for official public EIA legacy XLS files
+        run: pip install xlrd==2.0.2
+      - name: Audit daily date overlap of WTI and NG first and second rolling future price ranks
+        run: python .github/scripts/qore_futures_a_m0_eia_daily_rank_coverage_v1.py
+      - name: Verify no claims of tradable contract data, prices or economic results
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('eia_energy_2012_2024_date_coverage_metadata_only.json').read_text())
+          assert d['budget_market_data_usd']==0
+          assert len(d['series'])==4
+          assert not d['full_D1_OHLCV_contract_native_history_verified']
+          assert not d['source_ready_for_prereg']
+          assert not d['PnL_trading_returns_calculated']
+          assert not d['holdout_market_prices_researched']
+          print('EIA_2_ROOT_ONLY_NO_OHLCV_NO_NATIVE_EXPIRIES_NO_PNL')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-futures-a-eia-date-coverage-no-market-values
+          path: eia_energy_2012_2024_date_coverage_metadata_only.json
+          retention-days: 30
+          if-no-files-found: error

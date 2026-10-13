@@ -1,0 +1,147 @@
+name: QORE Futures A M0 EIA free daily close-only export
+
+on:
+  push:
+    branches:
+      - research/qore-commodity-futures-mission-a-data-contract-20261013
+    paths:
+      - '.github/workflows/qore-futures-a-m0-eia-energy-reference-daily-export.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  free_gov_energy_reference_prices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install public XLS parser
+        run: pip install xlrd==2.0.2
+      - name: Normalize EIA historical front-2 daily CLOSE-ONLY data, never OHLC or PnL
+        run: |
+          python - <<'PY'
+          import csv
+          import hashlib
+          import json
+          import math
+          import urllib.request
+          from datetime import date, datetime, timezone
+          from pathlib import Path
+
+          import xlrd
+
+          endpoint = {
+              ("WTI", 1): "https://www.eia.gov/dnav/pet/hist_xls/RCLC1d.xls",
+              ("WTI", 2): "https://www.eia.gov/dnav/pet/hist_xls/RCLC2d.xls",
+              ("NG", 1): "https://www.eia.gov/dnav/ng/hist_xls/RNGC1d.xls",
+              ("NG", 2): "https://www.eia.gov/dnav/ng/hist_xls/RNGC2d.xls",
+          }
+          cutoff = date(2024, 9, 17)
+          dev_start = date(2012, 1, 1)
+          snapshot = datetime.now(timezone.utc).isoformat()
+          observations = []
+          records = []
+          for (root, rank), url in endpoint.items():
+              request = urllib.request.Request(
+                  url, headers={"User-Agent": "QORE-RESEARCH-EIA-PUBLIC-GOVERNMENT-D1/1.0"}
+              )
+              with urllib.request.urlopen(request, timeout=45) as response:
+                  contents = response.read(8 * 1024 * 1024 + 1)
+              if len(contents) > 8 * 1024 * 1024:
+                  raise RuntimeError("EIA_SOURCE_SIZE_LIMIT")
+              wb = xlrd.open_workbook(file_contents=contents, on_demand=True)
+              sheet = wb.sheet_by_name("Data 1")
+              per_series = {}
+              for ri in range(sheet.nrows):
+                  dtcell = sheet.cell(ri, 0)
+                  vlcell = sheet.cell(ri, 1)
+                  if dtcell.ctype != xlrd.XL_CELL_DATE or vlcell.ctype != xlrd.XL_CELL_NUMBER:
+                      continue
+                  day = xlrd.xldate_as_datetime(dtcell.value, wb.datemode).date()
+                  if not (dev_start <= day < cutoff):
+                      continue
+                  value = float(vlcell.value)
+                  if not math.isfinite(value):
+                      raise RuntimeError("EIA_NONFINITE_PRICE")
+                  if day in per_series:
+                      raise RuntimeError("EIA_DUPLICATE_SERIES_DATE")
+                  per_series[day] = value
+                  records.append({
+                      "root": root, "rank": rank, "trade_date": day.isoformat(),
+                      "daily_eia_futures_reference_price": str(value),
+                      "currency_units": "USD/bbl" if root == "WTI" else "USD/MMBtu",
+                      "native_contract_month": "NOT_PROVIDED",
+                      "OHLC": "NOT_PROVIDED",
+                      "first_published_at": "UNKNOWN",
+                  })
+              if not per_series:
+                  raise RuntimeError("EIA_NO_HISTORY_FOR_" + root + str(rank))
+              observations.append({
+                  "root": root,
+                  "rank": rank,
+                  "url": url,
+                  "xls_sha256": hashlib.sha256(contents).hexdigest(),
+                  "source_bytes": len(contents),
+                  "count_rows_in_research_window": len(per_series),
+                  "min_date": min(per_series).isoformat(),
+                  "max_date": max(per_series).isoformat(),
+                  "negative_reference_prices": sum(v < 0 for v in per_series.values()),
+                  "source_snapshot_at_utc": snapshot,
+                  "asof_publication_proved": False,
+                  "native_contract_expiry_id_proved": False,
+                  "official_OHLCV_proved": False,
+              })
+          buckets = {}
+          for rec in records:
+              key = (rec["root"], rec["trade_date"])
+              buckets.setdefault(key, set()).add(rec["rank"])
+          paired = {}
+          for root in ("WTI", "NG"):
+              dates = sorted(d for (r, d), ranks in buckets.items()
+                             if r == root and ranks == {1, 2})
+              paired[root] = {"count_paired_daily_reference_dates": len(dates),
+                              "first": dates[0] if dates else None,
+                              "last": dates[-1] if dates else None}
+          output = {
+              "gate": "EIA_PUBLIC_ENERGY_REFERENCE_ONLY_NOT_SOURCE_READY",
+              "budget_spent_usd": 0,
+              "source": "US_EIA_PUBLIC_XLS_DAILY",
+              "research_end_exclusive": cutoff.isoformat(),
+              "rows": len(records),
+              "series": observations,
+              "pairs": paired,
+              "full_six_roots_source_ready": False,
+              "contract_level_futures_tradeable_candles": False,
+              "economic_PnL_calculated": False,
+              "fx_original_holdout_economically_opened": False,
+          }
+          Path("eia_energy_daily_metadata.json").write_text(
+              json.dumps(output, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          with Path("eia_energy_WTI_NG_front2_daily_CLOSE_ONLY_2012_2024.csv").open(
+              "w", newline="", encoding="utf-8"
+          ) as fh:
+              writer = csv.DictWriter(fh, fieldnames=[
+                  "root", "rank", "trade_date", "daily_eia_futures_reference_price",
+                  "currency_units", "native_contract_month", "OHLC",
+                  "first_published_at",
+              ])
+              writer.writeheader()
+              writer.writerows(sorted(records,
+                                      key=lambda x: (x["root"], x["trade_date"], x["rank"])))
+          print(json.dumps(output, sort_keys=True))
+          print("EIA_4_PUBLIC_DAILY_CLOSE_ONLY_SOURCES_IMPORTED_NO_PNL_NO_NATIVE_CONTRACT_IDS")
+          PY
+      - name: Publish govt-reference closes separately from metadata, no trades or economic PnL
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-futures-a-eia-energy-reference-close-only-2012-2024
+          path: |
+            eia_energy_daily_metadata.json
+            eia_energy_WTI_NG_front2_daily_CLOSE_ONLY_2012_2024.csv
+          retention-days: 30

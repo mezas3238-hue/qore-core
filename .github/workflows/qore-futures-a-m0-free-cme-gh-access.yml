@@ -1,0 +1,44 @@
+name: QORE Futures A M0 free CME and public OHLC access check
+
+on:
+  push:
+    branches:
+      - research/qore-commodity-futures-mission-a-data-contract-20261013
+    paths:
+      - '.github/scripts/qore_futures_a_m0_public_vendor_eligibility_v1.py'
+      - '.github/workflows/qore-futures-a-m0-free-cme-gh-access.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  zero_dollar_public_metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe public directories and documented CME access boundary
+        run: python .github/scripts/qore_futures_a_m0_public_vendor_eligibility_v1.py
+      - name: Assert metadata-only, unlicensed 6x2 native futures still unavailable
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("qore_futures_a_zero_budget_cme_public_source_metadata.json").read_text())
+          assert x["budget_usd"]==0
+          assert len(x["github_root_inventory"])==6
+          assert x["real_futures_data_or_prices_downloaded"] is False
+          assert x["2012_2024_all_native_ohlcv_6x2_certified"] is False
+          assert x["backtest_or_PnL_calculated"] is False
+          assert x["fx_holdout_consumed"] is False
+          print("SOURCE_M0_ACCESS_CHECK_NO_REAL_PRICE_NO_PNL")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: futures-a-free-gh-cme-access-metadata-only
+          path: qore_futures_a_zero_budget_cme_public_source_metadata.json
+          retention-days: 30
