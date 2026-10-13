@@ -28,7 +28,7 @@ Fuente: [SSEconomics/commodity-spot-and-futures-data](https://github.com/SSEcono
 
 **Fuentes primarias oficiales:**
 
-- WTI Cushing 1º futuro [RCLC1D](https://www.eia.gov/dnav/pet/hist/RCLC1D.htm), 2º futuro [RCLC2D](https://www.eia.gov/dnav/pet/hist/RCLC2D.htm); cobertura visible desde 1983 (1º) y 1985 (2º) y años 2012–2024.
+- WTI Cushing 1º futuro [RCLC1D](https://www.eia.gov/dnav/pet/hist/RCLC1D.htm), 2º futuro [RCLC2D](https://www.eia.gov/dnav/pet/hist/RCLC2D.htm); cobertura histórica visible desde 1983 (1º) y 1985 (2º), pero **los ficheros XLS descargados terminan en 2024-04-05** en ambas posiciones.
 - Gas natural Henry Hub 1º futuro [RNGC1D](https://www.eia.gov/dnav/ng/hist/rngc1d.htm), 2º futuro [RNGC2D](https://www.eia.gov/dnav/ng/hist/rngc2d.htm); [EIA indica explícitamente que cesó publicar datos NG futures **después del 5 de abril de 2024**](https://www.eia.gov/dnav/ng/ng_pri_fut_s1_m.htm).
 
 Cuatro archivos XLS oficiales `https://www.eia.gov/dnav/pet/hist_xls/RCLC1d.xls`, `.../RCLC2d.xls`, `https://www.eia.gov/dnav/ng/hist_xls/RNGC1d.xls`, `.../RNGC2d.xls`. Se inició [Actions #38342875054](https://github.com/mezas3238-hue/qore-core/actions/runs/38342875054) para verificar descarga real y estructura (sin pago, sin token), no suponer que éxito significa certificado antes de ver logs.
@@ -51,3 +51,19 @@ Cuatro archivos XLS oficiales `https://www.eia.gov/dnav/pet/hist_xls/RCLC1d.xls`
 **Decisión para misión completa de seis productos:** `SOURCE_READY_FOR_PREREG=False` y `M0_BLOCKED_FOR_FULL_SIX_ROOTS_UNDER_USD0`, a menos que aparezcan fuentes gratuitas realmente equivalentes con derechos/cobertura y costes. **No extrapolar este NO-GO a inexistencia de edge**, ni evaluar económicamente la hipótesis de curva.
 
 **Única vía de valor sin gasto:** completar la revisión no-económica de la fuente EIA en un subalcance WTI y NG, guardando precios solo si copyright/legal lo permite, y no llamarla entrenamiento/certificación. No cambiar alcance a escondidas ni investigar estrategias sin autorización explícita. 0/3 QORE Native; no tocar LIVE, broker, VPS, MT5, CIBO, Shared, QDLE ni FX holdout.
+
+
+## 6. Resultado posterior verificado de descarga + exportación pública EIA
+
+**Actions EIA descubrimiento [#38342875054](https://github.com/mezas3238-hue/qore-core/actions/runs/38342875054) = SUCCESS**, efectivamente recibidos y decodificados los cuatro XLS (hoja `Data 1`, tipo fecha Excel y valor numérico). **Actions exportación [#38343102029](https://github.com/mezas3238-hue/qore-core/actions/runs/38343102029) = SUCCESS**, release artefacto [#11786984830](https://github.com/mezas3238-hue/qore-core/actions/runs/38343102029/artifacts/11786984830): **12.352 filas de precios diarios** para 2012-01-03 a 2024-04-05, recortadas ex ante al corte 2024-09-16. Artifact CSV + JSON de metadatos, **NO OHLC D1**; expira según política Actions y puede regenerarse del workflow. Ningún precio de TurtleTrader o fuente con derechos inciertos quedó comprometido en el repositorio.
+
+| Serie | Registros numéricos diarios útiles | Primera fecha | Última fecha | negativos | SHA256 XLS original |
+|---|---:|---|---|---:|---|
+| WTI rank1 | 3.086 | 2012-01-03 | **2024-04-05** | 1 | `a55a70d2438ebdc600a77f9d3f9c46be1e2f480ac5ffec3bb753c61cf21db0c9` |
+| WTI rank2 | 3.086 | 2012-01-03 | **2024-04-05** | 0 | `31d8a01ae5bd3cb8753925743802c9e77f11bd54ce1b5e0fd4d91d91940ecea7` |
+| NG rank1 | 3.090 | 2012-01-03 | **2024-04-05** | 0 | `1e71a774943c00cdba337c8be1c9888ea1d56b175c446527cc0d94f7dc2b03f1` |
+| NG rank2 | 3.090 | 2012-01-03 | **2024-04-05** | 0 | `abf42f8f7c6acc9581d283688d7571336a0ee4850c7ae43e433e37720f655aee` |
+
+**CORRECCIÓN:** la descripción previa del portal WTI sugería datos presentes durante todo 2024 o incluso 2026 por los rótulos de año/release. **Los XLS auténticos muestran terminación en abril 2024 también para WTI**. No afirmar que RCLC1D/RCLC2D cubren septiembre 2024. Esto restringe todavía más la calidad de los datos.
+
+**Dictamen específico:** `EIA_PUBLIC_REFERENCE_DAILY_SERIES_IMPORTED_PARTIAL`; no `CME_CONTRACT_NATIVE_OHLCV_CERTIFIED` ni `SOURCE_READY_FOR_PREREG`. El primer/segundo contrato de EIA son series de rango móvil; un cambio de rango en fecha de roll no es retorno de un contrato negociable. Sin precios individuales de mes de entrega, calendario de roll predecisión, bid/ask/costo, no calcular Sharpe, PF ni PnL. La fuente se puede estudiar como contexto de forma de curva, sin promocionarla.
