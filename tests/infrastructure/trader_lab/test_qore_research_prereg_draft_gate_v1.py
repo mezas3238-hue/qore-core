@@ -15,7 +15,6 @@ from qore.infrastructure.trader_lab import (
     qore_research_zero_budget_intake_v1 as q,
 )
 
-
 _SUBPROCESS_PATCH = (
     "qore.infrastructure.trader_lab.qore_research_prereg_draft_gate_v1.subprocess.run"
 )
