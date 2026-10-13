@@ -146,6 +146,12 @@ def assess_metacognition(
     if state.knowledge_state is CrtPureKnowledgeState.UNKNOWN:
         reasons.append("KNOWLEDGE_STATE_UNKNOWN")
         readiness = CrtPureEpistemicReadiness.UNRESOLVED
+    elif state.knowledge_state is CrtPureKnowledgeState.PARTIAL:
+        # Lack of listed uncertainties does not turn partial knowledge into proof.
+        # This is an epistemic contract, NOT a new CRT market-entry filter.
+        reasons.append("KNOWLEDGE_STATE_PARTIAL")
+        reasons.extend(state.uncertainties)
+        readiness = CrtPureEpistemicReadiness.CONDITIONALLY_SUPPORTED
     elif reasons:
         readiness = CrtPureEpistemicReadiness.CONDITIONALLY_SUPPORTED
     elif state.uncertainties:
