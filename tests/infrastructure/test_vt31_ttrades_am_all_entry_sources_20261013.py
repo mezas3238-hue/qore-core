@@ -15,7 +15,6 @@ from scripts.vt31_ttrades_am_all_entry_sources_20261013 import (
 )
 from scripts.vt31_ttrades_am_source_20261013 import Bar
 
-
 T = datetime(2025, 7, 1, 13, tzinfo=UTC)
 
 
