@@ -134,7 +134,7 @@ def bind_closed_eia_to_cf11(
         "evidence:research-eia:science-sha256:" + computed.scientific_receipt_sha256
     )
     requirements = tuple(
-        CiboEvidenceRef(f"evidence:source-eia:{name.lower()}:{sha}")
+        CiboEvidenceRef(f"evidence:source-eia:{name.lower().replace('_', '-')}:{sha}")
         for name, sha in sorted(SOURCE_SHA.items())
     )
     # Insufficient is intentional, not a misnomer: the statistical result is
