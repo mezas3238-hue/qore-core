@@ -90,6 +90,7 @@ class IctSilverBulletOperations:
                 )
                 if actual is None or actual != cognition.mss_anchor_close:
                     raise ValueError(
+                        "MSS_ANCHOR_INCONSISTENT_WITH_M1_DATA: "
                         "G3 MSS price witness not independently verified at M1"
                     )
             elif cognition.framework_policy != LEGACY_FRAMEWORK_POLICY:
