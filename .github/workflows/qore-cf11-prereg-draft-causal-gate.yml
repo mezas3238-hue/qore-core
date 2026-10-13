@@ -1,0 +1,106 @@
+name: QORE CF11 prereg draft causal gate (zero budget; no execution)
+
+on:
+  push:
+    branches:
+      - research/qore-cf11-prereg-draft-causal-gate-20261013
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_research_prereg_draft_gate_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_research_prereg_draft_gate_v1.py'
+      - '.github/scripts/qore_research_prereg_draft_receipt_v1.py'
+      - '.github/workflows/qore-cf11-prereg-draft-causal-gate.yml'
+      - 'docs/research/QORE_RESEARCH_PREREG_DRAFTS_2026-10-13.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prereg_draft_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: src:tests/infrastructure/trader_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE checkers
+        run: pip install "ruff>=0.5,<1" "mypy>=1.5,<2"
+      - name: Ruff for original queue and new prereg gate
+        run: >-
+          ruff check
+          src/qore/infrastructure/trader_lab/qore_research_zero_budget_intake_v1.py
+          src/qore/infrastructure/trader_lab/qore_research_prereg_draft_gate_v1.py
+          tests/infrastructure/trader_lab/test_qore_research_zero_budget_intake_v1.py
+          tests/infrastructure/trader_lab/test_qore_research_prereg_draft_gate_v1.py
+          .github/scripts/qore_research_zero_budget_queue_v1.py
+          .github/scripts/qore_research_prereg_draft_receipt_v1.py
+      - name: Mypy strict boundaries
+        run: >-
+          mypy
+          src/qore/infrastructure/trader_lab/qore_research_prereg_draft_gate_v1.py
+          tests/infrastructure/trader_lab/test_qore_research_prereg_draft_gate_v1.py
+          .github/scripts/qore_research_prereg_draft_receipt_v1.py
+      - name: Synthetic queue and new prereg adversarial cases
+        run: >-
+          python -m unittest -v
+          test_qore_research_zero_budget_intake_v1
+          test_qore_research_prereg_draft_gate_v1
+      - name: Retrieve original EIA diagnostic evidence (read only)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-futures-a-eia-frozen-dev-diag-only-no-pnl
+          repository: mezas3238-hue/qore-core
+          run-id: 38448311219
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/source
+      - name: Authenticate original EIA run, SHA and prereg Git ancestry
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python .github/scripts/qore_eia_research_science_receipt_v1.py \
+            --input "$RUNNER_TEMP/source/qore_futures_a_eia_f1f2_prereg_dev_diag_only.json" \
+            --output "$RUNNER_TEMP/verified-science.json"
+      - name: Build authentic science-only CF11 journal value
+        run: |
+          python .github/scripts/qore_eia_cf11_closed_plan_assembly_v1.py \
+            --original-result "$RUNNER_TEMP/source/qore_futures_a_eia_f1f2_prereg_dev_diag_only.json" \
+            --verified-science "$RUNNER_TEMP/verified-science.json" \
+            --out "$RUNNER_TEMP/authenticated-cf11-plan.json"
+      - name: Assemble source-first queue with original two blocked/closed missions
+        run: |
+          python .github/scripts/qore_research_zero_budget_queue_v1.py \
+            --verified-cf11-plan "$RUNNER_TEMP/authenticated-cf11-plan.json" \
+            --proposals docs/research/QORE_RESEARCH_ZERO_BUDGET_PROPOSALS_2026-10-13.json \
+            --out "$RUNNER_TEMP/qore_research_source_first_queue.json"
+      - name: Validate strict prereg draft manifest, issue science-only draft receipt
+        run: |
+          python .github/scripts/qore_research_prereg_draft_receipt_v1.py \
+            --authenticated-queue "$RUNNER_TEMP/qore_research_source_first_queue.json" \
+            --draft-manifest docs/research/QORE_RESEARCH_PREREG_DRAFTS_2026-10-13.json \
+            --out "$RUNNER_TEMP/qore_research_prereg_draft_receipt.json"
+      - name: Assert no prereg freeze, no holdout, no execution or spending
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"])/"qore_research_prereg_draft_receipt.json").read_text())
+          h=r.pop("receipt_sha256")
+          d=hashlib.sha256(json.dumps(r,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
+          assert h==d
+          assert r["draft_count"]==len(r["drafts"])
+          assert not any((r["scientific_prereg_frozen"],r["can_execute"],r["can_open_holdout"],r["data_rights_certified"],r["provenance_git_ancestor_attested"],r["economic_backtest_performed"],r["risk_or_cibo_authority"],r["trader_lab_eligible"]))
+          assert r["market_data_spend_usd"]==0
+          print("PREREG_SOURCE_FIRST_DRAFT_ONLY_NO_OUTCOMES_NO_LIVE")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-research-prereg-draft-zero-budget-receipt
+          path: ${{ runner.temp }}/qore_research_prereg_draft_receipt.json
+          retention-days: 90
+          if-no-files-found: error
