@@ -1,0 +1,96 @@
+name: QORE CF11 real closed EIA plan binding no promotion
+
+on:
+  push:
+    branches:
+      - research/qore-eia-cf11-closed-plan-20261013
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_eia_cf11_closed_experiment_binding_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_eia_cf11_closed_experiment_binding_v1.py'
+      - '.github/scripts/qore_eia_cf11_closed_plan_assembly_v1.py'
+      - '.github/workflows/qore-eia-cf11-closed-plan-binding.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  authenticate_and_bind_to_actual_cf11:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      PYTHONPATH: src:tests/infrastructure/trader_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE repository style and type checkers
+        run: pip install "ruff>=0.5,<1" "mypy>=1.5,<2"
+      - name: Ruff for CF11 integration
+        run: >-
+          ruff check
+          src/qore/infrastructure/trader_lab/qore_eia_cf11_closed_experiment_binding_v1.py
+          tests/infrastructure/trader_lab/test_qore_eia_cf11_closed_experiment_binding_v1.py
+          .github/scripts/qore_eia_cf11_closed_plan_assembly_v1.py
+      - name: Mypy for CF11 integration
+        run: >-
+          mypy
+          src/qore/infrastructure/trader_lab/qore_eia_cf11_closed_experiment_binding_v1.py
+          tests/infrastructure/trader_lab/test_qore_eia_cf11_closed_experiment_binding_v1.py
+          .github/scripts/qore_eia_cf11_closed_plan_assembly_v1.py
+      - name: Reject forged science and external promotion in 13 synthetic tests
+        run: >-
+          python -m unittest discover -s tests/infrastructure/trader_lab
+          -p test_qore_eia_cf11_closed_experiment_binding_v1.py -v
+      - name: Fetch original verified EIA DEV and DIAG results
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-futures-a-eia-frozen-dev-diag-only-no-pnl
+          repository: mezas3238-hue/qore-core
+          run-id: 38448311219
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/original-EIA-DEV-DIAG
+      - name: Verify GitHub original run sha, ZIP digest and prereg ancestry
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python .github/scripts/qore_eia_research_science_receipt_v1.py \
+            --input "$RUNNER_TEMP/original-EIA-DEV-DIAG/qore_futures_a_eia_f1f2_prereg_dev_diag_only.json" \
+            --output "$RUNNER_TEMP/verified-EIA-science.json"
+      - name: Assemble actual CF11 plan from matching authoritative source run
+        run: |
+          python .github/scripts/qore_eia_cf11_closed_plan_assembly_v1.py \
+            --original-result "$RUNNER_TEMP/original-EIA-DEV-DIAG/qore_futures_a_eia_f1f2_prereg_dev_diag_only.json" \
+            --verified-science "$RUNNER_TEMP/verified-EIA-science.json" \
+            --out "$RUNNER_TEMP/qore_eia_cf11_research_plan_closed.json"
+      - name: Enforce CF11 no replay/certification/trading at research closure
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"qore_eia_cf11_research_plan_closed.json"
+          r=json.loads(p.read_text())
+          assert r["stage"] == "experiment"
+          assert r["evidence_status"] == "insufficient"
+          assert r["scientific_decision"] == "NO_SUPPORT_UNDER_PREREG"
+          assert r["trader_lab_state"] == "draft"
+          for k in ("trader_lab_stage_evidence_produced", "runnable_trader_created",
+                    "economic_backtest_performed", "demo_eligible",
+                    "risk_authority_issued", "cibo_authority_issued",
+                    "market_provenance_certified", "fresh_holdout_consumed",
+                    "merge_authorized"):
+              assert r[k] is False, (k, r[k])
+          assert len(r["data_requirements"]) == 4
+          print("CF11_REAL_PLAN_EXPERIMENT_INSUFFICIENT_TRADER_LAB_DRAFT")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-eia-cf11-real-plan-science-closure-no-promotion
+          path: ${{ runner.temp }}/qore_eia_cf11_research_plan_closed.json
+          retention-days: 90
+          if-no-files-found: error
