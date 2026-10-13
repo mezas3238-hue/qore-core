@@ -13,9 +13,10 @@ import hashlib
 import json
 import random
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 MARKET_SHA256 = "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
 MARKET_ARTIFACT = 11459859004
