@@ -19,7 +19,7 @@ Usuario autorizó comenzar una investigación nueva tras el cierre científico d
 | Granos | ZC | CBOT | corn | contratos nativos por mes |
 | Granos | ZS | CBOT | soybean | contratos nativos por mes |
 
-No sumar más mercados porque los resultados sean adversos. La serie ajustada continua puede usarse **solo como visualización de referencia**; nunca reemplaza `exchange+native_contract+expiration` para curva, señal ni cash flow. Contratos con meses de vencimiento específicos, tick, multiplicador, divisa, settlement, volumen, OI, primera notificación (cuando aplique) y último trading day verificados por período real. Mantener el shape UMI-05 (`FuturesContractTerms`), pero no inferir que UMI-05 o adaptadores PAPER contienen una fuente histórica fiable ni están autorizados a operar.
+No sumar más mercados porque los resultados sean adversos. La serie ajustada continua puede usarse **solo como visualización de referencia**; nunca reemplaza `exchange+native_contract+expiration` para curva, señal ni cash flow. Contratos con meses de vencimiento específicos, tick, multiplicador, divisa, settlement, volumen, OI, notificación de entrega de bolsa **cuando corresponda**, último trading day y cutoff de liquidación que impone el broker verificados por período real. **No presumir que first-notice es anterior al último día de negociación para todos los productos**. Mantener el shape UMI-05 (`FuturesContractTerms`), pero no inferir que UMI-05 o adaptadores PAPER contienen una fuente histórica fiable ni están autorizados a operar.
 
 ## Fuente prioritaria realmente comprobada (catálogo, NO cuenta/licencia)
 
@@ -59,3 +59,7 @@ Mecanismo candidato: exposición diaria/semanal a *pendiente term structure / ba
 - No MT5, VPS, CIBO, Shared, QDLE, LIVE, órdenes, datos licenciados públicos, compras, ni credenciales. Esta fase no alcanza ni modifica capital real.
 
 **Handoff arquitecto siguiente:** verificar fuente/derecho contractual CME exacto, obtener presupuesto explícito, correr checker con datos reales en almacenamiento privado y **decidir GO/NO-GO una vez**. Un archivo con mocks y 10 tests PASS no constituye licencia, cobertura ni edge.
+
+### Enmienda M0 pre-económica — semántica de aviso / cutoff (13 octubre 2026)
+
+El [aviso oficial de CME Clearing de mayo 2026](https://www.cmegroup.com/content/dam/cmegroup/notices/clearing/2026/05/chadv26-192.pdf) indica expresamente para **CL junio 2026** último trading **19 mayo**, aviso **21 mayo**, y para **NG junio 2026** último trading **27 mayo**, aviso **28 mayo**. Una validación universal `first_notice_date <= last_trade_date` habría rechazado contratos perfectamente legítimos (en ambos casos notice ocurre DESPUÉS de last trade). Corregido **ANTES de cualquier dataset real o PnL**: el checker distingue `exchange_first_notice_date` (opcional, cuando aplique) de `risk_liquidation_cutoff_date` (obligatorio; debe ser a más tardar último trade y, si existe notice, antes de notice). Un broker puede imponer un corte más temprano; verificar condiciones reales, no inventarlas por algoritmo. Si no se conoce un cutoff autorizado: **BLOCKED_DATA_OR_LICENSE**.
