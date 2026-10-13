@@ -1,0 +1,88 @@
+name: VT31 ICT-vs-TTrades NY AM 9AM sweep source fidelity census (NO PNL)
+on:
+  push:
+    branches:
+      - agent/vt31-ict-ttrades-doctrine-audit-20261013
+    paths:
+      - scripts/vt31_ttrades_am_9am_range_fidelity_20261013.py
+      - tests/infrastructure/test_vt31_ttrades_am_9am_range_fidelity_20261013.py
+      - docs/research/VT31_ICT_TTRADES_SOURCE_CONFORMANCE_2026-10-13.md
+      - .github/workflows/vt31-ttrades-am-fidelity-census.yml
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  M1_ARTIFACT: "11459859004"
+  OLD_LEDGER_ARTIFACT: "11657461650"
+  FROZEN_M1_SHA: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+jobs:
+  source-fidelity-not-economic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Source-lint and synthetic causal test only
+        run: |
+          set -euo pipefail
+          python -m pip install "ijson>=3.3,<4" "pytest>=8,<10" "ruff>=0.5,<1"
+          python -m py_compile \
+            scripts/vt31_ttrades_am_9am_range_fidelity_20261013.py \
+            tests/infrastructure/test_vt31_ttrades_am_9am_range_fidelity_20261013.py
+          ruff check \
+            scripts/vt31_ttrades_am_9am_range_fidelity_20261013.py \
+            tests/infrastructure/test_vt31_ttrades_am_9am_range_fidelity_20261013.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_ttrades_am_9am_range_fidelity_20261013.py
+          PYTHONPATH=src:. python scripts/vt31_ttrades_am_9am_range_fidelity_20261013.py \
+            --self-test
+      - name: Fetch FROZEN development M1 and original-source old ledger with checksum
+        run: |
+          set -euo pipefail
+          mkdir -p input/m1 input/ledger result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${M1_ARTIFACT}/zip" > market.zip
+          unzip -q market.zip -d input/m1
+          test -s input/m1/NAS100/market-evidence.json
+          echo "${FROZEN_M1_SHA}  input/m1/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${OLD_LEDGER_ARTIFACT}/zip" > ledger.zip
+          unzip -q ledger.zip -d input/ledger
+          test -s input/ledger/vt31-ict-cleanroom-3y-m1-offer-ledger.json
+      - name: Compare 721 original NY AM sources to TTrades 9AM HIGH/LOW framework
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_ttrades_am_9am_range_fidelity_20261013.py \
+            --market input/m1/NAS100/market-evidence.json \
+            --ledger input/ledger/vt31-ict-cleanroom-3y-m1-offer-ledger.json \
+            --out result/ttrades-9am-h1-fidelity-census.json \
+            | tee result/census-summary.json
+      - name: No false trading claim and canonical reference census partition
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          r=json.load(open("result/ttrades-9am-h1-fidelity-census.json"))
+          counts=r["complete_counts"]
+          assert counts["OLD_NY_AM_TOTAL"]==721
+          assert counts["COMPLETE_9AM_REFERENCE"]+counts.get(
+              "MISSING_COMPLETE_PRIOR_9AM_H1",0
+          )==721
+          assert r["PF_DD_edge"] is None
+          assert r["market_execution_or_fills"]==0
+          assert r["G3_frozen"] is False
+          assert r["no_LIVE"] and not r["holdout_opened"]
+          assert r["NQ_futures_equivalence_with_NAS100_CFD"]=="UNVERIFIED"
+          print("VERDICT source identity comparison ONLY:",json.dumps(counts,sort_keys=True))
+          PY
+          git rev-parse HEAD > result/code-head-sha.txt
+          echo "NO_NEW_V1_COHORT_NO_PNL_NO_EDGE_NO_HOLDOUT" > result/scope.txt
+          (cd result && sha256sum *.txt *.json > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ttrades-9am-source-fidelity-${{ github.sha }}
+          path: result/
+          retention-days: 90
+          if-no-files-found: error
