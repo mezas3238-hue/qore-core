@@ -239,3 +239,39 @@ def test_limit_stop_immediately_on_entry_quote() -> None:
     assert ledger[0]["status"] == "CLOSED_OBSERVED_TICKS"
     assert ledger[0]["exit_reason"] == "STOP"
     assert ledger[0]["duration_seconds"] == "0"
+
+
+def test_limit_never_exceeds_price_with_adverse_slippage() -> None:
+    first = BASE
+    ticks = (
+        Quote(first, Decimal("99.7"), Decimal("99.9")),
+        Quote(first + timedelta(milliseconds=100), Decimal("99.4"), Decimal("99.5")),
+        Quote(first + timedelta(minutes=1), Decimal("102"), Decimal("102.2")),
+    )
+    long = LimitOrder(
+        "buy", first, first + timedelta(seconds=30),
+        first + timedelta(minutes=1), "long",
+        Decimal("100"), Decimal("90"), Decimal("102"),
+    )
+    ledger = simulate_ticks(
+        ticks, (long,), tick_size=Decimal(".1"), slippage_ticks=Decimal("3"),
+    )
+    assert ledger[0]["fill_price"] == "99.8"
+    assert Decimal(ledger[0]["fill_price"]) <= long.limit
+
+    short_ticks = (
+        Quote(first, Decimal("100.1"), Decimal("100.3")),
+        Quote(first + timedelta(milliseconds=100), Decimal("100.6"), Decimal("100.8")),
+        Quote(first + timedelta(minutes=1), Decimal("99"), Decimal("99.2")),
+    )
+    short = LimitOrder(
+        "sell", first, first + timedelta(seconds=30),
+        first + timedelta(minutes=1), "short",
+        Decimal("100"), Decimal("110"), Decimal("99"),
+    )
+    short_ledger = simulate_ticks(
+        short_ticks, (short,), tick_size=Decimal(".1"),
+        slippage_ticks=Decimal("3"),
+    )
+    assert short_ledger[0]["fill_price"] == "100.3"
+    assert Decimal(short_ledger[0]["fill_price"]) >= short.limit

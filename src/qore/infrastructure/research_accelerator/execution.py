@@ -67,9 +67,13 @@ def simulate_ticks(
         while i < len(quotes) and quotes[i].at < order.expires_at:
             q = quotes[i]
             if order.side == "long" and q.ask <= order.limit:
-                fill = min(q.ask + slip, order.limit + slip)
+                candidate = q.ask + slip
+                if candidate <= order.limit:  # A LIMIT cannot pay above its buy ceiling.
+                    fill = candidate
             elif order.side == "short" and q.bid >= order.limit:
-                fill = max(q.bid - slip, order.limit - slip)
+                candidate = q.bid - slip
+                if candidate >= order.limit:  # A LIMIT cannot sell below its floor.
+                    fill = candidate
             if fill is not None:
                 opened_at = q.at
                 break  # Same quote can immediately violate protective stop.
