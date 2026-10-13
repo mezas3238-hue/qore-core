@@ -68,3 +68,17 @@ Workflows de calidad: `.github/workflows/vt08-crt-pure-cognitive-foundation.yml`
 5. Evaluar frontera de seguridad del router R2, cuyo `action=EXECUTE` conceptual de *entry family* ya declara `grants_execution_authority=False`; este retorno no es la decisión final `reason()` y no debe tratarse como autorización.
 
 **Gobernanza:** BTCUSD market checkpoint intacto, VT08 global `NOT CERTIFIED`, `NO SIZING/LOT/VOLUME/LEVERAGE/CAPITAL`, no merge, no VPS, no DEMO, no LIVE, no producción ni dinero real.
+
+---
+
+## 6. Adjudicación primaria adicional: old CRTH ≠ cualquier swing M15
+
+**Fuente LEVEL A verificada como publicación directa del autor:** [RomeoTPT Telegram, mensaje 6615](https://t.me/s/officialRomeotpt/6615). El autor expresa una reacción bajista ideal donde la vela abre, penetra un **old CRTH** y luego rechaza hacia abajo. La publicación es una afirmación didáctica contextual, NO un algoritmo exhaustivo de niveles. Su texto puede cotejarse en el post original.
+
+**Hallazgo metodológico:** `old CRTH` (un viejo extremo alto de rango CRT) NO puede homologarse sin más a `any M15 swing-strength-1 pivot`. La lógica `_confirmed_pivot(strength=1)` de laboratorios antiguos es **ENGINEERING**. La regla canónica de Model #1 que dice `old HIGH / old LOW` tampoco define por sí sola cuál de varios altos conocidos es la referencia elegible.
+
+**Decisión técnica estrictamente de procedencia:** el testigo admite `reference_origin_timeframe_seconds=900` (M15) o `14400` (H4), y **comprueba el cierre correcto de la vela de referencia según la temporalidad declarada**, en lugar de asumir 15 minutos para un viejo rango H4. Ninguna de las dos temporalidades es declarada prioritaria; cualquier barra H4 usada como ejemplo permanece `UPSTREAM_ATTESTED`, NO canónica, a menos que se pruebe su identidad CRT con contexto y fuente. El rango permitido M15/H4 es solo el alcance técnico actual del puente, no un límite universal de metodología.
+
+**Nueva pregunta para el próximo análisis visual:** ¿el old HIGH/LOW de Model #1 es un extremo del H4 CRT anterior, un nivel estructural local de M15 o una familia contextual de ambos? A la fecha permanece `AMBIGUOUS`. No se selecciona respuesta por resultado económico ni se codifica un filtro.
+
+**Pruebas añadidas:** origen H4 04:00–08:00 declarado disponible a las 08:00, rechazo si se declara disponible prematuramente a las 04:15 y rechazo de temporalidad desconocida 30m que carece de contrato en este bridge.
