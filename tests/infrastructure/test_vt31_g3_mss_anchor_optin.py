@@ -13,9 +13,9 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
     VT31CleanroomCognition,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    CognitiveDecision,
     G3_MSS_FRAMEWORK_POLICY,
     LEGACY_FRAMEWORK_POLICY,
+    CognitiveDecision,
     M1Bar,
     MethodologyDecision,
     SessionId,
