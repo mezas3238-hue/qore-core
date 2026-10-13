@@ -1,0 +1,115 @@
+name: QORE Research CF11 zero-budget source-first intake ledger
+
+on:
+  push:
+    branches:
+      - research/qore-cf11-source-first-mission-queue-20261013
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_research_zero_budget_intake_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_research_zero_budget_intake_v1.py'
+      - '.github/scripts/qore_research_zero_budget_queue_v1.py'
+      - '.github/workflows/qore-cf11-source-first-research-intake.yml'
+      - 'docs/research/QORE_RESEARCH_ZERO_BUDGET_PROPOSALS_2026-10-13.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  read_only_source_first:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      PYTHONPATH: src:tests/infrastructure/trader_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE Ruff and Mypy
+        run: pip install "ruff>=0.5,<1" "mypy>=1.5,<2"
+      - name: Enforce Ruff for source-first intake
+        run: >-
+          ruff check
+          src/qore/infrastructure/trader_lab/qore_research_zero_budget_intake_v1.py
+          tests/infrastructure/trader_lab/test_qore_research_zero_budget_intake_v1.py
+          .github/scripts/qore_research_zero_budget_queue_v1.py
+      - name: Enforce Mypy for source-first intake
+        run: >-
+          mypy
+          src/qore/infrastructure/trader_lab/qore_research_zero_budget_intake_v1.py
+          tests/infrastructure/trader_lab/test_qore_research_zero_budget_intake_v1.py
+          .github/scripts/qore_research_zero_budget_queue_v1.py
+      - name: Run synthetic source gate and false promotion tests
+        run: >-
+          python -m unittest discover -s tests/infrastructure/trader_lab
+          -p test_qore_research_zero_budget_intake_v1.py -v
+      - name: Retrieve ORIGINAL EIA diagnostic evidence only
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-futures-a-eia-frozen-dev-diag-only-no-pnl
+          repository: mezas3238-hue/qore-core
+          run-id: 38448311219
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/source
+      - name: Reverify original EIA run, source artifact digest and prereg ancestry
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python .github/scripts/qore_eia_research_science_receipt_v1.py \
+            --input "$RUNNER_TEMP/source/qore_futures_a_eia_f1f2_prereg_dev_diag_only.json" \
+            --output "$RUNNER_TEMP/verified-science.json"
+      - name: Rebuild real CF11 scientific plan in this same authenticated job
+        run: |
+          python .github/scripts/qore_eia_cf11_closed_plan_assembly_v1.py \
+            --original-result "$RUNNER_TEMP/source/qore_futures_a_eia_f1f2_prereg_dev_diag_only.json" \
+            --verified-science "$RUNNER_TEMP/verified-science.json" \
+            --out "$RUNNER_TEMP/authenticated-cf11-plan.json"
+      - name: Create source-first research mission ledger, NEVER execute hypotheses
+        run: |
+          python .github/scripts/qore_research_zero_budget_queue_v1.py \
+            --verified-cf11-plan "$RUNNER_TEMP/authenticated-cf11-plan.json" \
+            --proposals docs/research/QORE_RESEARCH_ZERO_BUDGET_PROPOSALS_2026-10-13.json \
+            --out "$RUNNER_TEMP/qore_research_source_first_queue.json"
+      - name: Verify no reopening, no economic replay and no source laundering
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"qore_research_source_first_queue.json"
+          o=json.loads(p.read_text())
+          digest=o.pop("ledger_sha256")
+          expected=hashlib.sha256(json.dumps(o,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
+          assert digest==expected
+          assert o["spent_usd"]==0
+          assert o["new_hypotheses_registered"]==sum(x["status"]=="proposal_only" for x in o["entries"])
+          assert o["new_hypotheses_registered"]<=20
+          assert o["economic_replay_performed"] is False
+          assert o["eia_fresh_holdout_opened"] is False
+          assert o["stale_fx_holdout_opened"] is False
+          assert o["production_execution_enabled"] is False
+          assert o["estimated_traders_promoted"]==0
+          assert {x["code"]:x["status"] for x in o["entries"] if x["status"]!="proposal_only"}=={
+              "research.eia.futures-a-f1f2-closure":"closed_no_support",
+              "research.futures-a.native-6roots-d1":"source_blocked",
+          }
+          assert all(
+              not x["experiment_runnable"]
+              and not x["can_open_fresh_holdout"]
+              and not x["trader_certified"]
+              and x["funding_ceiling_usd"]==0
+              for x in o["entries"]
+          )
+          print("QORE_RESEARCH_QUEUE_ZERO_DOLLARS_SCIENTIFIC_CLOSURE_SOURCE_BLOCKED")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-research-zero-dollar-closed-eia-blocked-futures-ledger
+          path: ${{ runner.temp }}/qore_research_source_first_queue.json
+          retention-days: 90
+          if-no-files-found: error
