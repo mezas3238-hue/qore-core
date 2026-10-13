@@ -80,3 +80,26 @@ Antes de esta corrección de disparadores, un `push` de la corrección cognitiva
 5. Mantener tests semánticos y auditoría de causalidad; no abrir nuevos backtests ni tareas WFO.
 
 **CERTIFIED=FALSE**. **NO SIZING/LOT/VOLUME/CAPITAL/LEVERAGE INSIDE VT08**. CIBO/QORE Risk autoridad independiente. No merge, no VPS, no DEMO, no LIVE, no producción, no dinero real.
+
+## VII. Trazabilidad de productores de Situation Model — observación QC-02 (cerrada documentalmente)
+
+Se inspeccionaron los siguientes archivos de la rama del PR:
+
+- `src/qore/infrastructure/trader_lab/vt08_crt_pure_r2by_audusd_cognitive_experience_wf.py`, construcción alrededor de líneas 230–253.
+- `src/qore/infrastructure/trader_lab/vt08_crt_pure_r2bz_usdjpy_cognitive_experience_wf.py`, construcción alrededor de líneas 291–314.
+- `src/qore/infrastructure/trader_lab/vt08_crt_pure_r2cc_audusd_cognitive_wait_resolution_wf.py`, construcción alrededor de líneas 443–466.
+- `src/qore/infrastructure/trader_lab/vt08_crt_pure_r2cd_usdjpy_cognitive_wait_resolution_wf.py`, construcción alrededor de líneas 443–466.
+- `src/qore/infrastructure/traders/crt_pure_model1.py`, `crt_pure_r2_entry_router.py` y `crt_pure_cross_market_cognition.py`; ninguno de estos tres archivos inspeccionados construye directamente `CrtPureSituationModel`.
+
+En los **cuatro productores de laboratorio** mencionados, `source_event_present=True`, `confirmation_complete=True`, `destination_context_known=True`, `destination_available=True` y `execution_data_fresh=True` son valores entregados directamente al constructor en esa etapa, mientras que el grado de conocimiento `knowledge_state` y las `contradictions/uncertainties` se derivan del modelo cognitivo de investigación.
+
+**Distinción obligatoria:** esos indicadores son aserciones del adaptador de investigación para un evento ya seleccionado; no constituyen pruebas autónomas, verificables y tipadas de que el old HIGH/LOW correcto exista, esté vigente y sea propietario de ese source event. Tampoco muestran un vínculo de evidencia `reference_ids`/nivel primario en `CrtPureSituationModel`, pese a que el ledger `BreachGroup` sí contiene referencias.
+
+### Estado de los problemas tras la trazabilidad
+
+- `QC-01` **REPARADO**: `PARTIAL` deja de transitar inadvertidamente a `WELL_SUPPORTED` y su incertidumbre es visible en el `WHY`.
+- `QC-02` **CONFIRMADO / ABIERTO**: cadena de evidencia semántica hasta `Situation Model` insuficientemente explícita. Un booleano verdadero no equivale a prueba primaria. Para cerrar QC-02 se necesita contrato entre referencia causal y el modelo cognitivo con procedencia/identidad/frescura, sin inventar regla de prioridad de old-level.
+- `QC-03` **ABIERTO**: `MODEL_1_REFERENCE_SELECTION` sigue `AMBIGUOUS` en source registry; ni `strength=1` ni `BreachGroup` son regla fuente.
+
+Se mantiene la instrucción de **NO** activar nueva investigación cuantitativa, de **NO** ajustar esos productores de laboratorio por PF, y de **NO** alegar que esta evidencia prueba edge o un trader listo.
+
