@@ -4,6 +4,8 @@
 **Branch:** `agent/vt08-crt-pure-source-identity-001`  
 **PR:** #626 — DRAFT, sin merge  
 **Estado:** VIGENTE / mandato explícito del Owner / investigación no operativa
+> **ACLARACIÓN POSTERIOR DEL OWNER (13-OCT-2026):** El objetivo es **CERTIFICAR VT08 metodológica y cognitivamente sin continuar investigación cuantitativa**; no construir indefinidamente testigos o herramientas. La misión vigente y matriz de gates están en [certificación no cuantitativa del Owner](VT08-CRT-PURE-OWNER-NONQUANTITATIVE-CERTIFICATION-MISSION-2026-10-13.md). El certificado metodológico no equivale a `CERTIFIED` global del contrato QORE ni prueba de rentabilidad; no se alteran los gates económicos pendientes.
+
 
 ## 1. Orden explícita que gobierna desde ahora
 El Owner indica:
