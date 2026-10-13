@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 ROOT_EXCHANGES={
     "CL":"NYMEX","NG":"NYMEX",
@@ -30,7 +30,7 @@ class NativeFuturesSourceError(ValueError):
     pass
 
 
-def _fail(message:str):
+def _fail(message:str)->NoReturn:
     raise NativeFuturesSourceError("QORE_FUTURES_A_M0_"+message)
 
 
@@ -53,7 +53,8 @@ def _utc(raw:Any,label:str)->datetime:
         val=datetime.fromisoformat(raw[:-1]+"+00:00")
     except (ValueError,TypeError):
         _fail("BAD_TIMESTAMP_"+label)
-    if val.tzinfo is None or val.utcoffset().total_seconds()!=0:
+    offset=val.utcoffset()
+    if val.tzinfo is None or offset is None or offset.total_seconds()!=0:
         _fail("TIMEZONE_"+label)
     return val
 
@@ -78,7 +79,7 @@ def _hash(raw:Any,label:str)->str:
     return raw
 
 
-def _closed_keys(obj:dict,expected:set[str],label:str):
+def _closed_keys(obj:dict[str,Any],expected:set[str],label:str)->None:
     if not isinstance(obj,dict) or set(obj)!=expected:
         _fail("SCHEMA_KEYS_"+label)
 
@@ -100,7 +101,7 @@ ROW_KEYS={
 }
 
 
-def validate_dataset_manifest(m:dict)->dict:
+def validate_dataset_manifest(m:dict[str,Any])->dict[str,Any]:
     _closed_keys(m,DATASET_KEYS,"DATASET")
     if not isinstance(m["provider"],str) or not m["provider"].strip():
         _fail("PROVIDER_MISSING")
@@ -160,7 +161,7 @@ def _expiry_month(s:str)->date:
     return _date(s+"-01","EXPIRY_MONTH")
 
 
-def validate_contract_row(row:dict)->ContractObservation:
+def validate_contract_row(row:dict[str,Any])->ContractObservation:
     _closed_keys(row,ROW_KEYS,"NATIVE_CONTRACT_OBSERVATION")
     root=row["root"]
     if root not in ROOT_EXCHANGES:
@@ -208,7 +209,7 @@ def validate_contract_row(row:dict)->ContractObservation:
     )
 
 
-def check_decision_asof(row:ContractObservation,decision_at:str):
+def check_decision_asof(row:ContractObservation,decision_at:str)->bool:
     when=_utc(decision_at,"DECISION")
     if when.date()<=row.trade:
         _fail("CANNOT_TRADE_SAME_DAY_SETTLEMENT")
@@ -222,7 +223,7 @@ def check_decision_asof(row:ContractObservation,decision_at:str):
     return True
 
 
-def validate_two_pats_native_curve(rows:list[dict],decision_at:str)->dict:
+def validate_two_pats_native_curve(rows:list[dict[str,Any]],decision_at:str)->dict[str,Any]:
     """Two different native contract-months for one root/trade session.
 
     Does not derive a signal or a dollar return; checks inputs and timing only.
@@ -252,7 +253,7 @@ def validate_two_pats_native_curve(rows:list[dict],decision_at:str)->dict:
     }
 
 
-def inspect_local_envelope(doc:dict):
+def inspect_local_envelope(doc:dict[str,Any])->dict[str,Any]:
     _closed_keys(doc,{"dataset_manifest","sample_curves","decision_at_utc"},"M0_ENVELOPE")
     man=validate_dataset_manifest(doc["dataset_manifest"])
     samples=doc["sample_curves"]
@@ -279,7 +280,7 @@ def inspect_local_envelope(doc:dict):
     }
 
 
-def main():
+def main()->None:
     parser=argparse.ArgumentParser()
     parser.add_argument("envelope",type=Path,help="private JSON source metadata+sample quotes")
     parser.add_argument("output",type=Path,help="output only booleans and metadata")
