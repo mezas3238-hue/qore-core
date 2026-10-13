@@ -305,6 +305,14 @@ def aggregate(extracted:Path)->dict:
                 (i["max_abs_currency_exposure"] for _,i in selected),default=0),
             "source_symbol_day_eligibility_statuses":dict(source_eligible),
             "original_28_FX_weights_fixed_ex_ante":True,
+            "synchronized_weekly_portfolio_only_no_raw_price": [
+                {"iso_week":week,
+                 "gross_reference_bps":gross[week],
+                 "assumed_2bp_side_model_bps":pnl[week],
+                 "assumed_5bp_side_stress_model_bps":stress[week],
+                 "symbol_signals":active_week[week]}
+                for week in weekkeys
+            ],
         }
     if not all(
         v["signal_sample_gate_52w"]
