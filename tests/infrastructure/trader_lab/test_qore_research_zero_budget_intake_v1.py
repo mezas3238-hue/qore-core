@@ -230,5 +230,88 @@ class TestQoreZeroBudgetResearchIntake(unittest.TestCase):
             )
 
 
+    def test_frozen_eia_identity_cannot_be_rewritten(self) -> None:
+        entry = q.eia_closed_from_verified_cf11_json(_synthetic_cf11_closed_plan())
+        mutations = {
+            "question_code": "research.question.different-claimed-question",
+            "data_requirement_code": "cme.native-delivery-contract-d1",
+            "research_root_count": 6,
+        }
+        for key, value in mutations.items():
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(ValueError, "BASE_EIA_IDENTITY_MISMATCH"):
+                    cast(Any, replace)(entry, **{key: value})
+
+    def test_frozen_futures_identity_cannot_be_rewritten(self) -> None:
+        entry = q.blocked_futures_a_m0()
+        mutations = {
+            "question_code": "research.question.different-claimed-question",
+            "data_requirement_code": "unverified.contract-data",
+            "research_root_count": 2,
+        }
+        for key, value in mutations.items():
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(ValueError, "BASE_FUTURES_IDENTITY_MISMATCH"):
+                    cast(Any, replace)(entry, **{key: value})
+
+    def test_proposal_cannot_launder_closed_question_or_eia_data(self) -> None:
+        base = q.build_source_first_queue(_synthetic_cf11_closed_plan())
+        attacks = (
+            ("research.question.f1f2-directional-probability", "other.native.source"),
+            ("research.question.native-commodity-futures-edge", "other.native.source"),
+            ("research.question.fresh-conditional-structure", "eia.f1f2.reference-close-only"),
+        )
+        for i, (question, requirement) in enumerate(attacks):
+            with self.subTest(i=i):
+                with self.assertRaisesRegex(
+                    ValueError, "RECYCLED_QUESTION_OR_NONNATIVE_EIA_SOURCE"
+                ):
+                    q.register_unfrozen_proposal(
+                        base,
+                        code=f"research.proposal.launder-attempt-{i}",
+                        question_code=question,
+                        data_requirement_code=requirement,
+                        research_root_count=2,
+                    )
+
+    def test_new_code_cannot_duplicate_an_existing_research_question(self) -> None:
+        base = q.build_source_first_queue(_synthetic_cf11_closed_plan())
+        first = q.register_unfrozen_proposal(
+            base,
+            code="research.proposal.fresh-idea-1",
+            question_code="research.question.unique-new-effect",
+            data_requirement_code="source.native-verified-required",
+            research_root_count=6,
+        )
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_RESEARCH_QUESTION"):
+            q.register_unfrozen_proposal(
+                first,
+                code="research.proposal.fresh-idea-2",
+                question_code="research.question.unique-new-effect",
+                data_requirement_code="source.native-verified-required",
+                research_root_count=6,
+            )
+
+    def test_direct_api_enforces_twenty_proposal_cap(self) -> None:
+        current = q.build_source_first_queue(_synthetic_cf11_closed_plan())
+        for i in range(20):
+            current = q.register_unfrozen_proposal(
+                current,
+                code=f"research.proposal.candidate-{i:02d}",
+                question_code=f"research.question.candidate-{i:02d}",
+                data_requirement_code="source.native-verified-required",
+                research_root_count=6,
+            )
+        self.assertEqual(current.to_json()["new_hypotheses_registered"], 20)
+        with self.assertRaisesRegex(ValueError, "QUEUE_EXCEEDS_PROPOSAL_LIMIT"):
+            q.register_unfrozen_proposal(
+                current,
+                code="research.proposal.candidate-20",
+                question_code="research.question.candidate-20",
+                data_requirement_code="source.native-verified-required",
+                research_root_count=6,
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
