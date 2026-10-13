@@ -4,8 +4,10 @@ from __future__ import annotations
 import copy
 import unittest
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import cast
+
+from test_qore_eia_research_science_handoff_v1 import fixture_from_original_actions_log
 
 from qore.infrastructure.cibo.contracts import (
     CiboEvidenceStatus,
@@ -17,7 +19,7 @@ from qore.infrastructure.cibo.research_director import (
 )
 from qore.infrastructure.trader_lab import qore_eia_cf11_closed_experiment_binding_v1 as cf11
 from qore.infrastructure.trader_lab import qore_eia_research_science_handoff_v1 as source
-from test_qore_eia_research_science_handoff_v1 import fixture_from_original_actions_log
+from qore.kernel.result import Failure
 
 _AT = datetime(2026, 10, 13, 19, 30, tzinfo=UTC)
 
@@ -55,8 +57,6 @@ class TestGenuineCF11ClosedExperimentBinding(unittest.TestCase):
             evidence=close.plan.evidence,
             updated_at=_AT,
         )
-        from qore.kernel.result import Failure
-
         self.assertIsInstance(outcome, Failure)
         if isinstance(outcome, Failure):
             self.assertIsInstance(outcome.error, CiboFunctionalBlockedError)
@@ -147,8 +147,6 @@ class TestGenuineCF11ClosedExperimentBinding(unittest.TestCase):
         self.assertEqual(one.plan_fingerprint, two.plan_fingerprint)
 
     def test_plan_fingerprint_changes_with_time(self) -> None:
-        from datetime import timedelta
-
         raw, receipt = fixture()
         one = cf11.bind_closed_eia_to_cf11(
             raw, receipt, verified_source=True, as_of=_AT
