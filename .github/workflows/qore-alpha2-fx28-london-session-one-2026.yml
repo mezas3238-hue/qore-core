@@ -101,7 +101,7 @@ jobs:
                 "DIAG",x["eras"]["DIAGNOSTIC"]["mean_2bp_side_cost_proxy_bps_per_calendar_week"])
           PY
           printf '%s\n' "$GITHUB_SHA" > session-panel/exact-code-head-sha.txt
-          (cd policy-panel && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+          (cd session-panel && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
           rm -rf original28 ephemeral28 signed33 atlas-aggregate
       - uses: actions/upload-artifact@v4
         with:
