@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import unittest
+from typing import Any
 
 from qore.infrastructure.trader_lab import qore_research_prereg_source_gate_v1 as gate
 
@@ -10,7 +11,7 @@ GIT = "a" * 40
 PRIOR = "research.hypothesis.backwardation-predicts-f1-up"
 
 
-def proposals() -> dict[str, object]:
+def proposals() -> dict[str, Any]:
     return {
         "schema": "qore.research.zero-budget.proposals.v1",
         "proposals": [{
@@ -22,7 +23,7 @@ def proposals() -> dict[str, object]:
     }
 
 
-def prereg() -> dict[str, object]:
+def prereg() -> dict[str, Any]:
     return {
         "schema": "qore.research.prereg.freeze.v1",
         "preregistrations": [{
@@ -31,7 +32,9 @@ def prereg() -> dict[str, object]:
             "family_code": "research.family.energy-inventory-seasonal-v1",
             "data_requirement_code": "research.source.independent-official-inventory",
             "research_root_count": 2,
-            "signal_definition": "Use only lagged agency inventories public before fixed timestamp.",
+            "signal_definition": (
+                "Use only lagged agency inventories public before fixed timestamp."
+            ),
             "outcome_definition": "Five later common-day reference observations with no rollover.",
             "sampling_rule": "Exactly one event per calendar month and each energy source.",
             "roll_policy": "Skip every window crossing known physical expiration date.",
@@ -96,7 +99,9 @@ class TestQoreResearchPreregFreeze(unittest.TestCase):
         specs[0]["signal_definition"] += " Another source version is required."
         other = gate.freeze_prereg_manifest(changed, proposals(), git_commit_sha=GIT)
         self.assertNotEqual(a["receipt_sha256"], other["receipt_sha256"])
-        self.assertNotEqual(a["frozen_specs"][0]["spec_sha256"], other["frozen_specs"][0]["spec_sha256"])
+        self.assertNotEqual(
+            a["frozen_specs"][0]["spec_sha256"], other["frozen_specs"][0]["spec_sha256"]
+        )
 
     def test_no_result_payloads_or_secret_hypotheses(self) -> None:
         raw = prereg()
