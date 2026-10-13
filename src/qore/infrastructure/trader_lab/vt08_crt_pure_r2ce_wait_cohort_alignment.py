@@ -9,12 +9,18 @@ import argparse
 import json
 from collections import Counter
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from qore.infrastructure.trader_lab import (
+    vt08_crt_pure_r2bh_audusd_entry_viability_wf as r2bh,
+)
+from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2by_audusd_cognitive_experience_wf as r2by,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_crt_pure_r2bc_usdjpy_confirmation_geometry_atlas as r2bc,
 )
 from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2bz_usdjpy_cognitive_experience_wf as r2bz,
@@ -51,7 +57,7 @@ def _initial_action(
     model: Any,
     row: Any,
 ) -> CrtPureReasoningAction:
-    action = decision(model, row).action
+    action = cast(CrtPureReasoningAction, decision(model, row).action)
     if action not in (
         CrtPureReasoningAction.EXECUTE,
         CrtPureReasoningAction.WAIT,
@@ -107,18 +113,23 @@ def _aud_initial_decision(model: Any, row: Any) -> Any:
 
 
 def run_market(market: str) -> dict[str, Any]:
+    records: tuple[Any, ...]
+    initial_decision: Callable[[Any, Any], Any]
+    initial_fit: Callable[[tuple[Any, ...]], tuple[Any, dict[str, Any]]]
+    year_start: Callable[[int], datetime]
+    slice_records: Callable[[tuple[Any, ...], datetime, datetime], tuple[Any, ...]]
     if market == "AUDUSD":
         module: Any = r2cc
-        start, end, training_years = r2cc.START, r2cc.END, r2cc.TRAINING_YEARS
-        records, source_diagnostics = r2cc._build_records()
+        start, end, training_years = r2bh.START, r2bh.END, r2bh.TRAINING_YEARS
+        records, source_diagnostics = r2bh._build_records()
         initial_decision = _aud_initial_decision
         initial_fit = r2by._fit
-        year_start = r2cc._year_start
-        slice_records = r2cc._slice
+        year_start = r2bh._year_start
+        slice_records = r2bh._slice
         load_market = r2by.MARKET
     elif market == "USDJPY":
         module = r2cd
-        start, end, training_years = r2cd.START, r2cd.END, r2bz.TRAINING_YEARS
+        start, end, training_years = r2bc.START, r2bc.END, r2bz.TRAINING_YEARS
         records, source_diagnostics = r2bz._build_records()
         initial_decision = r2bz._decision
         initial_fit = r2bz._fit
