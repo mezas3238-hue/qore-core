@@ -15,10 +15,20 @@ from statistics import mean, median
 from typing import Any
 
 from scripts.vt31_ttrades_am_all_entry_sources_20261013 import (
-    FAMILIES, SOURCE_SHA, analyze as original_analyze, context, forward_15,
+    FAMILIES,
+    SOURCE_SHA,
+    context,
+    forward_15,
+)
+from scripts.vt31_ttrades_am_all_entry_sources_20261013 import (
+    analyze as original_analyze,
 )
 from scripts.vt31_ttrades_am_source_20261013 import (
-    Bar, collect_days, diagnostic, file_hash, market_source,
+    Bar,
+    collect_days,
+    diagnostic,
+    file_hash,
+    market_source,
 )
 
 PREREG = "2748d59daf1d32d42b6dd41d37c6def1ab314e41"
