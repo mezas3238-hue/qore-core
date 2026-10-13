@@ -1,0 +1,81 @@
+name: QORE Research prospective prereg freeze source blocked
+
+on:
+  push:
+    branches:
+      - research/qore-cf11-prereg-source-gate-20261013
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_research_prereg_source_gate_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_research_prereg_source_gate_v1.py'
+      - '.github/scripts/qore_research_prereg_snapshot_v1.py'
+      - '.github/workflows/qore-research-prereg-git-freeze.yml'
+      - 'docs/research/QORE_RESEARCH_ZERO_BUDGET_PROPOSALS_2026-10-13.json'
+      - 'docs/research/QORE_RESEARCH_FUTURE_HYPOTHESES_PREREG_2026-10-13.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  freeze_without_market_outcomes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      PYTHONPATH: src:tests/infrastructure/trader_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install repository static validators
+        run: pip install "ruff>=0.5,<1" "mypy>=1.5,<2"
+      - name: Ruff on scientific prospective contract
+        run: >-
+          ruff check
+          src/qore/infrastructure/trader_lab/qore_research_prereg_source_gate_v1.py
+          tests/infrastructure/trader_lab/test_qore_research_prereg_source_gate_v1.py
+          .github/scripts/qore_research_prereg_snapshot_v1.py
+      - name: Mypy on scientific prospective contract
+        run: >-
+          mypy
+          src/qore/infrastructure/trader_lab/qore_research_prereg_source_gate_v1.py
+          tests/infrastructure/trader_lab/test_qore_research_prereg_source_gate_v1.py
+          .github/scripts/qore_research_prereg_snapshot_v1.py
+      - name: Adversarial hypothesis freeze invariants on synthetic inputs
+        run: >-
+          python -m unittest discover -s tests/infrastructure/trader_lab
+          -p test_qore_research_prereg_source_gate_v1.py -v
+      - name: Freeze committed Git manifest and produce metadata only
+        run: |
+          python .github/scripts/qore_research_prereg_snapshot_v1.py \
+            --out "$RUNNER_TEMP/qore_research_prereg_source_blocked_snapshot.json"
+      - name: Verify no false claim when there are no approved proposal specs
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import hashlib
+          from pathlib import Path
+          source=Path(os.environ["RUNNER_TEMP"])/"qore_research_prereg_source_blocked_snapshot.json"
+          x=json.loads(source.read_text())
+          digest=x.pop("receipt_sha256")
+          assert digest==hashlib.sha256(json.dumps(
+              x,sort_keys=True,separators=(",",":"),allow_nan=False
+          ).encode()).hexdigest()
+          assert x["frozen_count"]==0
+          assert x["frozen_specs"]==[]
+          assert x["source_market_authority_obtained"] is False
+          assert x["economic_backtest_executed"] is False
+          assert x["holdout_read"] is False
+          assert x["trader_qualified"] is False
+          assert x["data_spend_usd"]==0
+          print("PREREG_INFRASTRUCTURE_READY_ZERO_REAL_HYPOTHESES_ZERO_EXECUTIONS")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-research-prereg-frozen-source-blocked-receipt-only
+          path: ${{ runner.temp }}/qore_research_prereg_source_blocked_snapshot.json
+          retention-days: 90
+          if-no-files-found: error
