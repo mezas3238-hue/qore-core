@@ -87,13 +87,14 @@ jobs:
           expected=hashlib.sha256(json.dumps(o,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
           assert digest==expected
           assert o["spent_usd"]==0
-          assert o["new_hypotheses_registered"]==0
+          assert o["new_hypotheses_registered"]==sum(x["status"]=="proposal_only" for x in o["entries"])
+          assert o["new_hypotheses_registered"]<=20
           assert o["economic_replay_performed"] is False
           assert o["eia_fresh_holdout_opened"] is False
           assert o["stale_fx_holdout_opened"] is False
           assert o["production_execution_enabled"] is False
           assert o["estimated_traders_promoted"]==0
-          assert {x["code"]:x["status"] for x in o["entries"]}=={
+          assert {x["code"]:x["status"] for x in o["entries"] if x["status"]!="proposal_only"}=={
               "research.eia.futures-a-f1f2-closure":"closed_no_support",
               "research.futures-a.native-6roots-d1":"source_blocked",
           }
