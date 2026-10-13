@@ -42,7 +42,7 @@ def read_signals(path: Path) -> tuple[Signal, ...]:
         reader = csv.DictReader(stream)
         required = {"event_id", "anchor_at", "available_at", "side", "anchor_price"}
         if reader.fieldnames is None or not required.issubset(set(reader.fieldnames)):
-            raise ResearchDataError("signals require event_id, anchor_at, available_at, side, anchor_price")
+            raise ResearchDataError("signals missing required header fields")
         extras = set(reader.fieldnames) - required
         if not extras.issubset(set(VALID_FEATURES)):
             raise ResearchDataError("unknown feature; do not execute arbitrary predicate code")
