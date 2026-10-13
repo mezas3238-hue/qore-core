@@ -101,6 +101,10 @@ jobs:
                       entry["member_count"] = len(infos)
                       entry["file_extension_histogram"] = {}
                       entry["file_name_examples"] = [i.filename[:90] for i in infos[:8]]
+                      entry["file_name_last_examples"] = [
+                          i.filename[:90] for i in infos[-8:]
+                      ]
+                      entry["text_first_row_masked"] = None
                       entry["total_uncompressed_bytes"] = sum(i.file_size for i in infos)
                       if entry["total_uncompressed_bytes"] > total_uncompressed_max:
                           raise ValueError("ZIP_BOMB_UNCOMPRESSED_LIMIT")
@@ -123,6 +127,10 @@ jobs:
                           dates_in_member = 0
                           with z.open(info, "r") as fp:
                               for line in fp:
+                                  if entry["text_first_row_masked"] is None and line.strip():
+                                      entry["text_first_row_masked"] = re.sub(
+                                          rb"[0-9]", b"#", line[:145]
+                                      ).decode("latin-1").strip()
                                   dates = detect_dates(line)
                                   for d in dates:
                                       dates_in_member += 1
