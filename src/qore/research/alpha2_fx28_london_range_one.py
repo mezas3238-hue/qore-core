@@ -92,7 +92,6 @@ def extract_symbol_rows(bars:Iterator[Bar], symbol:str)->tuple[list[dict],dict]:
     asia={}
     active={}
     source_rows=0
-    prev_local_clock=None
 
     def flush()->None:
         if current_day is None or not FIRST_DAY<=current_day<END_EXCL:
@@ -130,7 +129,6 @@ def extract_symbol_rows(bars:Iterator[Bar], symbol:str)->tuple[list[dict],dict]:
             if minute in active:
                 raise ValueError("LONDON_DUPLICATE_TRADING_M5")
             active[minute]=bar
-        prev_local_clock=minute
     flush()
     if len({x["day"] for x in outcomes})!=len(outcomes):
         raise ValueError("LONDON_DUPLICATED_SESSION_DAY")
