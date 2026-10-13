@@ -1,5 +1,7 @@
 # VT08 CRT PURE — MASTER HANDOFF 2026-10-13
 
+> **AVANCE CUALITATIVO QC-002 (13-OCT-2026):** [auditoría método↔código y corrección cognitiva](VT08-CRT-PURE-QUALITATIVE-COGNITIVE-SOURCE-CODE-AUDIT-QC002-2026-10-13.md). Corregido estado `PARTIAL` que antes podía clasificar como `WELL_SUPPORTED`/dar `EXECUTE`; ahora exige `WAIT` y conserva motivo en `auditable_why`. Pruebas semánticas del Cognitive Foundation y Cognitive Gate exitosas. R2-BY/BZ WFO pasados a manual-only para respetar pausa cuantitativa. Permanece pendiente la autoridad entre old highs/lows y el testigo de referencia causal que debe alimentar el Situation Model. Este aviso no reanuda las tareas cuantitativas antiguas.
+
 > **ACTUALIZACIÓN DE GOBERNANZA — 13-OCT-2026 (PREVALECE SOBRE EL PLAN DE ESTE HANDOFF):** el Owner ordenó **suspender nuevas investigaciones cuantitativas** de VT08 y **volver a la investigación CRT metodológica, de fuentes y cognitiva, vela por vela**. Todas las instrucciones antiguas de ejecutar PF/WFO/Monte Carlo/optimización o nuevos ensayos cuantitativos se consideran **en pausa hasta nueva orden**. Leer primero [directiva Owner vigente](VT08-CRT-PURE-OWNER-QUALITATIVE-RETURN-DIRECTIVE-2026-10-13.md) y [primer cuaderno CRT Model #1 cognitivo](VT08-CRT-PURE-QUALITATIVE-MODEL1-COGNITIVE-RESEARCH-001.md). El resto del handoff conserva sus resultados históricos, NO son tareas activas. No merge/LIVE/producción/sizing/volumen.
 
 **Repository:** `mezas3238-hue/qore-core`  
