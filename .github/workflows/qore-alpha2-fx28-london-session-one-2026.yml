@@ -1,0 +1,111 @@
+name: QORE Alpha2 FX28 ONE original Asia London session range expansion 2016-2026
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-fx28-london-session-one-2026.yml'
+      - 'src/qore/research/alpha2_fx28_london_range_one.py'
+      - 'tests/research/test_alpha2_fx28_london_range_one.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  frozen_session_prereg_and_causal_synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Pre-outcome prereg ancestor, source gate and synthetic economic accounting
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor b0133535d6adb89724b827e9151c4ab7a109c154 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_FX28_LONDON_ASIA_RANGE_EXPANSION_ONE_FROZEN_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_fx28_london_range_one.py tests/research/test_alpha2_fx28_london_range_one.py
+          pytest -q -o addopts='' tests/research/test_alpha2_fx28_london_range_one.py
+  original28_FULL11YEAR_SESSION_probe:
+    needs: frozen_session_prereg_and_causal_synthetic
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: mezas3238-hue/qore-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m pip install -e .
+      - name: Original frozen 33 SHA roster and 12 cohort manifest, no M5 price read yet
+        run: |
+          set -euo pipefail
+          gh run download 38207337960 --repo "$GH_REPO" \
+            --name qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff --dir signed33
+          gh run download 35166210458 --repo "$GH_REPO" \
+            --name qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d --dir atlas-aggregate
+      - name: Seven original FX Atlas M5 session-source SHA gate then ephemeral 2026
+        run: |
+          set -euo pipefail
+          mkdir -p original28 ephemeral28
+          for s in AUDJPY AUDUSD EURUSD GBPJPY GBPUSD USDCAD USDJPY
+          do
+            gh run download 35166210458 --repo "$GH_REPO" \
+              --name "qore-cibo-market-atlas-10y-windowed-$s-ab782b8e9f890f86a2b6500070f0556b4b685e3d" --dir "original28/$s"
+            python -m qore.research.alpha2_fx28_london_range_one extract "$s" "original28/$s" signed33 ephemeral28 --aggregate12 atlas-aggregate
+            rm -rf "original28/$s"
+          done
+      - name: Twenty one original FX ICMarkets M5 session-source SHA gate through 2026
+        run: |
+          set -euo pipefail
+          for s in USDCHF NZDUSD EURGBP EURJPY EURCHF EURCAD EURAUD EURNZD GBPCHF GBPCAD GBPAUD GBPNZD AUDCAD AUDCHF AUDNZD CADJPY CADCHF CHFJPY NZDJPY NZDCAD NZDCHF
+          do
+            gh run download 38193802541 --repo "$GH_REPO" \
+              --name "qore-native-icmarkets-10Y-provider-M5-$s-e0ca5a13c866a19d8505c68cffc473598984b340" --dir "original28/$s"
+            python -m qore.research.alpha2_fx28_london_range_one extract "$s" "original28/$s" signed33 ephemeral28
+            rm -rf "original28/$s"
+          done
+      - name: ONE preregistered original FX28 Asia London M5 expansion research reference
+        run: |
+          set -euo pipefail
+          python -m qore.research.alpha2_fx28_london_range_one finish \
+            ephemeral28 session-panel
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          f=Path("session-panel/alpha2-FX28-asia-london-session-expansion-2016-2026-one.json")
+          x=json.loads(f.read_text())
+          assert x["FX28_count"]==28 and x["CCY_count"]==8
+          assert len(x["source_census_without_raw_price"])==28
+          assert x["original28_SOURCES_SHA_before_M5"] is True
+          assert x["single_event_Asia_00_07_London_break08_0945_entry_t_plus_10_exit_noon"] is True
+          assert x["2016_2026_already_exposed_in_Alpha2"] is True
+          assert x["conclusion_not_true_BROKER_NET"] is True
+          assert x["closed_to_posthoc_tuning_on_exposed_data"] is True
+          assert x["UTC001_certified"] is False and x["0_orders"] is True
+          assert x["status"] in (
+              "SESSION_EXPANSION_UNDERPOWERED",
+              "SESSION_EXPANSION_PREDECLARED_SCREEN_FAILED_STOP",
+              "SESSION_EXPANSION_EXPLORATORY_ONLY_NEEDS_FRESH_OOS_BROKER_NET",
+          )
+          assert "DEVELOPMENT" in x["eras"] and "DIAGNOSTIC" in x["eras"]
+          assert "PREVIOUSLY_EXPOSED_2024_2026" in x["eras"]
+          assert x["cumulative_traded_days_over_eras_with_overlaps"] > 0
+          for era,r in x["eras"].items():
+              assert r["original_28_FX_weights_fixed_ex_ante"]
+              assert r["weeks_with_at_least_one_complete_source_signal"] > 0
+          print("SCIENTIFIC SESSION OUTCOME",x["status"],
+                "DEV",x["eras"]["DEVELOPMENT"]["mean_2bp_side_cost_proxy_bps_per_calendar_week"],
+                "DIAG",x["eras"]["DIAGNOSTIC"]["mean_2bp_side_cost_proxy_bps_per_calendar_week"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > session-panel/exact-code-head-sha.txt
+          (cd policy-panel && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+          rm -rf original28 ephemeral28 signed33 atlas-aggregate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-FX28-LONDON-ASIA-ONE-2016-2026-AGG-${{ github.sha }}
+          path: session-panel/
+          retention-days: 90
+          if-no-files-found: error
