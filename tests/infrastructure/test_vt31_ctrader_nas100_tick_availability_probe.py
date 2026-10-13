@@ -165,3 +165,29 @@ def test_readonly_client_refuses_order_and_cancel_at_message_boundary() -> None:
     assert read.ctidTraderAccountId == 42
     assert read.symbolId == 987
     assert read.type == 1
+
+
+def test_broker_index_name_discovery_never_auto_substitutes_contract() -> None:
+    class SimilarIndexClient(FakeClient):
+        def request(self, message_name, fields, *, client_msg_id, timeout_seconds):
+            if message_name == "ProtoOASymbolsListReq":
+                self.calls.append(message_name)
+                return Success(SimpleNamespace(
+                    ctidTraderAccountId=self.account_id,
+                    symbol=[
+                        SimpleNamespace(symbolName="US100.cash", enabled=True, symbolId=12),
+                        SimpleNamespace(symbolName="NAS100", enabled=False, symbolId=44),
+                        SimpleNamespace(symbolName="USTEC", enabled=True, symbolId=19),
+                        SimpleNamespace(symbolName="EURUSD", enabled=True, symbolId=3),
+                    ],
+                ))
+            return super().request(
+                message_name, fields,
+                client_msg_id=client_msg_id, timeout_seconds=timeout_seconds,
+            )
+
+    client = SimilarIndexClient()
+    r = read_pilot(client, symbol_name="NAS100", windows=(WINDOW,))
+    assert r["status"] == "BLOCKED_EXACT_SYMBOL_ABSENT_OR_AMBIGUOUS"
+    assert r["related_enabled_broker_names_not_verified_equivalent"] == ["US100.cash"]
+    assert client.calls == ["ProtoOASymbolsListReq"]
