@@ -174,6 +174,8 @@ def _slow_reference(
         if t - b[0] > bound or t - a[0] > bound:
             counts["stale"] += 1
             continue
+        if not isinstance(b[1], Decimal) or not isinstance(a[1], Decimal):
+            raise ResearchDataError("slow reference expected Decimal provider quotes")
         if b[1] > a[1]:
             counts["crossed"] += 1
             continue
@@ -225,7 +227,7 @@ def _stats(quote_csv: Path, manifest_file: Path) -> dict[str, object]:
     }
 
 
-def process_sources(pilot: Path, wave: Path, *, report_file: Path) -> dict[str, object]:
+def process_sources(pilot: Path, wave: Path, *, report_file: Path) -> dict[str, Any]:
     reports: list[dict[str, Any]] = []
     roots = (pilot, wave)
     with tempfile.TemporaryDirectory(prefix="qore-verified-dev-source-") as tmp:
