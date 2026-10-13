@@ -14,8 +14,12 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime
+from decimal import Decimal
 
 from .contracts import (
+    FRAMEWORK_POLICIES,
+    G3_MSS_FRAMEWORK_POLICY,
+    LEGACY_FRAMEWORK_POLICY,
     MIN_INDEX_POINTS,
     CognitiveDecision,
     FvgCandidate,
@@ -32,7 +36,14 @@ from .m1_execution import confirmed_m1_fvg, required_timeframe_contract
 class IctSilverBulletOperations:
     """Independent state for exactly one session/day, no position authority."""
 
-    def __init__(self, *, session: SessionId, day: datetime) -> None:
+    def __init__(
+        self, *, session: SessionId, day: datetime,
+        framework_policy: str = LEGACY_FRAMEWORK_POLICY,
+    ) -> None:
+        if framework_policy not in FRAMEWORK_POLICIES:
+            raise ValueError("unsupported OPS 10-point framework policy")
+        self.framework_policy = framework_policy
+        self._observed_m1_closes: dict[datetime, Decimal] = {}
         self.session = session
         self.start, self.end = window_bounds(day, session)
         self.last_closed: datetime | None = None
@@ -67,7 +78,24 @@ class IctSilverBulletOperations:
                 raise ValueError("future MSS")
             if utc(cognition.draw_level_observed_at) > closed:
                 raise ValueError("future liquidity")
+            if self.framework_policy == G3_MSS_FRAMEWORK_POLICY:
+                if cognition.framework_policy != G3_MSS_FRAMEWORK_POLICY:
+                    raise ValueError("COG and OPS must share G3 MSS framework")
+                if cognition.mss_anchor_close is None:
+                    raise ValueError("missing G3 MSS-close witness")
+                break_at = utc(cognition.structure_break_confirmed_at)
+                actual = (
+                    bar.close if break_at == closed
+                    else self._observed_m1_closes.get(break_at)
+                )
+                if actual is None or actual != cognition.mss_anchor_close:
+                    raise ValueError(
+                        "G3 MSS price witness not independently verified at M1"
+                    )
+            elif cognition.framework_policy != LEGACY_FRAMEWORK_POLICY:
+                raise ValueError("G3 cognition cannot feed legacy OPS")
         self.last_closed = closed
+        self._observed_m1_closes[closed] = bar.close
 
         # P0: source-qualified pending orders MUST retain a FRESH, still
         # valid cognitive thesis. When DOL is swept, pivot is revoked,
@@ -166,9 +194,16 @@ class IctSilverBulletOperations:
         # or time the trigger candle.
         lower, upper = m1_gap.zone_low, m1_gap.zone_high
         midpoint = m1_gap.consequent_encroachment
+        anchor = (
+            cognition.mss_anchor_close
+            if self.framework_policy == G3_MSS_FRAMEWORK_POLICY
+            else current.close
+        )
+        if anchor is None:
+            raise ValueError("no G3 MSS anchor for OPS framework")
         room = (
-            cognition.draw_target - current.close
-            if cognition.side == Side.LONG else current.close - cognition.draw_target
+            cognition.draw_target - anchor
+            if cognition.side == Side.LONG else anchor - cognition.draw_target
         )
         if room < MIN_INDEX_POINTS or (
             cognition.side == Side.LONG and cognition.draw_target <= midpoint
