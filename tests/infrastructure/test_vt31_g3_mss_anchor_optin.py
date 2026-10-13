@@ -280,3 +280,135 @@ def test_cog_rejects_shift_timestamp_not_same_as_current_closed_m1(
     monkeypatch.setattr(cog._index, "shift", lambda: fake)
     with pytest.raises(ValueError, match="MSS witness must be"):
         cog.assess(session=SessionId.LONDON, as_of=first.closed_at)
+
+
+def _genuine_cog_mss_witness() -> tuple[
+    list[M1Bar], CognitiveDecision, VT31CleanroomCognition,
+]:
+    """Create REAL native MSS/DOL on closed bars, not an invented DTO.
+
+    Mirrors pre-existing cleanroom cognition fixtures but runs the actual
+    _OnlineCausalIndex, _confirmed_break, pool confirmation and assess().
+    Only the downstream OPS market stream is corrupted in adversarial tests.
+    """
+    previous = datetime(2026, 1, 2, 14, 30, tzinfo=UTC)
+    today = datetime(2026, 1, 5, 5, tzinfo=UTC)
+
+    def candle(
+        dt: datetime, o: str = "100", h: str = "101",
+        lo: str = "99", c: str = "100.5",
+    ) -> M1Bar:
+        return M1Bar(
+            opened_at=dt,
+            closed_at=dt + timedelta(minutes=1),
+            open=Decimal(o), high=Decimal(h),
+            low=Decimal(lo), close=Decimal(c),
+        )
+
+    previous_cash = [
+        candle(
+            previous + timedelta(minutes=i),
+            o="110", h="150" if i == 33 else "114",
+            lo="80" if i == 45 else "108", c="111",
+        ) for i in range(390)
+    ]
+    asia = [candle(today + timedelta(minutes=i)) for i in range(180)]
+    start = today + timedelta(minutes=180)  # Monday 03:00 New York
+    session = [
+        candle(start, o="100", h="103", lo="99", c="101"),
+        candle(start + timedelta(minutes=1), o="101",
+               h="103", lo="100", c="100.5"),
+        candle(start + timedelta(minutes=2), o="101",
+               h="105", lo="100", c="102"),
+        candle(start + timedelta(minutes=3), o="101",
+               h="104", lo="100", c="101"),
+        candle(start + timedelta(minutes=4), o="101",
+               h="104", lo="100", c="104"),
+        candle(start + timedelta(minutes=5), o="101",
+               h="109", lo="101", c="107"),
+    ]
+    cog = VT31CleanroomCognition(framework_policy=G3_MSS_FRAMEWORK_POLICY)
+    for item in previous_cash + asia + session:
+        cog.observe_closed_m1(item)
+    assessment = cog.assess(
+        session=SessionId.LONDON, as_of=session[-1].closed_at,
+    )
+    assert assessment.decision is not None, assessment.missing
+    witness = assessment.decision
+    assert witness.side is Side.LONG
+    assert witness.structure_level == Decimal("105")
+    assert witness.mss_anchor_close == Decimal("107")
+    assert witness.structure_break_confirmed_at == session[-1].closed_at
+    assert witness.structure_level_confirmed_at < witness.structure_break_confirmed_at
+    assert witness.draw_target == Decimal("150")
+    return session, witness, cog
+
+
+def test_genuine_cog_decision_accepted_against_untampered_ops_m1() -> None:
+    bars, witness, _ = _genuine_cog_mss_witness()
+    ops = IctSilverBulletOperations(
+        session=SessionId.LONDON, day=bars[0].opened_at,
+        framework_policy=G3_MSS_FRAMEWORK_POLICY,
+    )
+    for item in bars[:-1]:
+        ops.on_closed_m1(item, cognition=None)
+    # Actual original COG witness + identical OPS M1. Gate must NOT reject.
+    ops.on_closed_m1(bars[-1], cognition=witness)
+    assert ops.last_closed == bars[-1].closed_at
+
+
+def test_falsified_mss_close_same_timestamp_is_rejected_by_ops() -> None:
+    bars, witness, _ = _genuine_cog_mss_witness()
+    ops = IctSilverBulletOperations(
+        session=SessionId.LONDON, day=bars[0].opened_at,
+        framework_policy=G3_MSS_FRAMEWORK_POLICY,
+    )
+    for item in bars[:-1]:
+        ops.on_closed_m1(item, cognition=None)
+    # Timestamp, direction, pivot, DOL and CognitiveDecision remain genuine.
+    # ONLY the M1 close as loaded downstream differs from the COG witness.
+    corrupted = replace(bars[-1], close=Decimal("106"))
+    assert corrupted.closed_at == witness.structure_break_confirmed_at
+    assert corrupted.close != witness.mss_anchor_close
+    with pytest.raises(
+        ValueError, match="MSS_ANCHOR_INCONSISTENT_WITH_M1_DATA",
+    ):
+        ops.on_closed_m1(corrupted, cognition=witness)
+    assert ops.last_closed == bars[-2].closed_at
+    assert ops.first_suitable is None
+    assert bars[-1].close == Decimal("107")  # upstream unmodified
+
+
+def test_falsified_mss_m1_cached_before_later_c3_revalidation_rejected() -> None:
+    bars, witness, cog = _genuine_cog_mss_witness()
+    ops = IctSilverBulletOperations(
+        session=SessionId.LONDON, day=bars[0].opened_at,
+        framework_policy=G3_MSS_FRAMEWORK_POLICY,
+    )
+    for item in bars[:-1]:
+        ops.on_closed_m1(item, cognition=None)
+    altered_mss = replace(bars[-1], close=Decimal("106"))
+    ops.on_closed_m1(altered_mss, cognition=None)
+
+    # COG maintains the *same* original MSS witness after the next M1.
+    at = bars[-1].closed_at
+    later = M1Bar(
+        at, at + timedelta(minutes=1),
+        Decimal("107"), Decimal("110"),
+        Decimal("105.5"), Decimal("108"),
+    )
+    cog.observe_closed_m1(later)
+    continued = cog.assess(
+        session=SessionId.LONDON, as_of=later.closed_at,
+    )
+    assert continued.decision is not None, continued.missing
+    assert continued.decision.structure_break_confirmed_at == witness.structure_break_confirmed_at
+    assert continued.decision.mss_anchor_close == Decimal("107")
+    assert continued.decision.observed_at == later.closed_at
+    with pytest.raises(
+        ValueError, match="MSS_ANCHOR_INCONSISTENT_WITH_M1_DATA",
+    ):
+        ops.on_closed_m1(later, cognition=continued.decision)
+    # OPS does not re-run MSS and does not silently trust the valid COG DTO.
+    assert ops.last_closed == altered_mss.closed_at
+    assert ops.first_suitable is None
