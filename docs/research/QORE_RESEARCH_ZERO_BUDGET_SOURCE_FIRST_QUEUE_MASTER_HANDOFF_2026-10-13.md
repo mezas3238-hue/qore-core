@@ -46,3 +46,12 @@ El CF-11 consumido es una instancia real de CiboResearchPlan con estado EXPERIME
 **Restricciones:** no merge, no cTrader/MT5/VPS, no LIVE ni capital real, nada de sizing/leverage en Traders. Datos US$0 y EIA holdout sellado.
 
 **Conclusión:** cola SOURCE-FIRST real y verificada; utilidad actual es saber qué detener, qué está bloqueado por fuente y cómo ingresar una propuesta sin contaminarse con resultados. No inventar ejecución económica.
+
+
+---
+
+## Addendum de CI final: propuestas futuras sin romper el gate (13-OCT-2026)
+
+Se corrigió una restricción excesiva del workflow: la aserción previa exigía 0 propuestas siempre, lo que impedía aceptar propuestas nuevas aunque fueran legítimamente `PROPOSAL_ONLY`. Ahora el workflow permite **hasta 20 propuestas**, siempre que todas sean no ejecutables, los dos registros autoritativos mantengan `CLOSED_NO_SUPPORT` y `SOURCE_BLOCKED`, ningún resultado científico/económico se fabrique, el budget permanezca USD0 y ningún holdout se abra. El manifiesto actual sigue **vacío**.
+
+**Verificación posterior a la corrección:** [GitHub Actions #38459547103 — SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38459547103) con HEAD de código `ca3a69845ded438a980d9473e9b40af86345391f`. **Ruff PASS, Mypy PASS, 19/19 tests PASS**, ciencia CF-11 y procedencia EIA autenticadas. Artifact nuevo [#11844922650](https://github.com/mezas3238-hue/qore-core/actions/runs/38459547103/artifacts/11844922650), SHA256 ZIP `796f8bcde2c596687c3921e368ccc60a3a27106f2335f61d99cf005da7cc02b4`. Mantener ambos runs documentados para auditar evolución (el previo #38459093369 también fue SUCCESS).
