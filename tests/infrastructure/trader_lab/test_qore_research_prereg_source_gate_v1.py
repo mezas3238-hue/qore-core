@@ -122,6 +122,13 @@ class TestQoreResearchPreregFreeze(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "REUSING_TESTED_HYPOTHESIS"):
             gate.freeze_prereg_manifest(raw, proposals(), git_commit_sha=GIT)
 
+    def test_burned_eia_hypothesis_denied_even_without_self_report(self) -> None:
+        raw = prereg()
+        raw["preregistrations"][0]["hypothesis_code"] = PRIOR
+        raw["preregistrations"][0]["hypotheses_previously_tested"] = []
+        with self.assertRaisesRegex(ValueError, "REUSING_TESTED_HYPOTHESIS"):
+            gate.freeze_prereg_manifest(raw, proposals(), git_commit_sha=GIT)
+
     def test_missing_full_spec_is_rejected(self) -> None:
         raw = prereg()
         del raw["preregistrations"][0]["publication_asof_rule"]
