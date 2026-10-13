@@ -68,3 +68,32 @@ Avoid: repeating static filters, same-source ABSTAIN fallback, post-hoc excludin
 - Original R2-CF [CI 38442593863](https://github.com/mezas3238-hue/qore-core/actions/runs/38442593863).
 
 No silent backfill of broker data; all tests above consumed archived GitHub files.
+
+---
+
+## 6. Subsequent R2-CI closure (authoritative continuity update, 2026-10-13)
+
+R2-F's original `competition_policy_frozen=false` was **historical**; R2-G subsequently froze a `NEWEST_SUPERSEDES_CONFIRMATION_FIRST` model and max-one-trade-attempt-per-parent. Do not treat R2-F's older OPEN status as current freedom to execute additional source hypotheses.
+
+A third, **preregistered** non-economic archival source audit now exists:
+
+- [R2-CI freeze](VT08-CRT-PURE-R2CI-THREE-LEDGER-IDENTITY-FREEZE-001.md)
+- [R2-CI final results](VT08-CRT-PURE-R2CI-THREE-LEDGER-IDENTITY-RESULT-001.md)
+- [CI run 38448705957](https://github.com/mezas3238-hue/qore-core/actions/runs/38448705957) — quality, AUDUSD and USDJPY SUCCESS.
+- Source: `src/qore/infrastructure/trader_lab/vt08_crt_pure_r2ci_three_ledger_identity.py`; tests and read-only triple-archive workflow `.github/workflows/vt08-crt-pure-r2ci-three-ledger-audit.yml`.
+
+Exactly matching R2-F sources to R2-G selected entries by **C3 + source M15 + reference IDs** showed:
+
+| R2-CH structurally unmatched later-confirmed sources | AUDUSD | USDJPY |
+|---|---:|---:|
+| Reproduced candidate source-slot records | 43 | 32 |
+| Selected already by R2-G NEWEST | **0** | **0** |
+| Selected by other R2-G policy only | 4 | 4 |
+| Not selected by ANY historical R2-G policy | 39 | 28 |
+| Exact reference-ID ambiguous or unmapped selected R2-G trades | 0 | 0 |
+
+Interpretation: those historical sources exist, but they were **not admissible winning entries under frozen NEWEST selection**. The 39/28 are not executable permissions and cannot be summed with the one-WAIT capacity; some were competed away under one-entry-per-parent. R2-G evaluated alternative policies already and competition alone was economically insufficient.
+
+**Current actionable scientific frontier:** authority/causal audit of genuinely new unique independent *parent and source* opportunities, if the original CRT strategy supports them. Do NOT create a new economic replay of these 39/28 as though no prior competition policy existed. Source/methodology authorization, causal entry, independent source identity and one-attempt/C3 rule must be reconciled first. If absent, close as `NO_SUPPORT` or `BLOCKED_PARTIAL`; do not alter the trader's sizing/volume authority.
+
+**Current new end-of-turn checkpoint:** consult PR #626 head after writing this addendum; no merge or deployment.
