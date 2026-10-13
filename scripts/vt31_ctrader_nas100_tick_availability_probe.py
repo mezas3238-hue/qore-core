@@ -121,7 +121,8 @@ def decode_response(
 def read_pilot(
     client: TickReadBoundary, *, symbol_name: str, windows: tuple[ProbeWindow, ...],
 ) -> dict[str, object]:
-    if not isinstance(symbol_name, str) or re.fullmatch(r"[A-Za-z0-9._-]{2,32}", symbol_name) is None:
+    if (not isinstance(symbol_name, str)
+            or re.fullmatch(r"[A-Za-z0-9._-]{2,32}", symbol_name) is None):
         raise PilotDataError("EXACT_BROKER_SYMBOL_REQUIRED")
     if not windows:
         raise PilotDataError("PROBE_WINDOWS_REQUIRED")
