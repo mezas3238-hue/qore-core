@@ -11,7 +11,8 @@ from qore.infrastructure.research_accelerator.real_source import _binary_referen
 
 def test_oracle_agrees_on_gaps_crossed_and_no_pair() -> None:
     origin = datetime(2024, 3, 10, 8, tzinfo=UTC)
-    ms = lambda n: origin + timedelta(milliseconds=n)
+    def ms(n: int) -> datetime:
+        return origin + timedelta(milliseconds=n)
     bids = (
         (ms(0), Decimal("100")),
         (ms(100), Decimal("101")),
