@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/vt31-g3-mss-dual-filter-optin-20261012
+      - agent/vt31-g3-mss-falsification-boundary-20261013
     paths:
       - src/qore/infrastructure/traders/vt31_ict_cleanroom/contracts.py
       - src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py
