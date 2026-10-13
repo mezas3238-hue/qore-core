@@ -12,7 +12,6 @@ from scripts.vt31_gate1_cogops_vs_raw_first_fvg_20261013 import (
     raw_first_for_complete_hour,
 )
 
-
 BASE = datetime(2025, 7, 1, 14, tzinfo=UTC)
 
 
@@ -38,7 +37,7 @@ def test_raw_first_is_only_first_contiguous_fvg_same_hour() -> None:
     assert e["session"] == "VT31_NY_AM"
 
 
-def test_raw_strict_gap_equality_is_not_FVG() -> None:
+def test_raw_strict_gap_equality_is_not_fvg() -> None:
     bars = [bar(i) for i in range(60)]
     bars[2] = bar(2, low=30002., high=30005., o=30003., c=30003.)
     assert raw_first_for_complete_hour(
@@ -71,7 +70,7 @@ def test_wrong_length_window_rejected() -> None:
         )
 
 
-def test_NY_DST_and_non_window_denominator() -> None:
+def test_ny_dst_and_non_window_denominator() -> None:
     assert key_for(datetime(2025, 7, 1, 14, 5, tzinfo=UTC)) == (
         "2025-07-01", "VT31_NY_AM"
     )
@@ -81,7 +80,7 @@ def test_NY_DST_and_non_window_denominator() -> None:
     assert key_for(datetime(2025, 1, 2, 14, 5, tzinfo=UTC)) is None
 
 
-def test_signed_open_to_open_requires_16_contiguous_M1() -> None:
+def test_signed_open_to_open_requires_16_contiguous_m1() -> None:
     x = {"formed": BASE, "side_sign": -1}
     opens = {BASE+timedelta(minutes=i): 30000.+i for i in range(16)}
     assert gross(x, opens) == -15.
