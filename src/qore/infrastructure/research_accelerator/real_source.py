@@ -21,6 +21,7 @@ from typing import Any
 from zipfile import ZipFile
 
 from qore.infrastructure.research_accelerator.asof import (
+    SideInput,
     asof_pair,
     load_side,
     pair_files,
@@ -292,8 +293,8 @@ def process_sources(pilot: Path, wave: Path, *, report_file: Path) -> dict[str, 
                     )
                     ingested = ingest(resultpath, resultmeta, lake)
                     if first_benchmark is None:
-                        b = load_side(*paths["BID"])
-                        a = load_side(*paths["ASK"])
+                        b = load_side(paths["BID"][0], SideInput.read(paths["BID"][1]))
+                        a = load_side(paths["ASK"][0], SideInput.read(paths["ASK"][1]))
                         first_benchmark = _parity_benchmark(b, a)
                     reports.append({
                         "source": name, "source_artifact_id": artifact_id,
