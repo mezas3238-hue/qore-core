@@ -1,0 +1,62 @@
+name: QORE Futures A EIA F1F2 frozen predictive diagnostic
+
+on:
+  push:
+    branches:
+      - research/qore-futures-a-eia-front2-predictive-screen-20261013
+    paths:
+      - 'docs/research/QORE_FUTURES_A_EIA_WTI_NG_F1F2_PREDICTIVE_SCREEN_PREREG_2026-10-13.md'
+      - 'src/qore/infrastructure/trader_lab/qore_futures_a_eia_f1f2_predictive_screen_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_futures_a_eia_f1f2_predictive_screen_v1.py'
+      - '.github/workflows/qore-futures-a-eia-prereg-predictive-screen.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frozen_association_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Excel reader only; Fisher implemented with stdlib
+        run: pip install xlrd==2.0.2
+      - name: Reproduce preregistration on synthetic data first
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_futures_a_eia_f1f2_predictive_screen_v1.py -v
+      - name: Run EIA source-frozen DEV and DIAG only, 2022 holdout SEALED
+        run: |
+          python src/qore/infrastructure/trader_lab/qore_futures_a_eia_f1f2_predictive_screen_v1.py \
+            --out "$RUNNER_TEMP/qore_futures_a_eia_f1f2_prereg_dev_diag_only.json"
+      - name: Enforce zero trade, no economic certification, holdout excluded
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          file=Path(os.environ["RUNNER_TEMP"])/"qore_futures_a_eia_f1f2_prereg_dev_diag_only.json"
+          obj=json.loads(file.read_text())
+          assert obj["preregistered_hypothesis_count"]==2
+          assert obj["holdout_2022_2024"]=="SEALED_NO_VALUES_LOADED"
+          assert obj["market_data_budget_USD"]==0
+          assert obj["trading_orders"]==0
+          assert obj["trader_certified"]==0
+          assert obj["full_source_ready_for_6_roots"] is False
+          assert obj["fx_holdout_touched"] is False
+          assert len(obj["results"])==2
+          print("PREREG_TWO_ASSOCIATIONS_ONLY_NO_PNL_NO_HOLDOUT")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-futures-a-eia-frozen-dev-diag-only-no-pnl
+          path: ${{ runner.temp }}/qore_futures_a_eia_f1f2_prereg_dev_diag_only.json
+          retention-days: 90
+          if-no-files-found: error
