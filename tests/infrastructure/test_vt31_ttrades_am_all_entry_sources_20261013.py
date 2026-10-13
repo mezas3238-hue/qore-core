@@ -105,6 +105,7 @@ def test_opposite_raid_before_displacement_vetoes_day() -> None:
 
 def test_post_reversal_ob_and_breaker_cannot_backdate_retests() -> None:
     z = hours()
+    z[10][2] = b(62, o=30000., h=30008., lo=29999., c=30007.)
     z[10][3] = b(63, o=30002., h=30009., lo=30001., c=30007.)
     _, signals, _ = emit_day("2025-07-01", z)
     assert "DISPLACEMENT_DIRECT" in signals
