@@ -169,5 +169,59 @@ class TestQoreZeroBudgetResearchIntake(unittest.TestCase):
             q.eia_closed_from_verified_cf11_json(raw)
 
 
+    def test_new_proposals_register_only_without_signal_or_certification(self) -> None:
+        base = q.build_source_first_queue(_synthetic_cf11_closed_plan())
+        expanded = q.register_unfrozen_proposal(
+            base,
+            code="research.proposal.new-mechanism-a",
+            question_code="research.question.regime-conditional-seasonality",
+            data_requirement_code="cme.native-delivery-contract-d1",
+            research_root_count=6,
+        )
+        view = expanded.to_json()
+        self.assertEqual(len(view["entries"]), 3)
+        self.assertEqual(view["new_hypotheses_registered"], 1)
+        proposed = next(x for x in view["entries"] if x["status"] == "proposal_only")
+        self.assertEqual(proposed["next_action"], "write_new_prereg")
+        self.assertEqual(proposed["scientific_decision"], "NOT_TESTED")
+        self.assertFalse(proposed["experiment_runnable"])
+        self.assertFalse(proposed["can_open_fresh_holdout"])
+        self.assertFalse(proposed["trader_certified"])
+        self.assertEqual(view["spent_usd"], 0)
+
+    def test_duplicate_proposal_is_rejected(self) -> None:
+        base = q.build_source_first_queue(_synthetic_cf11_closed_plan())
+        params = {
+            "code": "research.proposal.new-mechanism-a",
+            "question_code": "research.question.regime-conditional-seasonality",
+            "data_requirement_code": "cme.native-delivery-contract-d1",
+            "research_root_count": 6,
+        }
+        expanded = q.register_unfrozen_proposal(base, **params)
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_PROPOSAL"):
+            q.register_unfrozen_proposal(expanded, **params)
+
+    def test_reopening_original_eia_as_new_proposal_rejected(self) -> None:
+        base = q.build_source_first_queue(_synthetic_cf11_closed_plan())
+        with self.assertRaisesRegex(ValueError, "NEW_PROPOSAL_REQUIRES_OWN_IDENTITY"):
+            q.register_unfrozen_proposal(
+                base,
+                code="research.eia.futures-a-f1f2-closure",
+                question_code="research.question.reopen-old-outcomes",
+                data_requirement_code="eia.f1f2.reference-close-only",
+                research_root_count=2,
+            )
+
+    def test_source_blocked_cannot_be_changed_to_favorable(self) -> None:
+        base = q.build_source_first_queue(_synthetic_cf11_closed_plan())
+        old = next(x for x in base.entries if x.code.endswith("native-6roots-d1"))
+        with self.assertRaisesRegex(ValueError, "NEW_PROPOSAL_REQUIRES_OWN_IDENTITY"):
+            replace(
+                old,
+                status=q.IntakeStatus.PROPOSAL_ONLY,
+                next_action=q.NextResearchAction.WRITE_NEW_PREREG,
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
