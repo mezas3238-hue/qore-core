@@ -182,9 +182,9 @@ def run_market(market: str) -> dict[str, Any]:
         )
         if not train_start < oos_start < oos_end:
             raise ValueError("Nonchronological fold")
-        training = slice_records(records, train_start, oos_start)
-        oos = slice_records(records, oos_start, oos_end)
-        model, fit_meta = initial_fit(training)
+        training = cast(Any, slice_records)(records, train_start, oos_start)
+        oos = cast(Any, slice_records)(records, oos_start, oos_end)
+        model, fit_meta = cast(Any, initial_fit)(training)
 
         control_training = tuple(delayed_by_key[module._record_key(row)] for row in training)
         aligned_training, historical_actions = _wait_training_cohort(
