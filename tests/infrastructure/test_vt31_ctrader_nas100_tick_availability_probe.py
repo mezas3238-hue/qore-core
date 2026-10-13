@@ -138,3 +138,30 @@ def test_invalid_symbol_and_empty_samples_fail_closed() -> None:
     with pytest.raises(PilotDataError, match="PROBE_WINDOWS"):
         read_pilot(fake, symbol_name="NAS100", windows=())
     assert fake.calls == []
+
+
+def test_readonly_client_refuses_order_and_cancel_at_message_boundary() -> None:
+    from qore.infrastructure.ctrader_open_api_client import (
+        CTraderOpenApiProtocolError,
+        SpotwareCTraderOpenApiClient,
+    )
+
+    class DummyProto:
+        pass
+
+    client = SpotwareCTraderOpenApiClient.__new__(SpotwareCTraderOpenApiClient)
+    client._read_only = True
+    client._bindings = SimpleNamespace(messages={"ProtoOAGetTickDataReq": DummyProto})
+    for operation in (
+        "ProtoOANewOrderReq", "ProtoOACancelOrderReq",
+        "ProtoOAAmendPositionSLTPReq", "ProtoOAClosePositionReq",
+    ):
+        with pytest.raises(CTraderOpenApiProtocolError, match="prohibits this message"):
+            client._message(operation, {})
+    read = client._message(
+        "ProtoOAGetTickDataReq",
+        {"ctidTraderAccountId": 42, "symbolId": 987, "type": 1},
+    )
+    assert read.ctidTraderAccountId == 42
+    assert read.symbolId == 987
+    assert read.type == 1
