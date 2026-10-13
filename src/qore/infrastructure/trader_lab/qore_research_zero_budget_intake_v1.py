@@ -140,6 +140,31 @@ class ResearchIntakeRecord:
             "research.proposal."
         ):
             raise ResearchIntakeError("NEW_PROPOSAL_REQUIRES_OWN_IDENTITY")
+        # Base missions have fixed identities, not caller-defined status labels.
+        if self.code == _CODE_EIA and (
+            self.status is not IntakeStatus.CLOSED_NO_SUPPORT
+            or self.question_code != "research.question.f1f2-directional-probability"
+            or self.data_requirement_code != "eia.f1f2.reference-close-only"
+            or self.research_root_count != 2
+        ):
+            raise ResearchIntakeError("BASE_EIA_IDENTITY_MISMATCH")
+        if self.code == _CODE_FUTURES and (
+            self.status is not IntakeStatus.SOURCE_BLOCKED
+            or self.question_code != "research.question.native-commodity-futures-edge"
+            or self.data_requirement_code != "cme.native-six-roots-two-contracts-d1"
+            or self.research_root_count != 6
+        ):
+            raise ResearchIntakeError("BASE_FUTURES_IDENTITY_MISMATCH")
+        # Prevent relabeling already tested questions or presenting the EIA
+        # reference-only closes as native, executable contract data.
+        if self.status is IntakeStatus.PROPOSAL_ONLY and (
+            self.question_code in (
+                "research.question.f1f2-directional-probability",
+                "research.question.native-commodity-futures-edge",
+            )
+            or self.data_requirement_code == "eia.f1f2.reference-close-only"
+        ):
+            raise ResearchIntakeError("RECYCLED_QUESTION_OR_NONNATIVE_EIA_SOURCE")
 
     def to_json(self) -> dict[str, Any]:
         out = asdict(self)
@@ -253,11 +278,15 @@ class ResearchIntakeLedger:
     def __post_init__(self) -> None:
         if type(self.entries) is not tuple or len(self.entries) < 2:
             raise ResearchIntakeError("QUEUE_MISSING_VERIFIED_BASE_MISSIONS")
+        if len(self.entries) > 22:  # two base missions and at most 20 proposals
+            raise ResearchIntakeError("QUEUE_EXCEEDS_PROPOSAL_LIMIT")
         if any(type(e) is not ResearchIntakeRecord for e in self.entries):
             raise ResearchIntakeError("UNTRUSTED_QUEUE_OBJECT")
         names = tuple(e.code for e in self.entries)
         if names != tuple(sorted(names)) or len(names) != len(set(names)):
             raise ResearchIntakeError("QUEUE_ORDER_OR_DUPLICATE_IDENTITY")
+        if len({e.question_code for e in self.entries}) != len(self.entries):
+            raise ResearchIntakeError("DUPLICATE_RESEARCH_QUESTION")
         required = {_CODE_EIA, _CODE_FUTURES}
         if not required.issubset(names):
             raise ResearchIntakeError("QUEUE_MISSING_VERIFIED_BASE_MISSIONS")
