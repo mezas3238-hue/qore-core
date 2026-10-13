@@ -44,7 +44,7 @@ Workflow independiente:
 .github/workflows/qore-research-accelerator.yml
 
 Pruebas sintéticas:
-tests/infrastructure/research_accelerator/test_contracts.py
+tests/infrastructure/research_accelerator/test_research_accelerator_contracts.py
 
 ## Decisión sobre fuente canónica — PROVISIONAL, NO DEFINITIVA
 
@@ -198,3 +198,28 @@ Estos límites no invalidan que las cinco capas del Research
 Accelerator son código ejecutable y que la fuente real parcial está
 validada; impiden afirmar que el trader tiene edge o que la adquisición
 histórica completa ha finalizado.
+
+
+## Actualización P1: oráculo completo y prueba de screening (13-Oct-2026)
+
+- Se amplió la auditoría de muestra a TODOS los 240550 estados as-of
+  BID/ASK de las 30 horas de cTrader, contra segundo algoritmo
+  independiente con búsqueda binaria. Paridad exacta 30/30 = PASS.
+  Workflow SUCCESS: https://github.com/mezas3238-hue/qore-core/actions/runs/38448953480
+  Artefacto agregado firmado: 11839407769. No contiene ticks crudos.
+- Tests específicos de adversarial crossed, stale, missing y 30
+  secuencias aleatorias desfasadas BID/ASK. Tests del screening
+  comparan cálculo indexado versus recorrido cronológico independiente
+  sobre barras sintéticas (4 horizontes, censura, filtros, placebo).
+  CI aislada PASS:
+  https://github.com/mezas3238-hue/qore-core/actions/runs/38448961410
+- Informe fuente/mercado con partición por London, NY_AM y NY_PM:
+  docs/research/QORE_ACCELERATOR_REAL_CTRADER_30H_AUDIT_RESULT_2026-10-13.md.
+  Muestras DEV discontinuas: no estimar edge ni anualizar esas horas.
+- El test cronológico comparte las funciones de bootstrap y
+  clasificación de regímenes; NO se trata de una validación
+  científica independiente de dichos estimadores.
+- PENDIENTE fuente BID/ASK multianual, homologación NAS100/USTEC,
+  custodia privada de fuente, auditoría de licencia, fills con
+  acuses reales, economic gate OOS y prueba de eficiencia
+  del runner end-to-end. No merge ni LIVE.

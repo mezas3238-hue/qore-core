@@ -73,3 +73,46 @@ Use artifact evidence for source qualification; never claim 3Y quote coverage.
 Next architect must solve those scientifically without consuming holdouts,
 claiming historic alias equivalence, or changing Trader Lab authority.
 No LIVE, no capital, no merge without explicit Owner instruction.
+
+
+## Full-dataset oracle and session QA update (run 38448953480)
+
+The initial 1,500-per-side O(n²) benchmark was extended with a SECOND,
+independently written O(n log n) binary-search oracle, which is compared
+exactly against every normalized quote state and the quarantine counts of
+EACH of the 30 cTrader windows. The independent oracle does not call
+the production as-of matcher.
+
+- Full-source quote-state parity = PASS_30_OF_30_ALL_QUOTE_STATES.
+- Total accepted states matched bit-for-bit = 240,550 (entire dataset).
+- 30/30 independent window comparisons PASS_EXACT.
+- Signed result artifact ID 11839407769, verified SHA sidecar.
+- Executed run: https://github.com/mezas3238-hue/qore-core/actions/runs/38448953480
+- Adversarial tests: crossed quote, stale side, missing side, 30 seeded
+  randomized disjoint BID/ASK clocks.
+- The full-source test certifies numerical parity, NOT its speedup.
+  Performance ~32x remains limited to the 1,500-per-side O(n²) benchmark.
+
+Session-level descriptive checks from that same signed report (all are
+noncontiguous DEV snapshots, not representative population statistics):
+
+| Session | Hours | Accepted quote states | Stale quarantined | Range of per-hour median spread (index points) |
+|---|---:|---:|---:|---:|
+| London | 10 | 49,213 | 1,132 | 0.60 to 2.00 |
+| New York AM | 10 | 104,809 | 446 | 0.30 to 1.05 |
+| New York PM | 10 | 86,528 | 426 | 0.30 to 1.10 |
+| Total | 30 | 240,550 | 2,004 | Not pooled |
+
+Each row's spread range is the MIN/MAX of the 10 hour-level median
+spreads, not the 5th/95th percentile or an executable P&L estimate.
+A quote-side spread is a market-friction observation; no broker ACK,
+market impact, currency multiplier, portfolio sizing, swap or slippage
+distribution was estimated.
+
+End-to-end *screen* arithmetic is separately checked against a fully
+chronological brute-force price lookup (frozen synthetic bars, missing
+timestamps, constrained features, 4 horizons, regime split and local
+extreme placebo); the bootstrap and regime implementations are shared
+between oracle and fast path, so this test does NOT independently
+certify their correctness or trading edge. Isolated CI PASS:
+https://github.com/mezas3238-hue/qore-core/actions/runs/38448961410
