@@ -408,7 +408,7 @@ def test_falsified_mss_m1_cached_before_later_c3_revalidation_rejected() -> None
     with pytest.raises(
         ValueError, match="MSS_ANCHOR_INCONSISTENT_WITH_M1_DATA",
     ):
-        ops.on_closed_m1(later, cognition=continued)
+        ops.on_closed_m1(later, cognition=continued.decision)
     # OPS does not re-run MSS and does not silently trust the valid COG DTO.
     assert ops.last_closed == altered_mss.closed_at
     assert ops.first_suitable is None
