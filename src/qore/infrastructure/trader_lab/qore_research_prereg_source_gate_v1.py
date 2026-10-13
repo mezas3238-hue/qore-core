@@ -92,7 +92,10 @@ def _new_proposals(proposals: dict[str, Any]) -> dict[str, dict[str, Any]]:
             raise ResearchIntakeError("PROPOSAL_MUST_HAVE_NEW_IDENTITY")
         _token(proposal["question_code"], "question")
         _token(proposal["data_requirement_code"], "source")
-        if type(proposal["research_root_count"]) is not int or proposal["research_root_count"] not in (2, 6):
+        if (
+            type(proposal["research_root_count"]) is not int
+            or proposal["research_root_count"] not in (2, 6)
+        ):
             raise ResearchIntakeError("PROPOSAL_BAD_ROOT_COUNT")
         if code in result:
             raise ResearchIntakeError("DUPLICATE_PROPOSAL_IDENTITY")
@@ -193,7 +196,7 @@ def _freeze_one(spec: Any, proposals: dict[str, dict[str, Any]]) -> FrozenHypoth
             "holdout_start", "holdout_end",
         )
     ]
-    if not all(a < b for a, b in zip(days, days[1:])):
+    if not all(a < b for a, b in zip(days, days[1:], strict=False)):
         raise ResearchIntakeError("WINDOWS_OVERLAP_OR_NOT_ASCENDING")
     if spec["hypothesis_code"] in spec["hypotheses_previously_tested"]:
         raise ResearchIntakeError("REUSING_TESTED_HYPOTHESIS")
