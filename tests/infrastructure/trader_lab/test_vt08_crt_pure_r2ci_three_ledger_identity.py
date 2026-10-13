@@ -21,7 +21,9 @@ def _r2f(index: int, source: str, refs: tuple[str, ...]) -> dict[str, object]:
     }
 
 
-def _r2g(r2f_row: dict[str, object], *, policy: str, refs: tuple[str, ...]) -> dict[str, object]:
+def _r2g(
+    r2f_row: dict[str, object], *, policy: str, refs: tuple[str, ...]
+) -> dict[str, object]:
     return {
         "market": "AUDUSD",
         "c3_opened_at": r2f_row["parent_c3_opened_at"],
@@ -34,11 +36,20 @@ def _r2g(r2f_row: dict[str, object], *, policy: str, refs: tuple[str, ...]) -> d
 def test_exact_identity_joins_c3_source_and_reference_ids() -> None:
     src = _r2f(1, "2025-01-01T01:00:00+00:00", ("b", "a"))
     row = _r2g(src, policy=r2ci.CURRENT_NEWEST, refs=("a", "b"))
-    k1 = r2ci._exact("AUDUSD", str(src["parent_c3_opened_at"]), str(src["source_opened_at"]), ("b", "a"))
-    k2 = r2ci._exact("AUDUSD", str(row["c3_opened_at"]), str(row["source_opened_at"]), ("a", "b"))
+    k1 = r2ci._exact(
+        "AUDUSD", str(src["parent_c3_opened_at"]), str(src["source_opened_at"]),
+        ("b", "a"),
+    )
+    k2 = r2ci._exact(
+        "AUDUSD", str(row["c3_opened_at"]), str(row["source_opened_at"]),
+        ("a", "b"),
+    )
     assert k1 == k2
     with pytest.raises(ValueError, match="Duplicate reference"):
-        r2ci._exact("AUDUSD", str(src["parent_c3_opened_at"]), str(src["source_opened_at"]), ("a", "a"))
+        r2ci._exact(
+            "AUDUSD", str(src["parent_c3_opened_at"]), str(src["source_opened_at"]),
+            ("a", "a"),
+        )
 
 
 def test_old_policy_one_attempt_and_frozen_count_gate() -> None:
