@@ -161,6 +161,10 @@ def run_market(
     frozen_ledger: Path,
     frozen_report: Path,
 ) -> dict[str, Any]:
+    year_start: Callable[[int], datetime]
+    slice_records: Callable[[tuple[Any, ...], datetime, datetime], tuple[Any, ...]]
+    initial_fit: Callable[[tuple[Any, ...]], tuple[Any, dict[str, Any]]]
+    initial_decision: Callable[[Any, Any], Any]
     if market == "AUDUSD":
         module: Any = r2cc
         start, end, training_years = r2bh.START, r2bh.END, r2bh.TRAINING_YEARS
