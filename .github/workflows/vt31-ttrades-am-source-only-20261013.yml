@@ -1,0 +1,92 @@
+name: VT31 TTrades NY AM new sweep reversal FVG source study (NO FILLS)
+on:
+  push:
+    branches:
+      - agent/vt31-ttrades-am-cleanroom-20261013
+    paths:
+      - scripts/vt31_ttrades_am_source_20261013.py
+      - tests/infrastructure/test_vt31_ttrades_am_source_20261013.py
+      - docs/research/VT31_TTRADES_AM_SOURCE_MODEL_PREREG_2026-10-13.md
+      - docs/research/VT31_TTRADES_AM_SOURCE_RESULT_2026-10-13.md
+      - .github/workflows/vt31-ttrades-am-source-only-20261013.yml
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  FROZEN_M1_ARTIFACT: "11459859004"
+  FROZEN_M1_SHA: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+jobs:
+  new-ttrades-fvg-model-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify prereg predates implementation and full replay
+        run: |
+          set -euo pipefail
+          test -s docs/research/VT31_TTRADES_AM_SOURCE_MODEL_PREREG_2026-10-13.md
+          git cat-file -t fd9fde9a57b04a822d6296e7a858761eeb68fc83
+          git merge-base --is-ancestor fd9fde9a57b04a822d6296e7a858761eeb68fc83 HEAD
+          python -m pip install "ijson>=3.3,<4" "pytest>=8,<10" "ruff>=0.5,<1"
+          python -m py_compile scripts/vt31_ttrades_am_source_20261013.py \
+            tests/infrastructure/test_vt31_ttrades_am_source_20261013.py
+          ruff check scripts/vt31_ttrades_am_source_20261013.py \
+            tests/infrastructure/test_vt31_ttrades_am_source_20261013.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_ttrades_am_source_20261013.py
+          PYTHONPATH=src:. python scripts/vt31_ttrades_am_source_20261013.py \
+            --self-test
+      - name: Fetch original FULL 3-year NAS100 M1 only, verify SHA
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FROZEN_M1_ARTIFACT}/zip" > frozen-M1.zip
+          unzip -q frozen-M1.zip -d input
+          test -s input/NAS100/market-evidence.json
+          echo "${FROZEN_M1_SHA}  input/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Run new doctrinal AM sweep reversal FVG source census on 1,059,784 original M1
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_ttrades_am_source_20261013.py \
+            --market input/NAS100/market-evidence.json \
+            --out result/ttrades-am-new-source-only.json \
+            | tee result/ttrades-am-new-source-summary.json
+      - name: "Gate - forbid profit factor, broker fills, unjustified performance claims"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("result/ttrades-am-new-source-only.json"))
+          assert p["market_sha256"]=="0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+          assert p["market_m1_count"]==1059784
+          assert p["preregistered_document_commit"]=="fd9fde9a57b04a822d6296e7a858761eeb68fc83"
+          assert p["model"]=="VT31_TTRADES_AM_FVG_SOURCE_ONLY_V0"
+          assert p["economic_PF_drawdown_sharpe"] is None
+          assert p["quotes_bid_ask_and_order_ACK_count"]==0
+          assert p["no_LIVE_or_order_authority"] is True
+          assert p["g3_v1_unmodified_and_unsigned"] is True
+          assert p["historical_development_not_independent_holdout"] is True
+          assert p["source_candidates"]==p["status_counts"].get("SOURCE_ONLY_CANDIDATE",0)
+          assert sum(v for k,v in p["status_counts"].items()
+                     if k != "NO_M1_FORWARD_COVERAGE")==p["source_days_ny_total"]
+          print("TTRADES_AM_V0 SOURCE-ONLY CONTROL PASS:", p["decision"])
+          PY
+          git rev-parse HEAD > result/algorithm-source-code-sha.txt
+          printf '%s\n' fd9fde9a57b04a822d6296e7a858761eeb68fc83 \
+            > result/prereg-commit-sha.txt
+          printf '%s\n' "NO_FILL_NO_PF_NO_OOS_NO_EDGE_PROOF" \
+            > result/scientific-scope.txt
+          (cd result && sha256sum *.txt *.json > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ttrades-am-new-source-${{ github.sha }}
+          path: result/
+          retention-days: 90
+          if-no-files-found: error
