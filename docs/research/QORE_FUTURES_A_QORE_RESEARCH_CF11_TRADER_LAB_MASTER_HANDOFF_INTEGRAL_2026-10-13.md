@@ -207,3 +207,31 @@ Faltan candidate binding/identidad y versiones, contrato real, replay determinis
 - [Acciones fuente M0 18 tests](https://github.com/mezas3238-hue/qore-core/actions/runs/38341020091) · [Fuente gratuita EIA 12.352](https://github.com/mezas3238-hue/qore-core/actions/runs/38343102029) · [Prueba ciencia 8 tests](https://github.com/mezas3238-hue/qore-core/actions/runs/38448311219) · [Bridge 14 tests](https://github.com/mezas3238-hue/qore-core/actions/runs/38452295022) · [CF-11 13 tests](https://github.com/mezas3238-hue/qore-core/actions/runs/38454993701) · [Cola 19 tests, última](https://github.com/mezas3238-hue/qore-core/actions/runs/38459547103).
 
 **CIERRE DE RELEVO:** entregables investigativos conservados, pruebas verdes dentro de sus alcances, presupuesto USD0. El cuello de botella económico sigue siendo contratos históricos legales y coste/ejecución, no el número de runners. No afirmar edge ni rentabilidad con precios referenciales. No afirmar QORE Research autónomo donde solo hay GitHub Actions. Mantener #916 DRAFT / no merge.
+
+---
+
+## 12. CONTINUACIÓN — HARDENING P1 DE IDENTIDAD/ANTI-LAUNDERING (13-OCT-2026)
+
+**Arquitecto de continuidad:** primera modificación técnica después del handoff maestro. **Estado:** implementado y certificado solo en su alcance de tests sintéticos de integridad; no hay nuevo test de señal económica.
+
+**Causa descubierta al inspeccionar el código real #916:**
+1. `ResearchIntakeRecord` permitía crear directamente una misión base con el ID conocido pero sustituyendo `question_code`, `data_requirement_code` y/o el número de raíces (2/6); el estado de cierre/bloqueo se preservaba, pero se perdía identidad científica.
+2. `register_unfrozen_proposal` permitía copiar el `question_code` de las misiones ya cerradas o bloqueadas usando otro `code`; una propuesta podía además etiquetar `eia.f1f2.reference-close-only` como dependencia de una nueva idea.
+3. El límite de 20 `proposals` existía en el parser de manifiesto pero no en la API pura `ResearchIntakeLedger`.
+4. Dos `code` distintos podían apuntar a una misma `question_code`, duplicando familias de pregunta bajo identidades superficiales.
+
+**Corrección en** `src/qore/infrastructure/trader_lab/qore_research_zero_budget_intake_v1.py`: exige la identidad cerrada EIA exacta (pregunta + dato EIA + 2 raíces), identidad bloqueada Futures A exacta (pregunta + dato CME + 6 raíces), rechaza reuso literal de preguntas base o fuente referencial EIA en propuestas y rechaza preguntas duplicadas y más de 20 propuestas, incluso al construir la cola directamente en Python.
+
+**Pruebas nuevas en** `tests/infrastructure/trader_lab/test_qore_research_zero_budget_intake_v1.py`: 5 casos adversariales, con subcasos de suplantación de identidades y reutilización de fuentes. Commits:
+- `a41a168e55358532ece72d5dec3d650fd8006f5a` — lógica de barrera de identidad.
+- `e87a3cd875fbe1b219da256d5dfa6e3c8053c8a3` — regresiones.
+
+**CI probada [Actions #38476568635](https://github.com/mezas3238-hue/qore-core/actions/runs/38476568635):** SUCCESS en commit `e87a3cd875fbe1b219da256d5dfa6e3c8053c8a3`; **24/24** tests Python, Ruff PASS, Mypy PASS; ledger sigue conteniendo exactamente las dos misiones cerrada/bloqueada, sin abrir holdout, sin costos y sin trading. El checksum del ledger generado por ese job fue `e94a52d943c8f1d4e2d57dc9ccf7265f5137dcf5ac29e55e92aec9dcf52244c7`.
+
+**Limitaciones que el siguiente arquitecto NO debe confundir con cierre:**
+- Esta barrera compara `question_code` y `data_requirement_code`, **no puede descubrir paráfrasis semánticamente equivalentes** sin revisión científica; nuevas hipótesis siguen requiriendo prereg explícito previo a outcomes.
+- El ledger no crea autoridad externa criptográfica por sí solo: la procedencia auténtica depende del pipeline GH Actions y la verificación de artefacto y ancestry previos al ensamblaje CF-11.
+- No existen nuevos contratos CME licenciados a USD0, fills/costes netos ni trader certificado. `SOURCE_BLOCKED` y `NO_SUPPORT` permanecen intactos.
+- El código no configura daemon/autoscheduler. Próximo trabajo priorizado: contrato prereg/versionado/causal independiente con fuente verificable y workflow idempotente de solo lectura. No habilitar RUN ni abrir reservas mientras la fuente siga bloqueada.
+
+**Gobernanza:** PR #916 DRAFT/NO MERGE; sin LIVE/DEMO/órdenes, sin sizing y sin presupuesto adicional.
