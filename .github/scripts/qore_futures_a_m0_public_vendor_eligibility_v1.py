@@ -10,7 +10,7 @@ import json
 import re
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -134,7 +134,7 @@ def main() -> None:
     cme = inspect_cme_unauthenticated()
     report = {
         "identity": "QORE_FUTURES_A_FREE_CME_GITHUB_ACCESS_20261013",
-        "snapshot_utc": datetime.now(timezone.utc).isoformat(),
+        "snapshot_utc": datetime.now(UTC).isoformat(),
         "github_root_inventory": src,
         "cme": cme,
         "budget_usd": 0,
