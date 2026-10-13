@@ -65,3 +65,29 @@ El README del autor declara observaciones **de fin de mes / promedios mensuales 
 - No se tocó LIVE, CIBO, Shared, QDLE, VPS, brokers, órdenes, MT5 ni el holdout del proyecto FX. Ninguna certificación por este gate.
 
 **Dictamen de fuente: gratuito descargable ≠ completo ni licenciado ≠ señal rentable. El resultado de M0 es un bloqueo de datos, no de capacidad de QORE.**
+
+
+---
+
+## ADDENDUM EIA — Descarga pública verificada de cuatro series diarias, dos mercados (13 octubre 2026)
+
+**RESULTADO NUEVO POSTERIOR AL PRE-FLIGHT ZIP**: fuente US Energy Information Administration **EIA** (datos de gobierno) realmente accesible y auditada. Esta evidencia **NO modifica el NO-GO 6×2 velas nativas**.
+
+- [Actions #38342875054](https://github.com/mezas3238-hue/qore-core/actions/runs/38342875054) — 4/4 XLS descargados/abiertos; cada hoja `Data 1` tiene fecha + **un precio diario**, no columnas O/H/L/C/volume, ni `contract_month`. No credencial ni pago.
+- [Actions #38343098620](https://github.com/mezas3238-hue/qore-core/actions/runs/38343098620) — auditoría independiente de fechas y solapamiento de primer/segundo rango, sin importar precios al repositorio.
+- [Actions #38343102029](https://github.com/mezas3238-hue/qore-core/actions/runs/38343102029) — **12.352 observaciones** de referencia EIA generadas a CSV para uso fuera de GitHub; [artifact id #11786984830](https://github.com/mezas3238-hue/qore-core/actions/runs/38343102029/artifacts/11786984830), ZIP digest SHA256 `50ea702cebad87c67ec1eaf1026cd949598672613d1112d6084eb8ed3cfaed04`, retención 30 días desde 2026-10-13. Este CSV contiene **solo un precio por `root, rank, trade_date`**, y `native_contract_month=NOT_PROVIDED`, `OHLC=NOT_PROVIDED`, `first_published_at=UNKNOWN`. El archivo temporal es EIA público; NO equivale a señal de mercado nativo ni precio ejecutable documentado. Si expira, **reproducir** `.github/workflows/qore-futures-a-m0-eia-energy-reference-daily-export.yml` (requiere GitHub Actions), no pagar.
+
+| Serie EIA | URL XLS original | Días válidos 2012-01-01 a 2024-09-16 | Primera | Última | SHA256 XLS |
+|---|---|---:|---|---|---|
+| WTI rango1 `RCLC1d` | https://www.eia.gov/dnav/pet/hist_xls/RCLC1d.xls | 3.086 | 2012-01-03 | **2024-04-05** | `a55a70d2438ebdc600a77f9d3f9c46be1e2f480ac5ffec3bb753c61cf21db0c9` |
+| WTI rango2 `RCLC2d` | https://www.eia.gov/dnav/pet/hist_xls/RCLC2d.xls | 3.086 | 2012-01-03 | **2024-04-05** | `31d8a01ae5bd3cb8753925743802c9e77f11bd54ce1b5e0fd4d91d91940ecea7` |
+| NG rango1 `RNGC1d` | https://www.eia.gov/dnav/ng/hist_xls/RNGC1d.xls | 3.090 | 2012-01-03 | **2024-04-05** | `1e71a774943c00cdba337c8be1c9888ea1d56b175c446527cc0d94f7dc2b03f1` |
+| NG rango2 `RNGC2d` | https://www.eia.gov/dnav/ng/hist_xls/RNGC2d.xls | 3.090 | 2012-01-03 | **2024-04-05** | `abf42f8f7c6acc9581d283688d7571336a0ee4850c7ae43e433e37720f655aee` |
+
+Los días de intersección de `rank1` y `rank2` suman 3.086 (WTI) y 3.090 (NG), y la auditoría de fechas de XLS encontró **0 duplicaciones** en los cuatro conjuntos. El último dato de la fuente es abril 2024: falta abril-septiembre 2024. EIA WTI rango1 contenía **una observación de precio negativo en 2020**, y no fue transformada logarítmicamente. El precio/rango rotativo `contract1/2` *no tiene expiración individual persistida*, y la primera publicación histórica as-of sigue SIN testigo.
+
+### Lo alcanzado bajo USD 0
+
+**Adquirimos verdaderos precios de referencia diarios por dos mercados (WTI/NG) y dos rangos, además de los ZIP antiguos**, gratis. Esto sí sirve como serie de referencia para auditoría de fuentes y exploración descriptiva sin PnL, siempre que no se confunda con velas contractuales negociables. No hay OHLCV para GC/HG/ZC/ZS, no hay identificadores de contrato de entrega en EIA, no se demostró fuente para ejecutar roll real, no existen seis mercados D1 nativos 2012–sep2024, ni costes ejecutables.
+
+**Estado M0 NO CAMBIA: `BLOCKED_DATA_OR_LICENSE` para la hipótesis de curva y certificación original.** Ese bloqueo refleja la ausencia de requisitos completos, **no la inexistencia de datos abiertos en general**. Para estudiar WTI/NG rank1/2 como universo alternativo o evaluar su `price slope` habría que pedir mandato/preregistro NUEVO, y aún no se podría afirmar trader ejecutable sin vencimientos, as-of y costes; no ejecutado.
