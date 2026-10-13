@@ -1,0 +1,97 @@
+name: VT31 TTrades AM all FOUR source models (NO PNL)
+on:
+  push:
+    branches:
+      - agent/vt31-ttrades-all-entry-models-20261013
+    paths:
+      - scripts/vt31_ttrades_am_all_entry_sources_20261013.py
+      - tests/infrastructure/test_vt31_ttrades_am_all_entry_sources_20261013.py
+      - docs/research/VT31_TTRADES_AM_ALL_ENTRY_MODELS_PREREG_2026-10-13.md
+      - docs/research/VT31_TTRADES_AM_ALL_MODELS_RESULT_2026-10-13.md
+      - .github/workflows/vt31-ttrades-all-four-models-20261013.yml
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  FROZEN_M1_ARTIFACT: "11459859004"
+  FROZEN_M1_SHA: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+jobs:
+  four-entry-families-research-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify prereg BEFORE detector and adversarial code tests
+        run: |
+          set -euo pipefail
+          test -s docs/research/VT31_TTRADES_AM_ALL_ENTRY_MODELS_PREREG_2026-10-13.md
+          git cat-file -t 0a3ee8a7c307d2adf7cdda24eb609732c2e703a1
+          git merge-base --is-ancestor 0a3ee8a7c307d2adf7cdda24eb609732c2e703a1 HEAD
+          python -m pip install "ijson>=3.3,<4" "pytest>=8,<10" "ruff>=0.5,<1"
+          python -m py_compile scripts/vt31_ttrades_am_all_entry_sources_20261013.py \
+            tests/infrastructure/test_vt31_ttrades_am_all_entry_sources_20261013.py
+          ruff check scripts/vt31_ttrades_am_all_entry_sources_20261013.py \
+            tests/infrastructure/test_vt31_ttrades_am_all_entry_sources_20261013.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_ttrades_am_all_entry_sources_20261013.py
+          PYTHONPATH=src:. python scripts/vt31_ttrades_am_all_entry_sources_20261013.py \
+            --self-test
+      - name: Restore entire original M1 file with SHA256 check
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FROZEN_M1_ARTIFACT}/zip" > frozen-M1.zip
+          unzip -q frozen-M1.zip -d input
+          test -s input/NAS100/market-evidence.json
+          echo "${FROZEN_M1_SHA}  input/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Run all four fixed independent entry-family source models, 3Y OHLC
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_ttrades_am_all_entry_sources_20261013.py \
+            --market input/NAS100/market-evidence.json \
+            --out result/vt31-ttrades-four-models-source-only.json \
+            | tee result/vt31-ttrades-four-models-summary.json
+      - name: Gate no optimistic performance nor fill claims; immutable provenance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("result/vt31-ttrades-four-models-source-only.json"))
+          assert p["pre_replay_prereg_commit"]=="0a3ee8a7c307d2adf7cdda24eb609732c2e703a1"
+          assert p["market_sha256"]=="0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+          assert p["M1_3year_total"]==1059784
+          families={"DISPLACEMENT_DIRECT","FVG_3M1","ORDER_BLOCK_RETEST","BREAKER_RETEST"}
+          assert set(p["family_source_counts"])==families
+          assert p["broker_quotes_order_ack"]==0
+          assert p["economic_edge"]=="NOT_IDENTIFIED"
+          assert p["economic_pf_dd_sharpe"] is None
+          assert not p["fresh_holdout_opened"] and p["live_trades"]==0
+          assert p["g3_original_unchanged_unsigned"] is True
+          assert p["multiple_families_same_day_are_not_multiple_trades"] is True
+          assert sum(p["context_counts"].values())==p["source_days_ny"]
+          for family in families:
+              c=p["family_source_counts"][family]
+              assert c["SOURCE_ONLY_CANDIDATE"]==len(p["family_source_witnesses"][family])
+              assert sum(v for k,v in c.items()
+                         if k != "NO_M1_FORWARD_COVERAGE")==p["source_days_ny"]
+          print("NO_PNL_OR_CERTIFICATION_ALLOWED",p["economic_edge"])
+          PY
+          git rev-parse HEAD > result/four-model-code-head-sha.txt
+          printf '%s\n' 0a3ee8a7c307d2adf7cdda24eb609732c2e703a1 \
+            > result/preregistered-commit.txt
+          printf '%s\n' "NO_BROKER_QUOTES_NO_ORDERS_NO_EDGE_NO_OOS" \
+            > result/scientific-scope.txt
+          (cd result && sha256sum *.txt *.json > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ttrades-all-four-source-${{ github.sha }}
+          path: result/
+          retention-days: 90
+          if-no-files-found: error
