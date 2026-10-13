@@ -8,8 +8,6 @@ import unittest
 from typing import Any, cast
 from unittest.mock import patch
 
-from test_qore_research_zero_budget_intake_v1 import _synthetic_cf11_closed_plan
-
 from qore.infrastructure.trader_lab import qore_research_prereg_draft_gate_v1 as p
 from qore.infrastructure.trader_lab import qore_research_zero_budget_intake_v1 as q
 
@@ -17,6 +15,44 @@ from qore.infrastructure.trader_lab import qore_research_zero_budget_intake_v1 a
 _SUBPROCESS_PATCH = (
     "qore.infrastructure.trader_lab.qore_research_prereg_draft_gate_v1.subprocess.run"
 )
+
+
+def _synthetic_cf11_closed_plan() -> dict[str, object]:
+    """Artificial, never externally authenticated: prerequisite fixture only."""
+    receipt = "a" * 64
+    return {
+        "schema": "qore.research.cf11.science-only-closed-experiment.v1",
+        "plan_code": "research.eia.futures-a-f1f2-closure",
+        "question_code": "research.question.f1f2-directional-probability",
+        "hypothesis_code": "research.hypothesis.backwardation-predicts-f1-up",
+        "stage": "experiment",
+        "evidence_status": "insufficient",
+        "evidence_reasons": [
+            "hypothesis.no-support", "diagnostic.no-economic-fills", "holdout.sealed",
+        ],
+        "evidence_references": ["evidence:research-eia:science-sha256:" + receipt],
+        "data_requirements": [
+            "evidence:source-eia:wti-f1:" + "1" * 64,
+            "evidence:source-eia:wti-f2:" + "2" * 64,
+            "evidence:source-eia:ng-f1:" + "3" * 64,
+            "evidence:source-eia:ng-f2:" + "4" * 64,
+        ],
+        "as_of": "2026-10-13T19:20:00+00:00",
+        "receipt_sha256": receipt,
+        "plan_fingerprint": "b" * 64,
+        "scientific_decision": "NO_SUPPORT_UNDER_PREREG",
+        "source_artifact_authenticated_upstream": True,
+        "trader_lab_state": "draft",
+        "trader_lab_stage_evidence_produced": False,
+        "runnable_trader_created": False,
+        "economic_backtest_performed": False,
+        "demo_eligible": False,
+        "risk_authority_issued": False,
+        "cibo_authority_issued": False,
+        "market_provenance_certified": False,
+        "fresh_holdout_consumed": False,
+        "merge_authorized": False,
+    }
 
 
 def _draft() -> dict[str, Any]:
