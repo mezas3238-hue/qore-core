@@ -1,0 +1,88 @@
+name: QORE VT08 CRT PURE R2-CK H4 Timing Attribution
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-r2ck-timing-attribution.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2ck_timing_attribution.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_r2ck_timing_attribution.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: R2-CK quality six-label immutable contract
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_r2ck_timing_attribution.py tests/infrastructure/trader_lab/test_vt08_crt_pure_r2ck_timing_attribution.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_r2ck_timing_attribution.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_r2ck_timing_attribution.py
+
+  historical:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - market: AUDUSD
+            ao: qore-vt08-crt-pure-r2ao-AUDUSD-ab27a0c89b33a2e6d250c4bf19dd79524129a057
+            aq: qore-vt08-crt-pure-r2aq-AUDUSD-f60f24b49895b1989df57b5951596c0f1600c83f
+          - market: USDJPY
+            ao: qore-vt08-crt-pure-r2ao-USDJPY-ab27a0c89b33a2e6d250c4bf19dd79524129a057
+            aq: qore-vt08-crt-pure-r2aq-USDJPY-f60f24b49895b1989df57b5951596c0f1600c83f
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Fetch original 2016/2014 to 2020 older rolling H4 records
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.aq }}
+          repository: ${{ github.repository }}
+          run-id: '35865028789'
+          github-token: ${{ github.token }}
+          path: evidence/older
+      - name: Fetch original 2020-2026 rolling H4 target family
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.ao }}
+          repository: ${{ github.repository }}
+          run-id: '35863768335'
+          github-token: ${{ github.token }}
+          path: evidence/recent
+      - name: Reconcile original sources and attribute six fixed H4 timing windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in evidence/older/report.json evidence/older/trades.jsonl evidence/recent/report.json evidence/recent/trades.jsonl; do test -s "$f"; done
+          mkdir -p artifacts/${{ matrix.market }}
+          sha256sum evidence/older/report.json evidence/older/trades.jsonl evidence/recent/report.json evidence/recent/trades.jsonl > artifacts/${{ matrix.market }}/SOURCE_SHA256.txt
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_r2cj_rolling_cost_margin \
+            artifacts/${{ matrix.market }} --market ${{ matrix.market }} \
+            --older-trades evidence/older/trades.jsonl --older-report evidence/older/report.json \
+            --recent-trades evidence/recent/trades.jsonl --recent-report evidence/recent/report.json \
+            | tee artifacts/${{ matrix.market }}/stdout.log
+      - name: Upload immutable forensics
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt08-r2ck-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/${{ matrix.market }}
+          if-no-files-found: warn
+          retention-days: 90
