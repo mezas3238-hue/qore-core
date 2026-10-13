@@ -20,7 +20,7 @@ def dailies(n=2050,start=date(2016,9,19)):
         if d.weekday()<5 and d<date(2024,9,17):
             for i,s in enumerate(h5.FX28):
                 # Synthetic relative price gradients and mild oscillating volatility.
-                price=1.3+0.00007*(i-14)*t+0.006*math.sin(t/11+i)
+                price=1.3+0.00001*(i-14)*t+0.006*math.sin(t/11+i)
                 result[s].append({
                     "date":d,
                     "entry_open":price,
