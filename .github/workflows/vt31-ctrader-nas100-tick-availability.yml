@@ -1,0 +1,98 @@
+name: VT31 G5 cTrader NAS100 historical BID ASK availability (NO REPLAY)
+
+on:
+  push:
+    branches:
+      - agent/vt31-g5-free-ctrader-tick-availability-20261013
+    paths:
+      - src/qore/infrastructure/ctrader_open_api_client.py
+      - scripts/vt31_ctrader_nas100_tick_availability_probe.py
+      - tests/infrastructure/test_vt31_ctrader_nas100_tick_availability_probe.py
+      - .github/workflows/vt31-ctrader-nas100-tick-availability.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_VT31_CTRADER_SYMBOL: ${{ vars.QORE_VT31_CTRADER_SYMBOL || 'NAS100' }}
+
+jobs:
+  g5-readonly-source-pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install existing Python DEMO client and test dependencies
+        run: python -m pip install -e ".[ctrader,dev]"
+      - name: Verify read-only implementation, compile, lint, synthetic attacks
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/vt31_ctrader_nas100_tick_availability_probe.py \
+            tests/infrastructure/test_vt31_ctrader_nas100_tick_availability_probe.py
+          ruff check \
+            scripts/vt31_ctrader_nas100_tick_availability_probe.py \
+            tests/infrastructure/test_vt31_ctrader_nas100_tick_availability_probe.py \
+            src/qore/infrastructure/ctrader_open_api_client.py
+          test "$(grep -c 'ProtoOANewOrderReq' scripts/vt31_ctrader_nas100_tick_availability_probe.py || true)" = 0
+          PYTHONPATH=src:. python -m pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_ctrader_nas100_tick_availability_probe.py
+      - name: Discover DEMO-only account if auth configured and id unavailable
+        run: |
+          set -euo pipefail
+          if [ -n "${QORE_CTRADER_CLIENT_ID:-}" ] \
+             && [ -n "${QORE_CTRADER_CLIENT_SECRET:-}" ] \
+             && [ -n "${QORE_CTRADER_ACCESS_TOKEN:-}" ] \
+             && [ -n "${QORE_CTRADER_REFRESH_TOKEN:-}" ] \
+             && [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            if account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"; then
+              if [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+                echo "::add-mask::$account_id"
+                printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+              else
+                echo "Account discovery returned no valid DEMO account; report will be BLOCKED"
+              fi
+            else
+              echo "DEMO-only account discovery not available; report will be BLOCKED"
+            fi
+          fi
+      - name: Probe four tiny historical windows, BID and ASK only, no orders
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          PYTHONPATH=src:. python scripts/vt31_ctrader_nas100_tick_availability_probe.py \
+             > output/tick-availability-pilot.json
+          python - <<'PY'
+          import json
+          p=json.load(open('output/tick-availability-pilot.json', encoding='utf-8'))
+          assert p['read_only'] is True and p['executions']==0
+          assert p['no_v1_replay'] is True
+          assert p['edge_economic']=='NOT_IDENTIFIED'
+          assert p['g3_signature_state']=='PENDING_DUAL_SIGNATURE'
+          print('PRE-G3 G5 OBSERVATION:', p['status'])
+          print('WARNING: job SUCCESS is software QA, not 3Y tick coverage or profitable edge')
+          PY
+          git rev-parse HEAD > output/probe-code-sha.txt
+          printf '%s\n' 'a446afa17ed6e411b8f0b6fc182b103a78959a97' \
+             > output/unsigned-g3-document-commit.txt
+          printf '%s\n' '78d4cdac0e09d1a6eef37b99c505ffc5098031fc' \
+             > output/unsigned-g3-code-commit.txt
+          printf '%s\n' 'NO_FILLS_NO_3Y_TICK_COVERAGE_NO_EDGE_NO_HOLDOUT' \
+             > output/scientific-gates.txt
+          (cd output && sha256sum *.txt *.json > SHA256SUMS)
+          (cd output && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-g5-ctrader-readonly-pilot-${{ github.sha }}
+          path: output/
+          if-no-files-found: error
+          retention-days: 90
