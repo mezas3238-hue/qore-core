@@ -89,7 +89,8 @@ jobs:
             --pilot6 source-quarantine/pilot6.zip \
             --wave24 source-quarantine/wave24.zip \
             --report source-results/USTEC-REAL-30H-VALIDATION-NOT-PNL.json
-          sha256sum -c source-results/USTEC-REAL-30H-VALIDATION-NOT-PNL.json.sha256
+          printf '%s  %s\n' "$(cat source-results/USTEC-REAL-30H-VALIDATION-NOT-PNL.json.sha256)" \
+            source-results/USTEC-REAL-30H-VALIDATION-NOT-PNL.json | sha256sum -c -
       - name: Remove raw source before publishing metadata
         if: always()
         run: rm -rf source-quarantine
