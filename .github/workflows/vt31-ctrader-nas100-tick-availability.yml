@@ -9,6 +9,7 @@ on:
       - src/qore/infrastructure/ctrader_demo_account_discovery.py
       - scripts/vt31_ctrader_nas100_tick_availability_probe.py
       - tests/infrastructure/test_vt31_ctrader_nas100_tick_availability_probe.py
+      - docs/research/VT31_FREE_TICK_DATA_FEASIBILITY_2026-10-13.md
       - .github/workflows/vt31-ctrader-nas100-tick-availability.yml
   workflow_dispatch:
 
