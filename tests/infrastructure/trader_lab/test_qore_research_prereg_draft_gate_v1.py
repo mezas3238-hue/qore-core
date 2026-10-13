@@ -8,9 +8,10 @@ import unittest
 from typing import Any, cast
 from unittest.mock import patch
 
+from test_qore_research_zero_budget_intake_v1 import _synthetic_cf11_closed_plan
+
 from qore.infrastructure.trader_lab import qore_research_prereg_draft_gate_v1 as p
 from qore.infrastructure.trader_lab import qore_research_zero_budget_intake_v1 as q
-from test_qore_research_zero_budget_intake_v1 import _synthetic_cf11_closed_plan
 
 
 def _draft() -> dict[str, Any]:
