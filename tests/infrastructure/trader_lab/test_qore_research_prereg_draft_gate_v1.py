@@ -287,7 +287,7 @@ class TestPreregDraftGate(unittest.TestCase):
             spec, sort_keys=True, separators=(",", ":"), allow_nan=False,
         ).encode()).hexdigest()
         historical = json.dumps(_manifest([spec])).encode()
-        with patch.object(
+        with patch(
             _SUBPROCESS_PATCH,
             side_effect=[subprocess_result(0, b""), subprocess_result(0, historical)],
         ) as patched:
