@@ -32,7 +32,7 @@
 | Annualized **MODEL only** Sharpe `sqrt(12)*mean/SD` | **−0.06892** | **+0.26361** |
 | CI95 lower strictly >0 and mean>0 | **FAIL** | **FAIL** |
 
-**Censor census**: missing prior month rate one of eight =1 (JPY 2016-Aug), cross era / shortened hold / embargo =1 (Dec2021), no unbroken complete month entry/exit=1 (final Sep2024). Exactly 94 active baskets; no imputations. DEV63? **62** (64 total, 2 inactive), DIAG32/32 all active. Diagnostic model Sharpe **+0.264** even with theoretical carry added, below user's proposal of 0.5, and still not real NET Sharpe. CIs include zero both eras. 
+**Censor census**: missing prior month rate one of eight =1 (JPY 2016-Aug), cross era / shortened hold / embargo =1 (Dec2021), no unbroken complete month entry/exit=1 (final Sep2024). Exactly 94 active baskets; no imputations. DEV **62** (64 total, 2 inactive), DIAG32/32 all active. Diagnostic model Sharpe **+0.264** even with theoretical carry added, below user's proposal of 0.5, and still not real NET Sharpe. CIs include zero both eras. 
 
 **Concentration by currency**, absolute monthly signed exposure (unit of total basket gross notional1), average DEV→DIAG: AUD 0.1626→0.1276; CAD 0.2177→0.2057; CHF **0.4194→0.1510**; EUR 0.2366→0.2448; GBP 0.1425→0.1172; JPY 0.1277→**0.3411**; NZD **0.2903→0.3255**; USD 0.2097→0.2214. Highest single-currency absolute monthly exposure **0.5833 in DEV, 0.5000 in DIAG**; graph K8 28 pairs but max seven independent money-market rate factors, concentration cannot be diversified away by 28 pair names. This is descriptive ONLY, no selection of least concentrated subgroup or policy filter.
 
