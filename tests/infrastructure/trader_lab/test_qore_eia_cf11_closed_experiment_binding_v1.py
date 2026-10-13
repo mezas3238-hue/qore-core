@@ -140,9 +140,8 @@ class TestGenuineCF11ClosedExperimentBinding(unittest.TestCase):
 
     def test_determinism_same_as_of(self) -> None:
         raw, receipt = fixture()
-        args = {"verified_source": True, "as_of": _AT}
-        one = cf11.bind_closed_eia_to_cf11(raw, receipt, **args)
-        two = cf11.bind_closed_eia_to_cf11(raw, receipt, **args)
+        one = cf11.bind_closed_eia_to_cf11(raw, receipt, verified_source=True, as_of=_AT)
+        two = cf11.bind_closed_eia_to_cf11(raw, receipt, verified_source=True, as_of=_AT)
         self.assertEqual(one.plan.logical_values(), two.plan.logical_values())
         self.assertEqual(one.plan_fingerprint, two.plan_fingerprint)
 
