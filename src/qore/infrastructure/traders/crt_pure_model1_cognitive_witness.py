@@ -22,6 +22,7 @@ from qore.infrastructure.traders.crt_pure_cognitive_state import (
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 from qore.infrastructure.traders.crt_pure_model1 import (
     MODEL1_EXECUTION_TIMEFRAME_SECONDS,
+    MODEL1_PARENT_TIMEFRAME_SECONDS,
     CrtPureModel1Bar,
     CrtPureModel1Confirmation,
     CrtPureModel1ReferenceKind,
@@ -38,6 +39,8 @@ class CrtPureModel1CausalWitness:
     reference_known_at is upstream-provided provenance: the witness only proves
     chronological consistency, not that the old level was originally selected
     correctly by RomeoTPT rules or that market OHLC was independently verified.
+    Old CRTH may originate from H4 rather than an M15 pivot. The timeframe is
+    explicitly labeled, but this does not make a raw high into a canonical CRTH.
     """
 
     market: CrtPureMarket
@@ -49,6 +52,7 @@ class CrtPureModel1CausalWitness:
     eligible_reference_ids: tuple[str, ...]
     confirmation: CrtPureModel1Confirmation
     observed_at: datetime
+    reference_origin_timeframe_seconds: int = MODEL1_EXECUTION_TIMEFRAME_SECONDS
 
     def __post_init__(self) -> None:
         if not self.parent_crt_id.strip():
@@ -65,6 +69,12 @@ class CrtPureModel1CausalWitness:
             hours=4
         ):
             raise ValueError("Model #1 parent C3 must be one H4 candle")
+        if self.reference_origin_timeframe_seconds not in (
+            MODEL1_EXECUTION_TIMEFRAME_SECONDS,
+            MODEL1_PARENT_TIMEFRAME_SECONDS,
+        ):
+            raise ValueError("Model #1 reference origin must be M15 or H4")
+        origin_length = timedelta(seconds=self.reference_origin_timeframe_seconds)
 
         candidate = self.confirmation.candidate
         source = candidate.source_candle
@@ -89,7 +99,7 @@ class CrtPureModel1CausalWitness:
             and self.confirmation.decision_at <= self.parent_c3_closed_at
         ):
             raise ValueError("Model #1 confirmation must be known within parent C3")
-        if self.reference_bar.opened_at + m15 > self.reference_known_at:
+        if self.reference_bar.opened_at + origin_length > self.reference_known_at:
             raise ValueError("Model #1 old level cannot be known before origin candle closes")
         if self.reference_known_at > source.opened_at:
             raise ValueError("Model #1 old level was not known before source opens")
@@ -152,7 +162,8 @@ def build_model1_cognitive_situation(
             value_token=(
                 f"{candidate.reference.evidence_id}:"
                 f"{candidate.reference.kind.value}:{candidate.reference.price}:"
-                f"{witness.reference_bar.opened_at.isoformat()}"
+                f"{witness.reference_bar.opened_at.isoformat()}:"
+                f"TF_SECONDS={witness.reference_origin_timeframe_seconds}"
             ),
         ),
         CrtPureCausalObservation(
