@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
@@ -120,7 +121,7 @@ def decode_response(
 def read_pilot(
     client: TickReadBoundary, *, symbol_name: str, windows: tuple[ProbeWindow, ...],
 ) -> dict[str, object]:
-    if not symbol_name or not symbol_name.isascii() or not symbol_name.isalnum():
+    if not isinstance(symbol_name, str) or re.fullmatch(r"[A-Za-z0-9._-]{2,32}", symbol_name) is None:
         raise PilotDataError("EXACT_BROKER_SYMBOL_REQUIRED")
     if not windows:
         raise PilotDataError("PROBE_WINDOWS_REQUIRED")
@@ -155,9 +156,20 @@ def read_pilot(
         and getattr(row, "enabled", None) is True
     ]
     if len(matches) != 1:
+        # Show only broker symbol *names* possibly relevant to the index;
+        # name similarity NEVER proves contract/price-data equivalence.
+        related = sorted({
+            name
+            for row in getattr(listed, "symbol", ())
+            if getattr(row, "enabled", None) is True
+            for name in (getattr(row, "symbolName", None),)
+            if isinstance(name, str)
+            and re.search(r"(?i)(nas|ndx|us.?100|tech.?100)", name)
+        })[:20]
         return {
             "status": "BLOCKED_EXACT_SYMBOL_ABSENT_OR_AMBIGUOUS",
             "symbol": symbol_name,
+            "related_enabled_broker_names_not_verified_equivalent": related,
             "read_only": True, "executions": 0,
             "g3_signature_state": "PENDING_DUAL_SIGNATURE",
             "edge_economic": "NOT_IDENTIFIED",
