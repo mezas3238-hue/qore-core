@@ -120,14 +120,14 @@ def _verify_window(window: Any, name: str) -> dict[str, Any]:
         raise ResearchHandoffError("TAMPERED_DELTA")
     if abs(_float(obj["one_sided_fisher_p"], "p") - actual_p) > 1e-9:
         raise ResearchHandoffError("TAMPERED_FISHER_P")
-    expected = (
+    decision_expected = (
         "NO_POSITIVE_DIRECTION"
         if actual_delta <= 0
         else "PRELIMINARY_PREREG_WINDOW_PASS"
         if actual_delta >= MIN_DELTA and actual_p <= ALPHA
         else "NO_SUPPORT_UNDER_PREREG"
     )
-    if obj["decision"] != expected:
+    if obj["decision"] != decision_expected:
         raise ResearchHandoffError("TAMPERED_WINDOW_DECISION")
     return obj
 
