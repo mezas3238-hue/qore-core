@@ -143,10 +143,12 @@ class TestGitCustody(unittest.TestCase):
             b'{"schema":"wrong","drafts":[]}',
             b'{"schema":"qore.research.prereg-drafts.v1","drafts":[1]}',
         ):
-            def mocked(commit: str, path: str, expected: str) -> bytes:
+            def mocked(
+                commit: str, path: str, expected: str, value: bytes = result
+            ) -> bytes:
                 if path == g.EIA_PREREG_PATH:
                     return _HISTORICAL
-                return result
+                return value
 
             with self.subTest(result=result), (
                 patch(f"{_MODULE}._git", side_effect=_good_git),
