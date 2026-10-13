@@ -288,6 +288,7 @@ class SpotwareCTraderOpenApiClient:
         "_refresh_token",
         "_request_timeout_seconds",
         "_server_identity_verifier",
+        "_read_only",
     )
 
     DEMO_HOST = "demo.ctraderapi.com"
@@ -298,6 +299,7 @@ class SpotwareCTraderOpenApiClient:
         *,
         credentials: CTraderOpenApiCredentials,
         request_timeout_seconds: float = 10.0,
+        read_only: bool = False,
         server_identity_verifier: CTraderTlsServerIdentityVerifier | None = None,
         _bindings: _SdkBindings | None = None,
     ) -> None:
@@ -305,7 +307,10 @@ class SpotwareCTraderOpenApiClient:
             raise CTraderOpenApiProtocolError("credentials must be CTraderOpenApiCredentials")
         if not isinstance(request_timeout_seconds, float) or request_timeout_seconds <= 0.0:
             raise CTraderOpenApiProtocolError("request_timeout_seconds must be a positive float")
+        if type(read_only) is not bool:
+            raise CTraderOpenApiProtocolError("read_only must be an explicit boolean")
         bindings = _bindings or _SdkBindings()
+        self._read_only = read_only
         self._bindings = bindings
         self._credentials = credentials
         self._access_token = credentials.access_token
@@ -361,6 +366,19 @@ class SpotwareCTraderOpenApiClient:
         self._events.put(extracted)
 
     def _message(self, name: str, fields: Mapping[str, object]) -> object:
+        if self._read_only and name not in frozenset((
+            "ProtoOAApplicationAuthReq",
+            "ProtoOAGetAccountListByAccessTokenReq",
+            "ProtoOARefreshTokenReq",
+            "ProtoOAAccountAuthReq",
+            "ProtoOASymbolsListReq",
+            "ProtoOASymbolByIdReq",
+            "ProtoOAGetTrendbarsReq",
+            "ProtoOAGetTickDataReq",
+        )):
+            raise CTraderOpenApiProtocolError(
+                "read-only cTrader client prohibits this message"
+            )
         message_type = self._bindings.messages.get(name)
         if message_type is None:
             raise CTraderOpenApiProtocolError(
@@ -530,10 +548,10 @@ class SpotwareCTraderOpenApiClient:
                 return accounts
         account_entries = getattr(accounts.value, "ctidTraderAccount", None)
         permission_scope = getattr(accounts.value, "permissionScope", None)
-        if permission_scope != 1 or account_entries is None:
+        if (permission_scope not in (0, 1) if self._read_only else permission_scope != 1) or account_entries is None:
             return Failure(
                 CTraderOpenApiProtocolError(
-                    "cTrader token lacks trading permission or account evidence"
+                    "cTrader token lacks requested scope or account evidence"
                 )
             )
         selected: object | None = None
