@@ -31,7 +31,6 @@ from qore.infrastructure.research_accelerator.experiments import (
 from qore.infrastructure.research_accelerator.memory import read_ledger, register
 from qore.infrastructure.research_accelerator.ultrafast import main
 
-
 BASE = datetime(2024, 1, 2, 13, 0, tzinfo=UTC)
 
 
@@ -195,7 +194,8 @@ def test_limit_execution_uses_ask_and_bid(tmp_path: Path) -> None:
     assert Decimal(report[0]["gross_price_points_per_unit"]) == Decimal("1.1")
     unfilled = LimitOrder("b", times[0], times[1], times[3], "long",
                           Decimal("98"), Decimal("97"), Decimal("102"))
-    assert simulate_ticks(ticks, (unfilled,), tick_size=Decimal(".1"))[0]["status"] == "UNFILLED_OBSERVED_ONLY"
+    result = simulate_ticks(ticks, (unfilled,), tick_size=Decimal(".1"))
+    assert result[0]["status"] == "UNFILLED_OBSERVED_ONLY"
 
 
 def test_ultrafast_cli_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

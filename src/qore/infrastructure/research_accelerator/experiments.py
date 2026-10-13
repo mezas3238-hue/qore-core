@@ -42,7 +42,7 @@ def read_signals(path: Path) -> tuple[Signal, ...]:
         reader = csv.DictReader(stream)
         required = {"event_id", "anchor_at", "available_at", "side", "anchor_price"}
         if reader.fieldnames is None or not required.issubset(set(reader.fieldnames)):
-            raise ResearchDataError("signals require event_id,anchor_at,available_at,side,anchor_price")
+            raise ResearchDataError("signals require event_id, anchor_at, available_at, side, anchor_price")
         extras = set(reader.fieldnames) - required
         if not extras.issubset(set(VALID_FEATURES)):
             raise ResearchDataError("unknown feature; do not execute arbitrary predicate code")
@@ -65,7 +65,9 @@ def read_signals(path: Path) -> tuple[Signal, ...]:
                 raise ResearchDataError("missing/invalid feature value") from exc
             if any(not 0 <= x <= 1 for x in features.values()):
                 raise ResearchDataError("features must be normalized finite [0,1]")
-            output.append(Signal(event_id, t, available, row["side"], number(row["anchor_price"]), features))
+            output.append(
+                Signal(event_id, t, available, row["side"], number(row["anchor_price"]), features)
+            )
     if not output:
         raise ResearchDataError("empty signal export")
     return tuple(output)
@@ -123,23 +125,25 @@ def _percentile(sorted_values: list[float], quantile: float) -> float:
     return sorted_values[min(len(sorted_values) - 1, int(quantile * (len(sorted_values) - 1)))]
 
 
-def day_block_interval(pairs: list[tuple[datetime, float]], *, draws: int, seed: int) -> dict[str, float | int | None]:
+def day_block_interval(
+    pairs: list[tuple[datetime, float]], *, draws: int, seed: int
+) -> dict[str, float | int | None]:
     """Day-block bootstrap: group correlated events by UTC date, not IID signals."""
     if not pairs:
         return {"n": 0, "days": 0, "mean_bps": None, "ci_low_bps": None, "ci_high_bps": None}
     grouped: dict[str, list[float]] = {}
     for instant, outcome in pairs:
         grouped.setdefault(instant.astimezone(UTC).date().isoformat(), []).append(outcome)
-    blocks = list(grouped.values())
+    blocks = [(sum(values), len(values)) for values in grouped.values()]
     rng = Random(seed)
     stats = []
     for _ in range(draws):
         total = 0.0
         count = 0
         for _day in blocks:
-            block = blocks[rng.randrange(len(blocks))]
-            total += sum(block)
-            count += len(block)
+            subtotal, size = blocks[rng.randrange(len(blocks))]
+            total += subtotal
+            count += size
         stats.append(total / count)
     stats.sort()
     return {
@@ -159,9 +163,15 @@ def causal_local_extremes(bars: tuple[BidBar, ...], *, lookback: int = 10) -> tu
         window = bars[i - lookback:i + 1]
         current = bars[i]
         if current.low == min(b.low for b in window):
-            events.append(Signal("ctrl_long_" + str(i), current.closed_at, current.closed_at, "long", current.close, {}))
+            events.append(
+                Signal("ctrl_long_" + str(i), current.closed_at,
+                       current.closed_at, "long", current.close, {})
+            )
         if current.high == max(b.high for b in window):
-            events.append(Signal("ctrl_short_" + str(i), current.closed_at, current.closed_at, "short", current.close, {}))
+            events.append(
+                Signal("ctrl_short_" + str(i), current.closed_at,
+                       current.closed_at, "short", current.close, {})
+            )
     return tuple(events)
 
 
@@ -172,7 +182,11 @@ def _measure(
     regimes: tuple[Regime | None, ...],
     *,
     enforce_anchor: bool,
-) -> tuple[dict[int, list[tuple[datetime, float]]], dict[int, dict[str, list[tuple[datetime, float]]]], int]:
+) -> tuple[
+    dict[int, list[tuple[datetime, float]]],
+    dict[int, dict[str, list[tuple[datetime, float]]]],
+    int,
+]:
     stamps = tuple(b.closed_at for b in bars)
     results: dict[int, list[tuple[datetime, float]]] = {h: [] for h in horizons}
     regime_results: dict[int, dict[str, list[tuple[datetime, float]]]] = {h: {} for h in horizons}
@@ -233,7 +247,9 @@ def screen(
     primary = {}
     conditional_out = {}
     for h, pairs in result.items():
-        primary[str(h)] = day_block_interval(pairs, draws=spec.block_bootstrap_draws, seed=spec.seed + h)
+        primary[str(h)] = day_block_interval(
+            pairs, draws=spec.block_bootstrap_draws, seed=spec.seed + h
+        )
         conditional_out[str(h)] = {
             k: day_block_interval(v, draws=spec.block_bootstrap_draws, seed=spec.seed + h)
             for k, v in conditional[h].items()
@@ -249,7 +265,9 @@ def screen(
         )
         report["controls"] = {
             "local_extreme": {
-                str(h): day_block_interval(pairs, draws=spec.block_bootstrap_draws, seed=spec.seed + h)
+                str(h): day_block_interval(
+                    pairs, draws=spec.block_bootstrap_draws, seed=spec.seed + h
+                )
                 for h, pairs in ctrl_results.items()
             }
         }

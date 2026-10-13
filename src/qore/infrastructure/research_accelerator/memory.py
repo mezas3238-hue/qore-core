@@ -64,11 +64,15 @@ def register(path: Path, payload: dict[str, object]) -> dict[str, object]:
                 raise ResearchDataError("research memory chain digest mismatch")
             old = item.get("payload")
             if isinstance(old, dict) and old.get("config_sha256") == config:
-                raise ResearchDataError("equivalent experiment already registered; review prior verdict")
+                raise ResearchDataError("equivalent experiment already registered")
             previous = item["chain_sha256"]
         if data and not data.endswith(b"\n"):
             raise ResearchDataError("truncated last record")
-        entry: dict[str, object] = {"schema": "qore.research-memory.v1", "previous": previous, "payload": payload}
+        entry: dict[str, object] = {
+            "schema": "qore.research-memory.v1",
+            "previous": previous,
+            "payload": payload,
+        }
         entry["chain_sha256"] = digest(entry)
         stream.seek(0, os.SEEK_END)
         stream.write(canonical(entry) + b"\n")

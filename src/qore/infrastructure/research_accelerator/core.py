@@ -197,7 +197,7 @@ def ingest(source: Path, manifest_file: Path, lake: Path) -> dict[str, str]:
                 os.fsync(out.fileno())
         except FileExistsError:
             if target.read_bytes() != payload:
-                raise ResearchDataError("immutable lake collision or modified historical object")
+                raise ResearchDataError("immutable lake collision or modified historical object") from None
     return {
         "object": str(object_file), "manifest": str(metadata_file),
         "source_sha256": manifest.sha256, "manifest_sha256": metadata_id,
