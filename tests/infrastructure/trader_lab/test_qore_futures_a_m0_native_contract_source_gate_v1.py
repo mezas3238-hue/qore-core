@@ -39,7 +39,8 @@ def leg(root,index,settle="17.50"):
         "volume_published_at_utc":"2020-04-21T04:10:00Z",
         "open_interest":3045 if index==0 else 1234,
         "open_interest_published_at_utc":"2020-04-21T06:00:00Z",
-        "first_notice_date":"2020-05-01" if index==0 else "2020-06-01",
+        "exchange_first_notice_date":None if root in ("CL","NG") else ("2020-05-01" if index==0 else "2020-06-01"),
+        "risk_liquidation_cutoff_date":"2020-05-01" if index==0 else "2020-06-01",
         "last_trade_date":"2020-05-30" if index==0 else "2020-06-30",
         "contract_multiplier":"1000",
         "minimum_tick":"0.01",
@@ -113,6 +114,25 @@ class TestM0NativeContract(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"ROLL_CUTOFF"):
             gate.validate_two_pats_native_curve(
                 [leg("ZC",0),leg("ZC",1)],"2020-05-01T13:00:00Z")
+
+    def test_exchange_notice_may_follow_last_trade_for_energy(self):
+        row=leg("CL",0)
+        row["exchange_first_notice_date"]="2020-06-01"
+        row["last_trade_date"]="2020-05-21"
+        row["risk_liquidation_cutoff_date"]="2020-05-20"
+        result=gate.validate_contract_row(row)
+        self.assertGreater(result.exchange_first_notice,result.last_trade)
+        self.assertLess(result.cutoff,result.last_trade)
+
+    def test_broker_risk_cutoff_cannot_follow_last_trade_or_first_notice(self):
+        row=leg("CL",0)
+        row["risk_liquidation_cutoff_date"]="2020-06-01"
+        with self.assertRaisesRegex(ValueError,"RISK_CUTOFF_AFTER_LAST_TRADE"):
+            gate.validate_contract_row(row)
+        row=leg("GC",0)
+        row["risk_liquidation_cutoff_date"]="2020-05-02"
+        with self.assertRaisesRegex(ValueError,"RISK_CUTOFF_AFTER_EXCHANGE_NOTICE"):
+            gate.validate_contract_row(row)
 
     def test_bad_root_venue_is_not_proxied(self):
         row=leg("ZC",0)
