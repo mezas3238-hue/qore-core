@@ -180,11 +180,18 @@ def main() -> None:
             }
             for label, item in panel["six_frozen_starts"].items()
         }
-    print("VT08_R2CK_SIX_START=" + json.dumps({
-        "market": args.market, "periods": summarized,
-        "all_sources_reproduced": True,
+    print("VT08_R2CK_CHECK=" + json.dumps({
+        "market": args.market, "all_sources_reproduced": True,
         "no_rule_promotion": True,
     }, sort_keys=True))
+    for period, panel in summarized.items():
+        for label, data in panel.items():
+            print("VT08_R2CK_START=" + json.dumps({
+                "market": args.market,
+                "period": period,
+                "start": label,
+                **data,
+            }, sort_keys=True))
 
 
 if __name__ == "__main__":
