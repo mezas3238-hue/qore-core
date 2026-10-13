@@ -1,0 +1,95 @@
+name: VT31 Gate2 four PIT regimes versus first raw FVG (NO FILLS)
+on:
+  push:
+    branches:
+      - agent/vt31-gate2-pit-regimes-20261013
+    paths:
+      - scripts/vt31_gate2_pit_regimes_20261013.py
+      - tests/infrastructure/test_vt31_gate2_pit_regimes_20261013.py
+      - docs/research/VT31_GATE2_REGIMES_PIT_PREREG_20261013.md
+      - docs/research/VT31_GATE2_REGIMES_RESULT_20261013.md
+      - .github/workflows/vt31-gate2-pit-regimes-20261013.yml
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_ARTIFACT: "11459859004"
+  LEDGER_ARTIFACT: "11657461650"
+  MARKET_SHA: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+  LEDGER_SHA: "e9683d87f0645b488968aeb3e207347649f4e9aea5c535202ab4f024c22e7646"
+jobs:
+  research-four-pit-regimes-no-orders:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify pre-result prereg Git ancestry and six adversarial PIT cases
+        run: |
+          set -euo pipefail
+          git cat-file -t 78cfa3c55487df620c450e0b12c6c26537dc683b
+          git merge-base --is-ancestor 78cfa3c55487df620c450e0b12c6c26537dc683b HEAD
+          python -m pip install "ijson>=3.3,<4" "pytest>=8,<10" "ruff>=0.5,<1"
+          python -m py_compile scripts/vt31_gate2_pit_regimes_20261013.py \
+            tests/infrastructure/test_vt31_gate2_pit_regimes_20261013.py
+          ruff check scripts/vt31_gate2_pit_regimes_20261013.py \
+            tests/infrastructure/test_vt31_gate2_pit_regimes_20261013.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_gate2_pit_regimes_20261013.py
+      - name: Fetch exact M1 and original COG-plus-OPS ledger with checksums
+        run: |
+          set -euo pipefail
+          mkdir -p input/m1 input/ledger result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${MARKET_ARTIFACT}/zip" > market.zip
+          unzip -q market.zip -d input/m1
+          test -s input/m1/NAS100/market-evidence.json
+          echo "${MARKET_SHA}  input/m1/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${LEDGER_ARTIFACT}/zip" > ledger.zip
+          unzip -q ledger.zip -d input/ledger
+          test -s input/ledger/vt31-ict-cleanroom-3y-m1-offer-ledger.json
+          echo "${LEDGER_SHA}  input/ledger/vt31-ict-cleanroom-3y-m1-offer-ledger.json" | sha256sum -c -
+      - name: Execute four pre-window volatility and trend states on original three years
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_gate2_pit_regimes_20261013.py \
+            --market input/m1/NAS100/market-evidence.json \
+            --ledger input/ledger/vt31-ict-cleanroom-3y-m1-offer-ledger.json \
+            --out result/gate2-4-regimes.json \
+            | tee result/gate2-summary.json
+      - name: Reject fills, any missing source, posthoc changes or economic claims
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("result/gate2-4-regimes.json"))
+          assert p["preregistered_commit"]=="78cfa3c55487df620c450e0b12c6c26537dc683b"
+          assert p["market_sha256"]=="0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+          assert p["approved_ledger_sha256"]=="e9683d87f0645b488968aeb3e207347649f4e9aea5c535202ab4f024c22e7646"
+          assert p["complete_original_windows"]==2286 and p["COG_OPS_sources"]==2140
+          assert p["baseline_Gate1_paired_delta_gross_15m"]==-0.954117
+          assert sum(p["regime_counts_including_unknown"].values())==2286
+          assert len(p["four_frozen_cells"])==4
+          assert p["regime_features_only_prior_60m_and_prior_20_same_session"]
+          assert p["confounded_selection_COG_PLUS_OPS_not_COG_only"]
+          assert p["no_broker_fills_orders_costs"]
+          assert p["profit_factor_drawdown"] is None
+          assert not p["fresh_holdout_opened"] and not p["production_live_vps_modified"]
+          assert p["G3"]=="PENDING_DUAL_SIGNATURE"
+          assert p["multiplicity"]=="Bonferroni 4 two-sided CI98.75pct"
+          print("GATE2 PIT REGIME SCIENCE ONLY:",p["verdict"])
+          PY
+          git rev-parse HEAD > result/code-head-sha.txt
+          printf '%s\n' "EXPLORATORY_NOT_EDGE_NOT_OOS_NO_BROKER_FILLED" > result/scope.txt
+          (cd result && sha256sum *.txt *.json > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-gate2-four-PIT-regimes-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
