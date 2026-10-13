@@ -6,6 +6,7 @@ No trader sizing/volume/capital authority; no certification or deployment.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import Counter
 from collections.abc import Callable
@@ -32,6 +33,7 @@ from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2cd_usdjpy_cognitive_wait_resolution_wf as r2cd,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
+    Model1LabTrade,
     aggregate_complete_m15,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_window_evidence import (
@@ -50,6 +52,101 @@ REFERENCE = {
     "AUDUSD": {"trades": 1067, "pf": 1.07424084, "r": 28.1440},
     "USDJPY": {"trades": 511, "pf": 1.01154342, "r": 2.2637},
 }
+
+
+
+FROZEN_LEDGER_RUNS = {
+    "AUDUSD": 36173116494,
+    "USDJPY": 36173125334,
+}
+
+
+def _parse_trade(payload: dict[str, Any]) -> Model1LabTrade:
+    return Model1LabTrade(
+        **{**payload, "reference_ids": tuple(payload["reference_ids"])}
+    )
+
+
+def _load_frozen_delayed(market: str, path: Path) -> tuple[Any, ...]:
+    """Rehydrate full R2-CC/CD delayed ledgers; no broker API or new candles."""
+    module: Any = r2cc if market == "AUDUSD" else r2cd
+    restored: list[Any] = []
+    with path.open(encoding="utf-8") as handle:
+        for line_no, line in enumerate(handle, 1):
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            if not isinstance(payload, dict):
+                raise ValueError(f"{market} non-object ledger line {line_no}")
+            source_payload = payload["source"]
+            original = _parse_trade(source_payload["trade"])
+            source: Any
+            if market == "AUDUSD":
+                source = r2bh.ViabilityRecord(
+                    trade=original,
+                    features=tuple(
+                        (str(pair[0]), str(pair[1]))
+                        for pair in source_payload["features"]
+                    ),
+                    dead_on_arrival=bool(source_payload["dead_on_arrival"]),
+                )
+            elif market == "USDJPY":
+                source = r2bz.CognitiveRecord(
+                    trade=original,
+                    key=str(source_payload["key"]),
+                    dead_on_arrival=bool(source_payload["dead_on_arrival"]),
+                )
+            else:
+                raise ValueError(f"Unknown frozen market: {market}")
+            delayed_payload = payload["delayed_trade"]
+            delayed_trade = (
+                None if delayed_payload is None else _parse_trade(delayed_payload)
+            )
+            restored.append(
+                module.DelayedRecord(
+                    source=source,
+                    journey_state=str(payload["journey_state"]),
+                    delayed_trade=delayed_trade,
+                    delayed_doa=payload["delayed_doa"],
+                    terminal_reason=payload["terminal_reason"],
+                )
+            )
+    if not restored:
+        raise ValueError(f"{market}: empty frozen delayed ledger")
+    return tuple(restored)
+
+
+def _verify_frozen_report(
+    comparison: dict[str, Any],
+    reference_path: Path,
+) -> dict[str, Any]:
+    """Fail closed if the offline reconstructed control differs from source replay."""
+    source = json.loads(reference_path.read_text(encoding="utf-8"))
+    original = source["combined_oos_cognitive_portfolio"]
+    checks: dict[str, Any] = {}
+    for key in (
+        "trades",
+        "total_r",
+        "profit_factor",
+        "max_drawdown_r",
+        "dead_on_arrival_rate",
+    ):
+        actual = comparison[key]
+        expected = original[key]
+        valid = (
+            actual == expected
+            if isinstance(actual, int)
+            else abs(float(actual) - float(expected)) < 1e-6
+        )
+        checks[key] = {"matched": valid, "observed": actual, "expected": expected}
+        if not valid:
+            raise ValueError(
+                f"Frozen R2-CC/CD report mismatch on {key}: "
+                f"observed={actual}, expected={expected}"
+            )
+    if comparison["origin_counts"] != original["origin_counts"]:
+        raise ValueError("Frozen source origin-count mismatch")
+    return checks
 
 
 def _initial_action(
@@ -112,7 +209,12 @@ def _aud_initial_decision(model: Any, row: Any) -> Any:
     return r2by._decision(model=model, record=row)
 
 
-def run_market(market: str) -> dict[str, Any]:
+def run_market(
+    market: str,
+    *,
+    frozen_ledger: Path | None = None,
+    frozen_report: Path | None = None,
+) -> dict[str, Any]:
     records: tuple[Any, ...]
     initial_decision: Callable[[Any, Any], Any]
     initial_fit: Callable[[tuple[Any, ...]], tuple[Any, dict[str, Any]]]
@@ -121,7 +223,6 @@ def run_market(market: str) -> dict[str, Any]:
     if market == "AUDUSD":
         module: Any = r2cc
         start, end, training_years = r2bh.START, r2bh.END, r2bh.TRAINING_YEARS
-        records, source_diagnostics = r2bh._build_records()
         initial_decision = _aud_initial_decision
         initial_fit = r2by._fit
         year_start = r2bh._year_start
@@ -130,7 +231,6 @@ def run_market(market: str) -> dict[str, Any]:
     elif market == "USDJPY":
         module = r2cd
         start, end, training_years = r2bc.START, r2bc.END, r2bz.TRAINING_YEARS
-        records, source_diagnostics = r2bz._build_records()
         initial_decision = r2bz._decision
         initial_fit = r2bz._fit
         year_start = r2bz._year_start
@@ -138,6 +238,21 @@ def run_market(market: str) -> dict[str, Any]:
         load_market = r2bz.MARKET
     else:
         raise ValueError(f"Unsupported market: {market}")
+
+    if frozen_ledger is not None:
+        delayed_rows = _load_frozen_delayed(market, frozen_ledger)
+        records = tuple(row.source for row in delayed_rows)
+        source_diagnostics: dict[str, Any] = {
+            "frozen_run_id": FROZEN_LEDGER_RUNS[market],
+            "ledger_records": len(records),
+            "ledger_sha256": hashlib.sha256(frozen_ledger.read_bytes()).hexdigest(),
+            "provider_read": "NONE_FROZEN_ARTIFACT_ONLY",
+        }
+    else:
+        if market == "AUDUSD":
+            records, source_diagnostics = r2bh._build_records()
+        else:
+            records, source_diagnostics = r2bz._build_records()
 
     # Fail closed against silent overwritten hypotheses in the old dictionary join.
     record_keys = tuple(module._record_key(row) for row in records)
@@ -147,18 +262,19 @@ def run_market(market: str) -> dict[str, Any]:
             "a dictionary join would silently overwrite a record"
         )
 
-    m5 = load_m5_window(
-        load_market,
-        start=start - timedelta(days=2),
-        end_exclusive=end + timedelta(days=1),
-    )
-    by_time = {bar.opened_at: bar for bar in aggregate_complete_m15(m5)}
-    if len(by_time) == 0:
-        raise ValueError(f"{market}: no complete M15 evidence")
-    delayed_rows = tuple(
-        module._delayed_record(record, by_time=by_time)
-        for record in records
-    )
+    if frozen_ledger is None:
+        m5 = load_m5_window(
+            load_market,
+            start=start - timedelta(days=2),
+            end_exclusive=end + timedelta(days=1),
+        )
+        by_time = {bar.opened_at: bar for bar in aggregate_complete_m15(m5)}
+        if len(by_time) == 0:
+            raise ValueError(f"{market}: no complete M15 evidence")
+        delayed_rows = tuple(
+            module._delayed_record(record, by_time=by_time)
+            for record in records
+        )
     delayed_by_key = {
         module._record_key(row.source): row for row in delayed_rows
     }
@@ -322,6 +438,11 @@ def run_market(market: str) -> dict[str, Any]:
     if years == 0:
         raise ValueError(f"{market}: no walk-forward folds")
     reference = _reference_check(market, results["CONTROL_ALL"])
+    direct_reproduction = (
+        _verify_frozen_report(results["CONTROL_ALL"], frozen_report)
+        if frozen_report is not None
+        else None
+    )
     if not reference["matches_frozen_publication"]:
         raise ValueError(
             f"{market}: CONTROL_ALL failed frozen R2-CC/R2-CD reproduction: {reference}"
@@ -336,6 +457,7 @@ def run_market(market: str) -> dict[str, Any]:
         "window_end_exclusive": end.isoformat(),
         "fold_count": years,
         "reproduction_check": reference,
+        "frozen_source_report_reproduction": direct_reproduction,
         "results": results,
         "trades_per_year": {
             arm: round(results[arm]["trades"] / years, 8) for arm in ARMS
@@ -370,8 +492,16 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=Path)
     parser.add_argument("--market", choices=("AUDUSD", "USDJPY"), required=True)
+    parser.add_argument("--frozen-ledger", type=Path)
+    parser.add_argument("--frozen-report", type=Path)
     args = parser.parse_args()
-    report = run_market(args.market)
+    if (args.frozen_ledger is None) != (args.frozen_report is None):
+        parser.error("--frozen-ledger and --frozen-report must be supplied together")
+    report = run_market(
+        args.market,
+        frozen_ledger=args.frozen_ledger,
+        frozen_report=args.frozen_report,
+    )
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "report.json").write_text(
         json.dumps(report, indent=2, sort_keys=True, default=str) + "\n",
