@@ -5,14 +5,12 @@ import hashlib
 import json
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pytest
 
 from qore.research.alpha2_fx28_carry_one_test import FX28
 from qore.research.alpha2_fx28_london_range_one import (
     LONDON,
-    _complete_session,
     _week_list,
     aggregate,
     extract_symbol_rows,
@@ -63,7 +61,7 @@ def test_local_london_dst_open_and_10min_causal_delay(ymd):
     assert start.at.hour==(8 if ymd[1]==1 else 7)
 
 
-def test_missing_one_asia_or_london_M5_day_censors_all_not_filled():
+def test_missing_one_asia_or_london_m5_day_censors_all_not_filled():
     d=date(2026,1,12)
     for hm in ((2,15),(11,55)):
         source=synthetic_london_day(d)
