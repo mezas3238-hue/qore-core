@@ -6,7 +6,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from scripts.vt31_ce_touch_subgroup_decision_20261013 import (
-    collect_opens, events_from_original, needed_opens, signed_return, stamp,
+    collect_opens,
+    events_from_original,
+    needed_opens,
+    signed_return,
+    stamp,
     summarize,
 )
 
