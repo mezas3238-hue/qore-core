@@ -266,7 +266,7 @@ def aggregate(extracted:Path)->dict:
         gross=defaultdict(float)
         stress=defaultdict(float)
         source_eligible=Counter()
-        for symbol,records in panel.items():
+        for records in panel.values():
             for day,row in records.items():
                 if start<=day<end:
                     source_eligible[row["status"]]+=1
