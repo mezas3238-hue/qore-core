@@ -137,7 +137,7 @@ def displacement(
             abs(b.high - prev.close),
             abs(b.low - prev.close),
         )
-        for b, prev in zip(hist, earlier)
+        for b, prev in zip(hist, earlier, strict=True)
     ]
     atr = sum(tr) / ATR_LEN
     body = abs(current.close - current.open)
