@@ -270,7 +270,10 @@ def process_sources(pilot: Path, wave: Path, *, report_file: Path) -> dict[str, 
                             "symbol_id": "10014",
                             "feed_version": "ICMARKETS_CTRADER_DEMO_SOURCE_20261013",
                             "license": "RESEARCH_LICENSE_UNVERIFIED_NO_PUBLIC_DATA_REUPLOAD",
-                            "provenance": f"github-actions:{artifact_id}:{origin['decoded_sha256']}",
+                            "provenance": (
+                                f"github-actions:{artifact_id}:"
+                                f"{origin['decoded_sha256']}"
+                            ),
                         }
                         metapath = folder / (lower + ".json")
                         metapath.write_bytes(canonical(descriptor) + b"\n")
