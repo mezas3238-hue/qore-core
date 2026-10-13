@@ -107,7 +107,7 @@ def validate_dataset_manifest(m:dict[str,Any])->dict[str,Any]:
         _fail("PROVIDER_MISSING")
     if not isinstance(m["dataset_id"],str) or not m["dataset_id"].strip():
         _fail("DATASET_ID_MISSING")
-    out={"dataset_provider":m["provider"],"dataset_id":m["dataset_id"]}
+    out:dict[str,Any]={"dataset_provider":m["provider"],"dataset_id":m["dataset_id"]}
     for key in (
         "licensed_internal_research","authentic_exchange_contracts",
         "historical_bid_ask_or_fills_supported",
