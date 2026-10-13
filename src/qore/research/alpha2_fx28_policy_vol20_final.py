@@ -325,7 +325,11 @@ def evaluate(rates:dict[str,dict[str,float]],
         if start<DEV_END<=end or end>=HISTORY_END_EXCLUSIVE or (end-start).days<15:
             censored["ERA_BOUNDARY_OR_SHORT_HOLD_OR_CUTOFF"]+=1
             continue
-        if any(py not in rates[c] for c in CCYS):
+        if any(
+            py not in rates[c] or not isinstance(rates[c][py], (int, float))
+            or not math.isfinite(rates[c][py])
+            for c in CCYS
+        ):
             censored["EIGHT_POLICY_PRIOR_EOM_MISSING"]+=1
             continue
         if index[start]<21:
