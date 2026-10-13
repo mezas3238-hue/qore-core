@@ -1,0 +1,92 @@
+name: QORE VT08 CRT PURE R2-CH Archived Source Census
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-r2ch-archived-source-census.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2ch_archived_source_novelty.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_r2ch_archived_source_novelty.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Strict source identity controls
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_r2ch_archived_source_novelty.py tests/infrastructure/trader_lab/test_vt08_crt_pure_r2ch_archived_source_novelty.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_r2ch_archived_source_novelty.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_r2ch_archived_source_novelty.py
+
+  census:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - market: AUDUSD
+            r2f_artifact: qore-vt08-crt-pure-r2f-AUDUSD-24c5d2b8cc4e9f15d42d4d5396e72997fc5af8e3
+            source_run: 36173116494
+            source_artifact: qore-vt08-crt-pure-r2cc-audusd-f0973808af1a6e342b71ba179ccecb1c43a7913c
+          - market: USDJPY
+            r2f_artifact: qore-vt08-crt-pure-r2f-USDJPY-24c5d2b8cc4e9f15d42d4d5396e72997fc5af8e3
+            source_run: 36173125334
+            source_artifact: qore-vt08-crt-pure-r2cd-usdjpy-e49ed06db7e9fc5095e856491fcd68de7f61aca0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Retrieve immutable original R2-F source events
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.r2f_artifact }}
+          repository: ${{ github.repository }}
+          run-id: '35811162435'
+          github-token: ${{ github.token }}
+          path: evidence/r2f
+      - name: Retrieve immutable R2-CC/CD source/control ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.source_artifact }}
+          repository: ${{ github.repository }}
+          run-id: ${{ matrix.source_run }}
+          github-token: ${{ github.token }}
+          path: evidence/control
+      - name: Validate and compare source identity with no economic replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s evidence/r2f/hypotheses.jsonl
+          test -s evidence/r2f/report.json
+          test -s evidence/control/delayed.jsonl
+          mkdir -p artifacts/${{ matrix.market }}
+          sha256sum evidence/r2f/hypotheses.jsonl evidence/r2f/report.json evidence/control/delayed.jsonl | tee artifacts/${{ matrix.market }}/source_sha256.txt
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_r2ch_archived_source_novelty \
+            artifacts/${{ matrix.market }} --market ${{ matrix.market }} \
+            --r2f-ledger evidence/r2f/hypotheses.jsonl \
+            --r2f-report evidence/r2f/report.json \
+            --frozen-control evidence/control/delayed.jsonl \
+            | tee artifacts/${{ matrix.market }}/stdout.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-r2ch-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/${{ matrix.market }}
+          if-no-files-found: warn
+          retention-days: 90
