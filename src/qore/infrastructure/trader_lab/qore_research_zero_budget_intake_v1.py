@@ -133,6 +133,10 @@ class ResearchIntakeRecord:
             raise ResearchIntakeError("NONCLOSED_CANNOT_HAVE_RESULT")
         if self.status is IntakeStatus.SOURCE_BLOCKED and self.code != _CODE_FUTURES:
             raise ResearchIntakeError("UNKNOWN_BLOCKED_MISSION")
+        if self.status is IntakeStatus.PROPOSAL_ONLY and not self.code.startswith(
+            "research.proposal."
+        ):
+            raise ResearchIntakeError("NEW_PROPOSAL_REQUIRES_OWN_IDENTITY")
 
     def to_json(self) -> dict[str, Any]:
         out = asdict(self)
@@ -241,15 +245,24 @@ class ResearchIntakeLedger:
     entries: tuple[ResearchIntakeRecord, ...]
 
     def __post_init__(self) -> None:
-        if type(self.entries) is not tuple or len(self.entries) != 2:
-            raise ResearchIntakeError("QUEUE_MUST_COVER_EXACTLY_TWO_VERIFIED_MISSIONS")
-        names = tuple(e.code for e in self.entries)
-        if names != tuple(sorted((_CODE_EIA, _CODE_FUTURES))):
-            raise ResearchIntakeError("QUEUE_ORDER_OR_MISSION_SUBSTITUTION")
+        if type(self.entries) is not tuple or len(self.entries) < 2:
+            raise ResearchIntakeError("QUEUE_MISSING_VERIFIED_BASE_MISSIONS")
         if any(type(e) is not ResearchIntakeRecord for e in self.entries):
             raise ResearchIntakeError("UNTRUSTED_QUEUE_OBJECT")
+        names = tuple(e.code for e in self.entries)
+        if names != tuple(sorted(names)) or len(names) != len(set(names)):
+            raise ResearchIntakeError("QUEUE_ORDER_OR_DUPLICATE_IDENTITY")
+        required = {_CODE_EIA, _CODE_FUTURES}
+        if not required.issubset(names):
+            raise ResearchIntakeError("QUEUE_MISSING_VERIFIED_BASE_MISSIONS")
         for entry in self.entries:
             ResearchIntakeRecord.__post_init__(entry)
+            if entry.code == _CODE_EIA and entry.status is not IntakeStatus.CLOSED_NO_SUPPORT:
+                raise ResearchIntakeError("CLOSED_MISSION_REOPENED")
+            if entry.code == _CODE_FUTURES and entry.status is not IntakeStatus.SOURCE_BLOCKED:
+                raise ResearchIntakeError("BLOCKED_MISSION_RELABELED")
+            if entry.code not in required and entry.status is not IntakeStatus.PROPOSAL_ONLY:
+                raise ResearchIntakeError("NEW_IDENTITY_NOT_PREREG_PROPOSAL")
 
     def to_json(self) -> dict[str, Any]:
         entries = [e.to_json() for e in self.entries]
@@ -284,4 +297,42 @@ def build_source_first_queue(authenticated_eia_cf11_plan: dict[str, Any]) -> Res
                 key=lambda e: e.code,
             )
         )
+    )
+
+
+
+def register_unfrozen_proposal(
+    ledger: ResearchIntakeLedger,
+    *,
+    code: str,
+    question_code: str,
+    data_requirement_code: str,
+    research_root_count: int,
+) -> ResearchIntakeLedger:
+    """Register a new *unfrozen idea* without reading market outcomes.
+
+    Registration is NOT a prereg: that needs independently time-stamped Git
+    commitment and source entitlements. The proposal has no executable signal.
+    """
+    if type(ledger) is not ResearchIntakeLedger:
+        raise ResearchIntakeError("INVALID_EXISTING_LEDGER")
+    ResearchIntakeLedger.__post_init__(ledger)
+    entry = ResearchIntakeRecord(
+        code=code,
+        question_code=question_code,
+        status=IntakeStatus.PROPOSAL_ONLY,
+        next_action=NextResearchAction.WRITE_NEW_PREREG,
+        data_requirement_code=data_requirement_code,
+        funding_ceiling_usd=0,
+        research_root_count=research_root_count,
+        research_source_ohlcv_native_certified=False,
+        contract_expiry_asof_verified=False,
+        source_rights_verified=False,
+        scientific_decision="NOT_TESTED",
+        scientific_plan_fingerprint=None,
+    )
+    if any(old.code == entry.code for old in ledger.entries):
+        raise ResearchIntakeError("DUPLICATE_PROPOSAL")
+    return ResearchIntakeLedger(
+        entries=tuple(sorted((*ledger.entries, entry), key=lambda e: e.code))
     )
