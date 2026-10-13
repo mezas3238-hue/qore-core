@@ -160,3 +160,46 @@ def test_rearm_requires_new_hypothesis_source_and_generation() -> None:
         prior_event_generation=1,
         new_situation=same_source,
     )
+
+
+def test_partial_knowledge_without_listed_uncertainties_must_wait() -> None:
+    """An unfilled knowledge gap cannot silently become full CRT evidence."""
+    decision = reason(_state(knowledge_state=CrtPureKnowledgeState.PARTIAL))
+    assert decision.action is CrtPureReasoningAction.WAIT
+    assert "METACOGNITION:CONDITIONALLY_SUPPORTED" in decision.auditable_why
+    assert "KNOWLEDGE_STATE_PARTIAL" in decision.uncertainty
+    assert decision.grants_capital_authority is False
+
+
+def test_partial_knowledge_preserves_explicit_unresolved_old_level_ownership() -> None:
+    decision = reason(
+        _state(
+            knowledge_state=CrtPureKnowledgeState.PARTIAL,
+            uncertainties=("MODEL_1_REFERENCE_SELECTION_AMBIGUOUS",),
+        )
+    )
+    assert decision.action is CrtPureReasoningAction.WAIT
+    assert "KNOWLEDGE_STATE_PARTIAL" in decision.uncertainty
+    assert "MODEL_1_REFERENCE_SELECTION_AMBIGUOUS" in decision.uncertainty
+    assert "ACTION:WAIT" in decision.auditable_why
+
+
+def test_explicit_conflict_and_killed_thesis_still_abstain() -> None:
+    conflict = reason(
+        _state(
+            knowledge_state=CrtPureKnowledgeState.CONFLICTED,
+            contradictions=("LEVEL_OWNERSHIP_CONTRADICTED",),
+        )
+    )
+    killed = reason(
+        _state(hypothesis_stage=CrtPureHypothesisStage.THESIS_KILLED)
+    )
+    assert conflict.action is CrtPureReasoningAction.ABSTAIN
+    assert "LEVEL_OWNERSHIP_CONTRADICTED" in conflict.contradictions
+    assert killed.action is CrtPureReasoningAction.ABSTAIN
+
+
+def test_known_and_confirmed_no_new_filters_still_pass_cognitive_checks() -> None:
+    decision = reason(_state(knowledge_state=CrtPureKnowledgeState.KNOWN))
+    assert decision.action is CrtPureReasoningAction.EXECUTE
+    assert decision.grants_capital_authority is False
