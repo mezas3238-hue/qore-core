@@ -81,7 +81,10 @@ class ResearchIntakeRecord:
         _code(self.code, "mission")
         _code(self.question_code, "question")
         _code(self.data_requirement_code, "source")
-        if type(self.status) is not IntakeStatus or type(self.next_action) is not NextResearchAction:
+        if (
+            type(self.status) is not IntakeStatus
+            or type(self.next_action) is not NextResearchAction
+        ):
             raise ResearchIntakeError("INVALID_ENUM")
         if type(self.funding_ceiling_usd) is not int or self.funding_ceiling_usd != 0:
             raise ResearchIntakeError("MARKET_DATA_BUDGET_NOT_ZERO")
@@ -205,7 +208,10 @@ def eia_closed_from_verified_cf11_json(plan: dict[str, Any]) -> ResearchIntakeRe
         or not all(isinstance(n, str) and n.startswith("evidence:source-eia:") for n in needs)
     ):
         raise ResearchIntakeError("CF11_SCIENCE_OR_SOURCE_REFS_NOT_COMPLETE")
-    if not isinstance(plan["evidence_reasons"], list) or "hypothesis.no-support" not in plan["evidence_reasons"]:
+    if (
+        not isinstance(plan["evidence_reasons"], list)
+        or "hypothesis.no-support" not in plan["evidence_reasons"]
+    ):
         raise ResearchIntakeError("CF11_NO_SUPPORT_REASON_MISSING")
     return ResearchIntakeRecord(
         code=_CODE_EIA,
