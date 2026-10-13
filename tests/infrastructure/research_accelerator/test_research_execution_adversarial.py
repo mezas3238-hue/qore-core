@@ -9,7 +9,6 @@ import pytest
 from qore.infrastructure.research_accelerator.core import Quote, ResearchDataError
 from qore.infrastructure.research_accelerator.execution import LimitOrder, simulate_ticks
 
-
 ZERO = datetime(2024, 1, 8, 15, 0, tzinfo=UTC)
 TICK = Decimal("0.1")
 
