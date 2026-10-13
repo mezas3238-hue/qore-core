@@ -136,7 +136,7 @@ class TestM0NativeContract(unittest.TestCase):
             gate.inspect_local_envelope(x)
         y=valid_envelope()
         y["sample_curves"][0][0]["root"]="GC"
-        with self.assertRaisesRegex(ValueError,"INCOMPATIBLE_CURVE"):
+        with self.assertRaisesRegex(ValueError,"ROOT_VENUE_MISMATCH"):
             gate.inspect_local_envelope(y)
 
     def test_cutoff_embargo_any_price_from_2024_09_17_rejected(self):
