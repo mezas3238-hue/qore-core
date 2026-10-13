@@ -1,0 +1,126 @@
+name: QORE Alpha2 FINAL FX28 policy carry VOL20 2016-2026 retained-2024
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-fx28-policy-carry-vol20-final-2026.yml'
+      - 'src/qore/research/alpha2_fx28_policy_vol20_final.py'
+      - 'tests/research/test_alpha2_fx28_policy_vol20_final.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  frozen_vol20_prereg_and_causal_synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Pre-outcome prereg ancestor, source gate and synthetic economic accounting
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 9c51aa509040ebbd470a9c59d525d86760922c1b "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_FX28_POLICY_CARRY_VOL20_SINGLE_LAST_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_fx28_policy_vol20_final.py tests/research/test_alpha2_fx28_policy_vol20_final.py
+          pytest -q -o addopts='' tests/research/test_alpha2_fx28_policy_vol20_final.py
+  bis_policy_and_original28_FULL11YEAR_ephemeral:
+    needs: frozen_vol20_prereg_and_causal_synthetic
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: mezas3238-hue/qore-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m pip install -e .
+      - name: Read BIS official public rate release locally, never upload rate history
+        run: |
+          set -euo pipefail
+          mkdir -p bis-private
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 240 \
+            --user-agent 'QORE-Alpha2-ReadOnly-Research/1.0' \
+            https://data.bis.org/static/bulk/WS_CBPOL_csv_flat.zip \
+            --output bis-private/WS_CBPOL_csv_flat.zip
+          sha256sum bis-private/WS_CBPOL_csv_flat.zip
+      - name: Original frozen 33 SHA roster and 12 cohort manifest, no M5 price read yet
+        run: |
+          set -euo pipefail
+          gh run download 38207337960 --repo "$GH_REPO" \
+            --name qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff --dir signed33
+          gh run download 35166210458 --repo "$GH_REPO" \
+            --name qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d --dir atlas-aggregate
+      - name: Seven original Atlas FX 11year SHA-gated, retained 2024-26 only after prereg
+        run: |
+          set -euo pipefail
+          mkdir -p original28 ephemeral28
+          for s in AUDJPY AUDUSD EURUSD GBPJPY GBPUSD USDCAD USDJPY
+          do
+            gh run download 35166210458 --repo "$GH_REPO" \
+              --name "qore-cibo-market-atlas-10y-windowed-$s-ab782b8e9f890f86a2b6500070f0556b4b685e3d" --dir "original28/$s"
+            python -m qore.research.alpha2_fx28_policy_vol20_final extract "$s" "original28/$s" signed33 ephemeral28 --aggregate12 atlas-aggregate
+            rm -rf "original28/$s"
+          done
+      - name: Twenty one original ICMarkets FX 11year SHA-gated retained 2024-26
+        run: |
+          set -euo pipefail
+          for s in USDCHF NZDUSD EURGBP EURJPY EURCHF EURCAD EURAUD EURNZD GBPCHF GBPCAD GBPAUD GBPNZD AUDCAD AUDCHF AUDNZD CADJPY CADCHF CHFJPY NZDJPY NZDCAD NZDCHF
+          do
+            gh run download 38193802541 --repo "$GH_REPO" \
+              --name "qore-native-icmarkets-10Y-provider-M5-$s-e0ca5a13c866a19d8505c68cffc473598984b340" --dir "original28/$s"
+            python -m qore.research.alpha2_fx28_policy_vol20_final extract "$s" "original28/$s" signed33 ephemeral28
+            rm -rf "original28/$s"
+          done
+      - name: ONE frozen 28 FX VOL20 policy carry 2016-2026 with retained 2024-2026
+        run: |
+          set -euo pipefail
+          python -m qore.research.alpha2_fx28_policy_vol20_final finish \
+            bis-private/WS_CBPOL_csv_flat.zip ephemeral28 policy-panel
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          f=Path("policy-panel/FX28_policy_carry_LAST_VOL20_2016_2026_one_aggregate.json")
+          x=json.loads(f.read_text())
+          assert x["FX_pair_count"]==28 and x["FX_currency_count"]==8
+          assert len(x["bis_input_provenance_and_coverage"]["coverage"])==8
+          assert len(x["original28_source_census"])==28
+          assert x["BIS_EOM_release_lag_assumed_not_proven_PIT"] is True
+          assert x["broker_swap_or_forward_not_earned"] is True
+          assert x["M5_first_open_NOT_trade_fill"] is True
+          assert x["closed_to_further_parameter_trials"] is True
+          assert x["real_broker_NET_PF_DD_not_computed"] is True
+          assert x["UTC001_certified"] is False and x["orders"]==0
+          assert x["status"] in (
+              "POLICY_VOL20_INCONCLUSIVE_MISSING_HOLDOUT",
+              "POLICY_VOL20_FINAL_SCREEN_FAILED_CLOSE_LINE",
+              "POLICY_VOL20_EXPLORATORY_RISK_SCALE_PASS_NEEDS_INDEPENDENT_BROKER_NET_VINTAGE",
+          )
+          assert "DEVELOPMENT" in x["eras"] and "DIAGNOSTIC" in x["eras"]
+          assert "PREVIOUSLY_EMBARGOED_2024_2026" in x["eras"]
+          for r in x["month_contributions_hypothetical"]:
+              assert len(r["long6"])==len(r["short6"])==6
+              assert not set(r["long6"]) & set(r["short6"])
+              assert 0 < r["pre_entry_notional_risk_scale"] <= 1
+              assert abs(r["scaled_assumed_cost_2bps_each_side_bps"] - 4*r["pre_entry_notional_risk_scale"]) < 1e-8
+              assert abs(r["filtered_gross_minus_assumed_cost_bps"] - r["pre_entry_notional_risk_scale"]*r["unfiltered_assumed_cost_proxy_bps"]) < 1e-8
+              assert r["real_broker_NET_not_computed"] is True
+          print("SCIENTIFIC OUTCOME", x["status"],
+                "complete months",x["active_traded_months"],
+                "DEV",x["eras"]["DEVELOPMENT"]["mean_filtered_model_after_assumed_cost_bps"],
+                "DIAG",x["eras"]["DIAGNOSTIC"]["mean_filtered_model_after_assumed_cost_bps"],
+                "HOLDO",x["eras"]["PREVIOUSLY_EMBARGOED_2024_2026"]["mean_filtered_model_after_assumed_cost_bps"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > policy-panel/exact-code-head-sha.txt
+          (cd policy-panel && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+          rm -rf bis-private original28 ephemeral28 signed33 atlas-aggregate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-FX28-BIS-VOL20-FINAL-2026-AGG-${{ github.sha }}
+          path: policy-panel/
+          retention-days: 90
+          if-no-files-found: error
