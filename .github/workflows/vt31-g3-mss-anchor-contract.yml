@@ -1,0 +1,57 @@
+name: VT31 G3 MSS Close Dual Filter Opt-in Contract
+
+on:
+  push:
+    branches:
+      - agent/vt31-g3-mss-dual-filter-optin-20261012
+    paths:
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/contracts.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py
+      - src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py
+      - tests/infrastructure/test_vt31_g3_mss_anchor_optin.py
+      - .github/workflows/vt31-g3-mss-anchor-contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  g3-optin-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install research dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Source compile / Ruff gate
+        run: |
+          set -euo pipefail
+          python -m py_compile src/qore/infrastructure/traders/vt31_ict_cleanroom/{contracts,cognition,operations}.py tests/infrastructure/test_vt31_g3_mss_anchor_optin.py
+          ruff check src/qore/infrastructure/traders/vt31_ict_cleanroom/{contracts,cognition,operations}.py tests/infrastructure/test_vt31_g3_mss_anchor_optin.py
+      - name: Synthetic opt-in and untouched legacy behavior regression tests
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          PYTHONPATH=src pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            --junitxml=output/pytest-vt31-g3.xml | tee output/tests.txt
+      - name: Provenance and sha256 manifest
+        run: |
+          set -euo pipefail
+          printf '%s\n' '${GITHUB_SHA}' > output/analysis-commit.txt
+          printf '%s\n' 'b4042c568aac59e0e18bc2003d278a47612dce5a' > output/unsigned-g3-act-sha.txt
+          printf '%s\n' 'SYNTHETIC_GATE_TEST_ONLY_NO_REPLAY_NO_FILLS' > output/scientific-status.txt
+          (cd output && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd output && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-g3-mss-optin-${{ github.sha }}
+          path: output/
+          retention-days: 90
+          if-no-files-found: error
