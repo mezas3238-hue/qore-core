@@ -271,6 +271,7 @@ def main() -> None:
                     ),
                 ),
                 request_timeout_seconds=12.0,
+                read_only=True,
             )
             result = read_pilot(
                 client, symbol_name=symbol, windows=pilot_windows(),
