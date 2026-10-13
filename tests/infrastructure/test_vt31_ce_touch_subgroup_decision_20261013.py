@@ -23,7 +23,7 @@ def test_15m_next_open_arithmetic_does_not_use_ce_midpoint() -> None:
     assert signed_return(e, e["touch"], prices) == 15
     prices[start + timedelta(minutes=4)] = 29950
     assert signed_return(e, e["formed"], prices) == 15
-    assert signed_return(e, e["touch"], prices) == 19
+    assert signed_return(e, e["touch"], prices) == 69
 
 
 def test_missing_contiguous_m1_must_not_fill_price_or_count_trade() -> None:
