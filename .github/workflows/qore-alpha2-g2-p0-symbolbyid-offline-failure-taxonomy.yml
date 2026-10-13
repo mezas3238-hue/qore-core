@@ -1,0 +1,35 @@
+name: QORE Alpha2 G2 P0 SymbolById offline safe Failure taxonomy synthetic
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-p0-symbolbyid-offline-failure-taxonomy.yml'
+      - 'docs/research/QORE_ALPHA2_G2_P0_SYMBOLBYID_SAFE_OFFLINE_FAILURE_CLASSIFIER_PREREG_2026-10-12.md'
+      - 'src/qore/research/alpha2_g2_p0_symbolbyid_failure_taxonomy.py'
+      - 'tests/research/test_alpha2_g2_p0_symbolbyid_failure_taxonomy.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no_broker_no_original_data_offline_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Frozen prereg, type-safe static failures, synthetic only
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor ab9853647f5a12e75f6511f630a6cfb50a573f78 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G2_P0_SYMBOLBYID_SAFE_OFFLINE_FAILURE_CLASSIFIER_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_g2_p0_symbolbyid_failure_taxonomy.py tests/research/test_alpha2_g2_p0_symbolbyid_failure_taxonomy.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_p0_symbolbyid_failure_taxonomy.py
+      - name: Explicitly no broker source qualification
+        run: |
+          echo "SYMBOLBYID_V1_TO_V3_ROOT_CAUSE=UNKNOWN"
+          echo "BROKER_QUERIES=0; NO_TICK_READ; NO_ORDERS; NO_ACCOUNT_SECRETS"

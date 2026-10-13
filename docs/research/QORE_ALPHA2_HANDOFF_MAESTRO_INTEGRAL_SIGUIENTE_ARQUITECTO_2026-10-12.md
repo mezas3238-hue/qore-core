@@ -1,0 +1,535 @@
+# QORE-ALPHA 2 — HANDOFF MAESTRO INTEGRAL PARA EL SIGUIENTE ARQUITECTO
+**Fecha:** 12 de octubre de 2026.  
+**Repositorio:** [mezas3238-hue/qore-core](https://github.com/mezas3238-hue/qore-core).  
+**Rama de investigación (única):** `research/qore-alpha2-original-intermarket-propagation-20261012`.  
+**Pull Request custodio:** [#840, DRAFT](https://github.com/mezas3238-hue/qore-core/pull/840).  
+**Documento de checkpoint complementario:** [QORE_ALPHA2_RESEARCH_MASTER_CHECKPOINT_THREE_HYPOTHESES_AND_G2_2026-10-12.md](QORE_ALPHA2_RESEARCH_MASTER_CHECKPOINT_THREE_HYPOTHESES_AND_G2_2026-10-12.md).  
+**NO MERGE A MAIN / NO VPS / NO MT5 / NO PAPER / NO LIVE / NO ÓRDENES.**
+
+> **Estado indeclinable:** QORE-Alpha 2 no tiene ninguna metodología que haya superado su contraste bruto preregistrado; **0 Traders Alpha2 certificados**, **0 operaciones habilitadas**, **0 rentabilidad NET demostrada**, **UTC-001 BLOQUEADO**. Sí existe infraestructura cuantitativa y evidencia real de fuente BID/ASK bajo controles SHA, pero la evidencia de fuente NO se puede presentar como ventaja económica ni como ejecución. W1/W2/W3 quedan congeladas. **Interpretación corregida:** W1 PATR y W2 PADE son INCONCLUSIVE_UNDERPOWERED (NO falsadas); W3 CMTRL falló su contraste GROSS predeclarado (NO prueba de ausencia universal de edge). La investigación TSMOM diaria/multi-día tiene carril separado EXPLORATORIO en paralelo a custodia, sin reclamar nuevo OOS. No se permite reoptimizar W1/W2/W3 en el histórico ya expuesto.
+
+---
+
+## 1. Misión, filosofía y alcance real del proyecto
+
+La visión del owner es construir **traders originales y cuantitativos, nativos de QORE Core**, a partir de investigaciones falsables del mercado; no copiar TTrades, ICT ni adjudicarse como invención original un método estadístico conocido. El objetivo **no** es maximizar el número de trades artificialmente ni presentar curvas gross atractivas: es descubrir un edge económico reproducible que sobreviva costes reales, años y folds independientes, pérdidas consecutivas, pruebas de estrés, auditoría causal y certificación universal UTC-001. Solo un trader realmente certificado puede considerarse para integración posterior con los otros agentes de QORE. La investigación es separada de QORE Native G1, los otros Traders, Shared y CIBO.
+
+El owner pidió avanzar autónomamente con **Trader Lab / Ultra Fast Runner** y que **todos los cambios, pruebas, artefactos y seguimiento queden en GitHub, no en el VPS**. Los trabajos cuantitativos efectivamente ejecutados han utilizado GitHub Actions por símbolo, comprobación de integridad de originales antes de consumir OHLC y auditores independientes. El archivo `trader_lab.fast_forward.py` del Core valida cronología: **no** confundirlo con un simulador real de órdenes. El motor W1 fue vectorizado para escala `O(T*N²)`, con paridad sintética; las demás pruebas originales usaron replay de trayectoria nativa M5. Si hace falta un nuevo proyecto con edge, empezar por fuente nueva, teoría/prerregistro y verdadera OOS, no por minería de hipótesis en datos consumidos.
+
+## 2. Mapa de propiedad, ramas y documentación obligatoria
+
+- **Owner Alpha 2:** [Issue #838](https://github.com/mezas3238-hue/qore-core/issues/838); procedimiento de investigación y PR [#840](https://github.com/mezas3238-hue/qore-core/pull/840), que **debe permanecer DRAFT**.
+- **Tick-volume, PADE:** [Issue #843](https://github.com/mezas3238-hue/qore-core/issues/843), informe de fuente tick-volume W2.
+- **BID/ASK, costes, PIT y OOS:** [Issue #852](https://github.com/mezas3238-hue/qore-core/issues/852), **P0 NET**.
+- **Identidad contractual 33 y NAS100/USTEC, SP500/US500:** [Issue #868](https://github.com/mezas3238-hue/qore-core/issues/868), **P0 CONTRACT**.
+- **Custodia legal y preservación de históricos M5:** [Issue #837](https://github.com/mezas3238-hue/qore-core/issues/837), **P0 SOURCE EXPIRY**.
+- **Spreads históricos cero y cotizaciones inválidas:** [Issue #856](https://github.com/mezas3238-hue/qore-core/issues/856), cuarentena y causas fuente.
+- **Investigación de QORE Native distinta de Alpha2:** [Handoff Native PR #855](https://github.com/mezas3238-hue/qore-core/pull/855), [captura 29 #849](https://github.com/mezas3238-hue/qore-core/pull/849), QA #851, catálogo USTEC [#850](https://github.com/mezas3238-hue/qore-core/pull/850); NO confundir un resultado Native con una certificación Alpha2.
+- **Constitución de certificación:** [UTC-001](QORE-UNIVERSAL-TRADER-CERTIFICATION-STANDARD-001.md). Es la fuente de verdad sobre umbrales; ningún análisis desarrollo o agregado global puede sustituir un año/fold.
+
+El checkpoint maestro preexistente debe leerse **antes** de tocar código. Los informes de cada fase y sus preregistros están en `docs/research/QORE_ALPHA2_*.md`, los motores `src/qore/research/alpha2_*.py`, sus pruebas `tests/research/test_alpha2_*.py` y los workflows aislados `.github/workflows/qore-alpha2-*.yml`. El presente handoff **no sustituye los hashes de las pruebas**, los enlaza.
+
+## 3. Fuente G0: 33 mercados, dos cohortes, once años de archivos SHA
+
+**Universo completo cerrado**, sin seleccionar ganadores a posteriori:
+
+| Familia | Canónicos G0 |
+|---|---|
+| Índices (3) | NAS100, SP500, US30 |
+| Metales (2) | XAUUSD, XAGUSD |
+| Mayores FX (7) | AUDUSD, EURUSD, GBPUSD, NZDUSD, USDCAD, USDCHF, USDJPY |
+| Cruces FX (21) | AUDJPY, AUDCAD, AUDCHF, AUDNZD, CADCHF, CADJPY, CHFJPY, EURAUD, EURCAD, EURCHF, EURGBP, EURJPY, EURNZD, GBPAUD, GBPCAD, GBPCHF, GBPJPY, GBPNZD, NZDCAD, NZDCHF, NZDJPY |
+
+Identidad original del manifiesto 33: `1291d5c2efb4e51c2698ea25ad420a01a213dc405b5070c37efbce4131606b85`. Cohorte **Original 12 CIBO Atlas**: [Actions #35166210458](https://github.com/mezas3238-hue/qore-core/actions/runs/35166210458), productor HEAD `ab782b8e9f890f86a2b6500070f0556b4b685e3d`. Cohorte **21 nuevos ICMarkets DEMO**: [Actions #38193802541](https://github.com/mezas3238-hue/qore-core/actions/runs/38193802541), HEAD `e0ca5a13c866a19d8505c68cffc473598984b340`. Original manifiesto 33 [Actions #38207337960](https://github.com/mezas3238-hue/qore-core/actions/runs/38207337960), HEAD `dba0e0c3b61e430d3ed51abab562ebd92060a0ff`. Auditoría de SHA de RAW y QUALITY por partición anual antes de abrir OHLC.
+
+En W2 se probaron los 33 productores: [#38273144621](https://github.com/mezas3238-hue/qore-core/actions/runs/38273144621), 35/35 PASS, `19.496.136 / 19.496.136` barras M5 anteriores al embargo poseen `volume` entero positivo. El valor es **`ProtoOATrendbar.volume`, volumen en TICKS, NO volumen negociado ni agresión compradora/vendedora**. Genealogía exacta del código Original12+New21: [#38287282241](https://github.com/mezas3238-hue/qore-core/actions/runs/38287282241), PASS, testigos SHA. Identidad económica de las dos cuentas originales **NO HOMOLOGADA**.
+
+**Ventanas de análisis**: DEV `[2016-09-17, 2022-09-17)` y diagnóstico temporal `[2022-09-17, 2024-09-17)` UTC. **Embargo OHLC `2024-09-17+`**. Advertencia crítica: desarrollo y diagnóstico se han expuesto repetidamente durante investigaciones QORE; **NO son un fresh holdout**, aunque la fecha futura de embargo se mantenga sellada.
+
+### P0 irrepetible: caducidad real de los 33 archivos históricos
+
+La custodia es URGENTE y **no está hecha**. Auditor de metadatos de Github, sin leer precios, [Actions #38302743314](https://github.com/mezas3238-hue/qore-core/actions/runs/38302743314) **SUCCESS 7/7**, HEAD `7e5279eb07a09275a452fc3f57aaf87d75dc1f77`, SHA testigo artifact #11771227114. **33/33 ZIPs originales presentes y no expirados al momento del censo**, tamaño combinado comprimido **728.048 MB** (~260 MB original12, ~468 MB nuevo21). **Primera expiración: 16 diciembre 2026 a las 00:21:18 UTC**, Original12; nuevos21 expiran aproximadamente el 10 enero 2027. NO es un backup permanente: `authorized_private_durable_vault_backup_verified=false`; `archive_restore_rehearsal_verified=false`. [Informe P0 completo](QORE_ALPHA2_P0_33_ORIGINAL_M5_728MB_ARTIFACT_EXPIRY_VERDICT_2026-10-12.md).
+
+**El siguiente arquitecto debe priorizar #837**: verificar primero licencia/contrato y derechos de conservación de datos cTrader/bróker; obtener aprobación para un vault privado con cifrado, control de acceso, versionado, retención y suficiente capacidad, y ejecutar custodia conforme a lo autorizado, antes del vencimiento. Jamás mover 728MB de historial potencialmente licenciado a GitHub público, Release pública, bucket sin autorización ni VPS. Preservar ZIP SHA oficial, IDs, fechas, SHA internos por año, original12 y nuevo21 separados. Una **segunda restauración y rehash independiente** es obligatoria antes de afirmar `SOURCE_ARCHIVED_PERMANENTLY`. Si falta licencia/almacén aprobado, marcar `P0_ARCHIVE_BLOCKED_AWAITING_OWNER_AUTHORIZATION`; NO afirmar backup hecho.
+
+## 4. W1 PATR — metodología y resultado cerrado
+
+**Hipótesis original:** propagación asíncrona de información/tendencia entre mercados H4; motor intermercado y control emparejado; preregistro `QORE_ALPHA2_ORIGINAL_PATR_METHOD_AND_UTC001_PREREG_2026-10-12.md`. Código principal `src/qore/research/alpha2_intermarket.py`, `alpha2_ultrafast.py`, `alpha2_lab_h4_extract.py`, `alpha2_g1a_native_m5_gross.py`, `alpha2_g1a_panel_stats.py`. Fuente G0 SHA 33. [Actions #38268654596](https://github.com/mezas3238-hue/qore-core/actions/runs/38268654596) 35/35 PASS, **224 señales**. GROSS nativo M5 [Actions #38270999595](https://github.com/mezas3238-hue/qore-core/actions/runs/38270999595) 35/35 PASS, **176 pares (130 DEV/46 DIAG)** y **48 censuras**; bruto DEV **−0,16743 bps**, DIAG **−3,42366 bps**; diferencia con control DEV **−0,72876 bps**, DIAG **0 bps**. El comparador W1 resulta casi tautológico/no discriminante donde la dirección H4 propia no es cero; la potencia es insuficiente. Diagnóstico fuente independiente [#38272270791](https://github.com/mezas3238-hue/qore-core/actions/runs/38272270791).
+
+**Dictamen:** `UNDERPOWERED_NO_SUPPORT`; sin edge bruto probado y sin NET. No cambiar thresholds, timeframes ni comparador ex-post intentando rescatar W1 en el mismo histórico. Si alguna vez se plantea una nueva hipótesis de propagación, será **nuevo experimento independiente** con control materialmente distinto preregistrado y datos no adaptativamente utilizados; no llamarlo validación W1.
+
+## 5. W2 PADE — tick-activity vs desplazamiento, resultado cerrado
+
+**Hipótesis:** régimen de actividad tick relativo a desplazamiento H1 y dirección; comparador de tendencia rezagada causal, replay M5. Código `src/qore/research/alpha2_w2_pade_native_m5.py`, `alpha2_w2_pade_panel.py`. Prereg `QORE_ALPHA2_W2_PADE_FIRST_ECONOMIC_PREREG_2026-10-12.md` HEAD ancestral `43688569fa8d9c5ba93a127ff6ae66f9091aeede`. [Actions #38283326547](https://github.com/mezas3238-hue/qore-core/actions/runs/38283326547) 35/35 PASS: **265 señales/265 pares**, 134 con señal opuesta al control. DEV n220 bruto **−1,79805 bps**, delta **−4,55863 bps**; DIAG n45 bruto **+3,39427 bps**, delta **−1,97277 bps**; gate muestral DIAG falla. Auditor posterior [#38283910730](https://github.com/mezas3238-hue/qore-core/actions/runs/38283910730): IC95 del delta DEV semanas 4 [−13,5758; +1,6414] bps, DIAG [−8,1538; +2,4867] bps, ambos cruzan cero. **Seis activos 0 señal** por falta de 20 H1 consecutivas, muy común con sesiones de índices/metales; **204.203** instancias carentes de esa continuidad. El campo `volume` es tick-count, no inventario institucional negociado.
+
+**Dictamen:** `UNDERPOWERED_NO_SUPPORT`. No alterar retrospectivamente la continuidad temporal, ratios volumen, horarios ni stops para «rescatar» PADE. No confundir origen positivo de tick volume con flujo institucional fiable.
+
+## 6. W3 CMTRL — aprendizaje online de morfologías H1, última exploración cerrada
+
+Preregistro ANTES de outcomes `QORE_ALPHA2_W3_CMTRL_LAST_EXPLORATORY_PREREG_2026-10-12.md`, commit `a18cb43a6fb69eab948d840c6e6101c6a7251906`. Código `src/qore/research/alpha2_w3_cmtrl_native_m5.py`, `alpha2_w3_cmtrl_panel.py`, `alpha2_w3_posthoc_census.py`.
+
+Regla H1 causal: 12/12 M5 completos, 20 H1 observadas en las 72 horas pasadas (sin inventar horas cerradas), **8 estados** por cuerpo direccional, rango alto/bajo y asimetría mecha; **240 transiciones maduras** con máximo 90 días; posterior Beta(1,1), probabilidad condicionada superior a 0,65 o inferior a 0,35 con delta frente a base incondicional mínimo 0,10; ≥20 observaciones por estado; máximo 1 señal por símbolo/día, 08:00–15:00 UTC. Control independiente momentum H1 previo; entrada proxy open de M5 a H1+65min, stop rango mediano de pasadas 20 H1, objetivo 2×stop, caducidad 4h, stop-first y gaps adversos, sin rellenar trayectorias. Ningún `available_at` del bróker se prueba por ello.
+
+[Gross all33 #38284821503](https://github.com/mezas3238-hue/qore-core/actions/runs/38284821503) **SUCCESS 35/35**: **24.487 señales, 24.399 pares completos, 88 censuras, 10.841 señales opuestas control**, cero mercados sin señales. DEV 18.266 pares: media **+0,18660 bps** brutos, delta **−0,01516 bps** contra control; DIAG 6.133: **+0,06924 bps** brutos, delta **+0,53516 bps**. [Auditor #38285345503](https://github.com/mezas3238-hue/qore-core/actions/runs/38285345503): IC95 delta DEV [−0,4443; +0,4252]bps, DIAG [−0,2418; +1,2782]bps, ambos cruzan cero; 2.178 señales índices, 1.623 metales, 5.137 mayores, 15.549 cruces. Densidad y potencia pasan, **hipótesis económica relativa original FALLA** por DEV delta negativo/IC. Los retornos brutos minúsculos no permiten atribuir edge; sin costes no se computa NET.
+
+**Dictamen:** `NO_SUPPORT_PREDECLARED_GROSS`. **W3 era el TERCER Y ÚLTIMO método exploratorio sobre este mismo panel temporal**. Cierre obligatorio de minería W4 y sus variantes; nuevo holdout verdaderamente no expuesto si se investiga otra hipótesis original.
+
+## 7. G2 histórico BID/ASK — fuentes auténticas, solo ventanas cortas
+
+Fuente previa QORE Native [PR #849](https://github.com/mezas3238-hue/qore-core/pull/849), original run [#38283737706](https://github.com/mezas3238-hue/qore-core/actions/runs/38283737706), HEAD `f8262bd7cdea1fbfb2287c3c1fe0dae3be2b0efc`; auditor independiente #851. Alpha2 volvió a auditar SHA y paridad de enteros/decimales de 29 mercados en ventanas UTC **2020-09-15 13:00–13:10** y **2023-09-19 13:00–13:10**, excluyendo 2026-09-15 reservado y excluyendo canónicos NAS100, NZDUSD, SP500, XAGUSD. [Source QA #38288561813](https://github.com/mezas3238-hue/qore-core/actions/runs/38288561813), 5/5 PASS, 29/29: **37.430 ticks BID + 37.342 ASK = 74.772**. Código `alpha2_g2_29_real_bidask_reuse.py`, prereg `QORE_ALPHA2_G2_SHARED_SOURCE29_BIDASK_REUSE_PREREG_2026-10-12.md`.
+
+Prereg fijo 1 segundo por ventana × 29 mercados: `QORE_ALPHA2_G2_QUOTE_29_SECOND_GRID_SOURCE_QUALITY_PREREG_2026-10-12.md`, commit `cfd82a0b0e7a36e2bd27181742123bcc137e5430`; [QA #38289175880](https://github.com/mezas3238-hue/qore-core/actions/runs/38289175880), 14/14 PASS, **34.800 puntos**: **27.866** ASK>BID fresco, **4.297** spread=0 **CUARENTENA**, **2.637** lado faltante o >5 segundos, **0** crossed. Código `alpha2_g2_29_quote_quality_grid.py`. Defensa ejecución contra spread cero [#38289518769](https://github.com/mezas3238-hue/qore-core/actions/runs/38289518769) 9/9 PASS, `alpha2_g2_bidask_causal_contract.py`.
+
+**Importante:** son cotizaciones de **20 minutos históricos por símbolo**, NO datos continuos desde entrada a salida, ni cotizaciones conocidas por el cliente en aquellos años. El evento `provider_event_at` recobrado en 2026 no demuestra el `first_received_at` del terminal en 2020/2023; long ASK→BID, short BID→ASK, side stale/crossed/zero fail closed. **CERO spread no equivale a fill gratis**. Para investigación futura preserva filas ausentes/censuradas, no interpolar ni inferir costes sin fuente.
+
+Prueba decisiva de cobertura W3 versus cotizaciones existentes [#38297579449](https://github.com/mezas3238-hue/qore-core/actions/runs/38297579449) **SUCCESS 9/9**: comparó **24.487 eventos W3** sin leer PnL ni precios de ticks, exactamente **2 timestamps de entrada** dentro de alguna ventana 29×2 y **0 trayectorias completas de entrada y ambas salidas** en una misma ventana. **El porcentaje de trayectorias W3 elegibles para costes reales G2 aquí es 0**. Código `alpha2_g2_w3_quote_window_coverage.py`, prereg `QORE_ALPHA2_G2_W3_EVENT_VS_QUOTE_SOURCE_WINDOW_COVERAGE_PREREG_2026-10-12.md`. No ejecutar engine NET con esto.
+
+## 8. G2 recepción prospectiva cTrader DEMO — hecho y auditado
+
+**Piloto NZDUSD 45 segundos:** prereg `QORE_ALPHA2_G2_NZDUSD_DEMO_FORWARD_RECEIPT_45S_PREREG_2026-10-12.md`, código `alpha2_g2_nzdusd_forward_spot_receipt.py`. Primeros intentos se detuvieron en imports de fuente originales no disponibles en fase synthetic; se corrigió para carga diferida. [Captura #38296610948](https://github.com/mezas3238-hue/qore-core/actions/runs/38296610948) SUCCESS, HEAD `ca32ad2311c5c6b4a9312073ca0b4c7b53109a75`, artifact #11767978684, **11 eventos DEMO**, sin órdenes ni refresh. [QA independiente #38297614422](https://github.com/mezas3238-hue/qore-core/actions/runs/38297614422) SUCCESS 7/7, artifact #11768424790, 4 updates BID, 8 ASK, **4 eventos con lados frescos/positivos, 1 spread cero y 6 faltantes/stale** (0 crossed). Hash, reloj del proveedor y reloj first-observed tras dequeue comprobados independientemente.
+
+**Piloto 29 símbolos exactos simultáneos 60 segundos:** prereg `QORE_ALPHA2_G2_29_EXACT_DEMO_MULTISPOT_60S_PREREG_2026-10-12.md`, commit `34a2c20d285d86a16c95bac217a0dc9225a6d799`; código `alpha2_g2_29_exact_demo_forward_multispot.py`, no alias automático. [Captura #38298399112](https://github.com/mezas3238-hue/qore-core/actions/runs/38298399112) 2/2 jobs SUCCESS, HEAD `33068c720fedb3d358a2f73e7323508abd8365f6`, artifact #11769446263, **1.033 eventos**, los **29 mercados** recibieron BID y ASK, cero órdenes/refresh. Auditor independiente prereg `QORE_ALPHA2_G2_29_FORWARD_SOURCE_INDEPENDENT_SHA_QA_PREREG_2026-10-12.md`, [#38298920851](https://github.com/mezas3238-hue/qore-core/actions/runs/38298920851) SUCCESS 7/7, HEAD `a80702b40e2242f7da05d392137cc76ce7124b8b`, artifact #11770276257: **890 positivos, 36 cero en cuarentena, 107 lados faltantes/stale, 0 crossed**. Verificado original SHA, cada secuencia global y por mercado, `provider timestamp`, primer visto del runner, frescura por lado hasta 5s, exactitud de cuenta DEMO sin revelar credenciales.
+
+**Límite:** estas capturas demuestran recepción de una muestra breve por un cliente GitHub DEMO; NO son fills, NO prueba de latencia/efectividad de ejecución ni continuidad durante años, NO prueban la cuenta bróker de Original12, NO NET. Los 29 exactos + NZDUSD en **sesión separada** no son «30 activos homologados simultáneamente».
+
+## 9. G2 motor económico y pruebas de causalidad: implementado, NO NET real
+
+`alpha2_g2_bidask_causal_contract.py` y `alpha2_g2_causal_economic_stress.py`, prereg `QORE_ALPHA2_G2_CAUSAL_ECONOMICS_STRESS_ENGINE_PREREG_2026-10-12.md`, commit `fff976831ea68502f85322d76e73ebea96d19e2f`. [Actions #38293812287](https://github.com/mezas3238-hue/qore-core/actions/runs/38293812287) **SUCCESS 25/25** pruebas (solo fixtures sintéticos). Testa `available_at <= decision_at`, BID/ASK long y short correctos, cuenta y proveedor iguales, freshness, cero spread bloqueado, contratos válidos temporalmente, exactos `symbolId`, lotes y cash exposure en moneda cotizada, conversión FX a moneda de depósito, comisiones entrada/salida, swap, financiación, slippage adverso, todo `Decimal` y jamás datos ausentes sustituidos por 0. Producto único `HYPOTHETICAL_QUOTE_COST_STRESS_NOT_NET_CERTIFICATION`; `utc001_certified=False`.
+
+**Advertencia técnica:** `source_mode="PROSPECTIVE_RECEIVED_QUOTES"` es una afirmación del llamador, NO una prueba criptográfica de recepción por sí misma. El arquitecto debe unir testigo SHA/proveedor first-received/account/contrato de forma independiente antes de atribuir capacidad real a una operación. Además, el motor es estrés con precios de referencia, **no** reproducción exacta de liquidación/fills; no restar slippage dos veces cuando se disponga de fills, y no usar un `lotSize` bruto como US$ por punto.
+
+## 10. Identidad contractual P0 — cuatro mercados, protocolo fallido y USTEC recuperado
+
+Canónicos fuera de la captura 29 simultánea: **NAS100, SP500, NZDUSD, XAGUSD**. Contrapartes de broker candidatas: **USTEC** para NAS100 y **US500** para SP500. Coincidencia de nombre o de gráfica **NO prueba multiplicador, divisa, swap, tick, ejecución, spread ni contratos históricos**. Owner [#868](https://github.com/mezas3238-hue/qore-core/issues/868).
+
+Nuevo adaptador de `ProtoOASymbolByIdReq`: `src/qore/research/alpha2_g2_four_broker_contract_primitives.py`, fixtures `tests/research/test_alpha2_g2_four_broker_contract_primitives.py`. 11/11 synthetic tests PASS. Iteraciones **preregistradas antes de cada consulta**:
+1. [V1 #38300633695](https://github.com/mezas3238-hue/qore-core/actions/runs/38300633695) y diagnóstico [#38300858851](https://github.com/mezas3238-hue/qore-core/actions/runs/38300858851): segunda consulta redundante `SymbolsListReq` falló `P0_CATALOG_RESPONSE_FAILURE`.
+2. [V2 #38301197700](https://github.com/mezas3238-hue/qore-core/actions/runs/38301197700): catalog autenticado preexistente resuelto, `SymbolByIdReq` multi ID => `P0_FULL_SYMBOL_RESPONSE_FAILURE`.
+3. [V3 #38301475947](https://github.com/mezas3238-hue/qore-core/actions/runs/38301475947): 1 ID por request y techo no adaptable de 6 llamadas => `P0_SYMBOLBYID_SINGLE_REQUEST_FAILED`.
+**STOP — no más retry en misma cuenta / sesión / rama sin diagnóstico externo real de SDK/permisos/rate-limit.** Causa precisa del rechazo API todavía `UNKNOWN`. Todas las ejecuciones fuente terminaron con bloqueo seguro, manif. sin credenciales, 0 órdenes. No reportar fichas actuales obtenidas: **no** las hubo por esta vía.
+
+Alternativa offline de fuente original ya disponible: QORE Native [PR #850](https://github.com/mezas3238-hue/qore-core/pull/850), [GHA #38284304699](https://github.com/mezas3238-hue/qore-core/actions/runs/38284304699) original HEAD `716996e0f893af0aeb2b990ac11d644cf62a5c5f`, artefacto #11762018327 ZIP SHA256 `7f927792e575c5cccb9932c55a8db6733430c34629681701c6acd98491ac5c2e`. Auditor independiente Alpha2 [#38301861733](https://github.com/mezas3238-hue/qore-core/actions/runs/38301861733) **SUCCESS 5/5**, artifact #11771250981: **USTEC** DEMO proveedor ID **10014**, `digits=2`, `pipPosition=1`, `lotSize(raw)=100`, `minVolume(raw)=10`, `stepVolume(raw)=10`. **No** demuestra valor monetario por punto, contrato histórico 2016–2024 Original12 ni relación causal igualitaria NAS100↔USTEC.
+
+**Matriz obligatoria:** NAS100↔USTEC SOURCE candidato registrado pero CONTRATO `BLOCKED`; SP500↔US500 SOURCE Native [PR #847](https://github.com/mezas3238-hue/qore-core/pull/847)/QA #848 pero CONTRATO `BLOCKED`; NZDUSD fuente Native PR #844/#846 y DEMO single actual pero fee/cuenta/payout `BLOCKED`; XAGUSD fuente Native #847/#848 pero contrato fee/cuenta `BLOCKED`. Criterios y cronología en [informe forense P0](QORE_ALPHA2_G2_P0_FOUR_BROKER_CONTRACT_METADATA_AND_PROTOCOL_BLOCKERS_VERDICT_2026-10-12.md). Otro arquitecto no debe «reparar» problemas API relajando comprobación del mismo account ID, ni inventando cero comisiones.
+
+## 11. Estado de cada gate — SIN COMPENSACIÓN
+
+| Gate/fase | Evidencia | Resultado honesto |
+|---|---|---|
+| G0 fuentes originales M5 33 | 33 source SHA e inventario de caducidad | **SHA/PRESENCIA PASS temporal**; vault privado/restauración NO |
+| G1 W1 PATR | 224 señales/176 paired, gross no diferencial favorable | **NO SUPPORT / UNDERPOWERED** |
+| G1 W2 PADE | 265 pares, gross delta negativo + potencia DIAG insuficiente | **NO SUPPORT / UNDERPOWERED** |
+| G1 W3 CMTRL | 24.399 pares, diferencial DEV -0,01516bps, bootstrap cruza 0 | **NO SUPPORT GROSS** |
+| G2 BID/ASK fuente histórica | 29 × dos 10min, QA SHA | **SOURCE PARTIAL PASS**, no trayectorias W3 |
+| G2 BID/ASK forward fuente | 29 DEMO simultáneos 1.033 mensajes, QA SHA | **RECEIPT SAMPLE PASS**, no fills |
+| G2 contrato/cuentas históricas | 12 Atlas vs 21 DEMO, 2 aliases índices | **BLOCKED** |
+| G2 comisiones, slippage, swaps, conversión, PIT macro | stress synthetic 25/25; fuentes reales incompletas | **NET BLOCKED** |
+| Holdout verdaderamente nuevo | DEV/DIAG ya expuestos; +2024 histórico reservado no demostrado limpio | **NOT QUALIFIED** |
+| UTC001 por año y fold, MC/DD/PF/Sharpe/Sortino | no NET verificable ni edge gross | **0 CERTIFIED** |
+| Producción/orden | no autorización | **NO DEPLOY / NO ORDERS** |
+
+**UTC-001 HARD GATES, cada año de 12 meses y cada fold OOS por separado:** PF≥1,50; expectancy≥+0,15R/operación; Sharpe≥1,50; Sortino≥2,00; payoff≥1,50; DD observado≤6R; Monte Carlo probabilidad resultado positivo≥90%; MC p95 DD≤15R; PF neto>1 y expectativa neta>0; supervivencia a clusters, tamaño muestral, causalidad, winners, MAE/MFE y análisis de pérdidas. Preservación de winners cuando existan filtros: número≥80% y R de winners≥90%. El agregador no salva año/fold reprobado. Full Risk/Shared/CIBO/Independent Validation solo en fase con candidatos reales, sin atribuir certificación por autoridad externa.
+
+## 12. Problemas, riesgos, ambigüedades y severidad
+
+| Prioridad | Problema a solucionar | Prueba que falta / conducta obligatoria |
+|---|---|---|
+| **P0-URGENTE** | **ZIP M5 33 ~728,048MB expiran** a partir de 2026-12-16 UTC | Derechos/licencia + vault privado aprobado + backup SHA + prueba independiente de RESTORE; **#837** |
+| **P0** | No se detecta un edge estadístico robusto para W1/2/3 | Conservar dictámenes negativos; no retunear; prereg una hipótesis realmente nueva solo con datos nuevos independientes |
+| **P0** | G2 histórica cubre 0 trayectorias W3 | Plan fuente por segmento temporal original entrada+salida, BID y ASK con gaps y versiones, sin interpolar |
+| **P0** | Historical event timestamp ≠ as-of recibido por consumidor | Preservar ambos clocks `event_at/first_seen_at`; red/fill latency no certificada; no retroconvertir ticks de 2020 en `available_at` |
+| **P0** | Atlas Original12 vs ICMarkets New21 no comparten identidad contractual demostrada | Cuenta pseudonimizada/versionada, broker/producto/servidor, equivalencia PIT y no mezcla indebida |
+| **P0** | NAS100↔USTEC y SP500↔US500 aliases sin contrato probado | Comprobar multiplicadores, trading-hours DST, pip/tick, monedas, swap/fees, histórico Original12 con testigos separados; **#868** |
+| **P0** | Costes monetarios completos ausentes | Tarifario causal broker, comisión, swap, financing, rollover, conversión FX, slippage, rechazo/partial fills con fuente SHA, sin 0 implícitos; **#852** |
+| **P0** | API `SymbolById` en runtime DEMO rechaza request (V1–V3) | No repetir; depurar permisos/SDK/errores bajo autorización con diagnóstico seguro, no cuentas/secretos en GitHub |
+| **P0** | No fresh holdout científico que pruebe edge | Congelar fingerprints antes de nuevos eventos, evitar minería del reservado, muestra/potencia OOS prereg |
+| **P1** | 4.297 spreads cero históricos; 36 forwards en 29 | Quarantine obligatoria y auditoría por origen/precisión/timestamp; no asumir spread 0 ejecutable |
+| **P1** | Lados BID/ASK stale/faltantes (2.637 grilla; 107 forward 29) | Monitorizar por símbolo/sesión, side age ≤5s, gaps y silencio de feed, no forward-fill indefinido |
+| **P1** | 60 segundos de 29 cotizaciones no significa operación continuada | Canal con sesiones/schedule, rate limits, budget, segmentado, long-term SHA, QA horarios fin de semana, cobertura y validez |
+| **P1** | Volumen cTrader es tick activity, no tamaño económico | No usar como valor negociado ni order-flow institucional |
+| **P1** | Prototipos G2 de economía solo sintéticos | Integrar costos firmados y recepción real en validator por identidad; no false NET/PF |
+| **P2** | Fichas cTrader API con campos proto ausentes / enums sin unidades | Mantener `UNKNOWN`, consultar docs fuente y evidencias, no convertir raw lotSize a USD/pip sin contrato |
+| **P2** | Retención de futuros artefactos Actions ~90 días y secretos de usuarios | Catálogo de expiración, bitácora SHA, política de custodia y borrado conforme licencias |
+| **P2** | Coordinación de arquitectos Native vs Alpha2 | Enlaces de archivos/HEAD/proveedor/cuenta, no copiar evidencias como resultados propios sin nuevo QA |
+
+### Causas de falsos positivos que el siguiente arquitecto NO debe permitir
+No llamar «positivo» a solo bruto antes de costes; no mezclar fuente DEMO actual con ejecución Original12 histórica; no llamar «0 spread» a un coste cero; no proclamar FX tick-volume como tape institucional; no usar valores del reservado para ajustar thresholds; no adjudicar `SOURCE_PASSED` a un workflow cuyo preflight sintético pasó pero cuyo job de broker falló; no inferir igualdad NAS100/USTEC por correlated OHLC; no contabilizar 890 quotes positivas como 890 trades; no reabrir W1/W2/W3 para búsqueda adaptativa; no publicar datos privados/licenciados en GitHub público.
+
+## 13. Plan de acción para siguiente arquitecto, con criterios objetivos de cierre
+
+**Paso 0 — recuperación del estado y frontera Git.** Abrir PR #840, este handoff, checkpoint maestro, issues #837/#852/#868. Verificar **HEAD actual de la rama** y que PR permanezca DRAFT; NO cherry-pick a main. Comprobar los Actions enlazados y sus SHA artifact, distinguir PASS preflight vs fuente real. Cerrar una tabla de ejecución/custodia con `input SHA, code HEAD, run ID, artifact ID, source state, UTC001 state`. La rama evoluciona, por eso **el commit de publicación del handoff debe registrarse como ancla de partida**.
+
+**Paso 1 — P0 preservation antes de 2026-12-16 00:21:18Z.** Abrir #837 y atenderlo ANTES de otras optimizaciones: pedir autorización explícita para custodia privada licenciada. La reposición requiere 12 Atlas originales +21 nuevos, ZIP/GitHub SHA y manifiestos RAW/QUALITY 11 años, validación independiente de restauración. Un inventario metadata no es backup. Si no existe capacidad/licencia, elevarlo al owner como riesgo irreversible de pérdida de fuente.
+
+**Paso 2 — cerrar procedencia e identidad contractual #868 (sin más retries indiscriminados).** Crear matriz 33/33 de G0 symbol, provider symbol, source cohort, account-scope nonsecret, symbolId por momento, server, lot/volume units, base/quote/account currency, tick/pip units, cash payout, sesiones/swap/fee plan y evidencia histórica PIT. Comenzar por cuatro canónicos bloqueados NAS100, SP500, NZDUSD, XAGUSD; recuperar evidencias Native #844/#847/#848/#850/#853/#855 y QA SHA. Si `SymbolById` no funciona, no aumentar reintentos; estudiar exactos payload/error códigos con guía SDK/permisos, manteniendo fuentes originales separadas. **Deliverable:** JSON SHA por instrumento, `EXACT_MATCH / SOURCE_ONLY_ALIAS / CONTRACT_BLOCKED` y explicación, sin false 33 certified.
+
+**Paso 3 — ampliar data-plane BID/ASK real sin enviar órdenes.** Diseñar captura prospectiva de datos DEMO por sesiones fijadas y presupuesto de bytes/eventos y retención, clock event vs client received, source account scope, símbolo exacto, num líneas, parser integer signed vs decimal, SHA, monotonic sequence, files split/restart, no órdenes y no refresh no aprobado. Contrastar con fuentes históricas extensas legales si el broker las proporciona. El objetivo de calidad es **cobertura de trayectorias completas entrada+salida**, no maximizar número de ticks arbitrarios. Censurar data gaps. Los ejemplos existentes de 29×60s y NZDUSD×45s son **solo pruebas de conectividad, no baseline económico**.
+
+**Paso 4 — coste económico completo con as-of.** Por cada fuente/línea guardar versión del contrato y comisión efectiva en el momento, símbolo/cuenta, fee min, swap, rollover, conversión moneda cuenta, spread two-sided con availability, slippage reproducible y riesgo por trade. Implementar nueva prueba de contrato económico contra fuente real, nunca usar `source_mode` textual como prueba. Mantener solver `alpha2_g2_causal_economic_stress.py` etiquetado `STRESS_ONLY` hasta haber verificado broker fills/ledger o supuesto validado. Pruebas adversas stop-first, gaps, rounding, FX conversion timestamp, DST, sesiones y fondos; si falta prueba, `NET_BLOCKED`.
+
+**Paso 5 — decidir inteligentemente ciencia futura.** W1/W2/W3 ya falsaron soporte relativo bruto: **no existe un candidato aprobado a evaluar net** y no hay justificación para ponerlos a operar. Para nuevo trader rentable, definir primero hipótesis que explique mecanismo de mercado y control realmente discriminativo, muestra/potencia, universo, variables, fecha de congelación y algoritmo, publicar prereg **antes** de consultar los nuevos resultados. Elegir `holdout` genuinamente no expuesto, no renombrar al diagnóstico quemado. Si fracasa, informar NEGATIVO, detener o diseñar una hipótesis independiente sin reutilizar holdout como virgen.
+
+**Paso 6 — certificación completa UTC-001, si y solo si existe edge candidato.** Freezar algoritmo, params, fuente, HEAD, data signatures y motor execution as-of. Evaluar costos NET, todos los años y OOS folds independientemente, bootstrap dependencia temporal, MC clusters/correlaciones, drawdown, PF/Sharpe/Sortino/payoff/expectancy, sample sufficiency, winners preservados, MAE/MFE, anticorrelación, tail survival, macro PIT, independientes y revisión risk/CIBO. Rechazar por mínimo gate no pasado; *nunca promediar aprobaciones entre años*. Integración paper/live requeriría aprobación adicional del owner y control de riesgo separado.
+
+**Paso 7 — documentación continua y handoff verificable.** En cada avance: prereg SHA anterior al outcome, código, pytest/Ruff, GitHub run, artifact hash, evidencia, anomalías, costo demostrado/no demostrado y actualización al Issue/PR. Al cerrar cada sesión actualizar este documento maestro con nuevas fechas, decisiones y bloqueo más urgente, con enlace/commit confirmado por GitHub.
+
+### Orden de prioridad real (no intercambiar)
+1. **Salvar legalmente fuente original M5** antes de expiración 2026-12-16.  
+2. **Homologar identidades y contratos** Original12↔New21 y aliases cuatro instrumentos.  
+3. **Lograr cobertura BID/ASK y costes reales causales** durante entry+exit, recepción por lado y fee PIT.  
+4. **Nueva hipótesis genuinamente independiente con poder estadístico y fresh holdout**; NO W4 a posteriori.  
+5. **UTC-001 por año/fold**, independiente + CIBO/Risk, y únicamente después evaluar integración.
+
+## 14. Reproducción práctica en GitHub para el nuevo arquitecto
+
+**Git branch:** `research/qore-alpha2-original-intermarket-propagation-20261012`. Nunca trabajar sobre `main`. Workflows ya verificables por URL:
+
+- Source H4 33 [#38268654596](https://github.com/mezas3238-hue/qore-core/actions/runs/38268654596), W1 gross [#38270999595](https://github.com/mezas3238-hue/qore-core/actions/runs/38270999595).
+- W2 source [#38273144621](https://github.com/mezas3238-hue/qore-core/actions/runs/38273144621), gross [#38283326547](https://github.com/mezas3238-hue/qore-core/actions/runs/38283326547), bootstrap [#38283910730](https://github.com/mezas3238-hue/qore-core/actions/runs/38283910730).
+- W3 gross [#38284821503](https://github.com/mezas3238-hue/qore-core/actions/runs/38284821503), source-only posthoc [#38285345503](https://github.com/mezas3238-hue/qore-core/actions/runs/38285345503).
+- Original broker source [#38283737706](https://github.com/mezas3238-hue/qore-core/actions/runs/38283737706), 29 historical source QA [#38288561813](https://github.com/mezas3238-hue/qore-core/actions/runs/38288561813), 1sec source quality [#38289175880](https://github.com/mezas3238-hue/qore-core/actions/runs/38289175880), zero spread guard [#38289518769](https://github.com/mezas3238-hue/qore-core/actions/runs/38289518769).
+- Cost engine synthetic [#38293812287](https://github.com/mezas3238-hue/qore-core/actions/runs/38293812287). W3 quote coverage [#38297579449](https://github.com/mezas3238-hue/qore-core/actions/runs/38297579449).
+- NZDUSD forward [#38296610948](https://github.com/mezas3238-hue/qore-core/actions/runs/38296610948) / independent QA [#38297614422](https://github.com/mezas3238-hue/qore-core/actions/runs/38297614422).
+- 29 forward simultaneous [#38298399112](https://github.com/mezas3238-hue/qore-core/actions/runs/38298399112) / independent QA [#38298920851](https://github.com/mezas3238-hue/qore-core/actions/runs/38298920851).
+- Broker spec V1/V2/V3 blocked [#38300633695](https://github.com/mezas3238-hue/qore-core/actions/runs/38300633695), [#38301197700](https://github.com/mezas3238-hue/qore-core/actions/runs/38301197700), [#38301475947](https://github.com/mezas3238-hue/qore-core/actions/runs/38301475947). USTEC original independent QA [#38301861733](https://github.com/mezas3238-hue/qore-core/actions/runs/38301861733).
+- G0 source33 ZIP metadata expiry [#38302743314](https://github.com/mezas3238-hue/qore-core/actions/runs/38302743314).
+- [UTC-001](QORE-UNIVERSAL-TRADER-CERTIFICATION-STANDARD-001.md) y [all33 G0 source expiry](QORE_ALPHA2_P0_33_ORIGINAL_M5_728MB_ARTIFACT_EXPIRY_VERDICT_2026-10-12.md) para revisión.
+
+**Ejemplo conceptual de verificación de identidad antes de confiar en artefacto** (comandos ilustrativos, no equivalen a licencia o restore):
+```bash
+git fetch origin
+git switch research/qore-alpha2-original-intermarket-propagation-20261012
+git rev-parse HEAD
+gh pr view 840 --repo mezas3238-hue/qore-core
+gh run view 38302743314 --repo mezas3238-hue/qore-core
+gh run view 38301861733 --repo mezas3238-hue/qore-core
+# Verificar metadatos de ZIP, SHA256 y expiración ANTES de usar raw prices.
+# No gh run download -> repo público; usar únicamente destino autorizado
+# si derechos de archivo y acceso privado se han aprobado.
+```
+
+Cuando se necesiten módulos cTrader originales que no están vendorizados en la rama research, los GHA los restituían **solo al runner efímero y con hash de Git blob exacto**, no se debe asumir que el import local existe ni copiar código a producción. Los imports del forward pilot se cargan diferidos para que el preflight pytest pueda pasar sin SDK/archivo anterior; nunca confundir `pytest PASS` con `broker SOURCE PASS`.
+
+## 15. Decisiones de arquitectura vigentes y prohibiciones
+
+- El CEO/owner dirige Core; las fuentes research Alpha2 no habilitan capital ni arquitectura productiva.
+- **Shared** ofrece hechos causales y contexto; **CIBO** gobierna capital/riesgo; **trader** es responsable de su edge, entradas, stops, objetivos y salidas. La prueba de inteligencia no puede arreglar inexistencia de edge bruto.
+- No migrar source-only experimentos a VPS; no órdenes DEMO reales tampoco sin autorización adicional; los pilotos DEMO solo han usado Market Data read-only.
+- Si hay ambigüedades causales, contractuales o estadísticas, puede consultarse **DeepSeek como auditor externo**, manteniendo la decisión en fuentes primarias, pruebas falsables y artefactos reproducibles; opiniones externas NO certifican un resultado.
+- Nunca publicar secretos o ID de cuenta personal en reportes; preferir pseudónimos hash y account-scope versionado.
+- No alterar un contrato o prereg ya consumido sin añadir en un fichero nuevo **causa, alcance exacto y estatus del resultado anterior**. La investigación negativa se conserva, no se oculta.
+- Ante duda entre dos fuentes: priorizar evidencia SHA, mismo contrato y conocimiento causal previo a decisión; de lo contrario `UNKNOWN / BLOCKED`.
+
+## 16. Mensaje listo para el arquitecto entrante
+
+> Continúa QORE-Alpha 2 exclusivamente en la rama research de PR #840. Primero abre este Handoff Maestro, el checkpoint maestro, los issues #837/#852/#868, UTC-001 y los run IDs originales. No existe trader Alpha2 certificado: W1 PATR, W2 PADE y W3 CMTRL fueron explorados y **no demostraron soporte bruto relativo**. No retunar sobre 2016–2024 ya expuesto ni abrir 2024-09-17+ reservados para minería. Urgencia máxima: archivos originales 33 M5 de 728.048 MB comprimidos expiran desde 2026-12-16, aún NO existe vault/back-up restaurado; verificar licencia y autorización de depósito privado antes de guardar bytes. Después resolver cuenta original12↔nuevo21, NAS100↔USTEC/SP500↔US500 y contratos/costes PIT; cero comisiones por defecto están prohibidas. Las fuentes históricas 29 × dos ventanas sólo cubren 2 entradas y 0 trayectorias W3, aunque la fuente DEMO forward capturó 1.033 eventos 29/29 y fue auditada. El motor económico tiene 25/25 tests sintéticos, no es certificación NET. La API `SymbolById` se bloqueó V1/V2/V3: no repetir ciegamente; catalog anterior USTEC 10014 tiene SHA independiente y NO homologa NAS100. No tocar main, VPS, MT5, CIBO, Shared, QDLE, PAPER ni LIVE. Mantén todos los resultados y errores en GitHub, etiqueta claramente SOURCE/PROXY/SYNTHETIC/NET_BLOCKED, documenta cada avance con prereg + SHA + run + artifact y exige UTC-001 año por año y fold por fold antes de certificar.
+
+---
+
+**CIERRE FORMAL AL 12/10/2026:** investigación y G2 fuente documentados; tres hipótesis no soportadas, solo recepción y calidad de datos parcialmente verificadas; sin custodia duradera/licencia todavía, sin especificaciones históricas suficientes, sin PATH BIDASK neto, sin edge certificado y sin despliegue. **Handoff de continuación, NO entrega de trader operativo.**
+
+
+---
+
+## Anexo de continuación — 2026-10-12, P0 restore SHA local (sin transferencia)
+
+**Ronda posterior al handoff del commit original `4a7640f5a0d23d82ced7d5279b52600273a4260c`.** Se revisaron PR #840 e issues #837, #852 y #868, se confirmó que la investigación W1/W2/W3 sigue congelada y que la expiración de los ZIP originales continúa como P0. No se han tocado señales, PnL, histórico reservado, bróker, VPS ni producción.
+
+**Trabajo nuevo implementado en esta misma rama:**
+- Contrato previo al código: [QORE_ALPHA2_P0_PRIVATE_RESTORE_SHA_VERIFIER_CONTRACT_2026-10-12.md](QORE_ALPHA2_P0_PRIVATE_RESTORE_SHA_VERIFIER_CONTRACT_2026-10-12.md), ancestro **`e95af04b63a20a583d145896534514a7ae933a02`**.
+- Verificador **OFFLINE** `src/qore/research/alpha2_p0_private_restore_sha.py` con comparación de SHA256 por streaming y tamaño original para 33 ZIP, más SHA de 2 ZIP de metadatos (35 en total). Rechaza inventario ajeno al roster/cohortes/HEADs, SHA alterado, tamaños, alias, archivos faltantes/extra, rutas indirectas, symlink y hardlink. No descarga ni extrae fuentes.
+- Pruebas exclusivamente sintéticas `tests/research/test_alpha2_p0_private_restore_sha.py`, CI aislada `.github/workflows/qore-alpha2-p0-offline-private-restore-sha-ci.yml`. **GitHub Actions [#38308796703](https://github.com/mezas3238-hue/qore-core/actions/runs/38308796703) SUCCESS, 12/12 tests + Ruff PASS**, exact código HEAD **`827db26cde2c2a90b29834a57e044646b5822a68`**. El primer run #38308722701 falló solo en Ruff por dos imports no usados, corregidos en ese HEAD; no había llegado a pytest, no existió lectura de fuentes reales.
+
+**Significado estricto del PASS**: funcionamiento sintético del validador. El verificador podría funcionar sobre una restauración local privada *después* de aprobación del owner y evidencia licenciada. Nunca crea backup, verifica una cuenta/corredor, demuestra retención ni autentica por sí mismo un JSON de inventario. Su salida incluso con coincidencia 35/35 mantiene `SOURCE_ARCHIVED_PERMANENTLY=false`, `private_vault_authorized_and_durable_verified=false`, `independent_offsite_reader_verified=false`, `broker_retention_license_verified=false`, `yearly_raw_quality_partition_sha_verified=false` y `UTC001_certified=false`.
+
+**P0 aún pendiente, SIN solución material**: licencia/condiciones de datos, Data Vault privado aprobado, presupuesto/seguridad/retención, recuperación externa real y comprobación de 33×RAW/QUALITY anual, segunda restauración en entorno/operador separado; conservar Atlas12 antes de **2026-12-16T00:21:18Z**. Los original21 vencen después. No subir históricos brutos al repositorio público ni a artifacts CI; los profits vault de arquitectura QORE no equivalen automáticamente a un Data Vault de mercado autorizado. Si no se obtiene autorización, seguir `P0_ARCHIVE_BLOCKED_AWAITING_OWNER_AUTHORIZATION`; **no presentar un PASS sintético como preservación**.
+
+**Siguientes prioridades tras P0**: #868 identidad contractual original entre cuentas de NAS100/USTEC, SP500/US500, NZDUSD y XAGUSD (no reintentar cTrader SymbolById sin diagnóstico previo); #852 BID/ASK causal y primera recepción real, costes de entrada/salida, NEWS-PIT y fuentes prospectivas realmente independientes. W1/W2/W3 no se reabren en el histórico consumido; 0 candidatos UTC-001, 0 traders Alpha2 certificados y 0 órdenes.
+
+
+---
+
+## Anexo II — 2026-10-12: contrato G2 original33 fuente-contrato y CI 20/20
+
+**Evidencia nueva post-handoff:** [QORE_ALPHA2_G2_P0_EXACT33_SIX_ORIGINAL_SHA_CONTRACT_MATRIX_VERDICT_2026-10-12.md](QORE_ALPHA2_G2_P0_EXACT33_SIX_ORIGINAL_SHA_CONTRACT_MATRIX_VERDICT_2026-10-12.md). Preregistro previo al código y a las consultas nuevas metadata-only `QORE_ALPHA2_G2_P0_EXACT33_OFFLINE_CONTRACT_EVIDENCE_CENSUS_PREREG_2026-10-12.md`, commit ancestral `34a6f76c209e8e8e1f5aff2f4763bca435eba877`.
+
+El arquitecto continuador recuperó de GitHub los seis *runs originales* de demostración y auditoría fuente ya ejecutados (29 mercados exactos 60 segundos, NZDUSD 45 segundos en sesión separada y USTEC catálogo histórico actual DEMO). Construyó `src/qore/research/alpha2_g2_p0_exact33_contract_evidence_census.py`, `tests/research/test_alpha2_g2_p0_exact33_contract_evidence_census.py` y un workflow aislado metadata-only `qore-alpha2-g2-p0-exact33-offline-contract-evidence-census.yml`. El programa fija y vuelve a cotejar 6 identificadores run, SHA HEAD originales, 6 IDs de artefacto y 6 ZIP digests exactos, todos todavía no expirados según API de Actions; compara roster G0 12+21 y excluye explícitamente dos índices alias/los cuatro fuera del piloto 29. **NUNCA descarga los originales en este workflow.**
+
+**Prueba real exitosa:** [GitHub Actions #38315787886](https://github.com/mezas3238-hue/qore-core/actions/runs/38315787886), exact HEAD `2048c6b58765fc713d3551f8b1846a9e6471a429`, **Ruff PASS, 20/20 pytest PASS, 6/6 metadatos originales SHA API cotejados**. Salida JSON de 33 filas SHA-recibida en nuevo Actions **artifact #11776593111**, ZIP SHA256 `5491b74cb6338c39e6206d7b10a0fad1d00a31aaeb42728bacb1f3c6869e2aa5`; no cotizaciones/segredos ni OHLC. Las primeras iteraciones fallaron únicamente preflight sintético Ruff y regex erróneo para formato de SHA de commit Git; se corrigieron antes del primer source-run API del nuevo workflow, no son optimizaciones de mercado.
+
+**Resultado exacto / INNEGOCIABLE:** `G2_EXACT33_GITHUB_SOURCE_METADATA_VERIFIED_CONTRACTS_0_OF_33_BLOCKED`. **33/33 filas**, original12 12 y new21 21 separados, 29 símbolos DEMO en sesión única 60s, NZDUSD demo 45s separado, NAS100→USTEC alias fuente sin contrato homologado, SP500→US500 referencia histórica no homologada, XAGUSD ventanas breves históricas reportadas. **0/33 contratos ejecutables**; 0 NET, 0 certificaciones UTC001, 0 órdenes. QA de seis metadatos **NO** equivale a recálculo de los datos ZIP ni a cotizaciones suficientes para una estrategia; SP500 y XAGUSD siguen testimonios externos referenciados, no nuevos originales independientemente reauditorizados en este censo.
+
+**Prioridad siguiente** sigue: #837 licencia+vault+restore antes de vencimiento Atlas12 2026-12-16; #868 identidad de cuenta/contrato original, fees, valores por punto, símbolo PIT y resolver V3 SymbolById sin reintentos injustificados; #852 PIT BID/ASK entry+exit, costes, NEWS y OOS realmente independiente. W1/W2/W3 permanecen congelados, no reformular resultados a posteriori. PR #840 permanece DRAFT, NO MAIN/MT5/VPS/Shared/CIBO/QDLE/PAPER/LIVE.
+
+
+---
+
+## Anexo III — 2026-10-12: diagnóstico estático y taxonomía segura cTrader SymbolById 30/30
+
+Comparación documental sin bróker de la ejecución DEMO QORE Native USTEC **SUCCESS** [#38284304699](https://github.com/mezas3238-hue/qore-core/actions/runs/38284304699) contra tres consultas contractuales DEMO Alpha2 V1/V2/V3 **BLOCKED**, incluida [#38301475947](https://github.com/mezas3238-hue/qore-core/actions/runs/38301475947). Informe fuente [QORE_ALPHA2_G2_P0_SYMBOLBYID_OFFLINE_DELTA_FORENSICS_2026-10-12.md](QORE_ALPHA2_G2_P0_SYMBOLBYID_OFFLINE_DELTA_FORENSICS_2026-10-12.md). En Native, el catálogo se consulta en la misma sesión que luego emite `ProtoOASymbolByIdReq`; Alpha2 V2/V3 reutiliza un catálogo obtenido por otra sesión autenticada y luego consulta por ID. Ambas implementaciones preservan whitelist para `ProtoOASymbolByIdReq`, por lo que no se demostró una prohibición local de ese mensaje. La diferencia de secuencia es **hipótesis**, no root cause confirmado, especialmente porque V1 ya falló un segundo `SymbolsList`. El error técnico real de cTrader V3 fue descartado por sanitización de logs; **CAUSE_UNKNOWN**, no repetir automáticamente.
+
+Contrato prereg previo a código `QORE_ALPHA2_G2_P0_SYMBOLBYID_SAFE_OFFLINE_FAILURE_CLASSIFIER_PREREG_2026-10-12.md`, ancestor `ab9853647f5a12e75f6511f630a6cfb50a573f78`. Clasificador offline `src/qore/research/alpha2_g2_p0_symbolbyid_failure_taxonomy.py`, negative tests `tests/research/test_alpha2_g2_p0_symbolbyid_failure_taxonomy.py`, workflow `qore-alpha2-g2-p0-symbolbyid-offline-failure-taxonomy.yml`. [GitHub Actions #38316324978](https://github.com/mezas3238-hue/qore-core/actions/runs/38316324978) **SUCCESS Ruff + 30/30 tests**, exact HEAD `d48e64cca1062dffc79766bbe19d0df159ffa86b`. Código solo convierte **sintéticos** `Failure(error)` a enums seguros (local whitelist/SDK/field/decoding/provider/transport/UNKNOWN), sin publicar `str(error)`; no hay broker I/O, cuentas, cotizaciones ni órdenes en CI. **Este nuevo clasificador no vuelve mágicamente conocidos los errores de V3 ya perdidos.**
+
+Al continuar: mantener #868 **contract 0/33**, #837 vault/licencia/restore pendiente y #852 NET/PIT/OOS bloqueado; nunca reoptimizar W1/W2/W3 ni reabrir 2026 reservado; solicitar fuente propietaria autorizada con metadatos no secretos y evidencia de correctitud antes de cualquier nueva consulta broker preregistrada. PR #840 sigue DRAFT/NO MAIN.
+
+---
+
+## Anexo III — Rectificación inferencial W1/W2/W3 y nuevo carril TSMOM diario
+
+**Decisión del owner 12/10/2026:** el proyecto no debe realizar una décima ronda puramente de infraestructura. El siguiente arquitecto tiene dos líneas concurrentes: **P0 custodia privada autorizada de históricos (#837)** y **P1 test único TSMOM diario/5 días** con resultado económico bruto rápido y preregistro anterior a outcomes. Los bloqueos de brokers/contract (#868), NET BID/ASK y OOS (#852) siguen siendo obligatorios *antes de certificar*, pero NO son una excusa para impedir un contraste bruto de horizonte mayor sin órdenes.
+
+### Corrección explícita de las etiquetas científicas
+
+- **PATR:** 224 señales, de ellas 176 pares de referencia M5 (130 DEV, 46 DIAG); comparador a menudo tautológico/no discriminante. **INCONCLUSIVE_UNDERPOWERED**, NO 'no existe edge' y NO falsación. El estado machine `UNDERPOWERED_NO_SUPPORT` en artefactos históricos debe conservarse como testigo, pero no debe traducirse a falsación. Prohibido variar parámetros ex-post para rescatar PATR.
+- **PADE:** 265 pares, DIAG 45 y DEV 220; intervalo semanal por bloques cruza cero; carencia estructural de 20 H1 continuas, 6 instrumentos sin señal. **INCONCLUSIVE_UNDERPOWERED** para afirmaciones de ausencia de edge y para su validación multi-año/universo; el hecho de no superar la puerta gross no equivale a descartar el mecanismo. No modificar posthoc.
+- **CMTRL:** 24.487 señales, 24.399 pares completados, 18.266 DEV y 6.133 DIAG, dos cohortes y 33 mercados. **PREDECLARED_GROSS_TEST_FAILED**, válida refutación de la condición de aprobación preregistrada para *esa* formulación y comparador. Delta DEV −0,01516 bps, IC95 semanal 4wk [−0,4443;+0,4252] bps. El CI acota efectos importantes **en ese estimando y bajo esa inferencia**, NO demuestra que todas las morfologías carezcan de cualquier efecto; tampoco es PnL NET.
+- **Potencia:** MDE nominal prueba bilateral 5%, 80% potencia: `MDE≈(1.96+0.84)×SD/sqrt(n_eff)`. Con **supuesto** SD 10–20bps y observaciones independientes n=224, MDE ~1,87–3,74bps; n=265 ~1,72–3,44bps; DIAG n=45 ~4,18–8,35bps. Por tanto cifras de 15–25bps o poder de detección <10% para 3bps **NO se deducen** de n y SD indicados sin un `n_eff` mucho menor, dependencia por clusters, censura o definición distinta del estimando. Como los tests usan semanas, mercados correlacionados y muestras desiguales, el test de potencia correcto se hará en unidades sincronizadas por calendario (bootstrap y n_eff), **no asumiendo 224/265 IID**. No sustituir por una conclusión de edge ausente.
+
+### Carril de testeo diario paralelo: TSMOM-D1 (único prereg)
+
+**Documento congelado antes de nuevos outcomes:** [QORE_ALPHA2_TSMOM_DAILY_WEEKLY_SINGLE_TEST_PREREG_2026-10-12.md](QORE_ALPHA2_TSMOM_DAILY_WEEKLY_SINGLE_TEST_PREREG_2026-10-12.md), commit antecedente **`1c46194e3b5e9165504f0ff9d41eb1dee57f0b42`**. Código `src/qore/research/alpha2_tsmom_daily_weekly.py`, panel `alpha2_tsmom_daily_weekly_panel.py`, tests y workflow `.github/workflows/qore-alpha2-tsmom-daily-one-experiment.yml`.
+
+- Prueba única TSMOM (familia conocida, no invención propia): momentum **252 sesiones diarias previas**; única decisión semanal, entrada referencia **primera M5 OPEN de la sesión posterior a decisión UTC 00:00**, salida **última M5 CLOSE de la quinta sesión observable**. Baseline causal de momentum de 5 sesiones anteriores, sin lookahead M5 al cierre; no confirmación 'broker open' o BID/ASK. 33 universos exactos, fuente anual RAW+QUALITY SHA antes del OHLC y periodos DEV/DIAG; 2024-09-17+ EMBARGO.
+- Panel bruto igual ponderación semanal `1/33` por señal sin asignar capital CFD real. Bootstrap sincronizado 4 semanas B2000 semilla fija y comparador diferencial; n de semanas (no n trades iid), familias y cohortes separadas, costes ida/vuelta HIPOTÉTICOS 0,1,3,5,10,20bps sin NET real.
+- El histórico 2016–2024 es **YA EXPUESTO en QORE**, por lo cual este TSMOM es **EXPLORATORIO, NO OOS virgen**. Un gross positivo no se traducirá en edge NET ni UTC001. Congelar resultado y requerir período prospectivo independiente para confirmación. No reparametrizarlo a posteriori.
+- Esta línea se ejecuta **EN PARALELO**, no después de vault. Un éxito de fuente/custodia no sustituye su resultado científico.
+
+**Prioridad reorganizada:** P0a preservación legal+restore antes del 16 diciembre; P0b primera prueba científica diaria multi-día TSMOM (sin broker órdenes); P0c identidad/costes BIDASK/NEWS-PIT necesarios para posterior certificar cualquier positivo. Ningún actor debe aplazar P0b porque los problemas P0a/P0c sigan abiertos. La salida de un test bruto debe comunicar total/muestra efectiva, magnitud y signo del estimando, n por era, CI con dependencia y censuras, y el verdadero estado `EXPLORATORY_NOT_NET`. PR #840 DRAFT, 0 operadores Alpha2 certificados.
+
+
+---
+
+## Anexo IV — resultado científico REAL TSMOM diario 33 mercados
+
+**Ronda completada posterior al preregistro, SIN nueva búsqueda de parámetros.** [Informe completo con resultados y bloques](QORE_ALPHA2_TSMOM_DAILY_33_FIRST_EXPLORATORY_GROSS_RESULT_2026-10-12.md), cuyo origen es [Actions #38317398724](https://github.com/mezas3238-hue/qore-core/actions/runs/38317398724) exact HEAD `af3ef792f972bc5ec00e1419f6ea917c16624d65`: **35/35 jobs SUCCESS, 19/19 tests sintéticos PASS y 33/33 workers originales (11 años RAW+QUALITY SHA)**. Preregistro `1c46194e3b5e9165504f0ff9d41eb1dee57f0b42` anterior al cálculo, sin tocar W1/W2/W3. Archivo JSON del panel firmado **artifact #11777507376**, ZIP SHA256 `a907e980adab2484959ee000d0836d3fb0af8ca4090b674435ff10ee8de83b6f`. **Se verificó de forma independiente el SHA del ZIP descargado y ambos registros SHA256 internos: PASS.** No se copiaron históricos OHLC brutos al PR.
+
+**Resultado frozen** `TSMOM_EXPLORATORY_GROSS_SCREEN_FAIL`: 12.053 operaciones de referencia, 8.626 DEV y 3.427 DIAG; 263 y 104 semanas activas. Cartera ilustrativa igual peso en 33 slots de rendimiento bruto semanal **DEV +0,77065bps (IC95 4wk [−4,11963;+5,51418])** y **DIAG −3,71414bps (IC95 [−16,88710;+6,42872])**; diferencia frente al comparador momentum 5 sesiones DEV −0,28995bps (CI95 [−6,48514;+5,64560]), DIAG −6,38034bps ([−23,86431;+6,85015]). Ambos IC de rentabilidad bruta cruzan cero, diagnóstico negativo. **No supera screening preregistrado, no es un candidato de trading.** Cada estimando agrupa 33 instrumentos correlacionados y semanas temporales; 12k señales NO son 12k muestras independientes, no prueba ausencia universal de 1–3bps.
+
+DEV bruto promedio por operación +0,92575bps, coste hipotético de 1bps ya lo dejaría −0,07425bps (SIN afirmar fee real). DIAG bruto promedio por operación −3,79109bps antes de costes. La descomposición de 2022/2023/2024 y Original12/Nuevo21 es únicamente descriptiva; **no seleccionar ex-post 2023/2024 ni Atlas12** y descartar la parte desfavorable. Respetar original12 vs new21 contrato sin homologación.
+
+**Advertencia de causalidad nueva:** la decisión teórica UTC 00:00 puede coincidir con `OPEN` de la M5 siguiente en mercados abiertos a medianoche; se usan solo previos días completos para la SEÑAL, pero no se demostró latencia de orden ni que el OPEN simultáneo sea alcanzable. Marcar ese precio como **GROSS REFERENCE NOT EXECUTABLE**, no ocultarlo. Cualquier diseño futuro deberá agregar retardo real a partir de primera cotización BID/ASK *después* de tener señal disponible y en OOS auténticamente nuevo, no una corrección oportunista con el dataset examinado.
+
+**Prioridades operativas tras esta ronda:** (1) conservar jurídicamente los archivos originales antes del 16-dic con restore independiente (#837), en paralelo a la dirección científica; (2) cerrar ESTE TSMOM sin retoques y diseñar solo hipótesis con horizonte diario/multi-día **y validación prospectiva independiente**, potencia semanal efectiva y protocolo nuevo, no W4 adaptativo en 2016–2024; (3) resolver contratos (#868) y BIDASK/costes/PIT/OOS (#852) para certificar el futuro, **NO confundir estos P0 técnicos con prueba de edge**. W1 y W2 siguen `INCONCLUSIVE_UNDERPOWERED`; W3 `PREDECLARED_GROSS_TEST_FAILED`. **0 traders Alpha2 certificados, 0 órdenes, NO PROD/VPS/MT5/CIBO/Shared. PR DRAFT**.
+
+
+---
+
+## Anexo V — decisión FINAL TSMOM vol-scaling y experimento XSREV5 sin selección posterior
+
+### Corrección de universo y base documental
+La revisión del owner identificó dos componentes no representados en el primer TSMOM D1: ajuste inverso de volatilidad y cobertura diversificada de futuros. El segundo es **imposible de satisfacer sin nuevas fuentes de bonos y materias primas distintas de metales**. **21/33=63,64% son FX CROSSES; pero 28/33=84,85% son FX si se añaden los 7 mayores. Solo 5/33 son no-FX (3 índices, 2 metales), NO 11.** El ensayo anterior 252d equiponderado es una variante no escalada; su fallo no falsaba el modelo de futuros MOP 2012. Este test nuevo (vol20d anualizada, target vol10%, cap3x) sigue siendo MOP-INSPIRED sobre CFDs/FX, NO réplica de 58 futuros, aunque sí tiene escalado real.
+
+**Prereg dual BEFORE outcomes:** [QORE_ALPHA2_FINAL_TSMOM_RISKSCALED_AND_XSREV5_FROZEN_PREREG_2026-10-12.md](QORE_ALPHA2_FINAL_TSMOM_RISKSCALED_AND_XSREV5_FROZEN_PREREG_2026-10-12.md) commit ancestral `f9248d42a6cbced3d6e962b24e47c709cb91161c`. Con este protocolo queda fijada una única última variante TSMOM (y una única estrategia independiente de reversal cross-sectional 5d), regla stop no reversible y costes SUPUESTOS exactamente 1bp/lado por notional de entrada y salida, no descuentos fijos de PnL sin volumen. Conserva serie fuente SHA11 años y embargo; no mirada 2024+.
+
+### A: Resultado final TSMOM252-RISK, FUENTE REAL
+
+[Informe TSMOM vol-scaled completo](QORE_ALPHA2_FINAL_TSMOM_RISK20_33_SECTORS_STOP_VERDICT_2026-10-12.md), [GitHub Actions #38318945616](https://github.com/mezas3238-hue/qore-core/actions/runs/38318945616) exact HEAD `09db573527b5e9f607edf75949902c6319d6ab21`, **35/35 jobs SUCCESS**, 33 original SHA-audited workers y preflight. Artifact original #11776789637 ZIP `sha256:63b27be5ea371e863f7df4587b2a700140455f13096be6733112a14629132bd7`; descarga y ambos registros SHA internos rehasheados de forma independiente PASS. `alpha2-final-tsmom-risk33-sector-gross-minus-cost.json` SHA `de479f7114a66b59160850dc5359c8c1853e28b47471176fecb059e006c318ae`.
+
+**Resultado sin selección posterior**, estimando *bps por semana por slot de capital aproximado*, coste supuesto 1bp lado (NO NET):
+| Grupo | DEV media | DEV CI95 4wk | DIAG media | DIAG CI95 4wk |
+|---|---:|---|---:|---|
+| FULL33 | **−0,55044** | [−6,14630;+5,00548] | **−5,29240** | [−17,02716;+5,69845] |
+| FX_CROSSES21 | −1,31666 | [−7,95948;+5,72782] | −7,92230 | [−22,10199;+4,59083] |
+| FX_MAJORS7 | −1,06280 | [−10,77381;+8,99467] | −6,11250 | [−21,28103;+9,58369] |
+| NONFX5 | **+3,38504** | [−7,79979;+15,16782] | **+6,90132** | [−14,06004;+26,19852] |
+
+Full33 8.605 señales en DEV, 3.427 DIAG (no IID), 262/104 semanas activas. El límite de exposición notional cap3 se activó 106/8.605 DEV y 57/3.427 DIAG. Todos los CI sectoriales cruzan cero, INCLUIDO noFX5. Estado exacto **`FINAL_TSMOM_FAIL_CLOSE_FAMILY_ON_EXPOSED_DATA`**. **Línea TSMOM CERRADA en este panel 2016–2024**: no optimizar lookback 60/120/180, cap, vol target, costos ni extraer no-FX5 como ganadores. NoF5 es observación descriptiva, requiere otra fuente/era realmente virgen y control de multiplicidad, nunca trader seleccionado en esta muestra.
+
+**Advertencia**: el primer M5 OPEN al inicio UTC de semana puede no haber sido un fill alcanzable por un actor que calcula señal justo al cierre del día previo. Los PnL siguen marcados como reference OHLC; costos 1bp por lado ASSUMED, no source BIDASK. Faltan costes contractuales Atlas, cash/point, swaps, calendario, noticias conocidas as-of, y OOS nueva (#852/#868). No NET ni UTC001.
+
+### B: XSREV5 línea separada precongelada
+Fórmula de reversal original a cinco sesiones para **33/33 en fecha COMÚN**: rank por retorno de cinco sesiones comunes PREVIAS, bottom 7 LONG top 7 SHORT; pesos +1/14 y -1/14, horizonte 5 sesiones, costa entrada+salida sum2bps sobre exposición total1. Exige *todos33* elegibles, no forward-fill ni universe cut. Folds DEV/DIAG idénticos, bootstrap 4 semanas B2000; estado PASS exploratorio solo si medias cost-proxy positivas e IC inferior >0 en ambos eras y semana suficiente; FAIL/inconcluso sin reoptimización. Su rango precio diario se usa únicamente en archivo efímero runner y no se sube públicamente; archivo firmado final permite comparar semanas/sector sin raw price. Código `alpha2_xsrev5_common_calendar.py`, tests `test_alpha2_xsrev5_common_calendar.py`, workflow `.github/workflows/qore-alpha2-xsrev5-one-independent-33.yml`, primer test [GitHub Actions #38319216801](https://github.com/mezas3238-hue/qore-core/actions/runs/38319216801) con **preflight éxito**, procesamiento de fuentes en curso al escribir este anexo. **NO afirmar resultado antes de verificar el job final y su artefacto SHA**.
+
+### Prioridad / stop de programa
+Los dos tests se hicieron posibles **sin esperar licencias+vault**. #837 sigue fuente histórica P0 antes de 16-dic-2026, no declarada preservada; #852 source BIDASK/NET/PIT/OOS y #868 original12 contract equivalence P0. El programa NO debe continuar una iteración indefinida de estrategias sobre los mismos 2016–2024 ya vistos. Para resultados positivos futuros exigir hipótesis independiente, datos nuevos prospectivos, poder estadístico por calendario, costes contrato verificables y todas puertas UTC001. **0 Traders Alpha2 certificados, 0 broker órdenes, no main/VPS/MT5/Shared/CIBO/QDLE/PAPER/LIVE. PR #840 DRAFT.**
+
+
+---
+
+## Anexo V — final TSMOM-RISK252 VOL20 y prereg XSREV5
+
+**El owner corrigió la ausencia de `vol scaling` en TSMOM 252d y propuso un ÚLTIMO experimento por familia de TSMOM, más una única reversal cross-sectional 5d, con criterios de parada irreversibles.** Ambas hipótesis se preregistraron **antes** de sus outcomes económicos, en `docs/research/QORE_ALPHA2_FINAL_TSMOM_RISKSCALED_AND_XSREV5_FROZEN_PREREG_2026-10-12.md` commit `f9248d42a6cbced3d6e962b24e47c709cb91161c`. Este prereg NO convierte 2016–2024 expuesto en OOS genuino.
+
+### A — TSMOM-RISK252, RESULTADO REAL COMPLETO y STOP absoluto
+
+[Informe de resultados](QORE_ALPHA2_FINAL_TSMOM_RISK252_VOL20_SECTOR_33_VERDICT_2026-10-12.md) + [Actions #38318945616](https://github.com/mezas3238-hue/qore-core/actions/runs/38318945616) **35/35 jobs PASS**, HEAD original `09db573527b5e9f607edf75949902c6319d6ab21`. Original33 11-year RAW/QUALITY SHA audited **antes** de OHLC. Target vol anual fija 10%, SD retornos log 20 sesiones anteriores, lookback 252, cap exposición 3×, una entrada semana, holding 5 sesiones. Coste **supuesto** 1 bp por cada lado de notional, multiplica exposición `2*abs(w)` bps. NO precio BIDASK disponible/executable, NO NET real.
+
+**Evidencia panel original** Actions artifact #11776789637 ZIP SHA256 `63b27be5ea371e863f7df4587b2a700140455f13096be6733112a14629132bd7`. SHA ZIP e internos de 2 archivos rehasheados PASS. **`FINAL_TSMOM_FAIL_CLOSE_FAMILY_ON_EXPOSED_DATA`**, no hay nueva variante autorizada.
+
+| Universo fijo | DEV bps/sem −coste supuesto | CI95 DEV 4wk | DIAG bps/sem −coste supuesto | CI95 DIAG 4wk |
+|---|---:|---|---:|---|
+| Full33 (8.605 / 3.427 eventos) | **−0,55044** | [−6,14630,+5,00548] | **−5,29240** | [−17,02716,+5,69845] |
+| 21 FX cruces | −1,31666 | [−7,95948,+5,72782] | −7,92231 | [−22,10199,+4,59083] |
+| 7 FX mayores | −1,06283 | [−10,77381,+8,99467] | −6,11246 | [−21,28103,+9,58369] |
+| 5 no-FX índices/metales | +3,38504 | [−7,79979,+15,16782] | +6,90132 | [−14,06004,+26,19852] |
+
+**Dato factual:** 21 cruces FX = 63,64%; 7 mayores FX =21,21%; FX total **28/33=84,85%** y **solo 5/33 no-FX**. Un sector no-FX con medias positivas pero IC cruzando cero no prueba edge y no autoriza seleccionar retrospectivamente esos cinco. No confundir estos CFDs con futuros multi-sector incluyendo bonos de Moskowitz–Ooi–Pedersen 2012. No inferir que 'toda tendencia es falsa': una configuración y universo exploratorio fallaron.
+
+### B — XSREV5, prueba independiente en curso / aún SIN dictamen económico
+
+Mismo prereg `f9248d42...`. Reversal cross-sectional rankea retorno de cinco sesiones COMUNES anteriores a la fecha de decisión con 33/33 precios presentes; long bottom7, short top7, pesos +1/14 y −1/14, 5 sesiones comunes de mantenimiento, coste hipotético 1bp/lado ⇒ **2bp por semana operada**, DEV/DIAG 4wk block CI B2000 y gates mínimos 52/26 semanas. Ninguna optimización por lookback o quintiles posteriormente; todo se cierra al observar el test.
+
+Código `src/qore/research/alpha2_xsrev5_common_calendar.py`, CI `.github/workflows/qore-alpha2-xsrev5-one-independent-33.yml`. El antiguo run #38319147236 FALLÓ preflight Ruff (cero datos). #38319216801 pasó sintéticos y verificó/extrajo en el runner temporal los 33 originales, pero falló al construir panel por error mecánico: extractor escribió `{symbol}.sha256`, verificador exigió `{symbol}.json.sha256`. **No existe resultado económico de ese run; no declararlo negativo ni positivo.** Corrección `6226c6258e2ebfce843073f60eb2dab2b1fa7f22` y pruebas de integración SHA adversas `13449860c358f0e47135209a9fa57cf5ee3dd01a`, relanzada [Actions #38320167392](https://github.com/mezas3238-hue/qore-core/actions/runs/38320167392): leer su estado completo y artefacto, **no inferir de que un test sintético pasa que el resultado market está cerrado**. La fuente diaria privada queda únicamente en workspace efímero runner, el output permitido son agregados/ranks/cost-proxy; no subir crudo a repo público.
+
+### C — Fronteras de método y siguiente arquitecto
+
+W1 PATR/W2 PADE = **`INCONCLUSIVE_UNDERPOWERED`**, no falsación. W3 CMTRL = **`PREDECLARED_GROSS_TEST_FAILED`** para su contraste y no prueba universal de efecto cero. TSMOM 252d sin escala = test no canónico fallido, TSMOM-RISK252 = **última prueba permitida, ahora fallida**, familia cerrada sobre este histórico. XSREV5 única reversión preinscrita, cerrar resultado sin retunear. El dataset 2016–2024 está expuesto, el 2024-09-17+ embargado; una apertura M5 tras señal UTC 00:00 no prueba fill con latencia real. Costes supuestos 1bp por lado NO reemplazan contratos, spreads, swaps, financiación ni noticia conocida-as-of. Todos estos experimentos **0 NET certificado, 0 trader certificado, 0 operaciones**.
+
+**P0 que no se negocia:** #837 conservar legalmente 728MB comprimidos de 33 ZIP originales 12 Atlas+21 ICMarkets en almacenamiento privado aprobado antes de 16-dic 2026, con restore independiente y SHA; aún NO guardados de modo permanente. #868 contrato broker Original12/alias y #852 fuente BID/ASK, comisiones, macro PIT, OOS realmente nuevo; ejecutar en paralelo con investigación y SIN pasar a MAIN/VPS/MT5/CIBO/Shared/QDLE/PAPER/LIVE.
+
+
+---
+
+## Anexo VI — XSREV5 all33 última reversión: resultado REAL e irreversibilidad de cierre
+
+**La línea científica paralela solicitada por el owner ya está FINALIZADA.** Reporte primario [QORE_ALPHA2_XSREV5_COMMON33_REVERSAL_5D_FINAL_VERDICT_2026-10-12.md](QORE_ALPHA2_XSREV5_COMMON33_REVERSAL_5D_FINAL_VERDICT_2026-10-12.md), prereg previo a outcomes `f9248d42a6cbced3d6e962b24e47c709cb91161c`. Resultados solo EXPLORATORY sobre 2016–2024 ya expuesto. No se han retocado estrategia, costes, quantiles, ranking, holding ni filtros tras mirar resultados.
+
+**Run definitivo:** [Actions #38320167392 intento 2](https://github.com/mezas3238-hue/qore-core/actions/runs/38320167392), **SUCCESS** exact HEAD `6226c6258e2ebfce843073f60eb2dab2b1fa7f22`. Preflight Ruff + **9/9 synthetic tests PASS**, extracción SHA original 12 Atlas+21 ICMarkets en runner efímero, sin publicar día OHLC. En intento original #38319216801 se detuvo en FINISH por error mecánico `{symbol}.sha256` versus `{symbol}.json.sha256` después de verificar los originales; corrección de escritura sidecar sin cambiar método, pruebas adversas nuevos, rerun solo job corregido. No tratar el primer error como resultado negativo, sino como fallo de plumbing reparado.
+
+**Artefacto original:** Actions #11779086497, ZIP SHA256 `419086e7d559a2b43f8050099621913e64a4ba23fab34c16addf512072fc2e08`. Descarga independiente y rehash ZIP e internos dos SHA **PASS**, JSON `alpha2-xsrev5-33-one-gross-minus-assumed-cost.json`. **2.068 días UTC** comunes elegibles a los 33 mercados, cobertura individual 2.069–2.084 días; **411 carteras semanales**, cada una long bottom7 y short top7 por retorno previo 5 common sessions, 1/14 exposición por pata, salida quinta sesión; **coste supuesto 1bp por lado = 2bps por cartera**, no NET. Auditor independiente de salida: **0/411 violaciones** 7/7/cardinalidad/disjoint, suma de 14 retornos de patas versus bruto o coste bruto−2bp, sin cambio por alias; source raw daily OHLC no publicado.
+
+| XSREV5 all33 | DEV | DIAG |
+|---|---:|---:|
+| Semanas operadas / total cash weeks | 308 / 314 | 103 / 106 |
+| Gross referencial bps/sem | +4,90004 | −0,06420 |
+| **Gross menos coste supuesto 2bps / sem** | **+2,93826** | **−2,00760** |
+| **IC95 block4wk B2000** | **[−5,13301; +12,36486]** | **[−15,13565; +11,55471]** |
+| Gate mínima muestra ≥52/26 | PASS | PASS |
+| Gate positive CI lower>0 | **FAIL** | **FAIL** |
+
+**Dictamen definitivo `XSREV5_GROSS_MINUS_ASSUMED_COST_FAIL`**. Media desarrollo favorable no basta: ambas CIs incluyen cero y diagnóstico tras costes hipotéticos es negativo. Heterogeneidad e intervalo ancho impiden aseverar que toda reversión está ausente; únicamente esta estrategia exacta no supera su gate preregistrada. **No probar XSREV3/10, quintiles distintos, FX-only winners o selección retrospectiva en este panel.**
+
+**Cierre conjunto:** último TSMOM-RISK252 escalado por volatilidad = `FINAL_TSMOM_FAIL_CLOSE_FAMILY_ON_EXPOSED_DATA`; XSREV5 = FAIL. Las dos investigaciones tienen evidencia real multi-día pero **ningún trader Alpha2 certificado, ninguna ejecución broker net demostrada, ningún edge robusto demostrado**. PATR/PADE = `INCONCLUSIVE_UNDERPOWERED`; CMTRL = `PREDECLARED_GROSS_TEST_FAILED`. Los 5 no-FX con TSMOM promedios positivos no alcanzan CI>0 y no autorizan subuniverse selection. Sesión `00:00 UTC` y OPEN M5 referencia pueden no ser precios alcanzables de una orden real, además de spreads/comisiones/funding/swap no verificados.
+
+**Próximo arquitecto: prohibido otra ronda de minería en el mismo 2016–2024**. Si se busca otra familia de edge o assets de futuros multi-mercado, primero nuevo prereg *genuinamente prospectivo* con marco de potencia semanal, OOS independiente licenciado y verdadera fuente as-of broker, no optimización de resultados aquí. #837 custodia legal y restore 728MB históricos antes Atlas12 2026-12-16 sigue urgente, #868 contrato original Atlas/ICMarkets, #852 BIDASK/NEWS PIT y toda certificación NET; investigación puede continuar en paralelo, pero **sin MAIN/VPS/MT5/Shared/CIBO/QDLE/PAPER/LIVE y PR #840 DRAFT**.
+
+
+---
+
+## Anexo VII — Carry FX28, estudio económico preregistered pero NO IDENTIFICABLE con spot M5
+
+**El owner propone un ÚNICO último estudio económico: carry cross-sectional FX en 28 pares (85% FX del universe 33), por mes, 6 longs high interest / 6 shorts low, 2bps por lado y split 2016-21/2022-24.** La literatura de carry sí coincide con FX. Pero **la afirmación de que las velas spot M5 ya contienen forward points es falsa**: no permiten deducir diferencial de money-market rates, forward F1M ni bases cross-currency. NO buscar más spot history; buscar *la variable económica ausente*. Esto es identificación de hipótesis, no una excusa para hacer solo infraestructura.
+
+**Regla antes del resultado** commit `f94fda3d51602a39548d767b87e379ac5fd742b5`: [prereg carry 28 FX](QORE_ALPHA2_FX28_CARRY_ONE_TEST_PREREG_AND_IDENTIFIABILITY_2026-10-12.md). No existe ningún carry PnL en el commit; regresor exigido = historia de 1month FX forwards/points+matching spot con provider, tenor,value_date, observed/available_at, for 28 pairs antes de la decisión mensual. 28 pares = grafo completo de 8 monedas AUD/CAD/CHF/EUR/GBP/JPY/NZD/USD, grado predictores carry **7**, no 28 independientes. Pesos +1/12 y −1/12, gross notional1; coste 2bps lado x2 ⇒ 4bps per MONTH cost proxy por cartera total, no 4bps por instrumento. 3-month synchronized block CI B2000, mínimo 24/12 months DEV/DIAG, dos-era lower CI>0, no retune. Current legacy 2016–24 ya exposed, no virgin OOS/NET.
+
+**Trabajo REAL entregado**: código de validación/indicador económico `src/qore/research/alpha2_fx28_carry_one_test.py`, 13 adversarial synthetic tests `tests/research/test_alpha2_fx28_carry_one_test.py`, workflow `.github/workflows/qore-alpha2-fx28-carry-one-source-readiness.yml`; [Actions #38322125947](https://github.com/mezas3238-hue/qore-core/actions/runs/38322125947) **SUCCESS HEAD `879fb040d8a03712861d26d4e40b13e5b891951a`, Ruff PASS, 13/13 fixtures PASS**. Original artifact #11778863344 ZIP SHA256 `2f876529abdda076a9b4043358cdf56a6d3eeb4867ece0dce8f272ee43973991`, independent ZIP SHA and **2/2 internal** SHA PASS; `eligible_months=0`, `orders=0`, `net=BLOCKED`. Resultado validado `CARRY_NOT_IDENTIFIABLE_SPOT_ONLY`, **NO `CARRY_FAILED` y NO `CARRY_CONFIRMED`**. Ver [reporte audit](QORE_ALPHA2_FX28_CARRY_FACTOR_IDENTIFIABILITY_REAL_AUDIT_2026-10-12.md).
+
+**Fuentes auditadas**: `alpha2_lab_h4_extract::source_rows_before_embargo` solamente entrega 4 enteros OHLC spot M5 + tiempo; las clases QORE generales de forwards son schemas, no observaciones as-of históricas. Búsqueda repositorio `forward_points/swap_long/swap_short/SwapLong/CarryFX/tom_next` sin dataset históricos forward. Los primeros runs CI fallaron benignos Ruff y clasificación por longitud de nombre (NAS100/XAUUSD se parecen a códigos FX de longitud 6); ambas correcciones previas a datos reales y test adicional evita non-FX, no cambiaron señal. No inventar retornos ni usar las 33 velas como si fuesen F1M.
+
+**Issue [#886](https://github.com/mezas3238-hue/qore-core/issues/886)** asigna al otro arquitecto único objetivo: fuente licenciada **historia PIT F1M forward/points 2016–2024** para 28 instrumentos + spot value dates; documentar cobertura antes de PnL, o declarar factor no-identificable. Una fuente candidata explícita (acceso aún NO autorizado ni verificado) es **LSEG WMR FX 1M histories via Bloomberg**, sujetos a licencias/terminal. Si solo existen series de tipos oficiales de 8 monedas, permitir **otro prereg y otro nombre** como 'policy-rate differential carry proxy', no falsación del forward carry original. Si solo siete forwards USD, cruzarlos sintéticamente sin bases/conventions sería estimador distinto. Ni siquiera si un proxy sale bien puede certificar el CFD financiero.
+
+**Siguiente prioridad científica**: desbloquear esta sola variable de FX carry, NO reabrir TSMOM/XSREV5, y sin dedicar rondas a custodia para aparentar hacer investigación. #837 vault es urgencia paralela antes 16-dic, pero NO la razón de no poder identificar carry. PR #840 DRAFT, 0 edge net validado, 0 traders certificados y 0 órdenes.
+
+
+---
+
+## Anexo VIII — FX28 POLICY-RATE CARRY: test económico REAL del BIS, FAIL de su gate preregistrado
+
+**El owner detectó una familia pertinente a un universo 28/33 FX:** cross-sectional policy-rate carry, no WMR 1M forwards. Confirmamos que estos dos experimentos NO son el mismo: el test de forward puro sigue `CARRY_NOT_IDENTIFIABLE_SPOT_ONLY` y no puede declararse fallido. **Se preregistró explícitamente un nuevo PROXY antes de ver cualquier resultado** [FX28 Policy Carry Prereg](QORE_ALPHA2_FX28_POLICY_CARRY_SINGLE_PREREG_2026-10-12.md), commit `e669a1d2100f94a0c17e3773b177a3ead3661e16`.
+
+**Fuente pública resuelta y descargada**: BIS dataset `WS_CBPOL` monthly EOP, export flat oficial `https://data.bis.org/static/bulk/WS_CBPOL_csv_flat.zip`, ZIP original SHA256 `6a616df4397881703cfe2a13cb9e1460b2defd3a26aceb14613fd6da1f3bb773`. Coordinado con bancos centrales Fed/ECB/BoE/BoJ/SNB/RBA/RBNZ/BoC; ocho países AU CA CH XM GB JP NZ US para AUD/CAD/CHF/EUR/GBP/JPY/NZD/USD. 97 meses Aug2016-Aug2024 en siete monedas, JPY 96 meses Sep2016-Aug2024 (NO imputar Aug2016). BIS es reconstrucción retrospectiva y sus tasas PUEDEN tener cambios de metodología: **CHF hasta Jun12 2019 midpoint del target 3M Libor**, desde Jun13 2019 SNB policy rate; fuente compuesta documenta continuidad pragmática pero no tasa homogénea; EUR MRO hasta Sep17 2024. No decir "sin vintage" incondicional.
+
+**Ejecución económica fuente real**: [GitHub Actions #38324333304](https://github.com/mezas3238-hue/qore-core/actions/runs/38324333304), **COMPLETED SUCCESS** code HEAD `b3fdeda87042d5c6124917897581d8cada61cb78`, Ruff PASS, **6/6 synthetic causal PASS**, original SHA 11y verificadas **7 FX Atlas+21 FX ICMarkets=28**, BIS 8/8 tasas, intersección 2084 días UTC. Escala mensual prereg signal del **mes previo EOM**, entrada después del **16** (lag al menos15 días), ranking r_base−r_quote high6 long low6 short, w±1/12; hold hasta antes del 16 del siguiente mes; referencia M5 OPEN/CLOSE, 2bps costo supuesto POR LADO en basket notional1=4bps/mes, separación **spot-only** + **devengo ficticio de diferencial de policy rates**, NO SWAP REAL/forward/NET. 3-calendar-month circular block bootstrap B2000 seed20261012; gate doble desarrollo+diagnóstico CI inferior>0, muestras ≥24/12. Históricos 2016–2024 ya expuestos, no OOS virgen.
+
+**Artefacto original** Actions #11780900569 ZIP SHA256 `8ba1746a70956ee42cd8cb5fbd84afda8d37d4c46ea4b67c3d05f546065b5fc6`, **ZIP e internos 2/2 rehasheados PASS de forma independiente**. [Informe real completo de cierre](QORE_ALPHA2_FX28_POLICY_CARRY_BIS_ONE_REAL_RESULT_2026-10-12.md). Audit adicional: 94/94 carteras long6/short6 disjuntas, suma spot+policy−4bps coincide resultado, no OHLC ni filas originales tasas publicadas.
+
+| Métrica modelada mensual | DEV 2016–21 | DIAG 2022–24 |
+|---|---:|---:|
+| Meses validos y calendario | **62/64** | **32/32** |
+| Spot-only referencia bps | −8,96574 | −5,68278 |
+| **Interés hipotético policy spread** bps | +10,38464 | +19,24501 |
+| Gross model | +1,41890 | +13,56223 |
+| **Modelo menos COSTO supuesto 2bp/side** bps | **−2,45610** | **+9,56223** |
+| **IC95 block3m** | **[−27,97939,+22,76375]** | **[−37,48652,+54,20363]** |
+| **Sharpe anualizado DEL MODELO no broker NET** | **−0,06892** | **+0,26361** |
+| Sample gate 24/12 | PASS | PASS |
+| Both mean and CI95 low>0 | FAIL | FAIL |
+
+**Dictamen congelado `POLICY28_PREDECLARED_MODEL_SCREEN_FAILED_STOP`.** La prima devengada teórica positiva es contrarrestada por depreciación relativa en spot. DEV media net_cost_proxy negativa, DIAG media positiva pero IC cruza cero y Sharpe diagnóstico **0,26** incluso con devengo ficticio (no cumple 0,5). Todos los CIs incluyen cero, no afirmar signo verdadero cero ni la inexistencia universal de FX carry. Tampoco afirmar que el carry forward fallaría: FX forward incluye condiciones efectivas de financiación, base intermonedas, plazos, swaps reales. **Parar esta especificación**, no probar top4/8, fecha15/20, filtrar JPY/CHF, calcular otra tasa retrospectivamente, periodo favorable 2023/24. No atribuir Sharpe/PF/DD real de bróker ni posibilidad de fill.
+
+**Concentración efectiva de moneda**: 28 pares FX = 8 monedas y ≤7 factores de rates. DEV media absoluta CHF **0,4194**, NZD **0,2903**; DIAG JPY **0,3411**, NZD **0,3255** (fraction total gross notional1); máximos mensuales por moneda **0,5833 DEV, 0,5000 DIAG**. No diversificación nominal de 28 contratos independientes. Retorno sintético en quote/base no USD portfolio NAV.
+
+**La prioridad siguiente NO es infraestructura interminable:** el mecanismo policy-rate carry concreto fue realmente probado y no dio edge bajo gate preinscrito. Mantener resultados y buscar decisiones estratégicas informadas. Futuro test verdadero forward requiere fuente `F1M` histórica y nuevos controles, *no rebrand del policy test*. No diluir tiempo en otro parámetro de estas familias sobre años gastados. Issue #886 lleva todo el cruce con segundo arquitecto, y #837 archivo original, #852 PIT broker spread, #868 identidad son tareas de calidad independientes. PR #840 DRAFT, 0 Alpha2 certificado, 0 órdenes, NO VPS/MT5/PAPER/LIVE/CIBO/Shared/QDLE.
+
+
+---
+
+## Anexo IX — Último carry FX28 VOL20: resultados 2016–2026 y stop
+
+**Solicitud del owner**: no pivotar todavía; una última hipótesis **carry FX con control de volatilidad realizada 20 sesiones** y diagnóstico extendido hasta 2026 para detectar si la prima puede sobrevivir riesgos de crash. El dueño observó accrual teórico positivo durante desarrollo+diag y Sharpe modelo +0,26 previo; advertencia: accrual positivo por ranking de policy rates es **en gran medida mecánico**, spot negativo no prueba causalidad de crashes. Menkhoff et al 2012 ligan FX carry a **sorpresas** de volatilidad, no certifican filtro 1/vol20; es hipótesis nueva preregistrada y evaluada.
+
+**PRE-OUTCOME freeze** [prereg VOL20 FX28](QORE_ALPHA2_FX28_POLICY_CARRY_VOL20_SINGLE_LAST_PREREG_2026-10-12.md) commit `9c51aa509040ebbd470a9c59d525d86760922c1b`, **antes de leer OHLC 2024-09..2026-09 de Alpha2**; nunca llamar 2016–2024 independente, ni "2024–26 virgin OOS" globalmente (otros sistemas QORE). 28 FX K8, mismos 8 policy rates BIS EOM premonth con 15d lag y long top6/short low6 w±1/12, 2bps supuesto por lado (4bps portfolio por mes). Un único escalado: `sigma_global_ann=sqrt(mean(stdev_i(log close/closeprev last20 closed common sessions)^2))*sqrt252`, **`s=min(1,0.10/sigma)`** reduce exposición y coste 4×s, NUNCA apalanca. DEV2016–21, DIAG2022–26 y **Oct2024–Aug2026** previamente embargado para Alpha2, 3month block bootstrap B2000, 24/24/12 months sample gate; PASS exigir media DIAG>0 y CI95 lower>0, Sharpe modelo DIAG>0.4, tramo retenido mean>0, sin variantes después de outcome.
+
+**Ejecución real exacta** [GitHub Actions **#38326753172**](https://github.com/mezas3238-hue/qore-core/actions/runs/38326753172), SUCCESS code HEAD `9ad87183b797087cf713cdc4a58a5867b0b2d28e`; Ruff PASS **6/6 synthetic**, original 7 Atlas+21 ICMarkets SHA11y RAW/QUALITY verified BEFORE sources, 8 BIS policy monthly history, **2604** common source UTC weekdays, 117/117 monthly portfolio observations, 0 órdenes. El Day legacy de los tests cerrados en 2024 conserva embargo: solo la nueva clase validada con límite exclusivo 2026-09-17 permite la extensión fuente. No se subieron OHLC ni rates históricos.
+
+**Artifact firmado** #11781920651 ZIP SHA256 `12ebdb395acc8180c8c36e0a2126aa299f14d118b5150a7cb9e94b2f85b6c0f5`, original re-download, ZIP and internal 2 SHA checked PASS, 117/117 rows check 6x6/cost weighted/scale positive<=1 PASS. **Auditoría independiente de continuidad: 93/93 meses compartidos contra el test original puro (#11780900569) reproducen exactamente LONG/SHORT, fechas, spot PnL, tasa accrued y total gross−cost con 0 divergencias; la única ausencia Oct2016 es warmup 20-day 21 cierres anteriores según prereg**, no omisión posthoc.
+
+[INFORME CIENTÍFICO DEFINITIVO](QORE_ALPHA2_FX28_POLICY_CARRY_VOL20_FINAL_2016_2026_REAL_RESULT_2026-10-12.md):
+
+| Renta ficticia mensual después del costo supuesto | DEV 2016–21 | DIAG 2022–26 | Tramo Alpha2 retenido Oct2024–Aug2026 |
+|---|---:|---:|---:|
+| N portfolios / calendar months | **61/64** | **56/56** | **23/23** |
+| Pure policy carry matched baseline bps/month | −3,70143 | +16,12516 | +14,56813 |
+| **VOL20 filtered bps/month** | **−4,51227** | **+15,94242** | **+11,96571** |
+| Paired filtered−pure bps/month | **−0,81084** | **−0,18274** | **−2,60242** |
+| **3mo block CI95 filtered** | **[−29,47708,+20,24788]** | **[−16,76352,+45,16249]** | **[−39,06059,+49,83848]** |
+| 3mo paired CI95 | [−2,04544,0] | [−3,43838,+2,85429] | [−7,80726,0] |
+| Sharpe anualizado MODELO filtered | −0,128 | **+0,464** | +0,387 |
+| Pure model Sharpe | −0,104 | +0,458 | +0,459 |
+| MODEL worst DD filtered vs pure | 8,20% vs8,16% | **5,82% vs6,21%** | **5,09% vs5,06%** |
+| Months s<1 | **5/61** | **5/56** | **1/23** |
+| Monthly filtered skew model | −0,284 | **−0,698** | **−1,270** |
+
+El risk scaling apenas tocó 5/56 DIAG y 1/23 retained. **Marzo2025 −322,78bps fue el peor mes y no se redujo en absoluto (s=1; vol histórica 8,12% por debajo target10%)**; en retained **abril2025 sí escaló a 0,637 una ganancia pura +164,69→filtrada +104,83bps**. En full DIAG drawdown model disminuye levemente pero retained ligeramente empeora; paired bps negativos en todas eras, CI de mejoras incluye 0. La asimetría mensual negativa es compatible con cola FX carry, no demuestra causalmente crash vs risk-off. No datos P&L real del broker/CFD forwards/swap.
+
+**Formal `POLICY_VOL20_FINAL_SCREEN_FAILED_CLOSE_LINE`**: aunque DIAG Sharpe model +0,464 supera 0,4, el límite inferior del IC95 **−16,76bps** es negativo; held-back media positiva pero CI amplísimo con 0. Se cumplió sample gate en DEV/DIAG/retained. STOP definitivo de esta familia de policy carry y este panel estudiado; no ajustar target10, vol20→60/10, VIX, filtro de DD, diferente subuniverse ni años. El experimento original forward 1M sin quotes `CARRY_NOT_IDENTIFIABLE_SPOT_ONLY` permanece diferente e inconcluso. Esto no falsifica universalmente carry FX, solo estas dos variantes policy proxy con fuente ejecutable aún faltante.
+
+**QORE Alpha2 0 edge net / 0 UTC001 certified / 0 órdenes, PR #840 DRAFT, no merge a MAIN, no VPS/MT5/Shared/CIBO/QDLE/PAPER/LIVE**. Pendientes independientes #837 custodia legal privada de 728 MB antes de vencimiento Atlas2026-12-16, #852 BIDASK/swap financiación/broker PIT, #868 contrato original Atlas/ICMarkets y permiso de fuente forward (#886). El siguiente arquitecto debe continuar con decisión estratégica sin resucitar parametrizaciones fallidas en datos expuestos.
+
+
+---
+
+## Anexo X — FX28 Asia→Londres: nueva familia intradiaria, test ORIGINAL M5 económico definitivo FAIL
+
+**Trabajo real ejecutado, no solo propuesta.** Tras cerrar TSMOM, XSREV5, policy carry puro y VOL20 control sobre el panel consumido, el owner pidió avanzar. Se propuso un mecanismo DISTINTO nativo de FX (efecto de horarios/microestructura), **no** una extensión de carry, ni réplica metodológica de TTrades/ICT. Literatura científica sustenta variación intradiaria por mercado regional (Zhang 2018 doi:10.1016/j.frl.2018.02.017), **no** la rentabilidad de este breakout preciso.
+
+**Prerregistro antes de cualquier outcome intradiario** [Asia-London ONE FX28 PRE-FREEZE](QORE_ALPHA2_FX28_LONDON_ASIA_RANGE_EXPANSION_ONE_FROZEN_PREREG_2026-10-12.md), commit `b0133535d6adb89724b827e9151c4ab7a109c154`. Reglas fijas: 28FX originales (8 monedas K8), DST Europe/London local, **84 M5 completos 00:00–06:55** rango Asia (maxH/minL), **48 M5 completos 08:00–11:55**, primera ruptura por cierre de M5 08:00–09:45, entrada a OPEN de **t+10min** (señal bar cerró t+5, 5min extra de causalidad), salida CLOSE 11:55/12:00. Un trade por símbolo/día, sin stops/targets. Peso **1/28 fijo POR CADA PAR** ex-ante (no dividir por señales observadas), inactivos cash. Coste supuesto **2bps por lado** por par activo (4bps RT), stress 5bps/side. Sum weekly sobre calendar ISO London, cash0, **4wk synchronized circular bootstrap B2000 seed20261012**, desarrollo2016–21 vs diagnóstico2022–26, 2024–26 solo descriptivo ya visto en otros Alpha2. Nativo11y RAW+QUALITY SHA Original12 (7FX) + New21 (21FX) antes de OHLC. No BID/ASK ni broker USD NAV; QORE V1 no autorizado.
+
+**GitHub Actions original final [#38330184319](https://github.com/mezas3238-hue/qore-core/actions/runs/38330184319) SUCCESS**: code exact HEAD `b8488541db771cefce0591cccae3e618f711a569`, Ruff PASS, **8/8 synthetic M5/DST/lag/cash/static weight tests PASS**, verificación original 7 Atlas +21 ICMarkets con SHA11y PASS, 28FX 8 monedas, 2.563 días con al menos una señal, **52.255 señales de referencia en 2016–26** (28.172DEV+24.083DIAG), ningún trade en broker. Artefacto original **#11782641612** ZIP SHA256 **`43c4ced2dd1c36566b46696228790d9c12cb5ed95ecf67ff3565ed1a2c482b09`**, ZIP rehasheado independientemente PASS, CRC PASS, internos **2/2 SHA PASS**, archivo resultado JSON SHA256 `862c026265b4ccc289f309753908e63c49ddcc7cf811f22d1826586007ed512c`, code HEAD exact PASS. Exporta SOLO vector de rendimientos agregados por semana, no raw FX provider OHLC. Ver [**INFORME CIENTÍFICO INTEGRAL**](QORE_ALPHA2_FX28_LONDON_ASIA_RANGE_ONE_REAL_FINAL_2016_2026_2026-10-12.md).
+
+**Resultados REAL gross−assumed-cost, bps por calendario ISO semanal cash0:**
+
+| Prereg outcome | DEV2016-21 | DIAG2022-26 | Sept2024-Sept2026 ya expuesto |
+|---|---:|---:|---:|
+| semanas calendar/activas | **277/276** | **247/246** | **105/105** |
+| M5 trades reference | **28172** | **24083** | **10043** (dentro DIAG) |
+| GROSS mean sin costes bps/wk | **+0.46794** | **−0.32934** | **−1.66809** |
+| Menos 2bp por lado asumido bps/wk | **−14.06120** | **−14.25820** | **−15.33203** |
+| **CI95 4-week synced B2000 independent rebootstrap** | **[−15.90402,−12.33552]** | **[−16.79919,−11.75644]** | **[−18.29051,−12.38564]** |
+| stress5bp/side bps/wk | −35.85491 | −35.15149 | −35.82795 |
+| drawdown MODELO no NAV real | 32.4% | 29.7% | 14.9% |
+
+**Test estadístico severamente negativo:** CIs estrictamente por debajo de cero **en las tres eras**. Adecuado número de 52weeks DEV/DIAG PASS, no poder insuficiente. Incluso GROSS apenas +0,47bps/week en DEV y negativo en diagnóstico. Diferencia de coste alta por ~20 pares con ruptura al día y nominal fijo1/28; no se valida mecanismo concreto. CI, costo y 277+247+105 semanas fueron **recalculados independientemente** leyendo el ZIP oficial con Python, no solo aceptando el propio motor. Fuente sin PIT bidask, true fill, FX-normalization; no llamar NET. Nunca certificar Alpha2.
+
+**Incidencia reproducibilidad** primer Actions #38329353444 generó mismas medias económicas −14.0612/−14.2582 y luego falló por folder `policy-panel` (nombre de workflow residual), NO por datos ni señal. Se corrigió *solo ruta del output SHA* para corrida final (#38330184319), más publicación de vector agregado ISO semanal para auditoría independiente; no retune. La nueva corrida reprodujo exactamente las medias anteriores, artefacto SHA OK.
+
+**Dictamen irrevocable `SESSION_EXPANSION_PREDECLARED_SCREEN_FAILED_STOP`**. STOP ESTA RECETA en años 2016–2026. Prohibido optimizar fecha, rango de Asia, apertura Londres/NY, retraso t+10, stop, TP, filtro vol, weekday, EUR-only subset, excluir JPY, pesos según ganadores, coste cambiado, cherry-pick. Un fracaso no falsifica todos los patrones horarios FX ni TTrades; solo esta especificación predefinida. Históricos 2016–2026 YA CONSUMIDOS por investigaciones previas, no claim valid OOS. Issue [#891](https://github.com/mezas3238-hue/qore-core/issues/891) deja petición explícita de auditoría cruzada al segundo arquitecto.
+
+**Siguiente arquitecto:** no abrir más familias por reflejo. Preparar **decisión estratégica económica** entre acceso a otra familia de activos con fundamentos documentados (bonos/energía/agricultura/tipos), o un mecanismo completamente independiente con fuente/periodo prospectivo, pero **definir costo máximo, datos PIT y stop antes de nuevos PnL**. Paralelo urgente #837 archivar originales bajo licencia antes de expirar Atlas Dec16, #852 broker BIDASK/swaps/pit, #868 contrato y alias; estos son requisitos de fuente sin confundirlos con una nueva hipótesis rentable. **PR #840 DRAFT, 0 edges netos y 0 órdenes, no merge/MT5/VPS/CIBO/Shared/PAPER/LIVE**.
+
+
+---
+
+## Anexo XI — Decisión estratégica: C ahora; B condicional, sin hipótesis número trece
+
+**Arquitectura estratégica registrada 2026-10-12 (America/Asuncion) después del test FX28 Asia-London verdaderamente negativo bruto y net-proxy, y del análisis externo de la literatura de index effects.** El owner/DeepSeek plantea A ampliar universo, B flujo institucional forzado, C aceptar límite: "no más test #13". La respuesta del arquitecto es **C AHORA** para Alpha2 FX28 M5 price-only, **B COMO PROGRAMA NUEVO CONDICIONAL** sujeto a evaluación económica y aprobación expresa del owner. No equivale a aprobación del owner, COG u OPS, no firma de certificación.
+
+**Documento maestro de decisión [ADR-QA2-2026-10-12](QORE_ALPHA2_ADR_STRATEGIC_DECISION_CLOSE_FX_M5_AND_CONDITIONAL_STRUCTURAL_FLOW_2026-10-12.md)** creado commit `f67526055a2bdb444660f03ac35c7c4ed4afb340`, estado `ARCHITECT_RECOMMENDATION_RECORDED` con cierre de investigación de precio FX28 M5 `FX28_M5_PRICE_ONLY_RESEARCH_CLOSED`. **Issue cruzado [#892](https://github.com/mezas3238-hue/qore-core/issues/892)** manda al segundo arquitecto escribir **dossier de viabilidad, sin nuevos backtests ni descargas de precios licenciados**, antes de pedir dinero o abrir una nueva familia. No añadir una hipótesis ni autorizarla por implicación.
+
+**Evidencia decisiva reciente** [informe FX28 Asia-Londres](QORE_ALPHA2_FX28_LONDON_ASIA_RANGE_ONE_REAL_FINAL_2016_2026_2026-10-12.md), verificado 52.255 M5 reference events correlacionados y 28 originales RAW+QUALITY SHA: **bruto semanal +0,46794 DEV / −0,32934 DIAG / −1,66809 2024–26**; gross−costo hipotético 2bps/side **−14,0612 / −14,2582 / −15,3320 bps/semana**, CIs95 bootstrap4 **estrictamente negativos**. Crítico: incluso el efecto bruto de esta señal **M5 Londres concreta** es aproximadamente cero, no solo costes. Esto no muestra que el FX mercado entero no tenga oportunidades, ni doce falsaciones independientes: hipótesis anteriores pueden ser `INCONCLUSIVE_UNDERPOWERED` o ambiguas, comparten fuente+factores, y forward1m carry sigue `NOT_IDENTIFIABLE`. La terminología `12×NO_SUPPORT` no sustituye la taxonomía por estudio.
+
+**Evidencia contra suponer B rentable**: artículo Greenwood & Sammon *The Disappearing Index Effect* publicado Dec2024 [J Finance DOI](https://onlinelibrary.wiley.com/doi/10.1111/jofi.13410) documentó index addition abnormal return del S&P500 decreciente de 7,4% noventa a <1% década reciente; [S&P DJI 2021](https://www.spglobal.com/spdji/en/research/article/what-happened-to-the-index-effect-a-look-at-three-decades-of-sp-500-adds-and-drops/) concluyó declive estructural; [Vijh & Wang 2022](https://onlinelibrary.wiley.com/doi/10.1111/fima.12391) documentó inclusiones por traslado S&P400→500 con reacción opuesta en 2016–2020. Flujos institucionales no equivalen a arbitrage para un broker/CFD accessible.
+
+**Nueva labor del arquitecto B condicional, sin PnL**: escoger *un solo* evento×activo accesible; fuente oficial PIT announced/effective/cancelled + constituents reales as-of; identidad ISIN/exchange y acción corporativa/delisting; permisos de licencia; primeros quotes BIDASK/volume con latency posterior a timestamp conocido; capacidad del broker para acciones físicas o futuros reales, no índices CFD confundidos con constituyentes; tamaño esperado del efecto vs comisión/slippage/market impact/borrow/overnight risk; capacidad/power y OOS virgen. Resultado documental `GO_TO_PREREG_NEEDS_OWNER_APPROVAL` o `NO_GO_STAY_CLOSED`. No descarga indiscriminada, no data compras sin autorización, no event-return plots/costos optimizados. Solo después de autorización separada del owner cabe otro presupuesto y un estudio verdaderamente nuevo.
+
+**Infraestructura paralela no duplicada**: #837 obligación de custodia/licencias RAW+QUALITY original Atlas expiration 2026-12-16, #852 BID/ASK/swap PIT broker real, #868 identidad contractual, no confundir custodia con hipótesis científica ni dejar vencer datos originales. Seguir preservando GitHub PR #840 DRAFT, nunca MAIN/MT5/VPS/CIBO/Shared/QDLE, no terminar otros traders/Core por un resultado particular de Alpha2. **0 edge neto certificado, 0 órdenes, 0 trader Alpha2 operativo**. Congelar mejoras feature del panel M5 consumido. Cierres anteriores permanecen separados y sin reclasificaciones ex post.

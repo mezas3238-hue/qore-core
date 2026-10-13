@@ -1,0 +1,180 @@
+name: QORE Alpha2 Trader Lab SHA33 Ultra Fast Research (no PnL)
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-33-market-ultrafast-source.yml'
+      - 'src/qore/research/alpha2_lab_h4_extract.py'
+      - 'src/qore/research/alpha2_ultrafast.py'
+      - 'tests/research/test_alpha2_ultrafast.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: alpha2-33-h4-source-one-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  fast_lab_preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'numpy>=2,<3' 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Verify frozen PATR prereg and frozen original 33 manifest are ancestors
+        run: |
+          git merge-base --is-ancestor a369914550ed0b1da23b40b35b91fb23dde61346 "$GITHUB_SHA"
+          git merge-base --is-ancestor dba0e0c3b61e430d3ed51abab562ebd92060a0ff "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_ORIGINAL_PATR_METHOD_AND_UTC001_PREREG_2026-10-12.md
+      - name: Causal fast vs reference and UTC001 tests before price evidence
+        run: |
+          ruff check src/qore/research/alpha2_intermarket.py src/qore/research/alpha2_ultrafast.py src/qore/research/alpha2_lab_h4_extract.py tests/research/test_alpha2_ultrafast.py
+          pytest -q -o addopts='' tests/research/test_alpha2_ultrafast.py tests/research/test_alpha2_intermarket.py tests/research/test_alpha2_utc001_gates.py
+
+  original12_h4_readonly:
+    needs: fast_lab_preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        symbol: [AUDJPY, AUDUSD, EURUSD, GBPJPY, GBPUSD, NAS100, SP500, US30, USDCAD, USDJPY, XAGUSD, XAUUSD]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: signed-source33
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: atlas-12-aggregate
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: provider-native
+      - name: 11-year original source SHA audit BEFORE OHLC; preembargo H4 only
+        run: |
+          python -m qore.research.alpha2_lab_h4_extract "$SYMBOL" provider-native signed-source33 h4-out --aggregate12 atlas-12-aggregate
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads(Path("h4-out/alpha2-h4-source-"+os.environ["SYMBOL"]+".json").read_text())
+          assert r["source_input_full_11_year_raw_sha_verified_before_OHLC"]
+          assert r["post_2024_09_17_price_not_read"]
+          assert r["complete_native_m5_H4_blocks"]>0
+          assert not r["paper_or_live_authorized"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > h4-out/exact-code-head-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-h4-${{ matrix.symbol }}-${{ github.sha }}
+          path: h4-out/
+          retention-days: 90
+          if-no-files-found: error
+
+  new21_h4_readonly:
+    needs: fast_lab_preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        symbol: [USDCHF, NZDUSD, EURGBP, EURJPY, EURCHF, EURCAD, EURAUD, EURNZD, GBPCHF, GBPCAD, GBPAUD, GBPNZD, AUDCAD, AUDCHF, AUDNZD, CADJPY, CADCHF, CHFJPY, NZDJPY, NZDCAD, NZDCHF]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-final33-source-manifest-dba0e0c3b61e430d3ed51abab562ebd92060a0ff
+          run-id: '38207337960'
+          github-token: ${{ github.token }}
+          path: signed-source33
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-${{ matrix.symbol }}-e0ca5a13c866a19d8505c68cffc473598984b340
+          run-id: '38193802541'
+          github-token: ${{ github.token }}
+          path: provider-native
+      - name: 11-year SHA new21 before OHLC, no broker/login/future/PnL
+        run: |
+          python -m qore.research.alpha2_lab_h4_extract "$SYMBOL" provider-native signed-source33 h4-out
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads(Path("h4-out/alpha2-h4-source-"+os.environ["SYMBOL"]+".json").read_text())
+          assert r["source_input_full_11_year_raw_sha_verified_before_OHLC"]
+          assert r["source"]["source_cohort"]=="NEW21_ICMARKETS_DEMO"
+          assert r["post_2024_09_17_price_not_read"]
+          assert r["complete_native_m5_H4_blocks"]>0
+          assert not r["paper_or_live_authorized"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > h4-out/exact-code-head-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-h4-${{ matrix.symbol }}-${{ github.sha }}
+          path: h4-out/
+          retention-days: 90
+          if-no-files-found: error
+
+  ultra_fast_33_signal_only:
+    needs: [original12_h4_readonly, new21_h4_readonly]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'numpy>=2,<3'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: alpha2-h4-*-${{ github.sha }}
+          path: sources-33
+      - name: Run vectorized 33-market panel from audited compact H4 sources
+        run: |
+          python -m qore.research.alpha2_ultrafast sources-33 ultra-fast-out
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("ultra-fast-out/alpha2-patr-33-signal-ledger-research-only.json").read_text())
+          assert len(r["universe"])==33
+          assert r["broker_orders"]==0 and not r["utc001_certified"]
+          assert not r["gross_or_net_PnL_calculated"]
+          assert not r["costs_verified"] and not r["macro_news_asof_verified"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > ultra-fast-out/exact-code-head-sha.txt
+          (cd ultra-fast-out && sha256sum alpha2-patr-33-signal-ledger-research-only.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-patr-ultra-fast-33-signal-only-${{ github.sha }}
+          path: ultra-fast-out/
+          retention-days: 90
+          if-no-files-found: error

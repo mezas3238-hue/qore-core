@@ -1,0 +1,59 @@
+name: QORE Alpha2 G2 29 real cTrader BID ASK frozen 1s quote quality
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-29-second-grid-source-quality.yml'
+      - 'src/qore/research/alpha2_g2_29_quote_quality_grid.py'
+      - 'tests/research/test_alpha2_g2_29_quote_quality_grid.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  quote_quality_2020_2023_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Verify prereg frozen before source BIDASK quality outcomes
+        run: |
+          git merge-base --is-ancestor cfd82a0b0e7a36e2bd27181742123bcc137e5430 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G2_QUOTE_29_SECOND_GRID_SOURCE_QUALITY_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_g2_29_quote_quality_grid.py tests/research/test_alpha2_g2_29_quote_quality_grid.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_29_quote_quality_grid.py tests/research/test_alpha2_g2_29_real_bidask_reuse.py
+      - name: Reuse immutable original native historical BID ASK 29 source, never connect to broker
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-29-remaining-BID-ASK-source-NOT-NET-f8262bd7cdea1fbfb2287c3c1fe0dae3be2b0efc
+          run-id: '38283737706'
+          github-token: ${{ github.token }}
+          path: original-29
+      - name: SHA-reverify original two consumed window prices and fixed 1s stale, crossed, zero, positive quality
+        run: |
+          python -m qore.research.alpha2_g2_29_quote_quality_grid original-29 source-quality
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("source-quality/alpha2-g2-29-two-window-second-grid-quality.json").read_text())
+          assert report["markets"]==29
+          assert report["total"]["clock_points"]==29*2*600
+          assert sum(report["total"][k] for k in ("stale_or_missing","crossed","zero_spread","positive_spread"))==34800
+          assert report["no_2026_09_15_quote_price_access"]
+          assert not report["historical_terminal_quote_available_at_verified"]
+          assert report["NET_CERTIFICATION"] is False and report["orders"]==0
+          PY
+          printf '%s\n' "$GITHUB_SHA" > source-quality/exact-code-head-sha.txt
+          (cd source-quality && sha256sum alpha2-g2-29-two-window-second-grid-quality.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-g2-source-quality-secondgrid29-${{ github.sha }}
+          path: source-quality/
+          retention-days: 90
+          if-no-files-found: error

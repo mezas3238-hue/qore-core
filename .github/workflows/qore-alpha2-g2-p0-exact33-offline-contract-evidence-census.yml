@@ -1,0 +1,66 @@
+name: QORE Alpha2 G2 P0 exact33 contract evidence SHA metadata-only census
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-p0-exact33-offline-contract-evidence-census.yml'
+      - 'docs/research/QORE_ALPHA2_G2_P0_EXACT33_OFFLINE_CONTRACT_EVIDENCE_CENSUS_PREREG_2026-10-12.md'
+      - 'src/qore/research/alpha2_g2_p0_exact33_contract_evidence_census.py'
+      - 'tests/research/test_alpha2_g2_p0_exact33_contract_evidence_census.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  exact33_source_contract_separation_metadata_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test runtime
+        run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Pre-registered six-source independent metadata QA, no source prices
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 34a6f76c209e8e8e1f5aff2f4763bca435eba877 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G2_P0_EXACT33_OFFLINE_CONTRACT_EVIDENCE_CENSUS_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_g2_p0_exact33_contract_evidence_census.py tests/research/test_alpha2_g2_p0_exact33_contract_evidence_census.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_p0_exact33_contract_evidence_census.py
+      - name: Six original runs and ZIP SHA from GitHub REST metadata only
+        run: |
+          set -euo pipefail
+          mkdir -p six-run-metadata
+          for rid in 38298399112 38298920851 38296610948 38297614422 38284304699 38301861733
+          do
+            gh api "repos/mezas3238-hue/qore-core/actions/runs/$rid" > "six-run-metadata/run-$rid.json"
+            gh api "repos/mezas3238-hue/qore-core/actions/runs/$rid/artifacts?per_page=100" > "six-run-metadata/artifacts-run-$rid.json"
+          done
+          python -m qore.research.alpha2_g2_p0_exact33_contract_evidence_census six-run-metadata evidence-report
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("evidence-report/alpha2-g2-p0-exact33-source-contract-matrix.json").read_text())
+          assert r["exact_G0_symbols"]==33 and r["original12"]==12 and r["new21"]==21
+          assert len(r["source_metadata_witnesses"])==6
+          assert r["simultaneous_demo_60s_quote_symbols"]==29
+          assert r["contract_eligible_count"]==0
+          assert all(not row["broker_execution_contract_eligible"] for row in r["rows"])
+          assert not r["historical_broker_equivalence_certified"]
+          assert not r["economic_NET_computed"] and not r["UTC001_certified"]
+          assert not r["original_quote_bytes_read"] and r["broker_orders_submitted"]==0
+          PY
+          printf '%s\n' "$GITHUB_SHA" > evidence-report/exact-code-head-sha.txt
+          (cd evidence-report && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-g2-p0-exact33-6run-meta-only-contracts0-${{ github.sha }}
+          path: evidence-report/
+          retention-days: 90
+          if-no-files-found: error

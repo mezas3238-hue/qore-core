@@ -1,0 +1,57 @@
+name: QORE Alpha2 FX28 ONE carry hypothesis historical forward source gate
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-fx28-carry-one-source-readiness.yml'
+      - 'src/qore/research/alpha2_fx28_carry_one_test.py'
+      - 'tests/research/test_alpha2_fx28_carry_one_test.py'
+      - 'docs/research/QORE_ALPHA2_FX28_CARRY_ONE_TEST_PREREG_AND_IDENTIFIABILITY_2026-10-12.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scientific_prereg_source_gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Ancestor prereg and causal carry signal synthetic adversarial gates
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor f94fda3d51602a39548d767b87e379ac5fd742b5 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_FX28_CARRY_ONE_TEST_PREREG_AND_IDENTIFIABILITY_2026-10-12.md
+          ruff check src/qore/research/alpha2_fx28_carry_one_test.py tests/research/test_alpha2_fx28_carry_one_test.py
+          pytest -q -o addopts='' tests/research/test_alpha2_fx28_carry_one_test.py
+      - name: Current ORIGINAL33 spot archive lacks supplied historical 1month forward snapshot input
+        run: |
+          set -euo pipefail
+          # Intentional scientific NON-IDENTIFICATION gate. No data is backfilled, downloaded or fabricated.
+          python -m qore.research.alpha2_fx28_carry_one_test --output carry-audit/carry28-eligibility.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("carry-audit/carry28-eligibility.json")
+          x=json.loads(p.read_text())
+          assert x["status"]=="CARRY_NOT_IDENTIFIABLE_SPOT_ONLY"
+          assert x["no_forward_factor_no_edge_test"] is True
+          assert x["eras"]["DEVELOPMENT"]["executed_full28_months"] == 0
+          assert x["eras"]["DIAGNOSTIC"]["executed_full28_months"] == 0
+          assert x["account_broker_NET_not_computed"] is True
+          assert x["UTC001_certified"] is False and x["orders"]==0
+          assert x["exact_28_fx_complete_graph_of_eight_currencies"] is True
+          PY
+          printf '%s\n' "$GITHUB_SHA" > carry-audit/exact-code-head-sha.txt
+          (cd carry-audit && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-FX28-CARRY-IDENTIFIABILITY-NOT-ECONOMIC-RESULT-${{ github.sha }}
+          path: carry-audit/
+          retention-days: 90
+          if-no-files-found: error

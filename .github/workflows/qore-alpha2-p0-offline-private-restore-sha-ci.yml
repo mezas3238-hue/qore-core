@@ -1,0 +1,36 @@
+name: QORE Alpha2 P0 OFFLINE synthetic 35 ZIP private restore SHA validator
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-p0-offline-private-restore-sha-ci.yml'
+      - 'src/qore/research/alpha2_p0_private_restore_sha.py'
+      - 'tests/research/test_alpha2_p0_private_restore_sha.py'
+      - 'docs/research/QORE_ALPHA2_P0_PRIVATE_RESTORE_SHA_VERIFIER_CONTRACT_2026-10-12.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline_small_synthetic_only_no_market_archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Environment with tests and Ruff
+        run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Locked P0 contract and strict synthetic SHA/identity guards
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor e95af04b63a20a583d145896534514a7ae933a02 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_P0_PRIVATE_RESTORE_SHA_VERIFIER_CONTRACT_2026-10-12.md
+          ruff check src/qore/research/alpha2_p0_private_restore_sha.py tests/research/test_alpha2_p0_private_restore_sha.py
+          pytest -q -o addopts='' tests/research/test_alpha2_p0_private_restore_sha.py
+      - name: No real market data or claims of licensed archive
+        run: |
+          printf '%s\n' 'SYNTHETIC_ONLY; NO ORIGINAL ZIP DOWNLOADED; NO BROKER; NO VAULT ACCESS'
+          printf '%s\n' 'SOURCE_ARCHIVED_PERMANENTLY=FALSE; UTC001_CERTIFIED=FALSE'

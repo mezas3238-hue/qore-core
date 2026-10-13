@@ -1,0 +1,40 @@
+name: QORE Alpha2 G2 economic witness required quote stress synthetic NOT NET
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-causal-economic-stress.yml'
+      - 'src/qore/research/alpha2_g2_causal_economic_stress.py'
+      - 'tests/research/test_alpha2_g2_causal_economic_stress.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bidask_cost_causal_synthetic_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source-only dependencies, no broker credentials
+        run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Frozen economic prereg must be ancestor of test run
+        run: |
+          git merge-base --is-ancestor fff976831ea68502f85322d76e73ebea96d19e2f "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G2_CAUSAL_ECONOMICS_STRESS_ENGINE_PREREG_2026-10-12.md
+      - name: Quote both sides, currency, contract, PIT, costs and slippage contract
+        run: |
+          ruff check src/qore/research/alpha2_g2_causal_economic_stress.py tests/research/test_alpha2_g2_causal_economic_stress.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_causal_economic_stress.py tests/research/test_alpha2_g2_bidask_causal_contract.py
+          python - <<'PY'
+          from qore.research.alpha2_g2_causal_economic_stress import STATUS, StressResult
+          from qore.research.alpha2_g2_bidask_causal_contract import NetDataReadiness
+          assert STATUS == "HYPOTHETICAL_QUOTE_COST_STRESS_NOT_NET_CERTIFICATION"
+          assert StressResult.__dataclass_fields__["utc001_certified"].default is False
+          assert NetDataReadiness().gate().startswith("NET_BLOCKED")
+          print("G2_HYPOTHETICAL_STRESS_ONLY NO_BROKER NET_BLOCKED NO_ORDER")
+          PY

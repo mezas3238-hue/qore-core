@@ -1,0 +1,57 @@
+name: QORE Alpha2 G2 independent NZDUSD DEMO first-receipt original SHA QA
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-nzdusd-independent-forward-qa.yml'
+      - 'src/qore/research/alpha2_g2_nzdusd_independent_forward_receipt_qa.py'
+      - 'tests/research/test_alpha2_g2_nzdusd_independent_forward_receipt_qa.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  independent_signed_forward_receipt_audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'ruff>=0.5,<1' 'pytest>=8,<9'
+      - name: Independent audit PRE-registered before opening original forward quote file
+        run: |
+          git merge-base --is-ancestor 7ad73e59be89b640f10163fa07c9a1832dbdfac5 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G2_FORWARD_NZDUSD_FIRST_RECEIPT_INDEPENDENT_SHA_QA_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_g2_nzdusd_independent_forward_receipt_qa.py tests/research/test_alpha2_g2_nzdusd_independent_forward_receipt_qa.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_nzdusd_independent_forward_receipt_qa.py
+      - name: Original DEMO NZDUSD 45s RECEIVED quote artifact only, no broker auth
+        uses: actions/download-artifact@v4
+        with:
+          name: alpha2-g2-nzdusd-first-receipt-DEMO-NOT-NET-ca32ad2311c5c6b4a9312073ca0b4c7b53109a75
+          run-id: '38296610948'
+          github-token: ${{ github.token }}
+          path: forward-original
+      - name: Independent two SHA ledgers + source identity + no future receipt + both-sides
+        run: |
+          python -m qore.research.alpha2_g2_nzdusd_independent_forward_receipt_qa forward-original independent-audit
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("independent-audit/alpha2-g2-nzdusd-independent-firstreceipt-QA.json").read_text())
+          assert d["status"]=="FORWARD_DEMO_SOURCE_RECEIPT_SHA_AND_INDEPENDENT_QA_PASS_NOT_EXECUTABLE"
+          assert d["observed_quote_event_quality"]["counts"]["all_received"]==11
+          assert not d["NET_PF_Sharpe_Sortino_DD_computed"]
+          assert not d["UTC001_certified"] and d["orders"]==0
+          PY
+          printf '%s\n' "$GITHUB_SHA" > independent-audit/exact-code-head-sha.txt
+          (cd independent-audit && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-g2-nzdusd-independent-firstseen-QA-${{ github.sha }}
+          path: independent-audit/
+          retention-days: 90
+          if-no-files-found: error

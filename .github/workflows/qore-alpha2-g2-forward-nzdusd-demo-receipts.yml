@@ -1,0 +1,89 @@
+name: QORE Alpha2 G2 NZDUSD 45sec DEMO spot first-received source ONLY
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-forward-nzdusd-demo-receipts.yml'
+      - 'src/qore/research/alpha2_g2_nzdusd_forward_spot_receipt.py'
+      - 'tests/research/test_alpha2_g2_nzdusd_forward_spot_receipt.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: alpha2-g2-forward-source-nzdusd-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  frozen_synthetic_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: First receipt prereg ancestor and no trading path
+        run: |
+          git merge-base --is-ancestor 14f7b54ed5e1ffd1c179faf500fa8646837a6da9 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G2_NZDUSD_DEMO_FORWARD_RECEIPT_45S_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_g2_nzdusd_forward_spot_receipt.py tests/research/test_alpha2_g2_nzdusd_forward_spot_receipt.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_nzdusd_forward_spot_receipt.py
+          ! grep -qE 'ProtoOANewOrderReq|ProtoOAAmendOrderReq|ProtoOARefreshTokenReq' src/qore/research/alpha2_g2_nzdusd_forward_spot_receipt.py
+  verified_demo_spot_receipts:
+    needs: frozen_synthetic_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Restore isolated 2026 research source-only cTrader proof modules into THIS ephemeral runner
+        run: |
+          set -euo pipefail
+          source_ref=ef69b1b6ea2dbbd689bc3e090f9581e15bbb7ad6
+          git cat-file -t "$source_ref"
+          for file in \
+            src/qore/infrastructure/ctrader_demo_account_discovery.py \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_10y_m5_consumer_v1.py \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_10y_windowed_runtime_v1.py \
+            src/qore/infrastructure/trader_lab/qore_native_universe_33_source_registry_v1.py \
+            src/qore/infrastructure/trader_lab/qore_native_icmarkets_catalog_preflight_v1.py \
+            src/qore/infrastructure/trader_lab/qore_native_icmarkets_missing_m5_capture_v1.py
+          do
+            git show "$source_ref:$file" > "$file"
+            test "$(git hash-object "$file")" = "$(git rev-parse "$source_ref:$file")"
+          done
+          echo "SOURCE_CODE_PROVENANCE_PINNED_TEMP_ONLY"
+      - name: Install ONLY the repository's optional cTrader SDK for DEMO read-only data
+        run: python -m pip install -e '.[ctrader]'
+      - name: First-seen local dequeue clock on 45s NZDUSD subscription no orders
+        run: |
+          mkdir -p forward-only
+          python -m qore.research.alpha2_g2_nzdusd_forward_spot_receipt forward-only
+      - name: Write exact code execution identity even on source blocker
+        if: always()
+        run: |
+          mkdir -p forward-only
+          printf '%s\n' "$GITHUB_SHA" > forward-only/exact-code-head-sha.txt
+          (cd forward-only && sha256sum *.json *.jsonl exact-code-head-sha.txt 2>/dev/null > COMPLETE_SHA256SUMS.txt || true)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: alpha2-g2-nzdusd-first-receipt-DEMO-NOT-NET-${{ github.sha }}
+          path: forward-only/
+          retention-days: 90
+          if-no-files-found: error

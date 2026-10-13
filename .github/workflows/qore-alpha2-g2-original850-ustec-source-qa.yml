@@ -1,0 +1,66 @@
+name: QORE Alpha2 G2 P0 USTEC original PR850 immutable DEMO source QA NOT NET
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-original850-ustec-source-qa.yml'
+      - 'src/qore/research/alpha2_g2_p0_ustec_original850_source_qa.py'
+      - 'tests/research/test_alpha2_g2_p0_ustec_original850_source_qa.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original_ustec_broker_current_source_metadata_qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Original 850 auditor PRIOR read prereg, synthetic tests, original code immutable
+        run: |
+          git merge-base --is-ancestor 4a1fc31172adf5ce4ee2c8bfca267aaeaac8b7f4 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G2_P0_INDEPENDENT_ORIGINAL_USTEC_BROKER_METADATA_850_PREREG_2026-10-12.md
+          git cat-file -t 716996e0f893af0aeb2b990ac11d644cf62a5c5f
+          ruff check src/qore/research/alpha2_g2_p0_ustec_original850_source_qa.py tests/research/test_alpha2_g2_p0_ustec_original850_source_qa.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_p0_ustec_original850_source_qa.py
+      - name: Verify ORIGINAL sealed source artifact ZIP digest with GitHub metadata
+        run: |
+          set -euo pipefail
+          github_digest="$(gh api repos/mezas3238-hue/qore-core/actions/artifacts/11762018327 --jq .digest)"
+          test "$github_digest" = "sha256:7f927792e575c5cccb9932c55a8db6733430c34629681701c6acd98491ac5c2e"
+          echo "ORIGINAL_GITHUB_SOURCE_ARTIFACT_DIGEST_VERIFIED_NO_SECRETS"
+      - name: Download previous architect's immutable USTEC DEMO metadata ONLY
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-G1-NAS100-USTEC-source-alias-catalog-only-716996e0f893af0aeb2b990ac11d644cf62a5c5f
+          run-id: '38284304699'
+          github-token: ${{ github.token }}
+          path: original-850-source
+      - name: Source current-demo USTEC metadata 10014 vs unproven NAS100 original G0
+        run: |
+          python -m qore.research.alpha2_g2_p0_ustec_original850_source_qa original-850-source signed-original-850-audit
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("signed-original-850-audit/alpha2-g2-p0-original850-ustec-source-only-qa.json").read_text())
+          assert x["source_symbol_id"]==10014
+          assert not x["historical_original_CIBO_NAS100_USTEC_contract_equivalent"]
+          assert not x["commission_swap_quote_currency_or_point_value_verified"]
+          assert not x["UTC001_certified"] and x["orders"]==0
+          PY
+          printf '%s\n' "$GITHUB_SHA" > signed-original-850-audit/exact-code-head-sha.txt
+          (cd signed-original-850-audit && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-g2-original850-ustec-independent-catalog-QA-${{ github.sha }}
+          path: signed-original-850-audit/
+          retention-days: 90
+          if-no-files-found: error

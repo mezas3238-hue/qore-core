@@ -1,0 +1,30 @@
+name: QORE Alpha2 G2 causal broker BIDASK data gate synthetic only
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-bidask-source-contract.yml'
+      - 'src/qore/research/alpha2_g2_bidask_causal_contract.py'
+      - 'tests/research/test_alpha2_g2_bidask_causal_contract.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no_real_quote_claims:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: No future BIDASK, no false fills, no net calculation
+        run: |
+          ruff check src/qore/research/alpha2_g2_bidask_causal_contract.py tests/research/test_alpha2_g2_bidask_causal_contract.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_bidask_causal_contract.py
+          python - <<'PY'
+          from qore.research.alpha2_g2_bidask_causal_contract import NetDataReadiness
+          assert NetDataReadiness().gate().startswith("NET_BLOCKED")
+          print("RESEARCH_ONLY G2 SOURCE_ABSENT NET_BLOCKED no broker orders")
+          PY

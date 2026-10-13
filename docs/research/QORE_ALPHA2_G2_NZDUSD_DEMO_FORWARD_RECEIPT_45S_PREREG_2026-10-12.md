@@ -1,0 +1,16 @@
+# QORE-Alpha 2 — G2 FORWARD quote-receipt clock, cTrader DEMO, PRE-SOURCE PREREG
+
+**2026-10-12. Do not fit W1/W2/W3. NO PAPER, NO real-capital, NO orders.** One short read-only, broker-verified quote receipt experiment to prepare a true new source independent from the 2016–2024 explored backtests. The source is **LIVE-MARKET-DEMO QUOTE FEED only**, which never authorizes a LIVE or DEMO order. New data cannot be treated as an instant independent alpha holdout without an access census and formally sealed methodology.
+
+## Fixed target, before receipt
+
+- One canonical provider symbol **NZDUSD**, DEMO IC Markets cTrader, exact enabled native symbol ID from authenticated preflight; we choose this because source PR #844 independently proved native NZDUSD BID and ASK availability. **45 seconds** of application-observed quotes immediately after successful subscription acknowledgment, with `subscribeToSpotTimestamp=True`. Do not sample more markets or change time window after observing price.
+- Endpoint DEMO only, no OAuth refresh, no order requests, exactly one subscription and optional unsubscribe; no VPS/MT5/CIBO/Shared/QDLE or production. GitHub Actions secrets stay in memory and account ID must NOT be written to logs/artifacts.
+- `ProtoOASpotEvent` can update only BID or only ASK. Parse side presence independently, accept only positive integer values, store original raw int and source event timestamp only when explicitly provided, preserve the original receipt order, and record `received_at` conservatively **after consuming** the asynchronous event from local queue. Receipt monotonic UTC timestamps must not run backward. Distinguish provider `event_at` from collector `first_seen_at`. Missing source timestamp never gets backfilled from received time.
+- On every event record active two-side latest values and two side-specific last-received clocks. Classify freshness max 5 seconds on *receipt* of each side, positive/crossed/zero spreads separate, no M5 interpolations. Do not interpret a quoted price as actual fill; 0 spread must never be declared free.
+- Require every quote event `symbolId` match exactly one preflight ID. Raw data sanitized and first-seen time + source timestamp as UTC string; sealed per-file SHA, exact job HEAD and hashed no-secret symbol account-scope witness. If client cannot authenticate, provider cannot stream, timestamp invalid or event absent, record `SOURCE_BLOCKED` sanitized; no spot quotation fabricated.
+- Pilot success means `FORWARD_RECEIVED_NZDUSD_DEMO_SPOT_SOURCE_PRESENT` with nonempty *received* BID and ASK. Actual causal latency of communication and order fill still not proven, broker contract currency fee swap conversion missing, full 33 simultaneous native source not yet acquired, and Alpha2 NET/UTC-001 remains BLOCKED.
+
+## Reproducibility and boundaries
+
+This is a forward source *availability* experiment, no market hypothesis nor PnL sampling. Use only original 2026 code HEAD of broker proof/SDK and exact pinned Git blobs restored into GitHub temp runner, never merge originals into production. Capture source filename SHA and exact repo head. Execute once through GitHub Actions; do NOT install continuous scheduler without separate lifecycle retention/rate-limit plan. Frozen G2 research contract remains `src/qore/research/alpha2_g2_bidask_causal_contract.py`.

@@ -1,0 +1,65 @@
+name: QORE Alpha2 G2 W3 33 event coverage in real29 BIDASK windows source-only
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-w3-33-quote-window-coverage.yml'
+      - 'src/qore/research/alpha2_g2_w3_quote_window_coverage.py'
+      - 'tests/research/test_alpha2_g2_w3_quote_window_coverage.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  thirtythree_w3_real_quote_source_coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Verify original consumed historical scope pre-registered BEFORE joining ledgers
+        run: |
+          git merge-base --is-ancestor 662219b738941f3d695a646c25ea4f19952c3685 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G2_W3_EVENT_VS_QUOTE_SOURCE_WINDOW_COVERAGE_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_g2_w3_quote_window_coverage.py tests/research/test_alpha2_g2_w3_quote_window_coverage.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_w3_quote_window_coverage.py
+      - name: Only original W3 existing SHA33 worker artifacts (never re-run OHLC)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: alpha2-cmtrl33-*-e7ec0e4d1cfb8b80effb9e2c1eea23524d6e716c
+          run-id: '38284821503'
+          github-token: ${{ github.token }}
+          path: original-w3-33
+      - name: Only independently SHA-verified existing source29 metadata (NO tick prices)
+        uses: actions/download-artifact@v4
+        with:
+          name: alpha2-g2-real29-two-consumed-windows-source-only-bffb5e8ff5bb9ce12e515bb2558d12001472d9a3
+          run-id: '38288561813'
+          github-token: ${{ github.token }}
+          path: original-source29-index
+      - name: Count 24487 original opportunities including all 33 zero selection
+        run: |
+          python -m qore.research.alpha2_g2_w3_quote_window_coverage original-w3-33 original-source29-index coverage-result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("coverage-result/alpha2-g2-w3-33-original-event-source-window-coverage.json").read_text())
+          assert d["markets_total"]==33 and len(d["per_market_all33"])==33
+          assert d["global"]["original_signals"]==24487
+          assert d["global"]["original_paired"]==24399
+          assert d["source_tick_price_values_read"] is False
+          assert d["executable_net_paths_certified"]==0 and not d["UTC001_certified"]
+          PY
+          printf '%s\n' "$GITHUB_SHA" > coverage-result/exact-code-head-sha.txt
+          (cd coverage-result && sha256sum *.json exact-code-head-sha.txt > OUTPUT_SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha2-g2-w3-33-source-window-coverage-${{ github.sha }}
+          path: coverage-result/
+          retention-days: 90
+          if-no-files-found: error

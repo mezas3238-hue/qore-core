@@ -1,0 +1,89 @@
+name: QORE Alpha2 G2 29 exact DEMO 60sec prospective bidask source only
+on:
+  push:
+    branches: ['research/qore-alpha2-original-intermarket-propagation-20261012']
+    paths:
+      - '.github/workflows/qore-alpha2-g2-forward-exact29-demo.yml'
+      - 'src/qore/research/alpha2_g2_29_exact_demo_forward_multispot.py'
+      - 'tests/research/test_alpha2_g2_29_exact_demo_forward_multispot.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: alpha2-g2-exact29-forward-source-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact_29_source_protocol_synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . 'pytest>=8,<9' 'ruff>=0.5,<1'
+      - name: Preregistered BEFORE 29 market source and safe read-only whitelist
+        run: |
+          git merge-base --is-ancestor 34a2c20d285d86a16c95bac217a0dc9225a6d799 "$GITHUB_SHA"
+          test -s docs/research/QORE_ALPHA2_G2_29_EXACT_DEMO_MULTISPOT_60S_PREREG_2026-10-12.md
+          ruff check src/qore/research/alpha2_g2_29_exact_demo_forward_multispot.py tests/research/test_alpha2_g2_29_exact_demo_forward_multispot.py
+          pytest -q -o addopts='' tests/research/test_alpha2_g2_29_exact_demo_forward_multispot.py
+          ! grep -qE 'ProtoOANewOrderReq|ProtoOARefreshTokenReq|ProtoOAAmendOrderReq|ProtoOAClosePositionReq' src/qore/research/alpha2_g2_29_exact_demo_forward_multispot.py
+  exact29_forward_quote_receiver:
+    needs: exact_29_source_protocol_synthetic
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      QORE_CTRADER_DEMO_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_DEMO_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Restore only signed original cTrader source routines temporarily inside Actions
+        run: |
+          set -euo pipefail
+          source_ref=ef69b1b6ea2dbbd689bc3e090f9581e15bbb7ad6
+          git cat-file -t "$source_ref"
+          for file in \
+            src/qore/infrastructure/ctrader_demo_account_discovery.py \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_10y_m5_consumer_v1.py \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_10y_windowed_runtime_v1.py \
+            src/qore/infrastructure/trader_lab/qore_native_universe_33_source_registry_v1.py \
+            src/qore/infrastructure/trader_lab/qore_native_icmarkets_catalog_preflight_v1.py \
+            src/qore/infrastructure/trader_lab/qore_native_icmarkets_missing_m5_capture_v1.py
+          do
+            git show "$source_ref:$file" > "$file"
+            test "$(git hash-object "$file")" = "$(git rev-parse "$source_ref:$file")"
+          done
+          echo "EXACT_READONLY_DEMO_SOURCE_MODULES_RESTORED_TEMP_ONLY"
+      - name: Install source-only cTrader optional SDK
+        run: python -m pip install -e '.[ctrader]'
+      - name: One broker read-only subscription 29 exact IDs; 60 second first-received source
+        run: |
+          mkdir -p source29-out
+          python -m qore.research.alpha2_g2_29_exact_demo_forward_multispot source29-out
+      - name: Exact HEAD and file SHA integrity even on source blocked
+        if: always()
+        run: |
+          mkdir -p source29-out
+          printf '%s\n' "$GITHUB_SHA" > source29-out/exact-code-head-sha.txt
+          (cd source29-out && sha256sum *.json *.jsonl exact-code-head-sha.txt 2>/dev/null > COMPLETE_SHA256SUMS.txt || true)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: alpha2-g2-forward-exact29-demo-firstseen-NOT-NET-${{ github.sha }}
+          path: source29-out/
+          retention-days: 90
+          if-no-files-found: error
