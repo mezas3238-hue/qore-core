@@ -54,7 +54,9 @@ def test_asof_receipt_and_homologation(tmp_path: Path) -> None:
         output_csv=out, output_manifest=meta, receipt_file=receipt_file,
     )
     assert receipt["observed_state_count"] == 3
-    assert receipt["quarantined"]["stale"] == 2
+    quarantined = receipt["quarantined"]
+    assert isinstance(quarantined, dict)
+    assert quarantined["stale"] == 2
     assert len(load_quotes(out, DatasetManifest.read(meta))) == 3
     with pytest.raises(FileExistsError):
         pair_files(

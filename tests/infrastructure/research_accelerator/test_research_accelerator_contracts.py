@@ -222,3 +222,20 @@ def test_ultrafast_cli_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert len(read_ledger(registry)) == 1
     with pytest.raises(ResearchDataError, match="equivalent"):
         main()
+
+
+def test_limit_stop_immediately_on_entry_quote() -> None:
+    first = BASE
+    ticks = (
+        Quote(first, Decimal("98"), Decimal("99.9")),
+        Quote(first + timedelta(minutes=1), Decimal("100"), Decimal("100.2")),
+    )
+    order = LimitOrder(
+        "immediate", first, first + timedelta(minutes=1),
+        first + timedelta(minutes=1), "long",
+        Decimal("100"), Decimal("99"), Decimal("102"),
+    )
+    ledger = simulate_ticks(ticks, (order,), tick_size=Decimal(".1"))
+    assert ledger[0]["status"] == "CLOSED_OBSERVED_TICKS"
+    assert ledger[0]["exit_reason"] == "STOP"
+    assert ledger[0]["duration_seconds"] == "0"

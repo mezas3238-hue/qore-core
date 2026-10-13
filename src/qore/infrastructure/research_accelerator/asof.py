@@ -147,6 +147,7 @@ def pair_files(
     for q in paired:
         writer.writerow((q.at.isoformat(), str(q.bid), str(q.ask)))
     output_bytes = table.getvalue().encode()
+    quote_sha = sha256(output_bytes).hexdigest()
     receipt: dict[str, object] = {
         "schema": "qore.asof-side-pairing.v1",
         "input_bid_sha256": b.sha256, "input_ask_sha256": a.sha256,
@@ -154,11 +155,11 @@ def pair_files(
         "max_staleness_ms": max_staleness_ms,
         "observed_state_count": len(paired),
         "quarantined": counts,
-        "output_sha256": sha256(output_bytes).hexdigest(),
+        "output_sha256": quote_sha,
         "claims": "RESEARCH_QUOTE_STATE_NOT_SIMULTANEOUS_TICK_OR_BROKER_ACK",
     }
     manifest: dict[str, str] = {
-        "kind": "tick_bidask", "sha256": receipt["output_sha256"],
+        "kind": "tick_bidask", "sha256": quote_sha,
         "broker": b.broker, "provider": b.provider, "instrument": b.instrument,
         "symbol_id": b.symbol_id, "feed_version": b.feed_version,
         "timezone": "UTC", "timeframe": "TICK",

@@ -142,3 +142,17 @@ El siguiente arquitecto NO debe:
 - cambiar el Trader Lab, Risk, CIBO o entornos LIVE;
 - inventar BID/ASK a partir de OHLC ni declarar fills sin tick/ASK;
 - hacer merge sin orden.
+
+## Actualización de implementación — as-of BID/ASK
+
+Nuevo src/qore/infrastructure/research_accelerator/asof.py admite DOS
+exportaciones independientes normalizadas con at,price, manifiestos
+SHA256 y SIDE bid/ask. El comando python -m
+qore.infrastructure.research_accelerator.asof exige rutas BID, ASK,
+manifiestos --bid-manifest y --ask-manifest, --max-staleness-ms,
+--output, --output-manifest, --receipt. Hace join causal de último
+precio observado por lado, nunca mira hacia adelante, rechaza
+cotizaciones cruzadas y descarta estados stale sin asumir cotización.
+Produce nuevo CSV quote-state y manifiesto verificables por el data lake.
+Esto NO equivale a ticks simultáneos ni broker ACK. Los raws cTrader
+PR #901 aún deben normalizarse, auditarse y persistirse privadamente.

@@ -72,8 +72,7 @@ def simulate_ticks(
                 fill = max(q.bid - slip, order.limit - slip)
             if fill is not None:
                 opened_at = q.at
-                i += 1
-                break
+                break  # Same quote can immediately violate protective stop.
             i += 1
         if fill is None:
             ledger.append({"event_id": order.event_id, "status": "UNFILLED_OBSERVED_ONLY"})
