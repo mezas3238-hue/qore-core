@@ -23,6 +23,9 @@ _CODE = re.compile(r"[a-z][a-z0-9._-]{2,100}\Z")
 _DATE = re.compile(r"(?:19|20)\d{2}-\d{2}-\d{2}\Z")
 _SHA = re.compile(r"[0-9a-f]{40}\Z")
 _MAX = 20
+_BURNED_HYPOTHESES = frozenset({
+    "research.hypothesis.backwardation-predicts-f1-up",
+})
 _TEST_METHODS = {"fisher_exact", "block_bootstrap", "permutation"}
 _ALTERNATIVES = {"greater", "less", "two_sided"}
 _SPEC_FIELDS = frozenset({
@@ -198,7 +201,10 @@ def _freeze_one(spec: Any, proposals: dict[str, dict[str, Any]]) -> FrozenHypoth
     ]
     if not all(a < b for a, b in zip(days, days[1:], strict=False)):
         raise ResearchIntakeError("WINDOWS_OVERLAP_OR_NOT_ASCENDING")
-    if spec["hypothesis_code"] in spec["hypotheses_previously_tested"]:
+    if (
+        spec["hypothesis_code"] in spec["hypotheses_previously_tested"]
+        or spec["hypothesis_code"] in _BURNED_HYPOTHESES
+    ):
         raise ResearchIntakeError("REUSING_TESTED_HYPOTHESIS")
     return FrozenHypothesis(
         proposal_code=code,
