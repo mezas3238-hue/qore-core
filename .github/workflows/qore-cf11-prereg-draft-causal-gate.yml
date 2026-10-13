@@ -1,11 +1,14 @@
-name: QORE CF11 prereg draft causal gate (zero budget; no execution)
+name: QORE Research real Git custody of original EIA and empty prereg manifest
 
 on:
   push:
     branches:
-      - research/qore-cf11-prereg-draft-causal-gate-20261013
+      - research/qore-cf11-git-custody-readonly-20261013
     paths:
       - 'src/qore/infrastructure/trader_lab/qore_research_prereg_draft_gate_v1.py'
+      - 'src/qore/infrastructure/trader_lab/qore_research_git_custody_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_research_git_custody_v1.py'
+      - '.github/scripts/qore_research_git_custody_readonly_v1.py'
       - 'tests/infrastructure/trader_lab/test_qore_research_prereg_draft_gate_v1.py'
       - '.github/scripts/qore_research_prereg_draft_receipt_v1.py'
       - '.github/workflows/qore-cf11-prereg-draft-causal-gate.yml'
@@ -36,21 +39,28 @@ jobs:
           ruff check
           src/qore/infrastructure/trader_lab/qore_research_zero_budget_intake_v1.py
           src/qore/infrastructure/trader_lab/qore_research_prereg_draft_gate_v1.py
+          src/qore/infrastructure/trader_lab/qore_research_git_custody_v1.py
           tests/infrastructure/trader_lab/test_qore_research_zero_budget_intake_v1.py
           tests/infrastructure/trader_lab/test_qore_research_prereg_draft_gate_v1.py
+          tests/infrastructure/trader_lab/test_qore_research_git_custody_v1.py
           .github/scripts/qore_research_zero_budget_queue_v1.py
           .github/scripts/qore_research_prereg_draft_receipt_v1.py
+          .github/scripts/qore_research_git_custody_readonly_v1.py
       - name: Mypy strict boundaries
         run: >-
           mypy
           src/qore/infrastructure/trader_lab/qore_research_prereg_draft_gate_v1.py
+          src/qore/infrastructure/trader_lab/qore_research_git_custody_v1.py
           tests/infrastructure/trader_lab/test_qore_research_prereg_draft_gate_v1.py
+          tests/infrastructure/trader_lab/test_qore_research_git_custody_v1.py
           .github/scripts/qore_research_prereg_draft_receipt_v1.py
+          .github/scripts/qore_research_git_custody_readonly_v1.py
       - name: Synthetic queue and new prereg adversarial cases
         run: >-
           python -m unittest -v
           test_qore_research_zero_budget_intake_v1
           test_qore_research_prereg_draft_gate_v1
+          test_qore_research_git_custody_v1
       - name: Retrieve original EIA diagnostic evidence (read only)
         uses: actions/download-artifact@v4
         with:
@@ -98,9 +108,18 @@ jobs:
           assert r["market_data_spend_usd"]==0
           print("PREREG_SOURCE_FIRST_DRAFT_ONLY_NO_OUTCOMES_NO_LIVE")
           PY
+      - name: Real Git object witness of original EIA plus empty prereg draft
+        run: python .github/scripts/qore_research_git_custody_readonly_v1.py
       - uses: actions/upload-artifact@v4
         with:
           name: qore-research-prereg-draft-zero-budget-receipt
           path: ${{ runner.temp }}/qore_research_prereg_draft_receipt.json
+          retention-days: 90
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-research-real-git-custody-no-new-prereg
+          path: ${{ runner.temp }}/qore_git_custody_readonly.json
           retention-days: 90
           if-no-files-found: error
