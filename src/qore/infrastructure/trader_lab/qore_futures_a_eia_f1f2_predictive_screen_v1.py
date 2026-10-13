@@ -10,7 +10,7 @@ import hashlib
 import json
 import math
 import urllib.request
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any
