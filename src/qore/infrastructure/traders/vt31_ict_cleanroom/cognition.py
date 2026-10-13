@@ -17,9 +17,9 @@ from statistics import median
 
 from .cognitive_telemetry import CognitiveTelemetry
 from .contracts import (
+    FRAMEWORK_POLICIES,
     G3_MSS_FRAMEWORK_POLICY,
     LEGACY_FRAMEWORK_POLICY,
-    FRAMEWORK_POLICIES,
     MIN_INDEX_POINTS,
     NEW_YORK,
     CognitiveDecision,
