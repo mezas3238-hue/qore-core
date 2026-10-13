@@ -548,7 +548,8 @@ class SpotwareCTraderOpenApiClient:
                 return accounts
         account_entries = getattr(accounts.value, "ctidTraderAccount", None)
         permission_scope = getattr(accounts.value, "permissionScope", None)
-        if (permission_scope not in (0, 1) if self._read_only else permission_scope != 1) or account_entries is None:
+        permitted_scopes = (0, 1) if self._read_only else (1,)
+        if permission_scope not in permitted_scopes or account_entries is None:
             return Failure(
                 CTraderOpenApiProtocolError(
                     "cTrader token lacks requested scope or account evidence"
