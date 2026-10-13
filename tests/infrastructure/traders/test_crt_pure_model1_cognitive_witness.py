@@ -208,3 +208,34 @@ def test_origin_evidence_is_traceable_in_causal_observation_tokens() -> None:
     }
     assert all(row.observed_at <= situation.observed_at for row in situation.observations)
     assert reason(situation).action is CrtPureReasoningAction.WAIT
+
+
+
+def test_old_crth_can_have_explicit_h4_origin_without_calling_it_swing_m15() -> None:
+    witness = _bearish_witness()
+    h4_origin = _bar(4, 0, 102, 105, 98, 104)
+    h4_case = replace(
+        witness,
+        reference_bar=h4_origin,
+        reference_known_at=datetime(2026, 1, 2, 8, 0, tzinfo=UTC),
+        reference_origin_timeframe_seconds=4 * 60 * 60,
+    )
+    knowledge, action, _ = _reason(h4_case)
+    assert knowledge is CrtPureKnowledgeState.PARTIAL
+    assert action is CrtPureReasoningAction.WAIT
+
+
+def test_h4_old_crth_cannot_be_known_at_m15_close_instead_of_h4_close() -> None:
+    witness = _bearish_witness()
+    with pytest.raises(ValueError, match="origin candle closes"):
+        replace(
+            witness,
+            reference_bar=_bar(4, 0, 102, 105, 98, 104),
+            reference_known_at=datetime(2026, 1, 2, 4, 15, tzinfo=UTC),
+            reference_origin_timeframe_seconds=4 * 60 * 60,
+        )
+
+
+def test_unknown_reference_origin_timeframe_is_rejected_not_assumed() -> None:
+    with pytest.raises(ValueError, match="origin must be M15 or H4"):
+        replace(_bearish_witness(), reference_origin_timeframe_seconds=1800)
