@@ -16,6 +16,7 @@ import random
 import zipfile
 from collections import Counter
 from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from statistics import mean, stdev
@@ -26,7 +27,6 @@ from qore.research.alpha2_fx28_bis_policy_carry import BIS_CCY_AREA, advance_mon
 from qore.research.alpha2_fx28_carry_one_test import CCYS, FX28
 from qore.research.alpha2_intermarket import Bar, _check_bar
 from qore.research.alpha2_lab_h4_extract import source33_manifest, verify_source
-from qore.research.alpha2_tsmom_daily_weekly import Day
 
 IDENTITY = "QORE_ALPHA2_FX28_BIS_POLICY_CARRY_SINGLE_FINAL_VOL20_V1"
 PREREG = "9c51aa509040ebbd470a9c59d525d86760922c1b"
@@ -39,6 +39,23 @@ GLOBAL_ANNUAL_VOL_TARGET = 0.10
 B = 2000
 SEED = 20261012
 BIS_URL = "https://data.bis.org/static/bulk/WS_CBPOL_csv_flat.zip"
+
+
+@dataclass(frozen=True)
+class Day:
+    """Only this newly preregistered investigation can examine 2024-2026 daily marks."""
+    utc_day: date
+    open: float
+    close: float
+    native_m5_bars: int
+
+    def __post_init__(self) -> None:
+        if (self.utc_day.weekday()>4 or
+            not HISTORY_START<=self.utc_day<HISTORY_END_EXCLUSIVE):
+            raise ValueError("POLICY_VOL20_UNADMITTED_2016_2026_DAY")
+        if (not math.isfinite(self.open) or not math.isfinite(self.close)
+            or self.open<=0 or self.close<=0 or self.native_m5_bars<12):
+            raise ValueError("POLICY_VOL20_NATIVE_DAILY_QUOTE_INVALID")
 
 
 def full_readonly_original_rows(source: Path, symbol: str) -> Iterator[Bar]:
