@@ -56,7 +56,7 @@ jobs:
       - name: Fetch original USTEC BID ASK 24 hours 8 dates for NY SB wave2
         run: |
           set -euo pipefail
-          python -m qore.infrastructure.trader_lab.vt31_g5_ustec_sb_quote_capture_v1 source-ustec-vt31-wave2
+          python -m qore.infrastructure.trader_lab.vt31_g5_ustec_sb_quote_wave2_v1 source-ustec-vt31-wave2
       - name: Verify SHA256 and record source commit
         if: always()
         run: |
