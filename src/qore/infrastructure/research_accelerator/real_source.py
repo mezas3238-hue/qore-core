@@ -18,9 +18,9 @@ from hashlib import sha256
 from pathlib import Path
 from time import perf_counter
 from zipfile import ZipFile
+from typing import Any
 
 from qore.infrastructure.research_accelerator.asof import (
-    SideInput,
     asof_pair,
     load_side,
     pair_files,
@@ -28,7 +28,6 @@ from qore.infrastructure.research_accelerator.asof import (
 from qore.infrastructure.research_accelerator.core import (
     ResearchDataError,
     canonical,
-    digest,
     ingest,
     load_quotes,
     verify_lake,
@@ -60,7 +59,7 @@ def _get_verified_member(archive: ZipFile, name: str, expected_hash: str) -> byt
 
 def _read_and_check_zip(
     path: Path, expected_sha: str, planned_hours: int
-) -> tuple[ZipFile, dict[str, object]]:
+) -> tuple[ZipFile, dict[str, Any]]:
     if sha256(path.read_bytes()).hexdigest() != expected_sha:
         raise ResearchDataError("source ZIP SHA256 does not match the audited GitHub artifact")
     z = ZipFile(path)
@@ -226,7 +225,7 @@ def _stats(quote_csv: Path, manifest_file: Path) -> dict[str, object]:
 
 
 def process_sources(pilot: Path, wave: Path, *, report_file: Path) -> dict[str, object]:
-    reports = []
+    reports: list[dict[str, Any]] = []
     roots = (pilot, wave)
     with tempfile.TemporaryDirectory(prefix="qore-verified-dev-source-") as tmp:
         root = Path(tmp)
