@@ -12,7 +12,8 @@ import io
 import json
 import shutil
 import tempfile
-from datetime import UTC, datetime
+from bisect import bisect_right
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
@@ -27,6 +28,7 @@ from qore.infrastructure.research_accelerator.asof import (
     pair_files,
 )
 from qore.infrastructure.research_accelerator.core import (
+    Quote,
     ResearchDataError,
     canonical,
     ingest,
@@ -183,6 +185,39 @@ def _slow_reference(
     return tuple(result), counts
 
 
+def _binary_reference(
+    bids: tuple[tuple[datetime, object], ...],
+    asks: tuple[tuple[datetime, object], ...],
+    *,
+    max_staleness_ms: int,
+) -> tuple[tuple[Quote, ...], dict[str, int]]:
+    """Independent full-source binary-search oracle; no use of asof_pair."""
+    bid_times = tuple(t for t, _ in bids)
+    ask_times = tuple(t for t, _ in asks)
+    times = sorted(set(bid_times) | set(ask_times))
+    bound = timedelta(milliseconds=max_staleness_ms)
+    states: list[Quote] = []
+    quarantined = {"no_pair": 0, "stale": 0, "crossed": 0}
+    for at in times:
+        bi = bisect_right(bid_times, at) - 1
+        ai = bisect_right(ask_times, at) - 1
+        if bi < 0 or ai < 0:
+            quarantined["no_pair"] += 1
+            continue
+        tb, bid = bids[bi]
+        ta, ask = asks[ai]
+        if at - tb > bound or at - ta > bound:
+            quarantined["stale"] += 1
+            continue
+        if not isinstance(bid, Decimal) or not isinstance(ask, Decimal):
+            raise ResearchDataError("binary oracle requires Decimal source prices")
+        if bid > ask:
+            quarantined["crossed"] += 1
+            continue
+        states.append(Quote(at, bid, ask))
+    return tuple(states), quarantined
+
+
 def _parity_benchmark(
     bids: tuple[tuple[datetime, object], ...],
     asks: tuple[tuple[datetime, object], ...],
@@ -294,10 +329,23 @@ def process_sources(pilot: Path, wave: Path, *, report_file: Path) -> dict[str, 
                         DatasetManifest,
                     )
                     ingested = ingest(resultpath, resultmeta, lake)
+                    b = load_side(paths["BID"][0], SideInput.read(paths["BID"][1]))
+                    a = load_side(paths["ASK"][0], SideInput.read(paths["ASK"][1]))
                     if first_benchmark is None:
-                        b = load_side(paths["BID"][0], SideInput.read(paths["BID"][1]))
-                        a = load_side(paths["ASK"][0], SideInput.read(paths["ASK"][1]))
                         first_benchmark = _parity_benchmark(b, a)
+                    oracle_states, oracle_counts = _binary_reference(
+                        b, a, max_staleness_ms=MAX_STALENESS_MS,
+                    )
+                    observed_states = load_quotes(
+                        resultpath, DatasetManifest.read(resultmeta),
+                    )
+                    if (
+                        oracle_states != observed_states
+                        or oracle_counts != receipt["quarantined"]
+                    ):
+                        raise ResearchDataError(
+                            "FULL SOURCE PARITY FAILED: independent binary-search oracle"
+                        )
                     reports.append({
                         "source": name, "source_artifact_id": artifact_id,
                         "window": index, "day_ny": item["day_ny"],
@@ -309,6 +357,7 @@ def process_sources(pilot: Path, wave: Path, *, report_file: Path) -> dict[str, 
                         "quarantine": receipt["quarantined"],
                         "output_sha256": ingested["source_sha256"],
                         "source_quote_state_only": True,
+                        "full_binary_oracle_parity": "PASS_EXACT",
                         **_stats(resultpath, resultmeta),
                     })
                     if DatasetManifest.read(resultmeta).kind != "tick_bidask":
@@ -337,6 +386,7 @@ def process_sources(pilot: Path, wave: Path, *, report_file: Path) -> dict[str, 
             "quarantined_stale": sum(row["quarantine"]["stale"] for row in reports),
             "quarantined_crossed": sum(row["quarantine"]["crossed"] for row in reports),
             "reference_benchmark": first_benchmark,
+            "full_binary_oracle_parity": "PASS_30_OF_30_ALL_QUOTE_STATES",
             "windows": reports,
             "raw_ticks_embedded": False,
             "lake_verified_manifest_count": 30,
