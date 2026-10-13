@@ -1,0 +1,40 @@
+name: QORE Futures A M0 native commodity source gate - synthetic only
+
+on:
+  push:
+    branches:
+      - research/qore-commodity-futures-mission-a-data-contract-20261013
+    paths:
+      - 'docs/missions/QORE_FUTURES_A_M0_NATIVE_COMMODITY_CONTRACT_DATA_MISSION_2026-10-13.md'
+      - 'src/qore/infrastructure/trader_lab/qore_futures_a_m0_native_contract_source_gate_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_futures_a_m0_native_contract_source_gate_v1.py'
+      - '.github/workflows/qore-futures-a-m0-native-contract-source-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  strictly_synthetic_source_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify synthetic native futures and no-PnL provenance contract
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_futures_a_m0_native_contract_source_gate_v1.py -v
+      - name: Confirm no use of nonpublic data, licence claims or economic runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from qore.infrastructure.trader_lab import qore_futures_a_m0_native_contract_source_gate_v1 as g
+          assert len(g.ROOT_EXCHANGES)==6
+          assert g.RESEARCH_CUTOFF.isoformat()=='2024-09-17'
+          assert g.NO_LIVE and g.NO_ECONOMIC_PNL
+          print('QORE_FUTURES_A_M0_SYNTHETIC_CONTRACT_ONLY_NO_REAL_DATA_NO_PNL')
+          PY
