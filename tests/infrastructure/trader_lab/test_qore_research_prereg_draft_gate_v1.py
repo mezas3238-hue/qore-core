@@ -10,6 +10,8 @@ from unittest.mock import patch
 
 from qore.infrastructure.trader_lab import (
     qore_research_prereg_draft_gate_v1 as p,
+)
+from qore.infrastructure.trader_lab import (
     qore_research_zero_budget_intake_v1 as q,
 )
 
