@@ -231,3 +231,16 @@ Cada PR debe incluir contrato prereg, fuente inmutable y hash, scripts/tests, wo
 G0_SOURCE_33_PRESENT; E1_E2_E3_231_GROSS_NO_POSITIVE_REPLICATED_SUPPORT; G1_SHORT_NATIVE_BIDASK_SOURCE_VALIDATED_ONLY; G0_G1_12_PROVIDER_ID_AND_CURRENT_PRECISION_CONCORDANT_NOT_HISTORIC_CONTRACT; HISTORICAL_NET_BLOCKED; EXACT_HISTORIC_CONTRACT_0_OF_12; CERTIFIED_TRADERS_0_OF_3; HOLDOUT_FROM_2024_09_17_EMBARGOED; PRODUCTION_UNTOUCHED.
 
 **FIN DEL HANDOFF MAESTRO — siguiente arquitecto comenzar en los tickets [#837](https://github.com/mezas3238-hue/qore-core/issues/837), [#857](https://github.com/mezas3238-hue/qore-core/issues/857), [#856](https://github.com/mezas3238-hue/qore-core/issues/856) y [#863](https://github.com/mezas3238-hue/qore-core/issues/863) en el orden de dependencias indicado, nunca desde especulación de rentabilidad.**
+
+
+---
+
+## ADDENDUM DE GOBERNANZA — ADR CARRY CERRADO (2026-10-12, PR #893)
+
+**PRIORIDAD VIGENTE PARA NUEVOS ARQUITECTOS.** La línea de nuevos modelos de carry FX **no debe reabrirse por continuar las tareas técnicas del handoff**. La **[ADR-QN-2026-10-12-01 registrada en PR #893](https://github.com/mezas3238-hue/qore-core/pull/893)** documenta los resultados y la decisión de arquitectura: **opción C ahora** (registrar límites empíricos del panel y conservar infraestructura sin prometer un edge). Esta es la recomendación técnica de investigación; cualquier nuevo mandato A (cambiar a futuros/acciones) o B (flujos forzados con evento exógeno causal) requiere autorización explícita, datos apropiados y preregistro ANTES de PnL. Las tareas de custodia G0/G1, timestamp y precios reales de los tickets precedentes siguen siendo válidas como higiene de infraestructura, pero **NO autorizan volver a calibrar FX carry**.
+
+**Estados terminales precisos de carry:** H4 FX1M forward `BLOCKED_NOT_ECONOMICALLY_TESTED` (#883/#885); H5 `EXECUTED_NO_PROMOTION` (#887; DIAG Sharpe spot −0.175, interés política IDEALIZADO +0.313); H6 período 2010–2015 `SOURCE_GATE_BLOCKED` (#888; BIS JPY gap 32m y solo 27/56 probes Dukascopy verificadas); H6a `EXECUTED_NO_PROMOTION_EXPLORATORY` (#890; DIAG Sortino B ideal +0.807 pero IC95 media mensual [−0.2899%,+0.8191%] incluye cero, DEV ideal negativo; spot DIAG prácticamente cero). H6b 2010–2015 21 pares no-JPY `CLOSED_NOT_EXECUTED`; prohibido crear H6c para rescatar. **Solo H5 y H6a son pruebas económicas dentro de esta familia; no contar H4/H6 como falsaciones.**
+
+**Corrección técnica importante que debe heredar el siguiente arquitecto:** SE ilustrativo de Sharpe **ANUALIZADO** H6a ~sqrt(12/33)=0.603; el error 1/sqrt(33)=0.174 aplica aproximadamente al Sharpe **MENSUAL**. IC95 normal ilustrativo para 0.509 anual: ~[−0.67,+1.69], no [0.17,0.85]. Bootstrap por bloques de H6a confirma incertidumbre; no constituye independencia de la ventana usada en H5. Carry B incluye devengo política **HIPOTÉTICO, sin ingresos reales de broker**.
+
+**CONTRATO INALTERABLE:** 0/3 nuevos traders certificados; no leer económicamente 2024-09-17+, no MT5/VPS/Shared/CIBO/QDLE/LIVE; no reinterpretar el 0/3 como incapacidad universal de QORE. Evidencia, checksums y versiones del código en PRs #887/#888/#890 y ADR #893. Ninguna optimización o test nuevo de carry sobre los mismos datos por iniciativa del siguiente arquitecto.
