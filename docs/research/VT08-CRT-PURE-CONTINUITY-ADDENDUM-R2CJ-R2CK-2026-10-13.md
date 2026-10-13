@@ -85,3 +85,15 @@ AUDUSD 17 NY = **450/10y = 45/year**, positive after 0.02R in both older (190 tr
 6. Never use sizing/lot/volume/leverage/capital budgeting in VT08; CIBO/QORE Risk owns capital authority. No merge, VPS, DEMO, LIVE, production, FundedNext live or real capital.
 
 **New master continuation checkpoint:** this document + linked result files at the latest PR branch head. These are fully archived, reproducible, and read-only. Global trader **NOT CERTIFIED**.
+
+---
+
+## DIRECTIVA POSTERIOR DEL OWNER — 13-OCT-2026: CAMBIO DE MODO (MANDATO VIGENTE)
+
+**La lista cuantitativa de pendientes de este documento queda SUSPENDIDA por orden posterior del Owner.** El Owner ordenó no continuar investigando VT08 de forma cuantitativa y volver a la metodología original CRT y cognición. No lanzar nuevos PF/Sharpe/Sortino/Monte Carlo/optimización, filtros o barridos, WFO orientados a seleccionar reglas ni análisis cuantitativo de solapamientos propuestos al final de este addendum.
+
+**Nuevos documentos prioritarios:**
+- [DIRECTIVA DEL OWNER — REGRESO A CRT COGNITIVO](VT08-CRT-PURE-OWNER-QUALITATIVE-RETURN-DIRECTIVE-2026-10-13.md).
+- [CUADERNO 001 — MODELO #1, VELA POR VELA, REFERENCIA ANTIGUA Y COGNICIÓN](VT08-CRT-PURE-QUALITATIVE-MODEL1-COGNITIVE-RESEARCH-001.md).
+
+**Tarea activa:** validar la interpretación de fuente original, la secuencia H4→M15 Model #1, old-level ownership, Journey, falsadores y porqués de EXECUTE/WAIT/ABSTAIN en papel, sin ejecutar trades. Los números históricos de R2-CJ/CK permanecen archivados, pero no deciden la metodología. Certificación no adquirida. Sizing/lotaje/volumen/leverage/capital prohibidos en VT08; sin merge, VPS, DEMO, LIVE ni producción.
