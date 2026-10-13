@@ -12,7 +12,7 @@ import json
 import re
 import subprocess
 from datetime import date
-from typing import Any
+from typing import Any, NoReturn
 
 from qore.infrastructure.trader_lab.qore_research_zero_budget_intake_v1 import (
     ResearchIntakeError,
@@ -41,7 +41,7 @@ _FIELDS = frozenset((
 ))
 
 
-def _fail(message: str) -> None:
+def _fail(message: str) -> NoReturn:
     raise ResearchIntakeError("PREREG_" + message)
 
 
@@ -84,7 +84,7 @@ def _queue_index(ledger: dict[str, Any]) -> dict[str, dict[str, Any]]:
     if ledger.get("spent_usd") != 0 or ledger.get("estimated_traders_promoted") != 0:
         _fail("UNSAFE_QUEUE_STATE")
     entries = ledger.get("entries")
-    if type(entries) is not list or len(entries) < 2 or len(entries) > 22:
+    if not isinstance(entries, list) or len(entries) < 2 or len(entries) > 22:
         _fail("INVALID_QUEUE_ENTRIES")
     result: dict[str, dict[str, Any]] = {}
     for item in entries:
