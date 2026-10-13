@@ -202,6 +202,7 @@ def run_market(
     per_fold: list[dict[str, Any]] = []
     complete_executed: dict[str, list[Any]] = {arm: [] for arm in ARMS}
     pooled_transitions: dict[str, dict[str, float | int]] = {}
+    pooled_state_r: dict[str, dict[str, float | int]] = {}
     pooled_states: dict[str, Counter[str]] = defaultdict(Counter)
     pooled_reasons: Counter[str] = Counter()
     pooled_initial: Counter[str] = Counter()
@@ -234,6 +235,7 @@ def run_market(
         second: dict[str, Counter[str]] = {arm: Counter() for arm in ARMS}
         terminal: Counter[str] = Counter()
         transition_totals: dict[str, dict[str, float | int]] = {}
+        state_transition_r: dict[str, dict[str, float | int]] = {}
         state_counts: dict[str, Counter[str]] = defaultdict(Counter)
         viable = 0
 
@@ -294,20 +296,23 @@ def run_market(
                 f"{actions['CONTROL_ALL'].value}->{actions['STRICT_NESTED_WAIT_4Y'].value}"
             )
             state_counts[state_key]["count"] += 1
+            _attribution_add(
+                state_transition_r, transition=state_key, delayed_r=delayed_r
+            )
+            _attribution_add(
+                pooled_state_r, transition=state_key, delayed_r=delayed_r
+            )
             pooled_states[item.journey_state][nested_knowledge] += 1
             pooled_states[item.journey_state][transition] += 1
             pooled_states[item.journey_state]["viable"] += 1
             if cell is None:
                 pooled_states[item.journey_state]["unsupported"] += 1
-            if transition in ("CONTROL_ONLY_EXECUTE", "NESTED_ONLY_EXECUTE"):
-                _attribution_add(transition_totals, transition=transition, delayed_r=delayed_r)
-                _attribution_add(pooled_transitions, transition=transition, delayed_r=delayed_r)
-            elif transition == "BOTH_EXECUTE":
-                _attribution_add(transition_totals, transition=transition, delayed_r=delayed_r)
-                _attribution_add(pooled_transitions, transition=transition, delayed_r=delayed_r)
-            else:
-                _attribution_add(transition_totals, transition=transition, delayed_r=delayed_r)
-                _attribution_add(pooled_transitions, transition=transition, delayed_r=delayed_r)
+            _attribution_add(
+                transition_totals, transition=transition, delayed_r=delayed_r
+            )
+            _attribution_add(
+                pooled_transitions, transition=transition, delayed_r=delayed_r
+            )
 
         if sum(first.values()) != len(outer_oos):
             raise ValueError(f"{market} {year} initial actions not partitioned")
@@ -346,6 +351,7 @@ def run_market(
                 "strict_knowledge_action_state_counts": {
                     key: dict(values) for key, values in sorted(state_counts.items())
                 },
+                "retrospective_state_transition_R_not_a_rule": state_transition_r,
                 "gross_R_delta_nested_minus_control": round(delta, 8),
                 "reconciled_to_frozen_R2CF": True,
                 "capacity": _capacity(
@@ -397,6 +403,7 @@ def run_market(
         "terminal_wait_reasons": dict(pooled_reasons),
         "second_actions": {arm: dict(pooled_second[arm]) for arm in ARMS},
         "transition_attribution": pooled_transitions,
+        "retrospective_state_transition_R_not_a_rule": pooled_state_r,
         "journey_state_knowledge_transitions": {
             k: dict(v) for k, v in sorted(pooled_states.items())
         },
@@ -427,6 +434,7 @@ def main() -> None:
         k: result[k] for k in (
             "market", "capacity", "transition_attribution",
             "journey_state_knowledge_transitions", "focus_degradation_year",
+            "retrospective_state_transition_R_not_a_rule",
             "reproduction_all_folds_and_pooled",
         )
     }, sort_keys=True))
