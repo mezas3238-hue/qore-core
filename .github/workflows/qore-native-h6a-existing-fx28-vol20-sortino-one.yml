@@ -1,0 +1,84 @@
+name: QORE Native H6a existing 28FX 8 BIS vol20 Sortino crash one exploratory test
+
+on:
+  push:
+    branches:
+      - research/qore-native-h6a-existing-window-vol20-sortino-20261012
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_h6a_existing_fx28_policy_vol20_sortino_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_h6a_existing_fx28_policy_vol20_sortino_v1.py'
+      - 'docs/research/QORE_NATIVE_H6A_EXISTING_G0_FX28_VOL20_SORTINO_CRASH_PREREG_2026-10-12.md'
+      - '.github/workflows/qore-native-h6a-existing-fx28-vol20-sortino-one.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-native-h6a-exploratory-frozen-only
+  cancel-in-progress: false
+
+jobs:
+  synthetic_pre_economics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Ten frozen H6a causal global volatility and Sortino crash synthetic tests
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_native_h6a_existing_fx28_policy_vol20_sortino_v1.py -v
+
+  one_economic_execution:
+    needs: synthetic_pre_economics
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: src
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Execute one H6a original 28FX plus 8 BIS policies DEV/DIAG no holdout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.qore_native_h6a_existing_fx28_policy_vol20_sortino_v1 h6a-temporary-private-market-source h6a-economics-metadata
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('h6a-economics-metadata/H6A_FX28_BIS8_VOL20_SORTINO_CRASH_EXPLORATORY_RESULT.json').read_text())
+          assert d['identity']=='QORE_NATIVE_H6A_EXISTING_WINDOW_28FX_BIS_POLICY_VOL20_SORTINO_ONE_TEST_V1'
+          assert len(d['original_28_source_hash_witnesses'])==28
+          assert len(d['BIS_8_monthly_rate_hash_witnesses'])==8
+          assert all(x['source_sha_verified_11_annual_partitions'] for x in d['original_28_source_hash_witnesses'])
+          assert d['DIAG_IS_ALREADY_EXPOSED_ADAPTIVE_EXPLORATORY'] is True
+          assert d['ideal_policy_yield_is_not_broker_excess_return'] is True
+          assert d['holdout_2024_09_17_onward_opened'] is False
+          assert d['certified_traders']==0
+          for era in ('DEV','DIAG'):
+              x=d['performance'][era]
+              for label in ('spot_only_assumed_2bp','spot_plus_ideal_policy_accrual_not_broker_NET'):
+                  z=x[label]
+                  assert z['complete_or_partial_months_included']>12
+                  assert z['bootstrap_6_month_blocks']['repetitions']==10000
+                  assert z['bootstrap_12_month_blocks_sensitivity_only']['repetitions']==10000
+                  assert z['ES5pct_tail_month_count']>=1
+              assert x['monthly_rebalance_events']>0
+          print('H6A_EXPLORATORY_SINGLE_ECONOMIC_RUN_COMPLETE_ZERO_CERTIFICATION')
+          PY
+          printf '%s\n' "$GITHUB_SHA" > h6a-economics-metadata/exact-executed-code-sha.txt
+          (cd h6a-economics-metadata && sha256sum *.json *.txt > FINAL_SHA256SUMS.txt)
+      - name: Publish result stats and source hashes only, never underlying M5 or rates
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-H6a-exploratory-existing-FX28-vol20-${{ github.sha }}
+          path: h6a-economics-metadata/
+          retention-days: 30
+          if-no-files-found: error
