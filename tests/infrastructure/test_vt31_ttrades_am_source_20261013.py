@@ -97,7 +97,7 @@ def test_displacement_cannot_use_candle_under_test_in_prior_ATR() -> None:
 
 def test_no_fvg_after_sweep_and_displacement_is_not_a_candidate() -> None:
     z = positive_fixture()
-    z[10][2] = bar(62)
+    z[10][2] = bar(62, l=29985.)
     assert single_day("2025-07-01", z)[0] != "SOURCE_ONLY_CANDIDATE"
 
 
