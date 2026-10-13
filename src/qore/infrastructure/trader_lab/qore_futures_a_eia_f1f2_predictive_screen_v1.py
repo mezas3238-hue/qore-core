@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Any
 
 import xlrd
-from scipy.stats import fisher_exact
 
 SOURCES: dict[str, tuple[str, str]] = {
     "WTI_F1": (
@@ -147,6 +146,27 @@ def build_monthly_events(
     return events, reasons
 
 
+def one_sided_fisher_greater(
+    up_back: int, down_back: int, up_cont: int, down_cont: int
+) -> float:
+    """One-sided Fisher p for fixed margins, exact hypergeometric, stdlib only."""
+    row1 = up_back + down_back
+    total_up = up_back + up_cont
+    total_down = down_back + down_cont
+    total = row1 + up_cont + down_cont
+    if min(up_back, down_back, up_cont, down_cont) < 0 or total == 0:
+        raise ValueError("invalid Fisher 2x2")
+    denominator = math.comb(total, row1)
+    upper = min(row1, total_up)
+    return sum(
+        math.comb(total_up, successes)
+        * math.comb(total_down, row1 - successes)
+        / denominator
+        for successes in range(up_back, upper + 1)
+        if 0 <= row1 - successes <= total_down
+    )
+
+
 def summarize_window(
     events: list[DiagnosticEvent], *, start: int, end: int
 ) -> dict[str, Any]:
@@ -165,11 +185,7 @@ def summarize_window(
     decision = "INCONCLUSIVE_TOO_FEW_MONTHS"
     if enough:
         delta = up_back / len(backwardation) - up_cont / len(contango)
-        _, p_value = fisher_exact(
-            [[up_back, down_back], [up_cont, down_cont]],
-            alternative="greater",
-        )
-        p = float(p_value)
+        p = one_sided_fisher_greater(up_back, down_back, up_cont, down_cont)
         if delta <= 0:
             decision = "NO_POSITIVE_DIRECTION"
         elif delta >= MIN_DELTA and p <= P_THRESHOLD:
