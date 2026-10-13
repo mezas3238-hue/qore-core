@@ -122,6 +122,7 @@ def discover_single_ctrader_demo_account_id(
     access_token: str,
     refresh_token: str,
     timeout_seconds: float = 10.0,
+    allow_view_scope: bool = False,
 ) -> int:
     """Authenticate read-only and discover exactly one DEMO account from the token."""
 
@@ -133,6 +134,8 @@ def discover_single_ctrader_demo_account_id(
     ):
         if not isinstance(value, str) or not value:
             raise CTraderDemoAccountDiscoveryError(f"{name} must be a non-empty secret")
+    if type(allow_view_scope) is not bool:
+        raise CTraderDemoAccountDiscoveryError("allow_view_scope must be bool")
     if not isinstance(timeout_seconds, float) or timeout_seconds <= 0:
         raise CTraderDemoAccountDiscoveryError("timeout_seconds must be positive")
 
@@ -279,9 +282,10 @@ def discover_single_ctrader_demo_account_id(
             raise CTraderDemoAccountDiscoveryError(
                 "cTrader account-list authentication failed"
             )
-        if getattr(accounts_response, "permissionScope", None) != 1:
+        permitted = (0, 1) if allow_view_scope else (1,)
+        if getattr(accounts_response, "permissionScope", None) not in permitted:
             raise CTraderDemoAccountDiscoveryError(
-                "cTrader token does not carry trading permission"
+                "cTrader token does not carry the required permission scope"
             )
         entries = getattr(accounts_response, "ctidTraderAccount", None)
         if entries is None:
@@ -307,6 +311,7 @@ def main() -> None:
         refresh_token=_required_env(
             "QORE_CTRADER_REFRESH_TOKEN", "QORE_CTRADER_DEMO_REFRESH_TOKEN"
         ),
+        allow_view_scope=os.environ.get("QORE_VT31_READ_ONLY_SCOPE") == "true",
     )
     print(account_id)
 
