@@ -126,7 +126,7 @@ def test_market_rejects_out_of_order_and_non_m1() -> None:
     }
     with pytest.raises(ValueError, match="out-of-order"):
         collect_days([row, row], expected_m1=2)
-    with pytest.raises(ValueError, match="source count"):
+    with pytest.raises(ValueError, match="M1 count mismatch"):
         collect_days([row], expected_m1=2)
 
 
