@@ -17,8 +17,8 @@ from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
 from time import perf_counter
-from zipfile import ZipFile
 from typing import Any
+from zipfile import ZipFile
 
 from qore.infrastructure.research_accelerator.asof import (
     asof_pair,
