@@ -1,8 +1,8 @@
 """Six-root futures M0 source-contract tests: strictly synthetic, no licensed prices."""
 from __future__ import annotations
 
-import copy
 import unittest
+
 from qore.infrastructure.trader_lab import qore_futures_a_m0_native_contract_source_gate_v1 as gate
 
 FAKE_HASH="1"*64
@@ -115,7 +115,8 @@ class TestM0NativeContract(unittest.TestCase):
                 [leg("ZC",0),leg("ZC",1)],"2020-05-01T13:00:00Z")
 
     def test_bad_root_venue_is_not_proxied(self):
-        row=leg("ZC",0);row["venue"]="NYMEX"
+        row=leg("ZC",0)
+        row["venue"]="NYMEX"
         with self.assertRaisesRegex(ValueError,"ROOT_VENUE"):
             gate.validate_contract_row(row)
 
@@ -125,7 +126,8 @@ class TestM0NativeContract(unittest.TestCase):
                 [leg("HG",0),leg("HG",0)],"2020-04-21T13:30:00Z")
 
     def test_continuous_reference_not_native(self):
-        r=leg("CL",0);r["native_contract_id"]="CL_CONT_ADJUSTED"
+        r=leg("CL",0)
+        r["native_contract_id"]="CL_CONT_ADJUSTED"
         with self.assertRaisesRegex(ValueError,"CONTINUOUS_OR_ROOT"):
             gate.validate_contract_row(r)
 
@@ -140,18 +142,22 @@ class TestM0NativeContract(unittest.TestCase):
             gate.inspect_local_envelope(y)
 
     def test_cutoff_embargo_any_price_from_2024_09_17_rejected(self):
-        row=leg("GC",0);row["trade_date"]="2024-09-17"
+        row=leg("GC",0)
+        row["trade_date"]="2024-09-17"
         with self.assertRaisesRegex(ValueError,"HOLDOUT"):
             gate.validate_contract_row(row)
 
     def test_invalid_tick_multiplier_and_liquidity(self):
-        row=leg("GC",0);row["minimum_tick"]="0"
+        row=leg("GC",0)
+        row["minimum_tick"]="0"
         with self.assertRaisesRegex(ValueError,"DECIMAL_RANGE"):
             gate.validate_contract_row(row)
-        row=leg("GC",0);row["contract_multiplier"]="NaN"
+        row=leg("GC",0)
+        row["contract_multiplier"]="NaN"
         with self.assertRaisesRegex(ValueError,"DECIMAL_RANGE"):
             gate.validate_contract_row(row)
-        row=leg("GC",0);row["volume"]=0
+        row=leg("GC",0)
+        row["volume"]=0
         with self.assertRaisesRegex(ValueError,"UNTRADED_OR_ZERO"):
             gate.validate_two_pats_native_curve(
                 [row,leg("GC",1)],"2020-04-21T13:30:00Z")
@@ -162,7 +168,8 @@ class TestM0NativeContract(unittest.TestCase):
             gate.validate_dataset_manifest(m)
 
     def test_missing_month_series_cannot_get_cash_pnl(self):
-        x=leg("CL",0);x["settlement_value"]="9999999999999.99"
+        x=leg("CL",0)
+        x["settlement_value"]="9999999999999.99"
         self.assertTrue(gate.validate_contract_row(x).settle>0)
         # No return, no synthetic price differencing, no contract change PnL.
         self.assertNotIn("return",gate.validate_two_pats_native_curve(
