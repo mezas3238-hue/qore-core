@@ -81,6 +81,8 @@ jobs:
           assert p['edge_economic']=='NOT_IDENTIFIED'
           assert p['g3_signature_state']=='PENDING_DUAL_SIGNATURE'
           print('PRE-G3 G5 OBSERVATION:', p['status'])
+          print('BROKER INDEX-LIKE NAMES (UNVERIFIED EQUIVALENCE):',
+                p.get('related_enabled_broker_names_not_verified_equivalent', []))
           print('WARNING: job SUCCESS is software QA, not 3Y tick coverage or profitable edge')
           PY
           git rev-parse HEAD > output/probe-code-sha.txt
