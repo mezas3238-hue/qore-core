@@ -12,8 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab.qore_research_prereg_source_gate_v1 import (
-    ResearchIntakeError,
     freeze_prereg_manifest,
+)
+from qore.infrastructure.trader_lab.qore_research_zero_budget_intake_v1 import (
+    ResearchIntakeError,
 )
 
 PROPOSAL_PATH = "docs/research/QORE_RESEARCH_ZERO_BUDGET_PROPOSALS_2026-10-13.json"
