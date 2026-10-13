@@ -1,0 +1,58 @@
+name: QORE Futures A M0 zero-dollar free archive preflight
+
+on:
+  push:
+    branches:
+      - research/qore-commodity-futures-mission-a-data-contract-20261013
+    paths:
+      - '.github/scripts/qore_futures_a_m0_public_free_archive_preflight_v1.py'
+      - '.github/workflows/qore-futures-a-m0-free-archives-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public_free_archives_metadata_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Scan only FREE archives for public provenance and time coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/qore_futures_a_m0_public_free_archive_preflight_v1.py \
+            --out "$RUNNER_TEMP/QORE_FUTURES_A_M0_FREE_ARCHIVE_METADATA.json"
+      - name: Assert no raw licensed data uploaded or trading results asserted
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          obj=json.loads(
+              (Path(os.environ["RUNNER_TEMP"])/"QORE_FUTURES_A_M0_FREE_ARCHIVE_METADATA.json")
+              .read_text()
+          )
+          assert obj["monetary_spend_usd"]==0
+          assert not obj["has_authorized_2012_2024_6x2_native_contract_ohlcv"]
+          assert not obj["source_ready_for_prereg"]
+          assert not obj["backtests_or_sharpe_executed"]
+          assert not obj["holdout_touched"]
+          assert all(not p["raw_archive_retained_or_uploaded"] for p in obj["sources"])
+          print("FREE_PREFLIGHT_METADATA_ONLY_ZERO_DOLLARS_NO_MARKET_VALUES_NO_PNL")
+          PY
+      - name: Upload metadata report ONLY, never ZIP/CSV/XLSX
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-futures-a-m0-free-source-coverage-metadata-only
+          path: ${{ runner.temp }}/QORE_FUTURES_A_M0_FREE_ARCHIVE_METADATA.json
+          retention-days: 30
+          if-no-files-found: error
