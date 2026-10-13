@@ -9,10 +9,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -42,7 +41,8 @@ def _date(raw:Any,label:str)->date:
         d=date.fromisoformat(raw)
     except (ValueError,TypeError):
         _fail("BAD_DATE_"+label)
-    if d.isoformat()!=raw:_fail("DATE_NOT_ISO_"+label)
+    if d.isoformat()!=raw:
+        _fail("DATE_NOT_ISO_"+label)
     return d
 
 
@@ -182,7 +182,8 @@ def validate_contract_row(row:dict)->ContractObservation:
     # An exchange can define first notice after last trade for some cash-settled
     # contracts, but this M0 scope only accepts declared delivery-cutoff
     # semantics; others require separate exact contract terms.
-    if trade>lasttrade:_fail("TRADED_AFTER_LAST_TRADE")
+    if trade>lasttrade:
+        _fail("TRADED_AFTER_LAST_TRADE")
     settlement=_decimal(row["settlement_value"],"SETTLEMENT",allow_negative=True)
     mult=_decimal(row["contract_multiplier"],"MULTIPLIER",positive=True)
     tick=_decimal(row["minimum_tick"],"TICK",positive=True)
@@ -286,4 +287,5 @@ def main():
     print("FUTURES_A_M0_SCHEMA_ONLY_NO_PNL",json.dumps(report,sort_keys=True))
 
 
-if __name__=="__main__":main()
+if __name__=="__main__":
+    main()
