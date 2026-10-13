@@ -14,13 +14,13 @@ from pathlib import Path
 from typing import Any, cast
 
 from qore.infrastructure.trader_lab import (
+    vt08_crt_pure_r2bc_usdjpy_confirmation_geometry_atlas as r2bc,
+)
+from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2bh_audusd_entry_viability_wf as r2bh,
 )
 from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2by_audusd_cognitive_experience_wf as r2by,
-)
-from qore.infrastructure.trader_lab import (
-    vt08_crt_pure_r2bc_usdjpy_confirmation_geometry_atlas as r2bc,
 )
 from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2bz_usdjpy_cognitive_experience_wf as r2bz,
