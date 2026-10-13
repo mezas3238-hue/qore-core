@@ -94,8 +94,8 @@ ROW_KEYS={
     "root","venue","native_contract_id","expiration_month",
     "trade_date","settlement_value","settlement_published_at_utc",
     "volume","volume_published_at_utc","open_interest",
-    "open_interest_published_at_utc","first_notice_date",
-    "last_trade_date","contract_multiplier","minimum_tick",
+    "open_interest_published_at_utc","exchange_first_notice_date",
+    "risk_liquidation_cutoff_date","last_trade_date","contract_multiplier","minimum_tick",
     "source_row_sha256",
 }
 
@@ -145,6 +145,7 @@ class ContractObservation:
     publication_volume:datetime
     publication_oi:datetime
     cutoff:date
+    exchange_first_notice:date|None
     last_trade:date
     settle:Decimal
     multiplier:Decimal
@@ -175,13 +176,17 @@ def validate_contract_row(row:dict)->ContractObservation:
     trade=_date(row["trade_date"],"TRADE_DATE")
     if trade>=RESEARCH_CUTOFF:
         _fail("QORE_ORIGINAL_HOLDOUT_NOT_ALLOWED")
-    cutoff=_date(row["first_notice_date"],"FIRST_NOTICE")
+    cutoff=_date(row["risk_liquidation_cutoff_date"],"RISK_LIQUIDATION_CUTOFF")
+    first_notice=(None if row["exchange_first_notice_date"] is None
+                  else _date(row["exchange_first_notice_date"],"EXCHANGE_FIRST_NOTICE"))
     lasttrade=_date(row["last_trade_date"],"LAST_TRADE")
     if cutoff>lasttrade:
-        _fail("FIRST_NOTICE_AFTER_LAST_TRADE")
-    # An exchange can define first notice after last trade for some cash-settled
-    # contracts, but this M0 scope only accepts declared delivery-cutoff
-    # semantics; others require separate exact contract terms.
+        _fail("RISK_CUTOFF_AFTER_LAST_TRADE")
+    if first_notice is not None and cutoff>first_notice:
+        _fail("RISK_CUTOFF_AFTER_EXCHANGE_NOTICE")
+    # For CL and NG, exchange notice can occur AFTER last trade. Never demand
+    # first_notice <= last_trade: instead require an earlier broker-approved
+    # liquidation cutoff and independently retain optional exchange notice.
     if trade>lasttrade:
         _fail("TRADED_AFTER_LAST_TRADE")
     settlement=_decimal(row["settlement_value"],"SETTLEMENT",allow_negative=True)
@@ -198,7 +203,7 @@ def validate_contract_row(row:dict)->ContractObservation:
         publication_settle=_utc(row["settlement_published_at_utc"],"SETTLE"),
         publication_volume=_utc(row["volume_published_at_utc"],"VOLUME"),
         publication_oi=_utc(row["open_interest_published_at_utc"],"OI"),
-        cutoff=cutoff,last_trade=lasttrade,
+        cutoff=cutoff,exchange_first_notice=first_notice,last_trade=lasttrade,
         settle=settlement,multiplier=mult,min_tick=tick,volume=volume,oi=oi,
     )
 
