@@ -154,9 +154,14 @@ def test_indexed_screen_control_and_regime(tmp_path: Path) -> None:
     )
     assert result["signals_selected"] == 1
     horizons = result["horizons"]
-    assert horizons["15"]["n"] == 1
-    assert horizons["15"]["mean_bps"] > 0
-    assert "local_extreme" in result["controls"]
+    assert isinstance(horizons, dict)
+    horizon_15 = horizons["15"]
+    assert isinstance(horizon_15, dict)
+    assert horizon_15["n"] == 1
+    assert horizon_15["mean_bps"] > 0
+    controls = result["controls"]
+    assert isinstance(controls, dict)
+    assert "local_extreme" in controls
     assert isinstance(result["regime_diagnostics"], dict)
     paired = [(BASE, 2.), (BASE + timedelta(days=1), 5.)]
     assert day_block_interval(paired, draws=100, seed=42) == day_block_interval(
@@ -166,7 +171,10 @@ def test_indexed_screen_control_and_regime(tmp_path: Path) -> None:
 
 def test_memory_duplicate_chain_and_corruption(tmp_path: Path) -> None:
     ledger = tmp_path / "events.jsonl"
-    item = {"config_sha256": "a" * 64, "artifact_sha256": "b" * 64}
+    item: dict[str, object] = {
+        "config_sha256": "a" * 64,
+        "artifact_sha256": "b" * 64,
+    }
     one = register(ledger, item)
     assert len(read_ledger(ledger)) == 1
     assert len(str(one["chain_sha256"])) == 64

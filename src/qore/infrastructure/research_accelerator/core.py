@@ -10,7 +10,7 @@ import io
 import json
 import os
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from pathlib import Path
@@ -36,7 +36,8 @@ def checked_time(raw: str) -> datetime:
         dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError as exc:
         raise ResearchDataError("invalid ISO timestamp") from exc
-    if dt.tzinfo is None or dt.utcoffset() is None or dt.utcoffset().total_seconds() != 0:
+    offset = dt.utcoffset()
+    if dt.tzinfo is None or offset is None or offset != timedelta(0):
         raise ResearchDataError("timestamps must be explicit UTC; no local/DST guessing")
     return dt.astimezone(UTC)
 

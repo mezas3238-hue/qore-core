@@ -113,6 +113,14 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
+def _already_registered(registry: Path, config_sha: str) -> bool:
+    for entry in read_ledger(registry):
+        payload = entry.get("payload")
+        if isinstance(payload, dict) and payload.get("config_sha256") == config_sha:
+            return True
+    return False
+
+
 def main() -> int:
     args = parser().parse_args()
     if args.command == "ingest":
@@ -134,10 +142,7 @@ def main() -> int:
             "signals_sha": file_sha256(args.signals),
             "spec_sha": file_sha256(args.spec),
         })
-        if any(
-            x["payload"]["config_sha256"] == config_sha
-            for x in read_ledger(args.registry)
-        ):
+        if _already_registered(args.registry, config_sha):
             raise ResearchDataError("equivalent experiment already exists")
         result["binding_sha256"] = config_sha
         result["code_sha"] = args.code_sha
@@ -166,10 +171,7 @@ def main() -> int:
             "tick": str(args.tick_size), "slippage": str(args.slippage_ticks),
             "commission_in_price_points_per_side_per_unit": str(args.commission_points),
         })
-        if any(
-            x["payload"]["config_sha256"] == config_sha
-            for x in read_ledger(args.registry)
-        ):
+        if _already_registered(args.registry, config_sha):
             raise ResearchDataError("equivalent execution already exists")
         artifact = _write_once(args.out, {
             "schema": "qore.accelerator.execution.v1",
