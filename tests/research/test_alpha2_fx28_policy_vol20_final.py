@@ -16,13 +16,13 @@ from qore.research.alpha2_fx28_policy_vol20_final import (
     GLOBAL_ANNUAL_VOL_TARGET,
     HISTORY_END_EXCLUSIVE,
     RETAINED_HOLDOUT_START,
+    Day,
     evaluate,
     official_rate_history,
     original_native_daily,
     realized_vol_pre_entry,
 )
 from qore.research.alpha2_intermarket import Bar
-from qore.research.alpha2_tsmom_daily_weekly import Day
 
 
 def synthetic_market(start=date(2023, 10, 1), stop=date(2026, 9, 17)):
