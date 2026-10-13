@@ -485,3 +485,34 @@ El risk scaling apenas tocó 5/56 DIAG y 1/23 retained. **Marzo2025 −322,78bps
 **Formal `POLICY_VOL20_FINAL_SCREEN_FAILED_CLOSE_LINE`**: aunque DIAG Sharpe model +0,464 supera 0,4, el límite inferior del IC95 **−16,76bps** es negativo; held-back media positiva pero CI amplísimo con 0. Se cumplió sample gate en DEV/DIAG/retained. STOP definitivo de esta familia de policy carry y este panel estudiado; no ajustar target10, vol20→60/10, VIX, filtro de DD, diferente subuniverse ni años. El experimento original forward 1M sin quotes `CARRY_NOT_IDENTIFIABLE_SPOT_ONLY` permanece diferente e inconcluso. Esto no falsifica universalmente carry FX, solo estas dos variantes policy proxy con fuente ejecutable aún faltante.
 
 **QORE Alpha2 0 edge net / 0 UTC001 certified / 0 órdenes, PR #840 DRAFT, no merge a MAIN, no VPS/MT5/Shared/CIBO/QDLE/PAPER/LIVE**. Pendientes independientes #837 custodia legal privada de 728 MB antes de vencimiento Atlas2026-12-16, #852 BIDASK/swap financiación/broker PIT, #868 contrato original Atlas/ICMarkets y permiso de fuente forward (#886). El siguiente arquitecto debe continuar con decisión estratégica sin resucitar parametrizaciones fallidas en datos expuestos.
+
+
+---
+
+## Anexo X — FX28 Asia→Londres: nueva familia intradiaria, test ORIGINAL M5 económico definitivo FAIL
+
+**Trabajo real ejecutado, no solo propuesta.** Tras cerrar TSMOM, XSREV5, policy carry puro y VOL20 control sobre el panel consumido, el owner pidió avanzar. Se propuso un mecanismo DISTINTO nativo de FX (efecto de horarios/microestructura), **no** una extensión de carry, ni réplica metodológica de TTrades/ICT. Literatura científica sustenta variación intradiaria por mercado regional (Zhang 2018 doi:10.1016/j.frl.2018.02.017), **no** la rentabilidad de este breakout preciso.
+
+**Prerregistro antes de cualquier outcome intradiario** [Asia-London ONE FX28 PRE-FREEZE](QORE_ALPHA2_FX28_LONDON_ASIA_RANGE_EXPANSION_ONE_FROZEN_PREREG_2026-10-12.md), commit `b0133535d6adb89724b827e9151c4ab7a109c154`. Reglas fijas: 28FX originales (8 monedas K8), DST Europe/London local, **84 M5 completos 00:00–06:55** rango Asia (maxH/minL), **48 M5 completos 08:00–11:55**, primera ruptura por cierre de M5 08:00–09:45, entrada a OPEN de **t+10min** (señal bar cerró t+5, 5min extra de causalidad), salida CLOSE 11:55/12:00. Un trade por símbolo/día, sin stops/targets. Peso **1/28 fijo POR CADA PAR** ex-ante (no dividir por señales observadas), inactivos cash. Coste supuesto **2bps por lado** por par activo (4bps RT), stress 5bps/side. Sum weekly sobre calendar ISO London, cash0, **4wk synchronized circular bootstrap B2000 seed20261012**, desarrollo2016–21 vs diagnóstico2022–26, 2024–26 solo descriptivo ya visto en otros Alpha2. Nativo11y RAW+QUALITY SHA Original12 (7FX) + New21 (21FX) antes de OHLC. No BID/ASK ni broker USD NAV; QORE V1 no autorizado.
+
+**GitHub Actions original final [#38330184319](https://github.com/mezas3238-hue/qore-core/actions/runs/38330184319) SUCCESS**: code exact HEAD `b8488541db771cefce0591cccae3e618f711a569`, Ruff PASS, **8/8 synthetic M5/DST/lag/cash/static weight tests PASS**, verificación original 7 Atlas +21 ICMarkets con SHA11y PASS, 28FX 8 monedas, 2.563 días con al menos una señal, **52.255 señales de referencia en 2016–26** (28.172DEV+24.083DIAG), ningún trade en broker. Artefacto original **#11782641612** ZIP SHA256 **`43c4ced2dd1c36566b46696228790d9c12cb5ed95ecf67ff3565ed1a2c482b09`**, ZIP rehasheado independientemente PASS, CRC PASS, internos **2/2 SHA PASS**, archivo resultado JSON SHA256 `862c026265b4ccc289f309753908e63c49ddcc7cf811f22d1826586007ed512c`, code HEAD exact PASS. Exporta SOLO vector de rendimientos agregados por semana, no raw FX provider OHLC. Ver [**INFORME CIENTÍFICO INTEGRAL**](QORE_ALPHA2_FX28_LONDON_ASIA_RANGE_ONE_REAL_FINAL_2016_2026_2026-10-12.md).
+
+**Resultados REAL gross−assumed-cost, bps por calendario ISO semanal cash0:**
+
+| Prereg outcome | DEV2016-21 | DIAG2022-26 | Sept2024-Sept2026 ya expuesto |
+|---|---:|---:|---:|
+| semanas calendar/activas | **277/276** | **247/246** | **105/105** |
+| M5 trades reference | **28172** | **24083** | **10043** (dentro DIAG) |
+| GROSS mean sin costes bps/wk | **+0.46794** | **−0.32934** | **−1.66809** |
+| Menos 2bp por lado asumido bps/wk | **−14.06120** | **−14.25820** | **−15.33203** |
+| **CI95 4-week synced B2000 independent rebootstrap** | **[−15.90402,−12.33552]** | **[−16.79919,−11.75644]** | **[−18.29051,−12.38564]** |
+| stress5bp/side bps/wk | −35.85491 | −35.15149 | −35.82795 |
+| drawdown MODELO no NAV real | 32.4% | 29.7% | 14.9% |
+
+**Test estadístico severamente negativo:** CIs estrictamente por debajo de cero **en las tres eras**. Adecuado número de 52weeks DEV/DIAG PASS, no poder insuficiente. Incluso GROSS apenas +0,47bps/week en DEV y negativo en diagnóstico. Diferencia de coste alta por ~20 pares con ruptura al día y nominal fijo1/28; no se valida mecanismo concreto. CI, costo y 277+247+105 semanas fueron **recalculados independientemente** leyendo el ZIP oficial con Python, no solo aceptando el propio motor. Fuente sin PIT bidask, true fill, FX-normalization; no llamar NET. Nunca certificar Alpha2.
+
+**Incidencia reproducibilidad** primer Actions #38329353444 generó mismas medias económicas −14.0612/−14.2582 y luego falló por folder `policy-panel` (nombre de workflow residual), NO por datos ni señal. Se corrigió *solo ruta del output SHA* para corrida final (#38330184319), más publicación de vector agregado ISO semanal para auditoría independiente; no retune. La nueva corrida reprodujo exactamente las medias anteriores, artefacto SHA OK.
+
+**Dictamen irrevocable `SESSION_EXPANSION_PREDECLARED_SCREEN_FAILED_STOP`**. STOP ESTA RECETA en años 2016–2026. Prohibido optimizar fecha, rango de Asia, apertura Londres/NY, retraso t+10, stop, TP, filtro vol, weekday, EUR-only subset, excluir JPY, pesos según ganadores, coste cambiado, cherry-pick. Un fracaso no falsifica todos los patrones horarios FX ni TTrades; solo esta especificación predefinida. Históricos 2016–2026 YA CONSUMIDOS por investigaciones previas, no claim valid OOS. Issue [#891](https://github.com/mezas3238-hue/qore-core/issues/891) deja petición explícita de auditoría cruzada al segundo arquitecto.
+
+**Siguiente arquitecto:** no abrir más familias por reflejo. Preparar **decisión estratégica económica** entre acceso a otra familia de activos con fundamentos documentados (bonos/energía/agricultura/tipos), o un mecanismo completamente independiente con fuente/periodo prospectivo, pero **definir costo máximo, datos PIT y stop antes de nuevos PnL**. Paralelo urgente #837 archivar originales bajo licencia antes de expirar Atlas Dec16, #852 broker BIDASK/swaps/pit, #868 contrato y alias; estos son requisitos de fuente sin confundirlos con una nueva hipótesis rentable. **PR #840 DRAFT, 0 edges netos y 0 órdenes, no merge/MT5/VPS/CIBO/Shared/PAPER/LIVE**.
