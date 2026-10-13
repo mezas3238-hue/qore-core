@@ -156,3 +156,45 @@ cotizaciones cruzadas y descarta estados stale sin asumir cotización.
 Produce nuevo CSV quote-state y manifiesto verificables por el data lake.
 Esto NO equivale a ticks simultáneos ni broker ACK. Los raws cTrader
 PR #901 aún deben normalizarse, auditarse y persistirse privadamente.
+
+
+## Verificación adicional cerrada con datos REALES — 13-Oct-2026
+
+- 30 horas fuente histórica real IC Markets cTrader DEMO USTEC, 10 días
+  de desarrollo, sin holdout. Fuente pilot6/wave24 recuperada desde
+  Actions y cotejada contra ZIP-SHA256 y SHA256SUMS por archivo.
+- src/qore/infrastructure/research_accelerator/real_source.py
+  ya funciona sobre ambos ZIPs sin API externa, con paridad native
+  integer x1e5, UTC, DST, recuentos source, normalización causal as-of
+  y cuarentena 250ms. Reingesta/verifica 30 manifests en un Data Lake
+  temporal. Elimina fuente cruda del workspace y sube solo un reporte
+  agregado SHA firmado.
+- GitHub Actions SUCCESS:
+  https://github.com/mezas3238-hue/qore-core/actions/runs/38425782083
+- Valores reproducibles: BID=241538, ASK=241565,
+  origen total=483103, estados as-of aceptados=240550,
+  stale descartados=2004, crossed aceptados=0.
+- Comparación independiente de 1500 ticks por lado: paridad exacta PASS;
+  aceleración medida ~32.26x en join de cotizaciones solamente,
+  no sobre 3 años ni sobre backtest completo del Trader.
+- Resultado completo y runbook:
+  docs/research/QORE_ACCELERATOR_REAL_CTRADER_30H_AUDIT_RESULT_2026-10-13.md.
+- Corrección adicional: el simulador LIMIT nunca paga más del límite
+  de compra ni recibe menos del límite de venta cuando slippage
+  adverso excede el margen. Incluye pruebas de ambos lados.
+
+### Pendientes NO resueltos, no confundir con implementación base
+
+P0: homologar USTEC cTrader versus NAS100 fuente M1 del Trader,
+licencia de datos y almacenamiento durable privado antes de expirar
+artefactos, y cobertura BID/ASK multianual representativa.
+P1: validar reproducibilidad científica end-to-end de runners de
+hipótesis reales frente a un baseline lento (benchmark actual solo
+mide as-of). Probar edge neto, spread/commission/slippage y controles
+condicionales únicamente tras preregistro, holdout intacto, permisos
+de autoridad y especificación completa.
+
+Estos límites no invalidan que las cinco capas del Research
+Accelerator son código ejecutable y que la fuente real parcial está
+validada; impiden afirmar que el trader tiene edge o que la adquisición
+histórica completa ha finalizado.
