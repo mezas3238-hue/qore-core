@@ -6,6 +6,7 @@ import hashlib
 import json
 import unittest
 from dataclasses import replace
+from typing import Any, cast
 
 from qore.infrastructure.trader_lab import qore_research_zero_budget_intake_v1 as q
 
@@ -128,7 +129,7 @@ class TestQoreZeroBudgetResearchIntake(unittest.TestCase):
         ):
             with self.subTest(attribute=attr):
                 with self.assertRaisesRegex(ValueError, "FALSE_SOURCE_OR_PROMOTION"):
-                    replace(item, **{attr: True})
+                    cast(Any, replace)(item, **{attr: True})
 
     def test_budget_must_remain_zero(self) -> None:
         with self.assertRaisesRegex(ValueError, "MARKET_DATA_BUDGET_NOT_ZERO"):
@@ -191,15 +192,21 @@ class TestQoreZeroBudgetResearchIntake(unittest.TestCase):
 
     def test_duplicate_proposal_is_rejected(self) -> None:
         base = q.build_source_first_queue(_synthetic_cf11_closed_plan())
-        params = {
-            "code": "research.proposal.new-mechanism-a",
-            "question_code": "research.question.regime-conditional-seasonality",
-            "data_requirement_code": "cme.native-delivery-contract-d1",
-            "research_root_count": 6,
-        }
-        expanded = q.register_unfrozen_proposal(base, **params)
+        expanded = q.register_unfrozen_proposal(
+            base,
+            code="research.proposal.new-mechanism-a",
+            question_code="research.question.regime-conditional-seasonality",
+            data_requirement_code="cme.native-delivery-contract-d1",
+            research_root_count=6,
+        )
         with self.assertRaisesRegex(ValueError, "DUPLICATE_PROPOSAL"):
-            q.register_unfrozen_proposal(expanded, **params)
+            q.register_unfrozen_proposal(
+                expanded,
+                code="research.proposal.new-mechanism-a",
+                question_code="research.question.regime-conditional-seasonality",
+                data_requirement_code="cme.native-delivery-contract-d1",
+                research_root_count=6,
+            )
 
     def test_reopening_original_eia_as_new_proposal_rejected(self) -> None:
         base = q.build_source_first_queue(_synthetic_cf11_closed_plan())
