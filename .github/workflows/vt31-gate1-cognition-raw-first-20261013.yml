@@ -1,0 +1,90 @@
+name: VT31 Gate1 COG+OPS vs earliest raw FVG (NO FILLS)
+on:
+  push:
+    branches:
+      - agent/vt31-cognition-vs-raw-first-control-20261013
+    paths:
+      - scripts/vt31_gate1_cogops_vs_raw_first_fvg_20261013.py
+      - tests/infrastructure/test_vt31_gate1_cogops_raw_control_20261013.py
+      - docs/research/VT31_GATE1_COGNITION_RAW_FIRST_PREREG_20261013.md
+      - docs/research/VT31_GATE1_COGNITION_RAW_FIRST_RESULT_20261013.md
+      - .github/workflows/vt31-gate1-cognition-raw-first-20261013.yml
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_ARTIFACT: "11459859004"
+  ORIGINAL_APPROVED_ARTIFACT: "11657461650"
+  MARKET_SHA: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+jobs:
+  frozen-m1-gate1-joint-selection-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Confirm prereg chronological and run adversarial tests
+        run: |
+          set -euo pipefail
+          git cat-file -t c7822542fd6d2d734cc511db25466d4d6bb604c4
+          git merge-base --is-ancestor c7822542fd6d2d734cc511db25466d4d6bb604c4 HEAD
+          python -m pip install "ijson>=3.3,<4" "pytest>=8,<10" "ruff>=0.5,<1"
+          python -m py_compile scripts/vt31_gate1_cogops_vs_raw_first_fvg_20261013.py \
+            tests/infrastructure/test_vt31_gate1_cogops_raw_control_20261013.py
+          ruff check scripts/vt31_gate1_cogops_vs_raw_first_fvg_20261013.py \
+            tests/infrastructure/test_vt31_gate1_cogops_raw_control_20261013.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_gate1_cogops_raw_control_20261013.py
+      - name: Restore original source and frozen COG plus OPS event ledger
+        run: |
+          set -euo pipefail
+          mkdir -p input/m1 input/ledger result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${MARKET_ARTIFACT}/zip" > market.zip
+          unzip -q market.zip -d input/m1
+          test -s input/m1/NAS100/market-evidence.json
+          echo "${MARKET_SHA}  input/m1/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ORIGINAL_APPROVED_ARTIFACT}/zip" > ledger.zip
+          unzip -q ledger.zip -d input/ledger
+          test -s input/ledger/vt31-ict-cleanroom-3y-m1-offer-ledger.json
+      - name: Execute first-raw vs cognition plus OPS selected same-hour control
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_gate1_cogops_vs_raw_first_fvg_20261013.py \
+            --market input/m1/NAS100/market-evidence.json \
+            --ledger input/ledger/vt31-ict-cleanroom-3y-m1-offer-ledger.json \
+            --out result/gate1-raw-control.json \
+            | tee result/gate1-summary.json
+      - name: Preserve denominator no fills and scientific boundary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("result/gate1-raw-control.json"))
+          assert p["pre_registration_commit"]=="c7822542fd6d2d734cc511db25466d4d6bb604c4"
+          assert p["market_M1_SHA256"]=="0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+          assert p["complete_ict_windows"]==2286
+          assert p["COG_plus_OPS_selected_windows"]==2140
+          assert p["NO_COG_ONLY_ABLATION"] is True
+          assert p["broker_fills_bid_ask_oms"]==0
+          assert p["economic_profit_factor_drawdown"] is None
+          assert p["15m_gross_not_executable_PnL"] is True
+          assert p["fresh_holdout_opened"] is False
+          assert p["LIVE_or_VPS_authority"] is False
+          assert p["paired_approved_minus_first_raw_first_window"]["n"]<=2140
+          print("VT31 GATE1: JOINT COG+OPS ONLY",p["decision"])
+          PY
+          git rev-parse HEAD > result/code-head-sha.txt
+          printf '%s\n' "NO_EDGE_PROOF_NO_COG_ONLY_NO_FILL_NO_OOS" > result/scope.txt
+          (cd result && sha256sum *.txt *.json > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-gate1-joint-cognition-selection-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
