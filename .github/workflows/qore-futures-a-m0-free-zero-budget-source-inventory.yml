@@ -67,6 +67,16 @@ jobs:
 
           def detect_dates(line):
               values = []
+              # Original TurtleTrader CD files encode daily dates as YYMMDD.
+              first = re.match(rb"^\s*([0-9]{6})[,;]", line)
+              if first:
+                  raw = first.group(1).decode("ascii")
+                  yy = int(raw[:2])
+                  year = 2000 + yy if yy <= 30 else 1900 + yy
+                  try:
+                      values.append(date(year, int(raw[2:4]), int(raw[4:6])))
+                  except ValueError:
+                      pass
               for match in date8.findall(line[:140]):
                   text = match.decode("ascii")
                   try:
@@ -148,6 +158,11 @@ jobs:
                           by_date_max.isoformat() if by_date_max else None
                       )
                       entry["text_rows_containing_date"] = dates_found
+                      entry["data_covers_2012_through_2024"] = bool(
+                          by_date_min and by_date_max
+                          and by_date_min <= date(2012, 1, 1)
+                          and by_date_max >= date(2024, 9, 16)
+                      )
                       entry["text_members_with_date"] = member_date_coverage
                       entry["members_explicitly_separate_contracts_verified"] = False
                       entry["2012_2024_contract_level_eligible_coverage_proved"] = False
