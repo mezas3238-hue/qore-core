@@ -1,5 +1,7 @@
 # VT08 CRT PURE — MASTER HANDOFF 2026-10-13
 
+> **ACTUALIZACIÓN DE GOBERNANZA — 13-OCT-2026 (PREVALECE SOBRE EL PLAN DE ESTE HANDOFF):** el Owner ordenó **suspender nuevas investigaciones cuantitativas** de VT08 y **volver a la investigación CRT metodológica, de fuentes y cognitiva, vela por vela**. Todas las instrucciones antiguas de ejecutar PF/WFO/Monte Carlo/optimización o nuevos ensayos cuantitativos se consideran **en pausa hasta nueva orden**. Leer primero [directiva Owner vigente](VT08-CRT-PURE-OWNER-QUALITATIVE-RETURN-DIRECTIVE-2026-10-13.md) y [primer cuaderno CRT Model #1 cognitivo](VT08-CRT-PURE-QUALITATIVE-MODEL1-COGNITIVE-RESEARCH-001.md). El resto del handoff conserva sus resultados históricos, NO son tareas activas. No merge/LIVE/producción/sizing/volumen.
+
 **Repository:** `mezas3238-hue/qore-core`  
 **PR:** #626 — `[DRAFT] VT08 CRT PURE — source identity + hybrid cognitive foundation`  
 **Branch:** `agent/vt08-crt-pure-source-identity-001`  
