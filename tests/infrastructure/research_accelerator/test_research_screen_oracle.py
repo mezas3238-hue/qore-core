@@ -95,6 +95,13 @@ def _fixture() -> tuple[tuple[BidBar, ...], tuple[Signal, ...], ExperimentSpec]:
             match.close,
             {"ob": float(index % 10) / 10},
         ))
+    # Last-session signal has a 1-minute witness but no 60-minute witness.
+    late = bars[-5]
+    signals.append(Signal(
+        "truncated_forward", late.closed_at,
+        late.closed_at - timedelta(minutes=1),
+        "long", late.close, {"ob": .8},
+    ))
     # Timestamp with no price witness, diagnostic unmatched not fabricated.
     missing_clock = start + timedelta(days=20)
     signals.append(Signal(
