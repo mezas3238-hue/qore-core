@@ -25,9 +25,9 @@ from qore.infrastructure.trader_lab.lifecycle import TraderLabState
 from qore.infrastructure.trader_lab.qore_eia_research_science_handoff_v1 import (
     PREREG_COMMIT,
     RESULT_RUN_COMMIT,
+    SOURCE_SHA,
     ResearchHandoffError,
     ScientificHandoffReceipt,
-    SOURCE_SHA,
     build_handoff_receipt,
 )
 
