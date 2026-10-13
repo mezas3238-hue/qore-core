@@ -276,7 +276,9 @@ class ResearchIntakeLedger:
             "eia_fresh_holdout_opened": False,
             "economic_replay_performed": False,
             "production_execution_enabled": False,
-            "new_hypotheses_registered": 0,
+            "new_hypotheses_registered": sum(
+                e.status is IntakeStatus.PROPOSAL_ONLY for e in self.entries
+            ),
             "entries": entries,
         }
         canonical = json.dumps(core, sort_keys=True, separators=(",", ":"), allow_nan=False)
