@@ -17,6 +17,9 @@ from statistics import median
 
 from .cognitive_telemetry import CognitiveTelemetry
 from .contracts import (
+    G3_MSS_FRAMEWORK_POLICY,
+    LEGACY_FRAMEWORK_POLICY,
+    FRAMEWORK_POLICIES,
     MIN_INDEX_POINTS,
     NEW_YORK,
     CognitiveDecision,
@@ -486,7 +489,11 @@ class VT31CleanroomCognition:
     def __init__(
         self, *, max_m1_history: int = 22000,
         telemetry: CognitiveTelemetry | None = None,
+        framework_policy: str = LEGACY_FRAMEWORK_POLICY,
     ) -> None:
+        if framework_policy not in FRAMEWORK_POLICIES:
+            raise ValueError("unsupported COG 10-point framework policy")
+        self.framework_policy = framework_policy
         if max_m1_history < 1440:
             raise ValueError("require enough history for prior session context")
         self._history: deque[M1Bar] = deque(maxlen=max_m1_history)
@@ -600,6 +607,15 @@ class VT31CleanroomCognition:
         decision: CognitiveDecision | None = None
         if not missing and shift is not None:
             last = self._history[-1]
+            # This branch runs on a freshly confirmed MSS. In legacy,
+            # last.close was coincidentally the MSS close; record and pin
+            # that fact explicitly in G3 so a later C3 cannot replace it.
+            mss_anchor = last.close
+            if (
+                self.framework_policy == G3_MSS_FRAMEWORK_POLICY
+                and utc(last.closed_at) != utc(shift.break_confirmed_at)
+            ):
+                raise ValueError("MSS witness must be latest closed M1 at shift")
             # A market-origin draw must be a confirmed *future destination*
             # in the breakout direction, not whichever past level eventually
             # paid out after the trade ended.
@@ -608,9 +624,9 @@ class VT31CleanroomCognition:
                     p for p in pools
                     if p.side is shift.side
                     and (
-                        p.level >= last.close + MIN_INDEX_POINTS
+                        p.level >= mss_anchor + MIN_INDEX_POINTS
                         if shift.side is Side.LONG
-                        else p.level <= last.close - MIN_INDEX_POINTS
+                        else p.level <= mss_anchor - MIN_INDEX_POINTS
                     )
                 ),
                 key=lambda p: (
@@ -635,7 +651,17 @@ class VT31CleanroomCognition:
                         f"MSS_PIVOT_CONFIRMED|"
                         f"BODY_1P25X_MEDIAN5|HTF_{','.join(verified)}"
                     ),
-                    cognitive_version=VERSION,
+                    cognitive_version=(
+                        "VT31_G3_MSS_ANCHOR_COG_PROPOSED_V1"
+                        if self.framework_policy == G3_MSS_FRAMEWORK_POLICY
+                        else VERSION
+                    ),
+                    mss_anchor_close=(
+                        mss_anchor
+                        if self.framework_policy == G3_MSS_FRAMEWORK_POLICY
+                        else None
+                    ),
+                    framework_policy=self.framework_policy,
                 )
                 self._active_m1_mss[source_day_key] = decision
             else:
