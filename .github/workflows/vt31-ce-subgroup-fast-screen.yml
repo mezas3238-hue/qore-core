@@ -1,0 +1,88 @@
+name: VT31 urgent frozen old CE subgroup direction screen (EXPLORATORY NO FILL)
+on:
+  push:
+    branches:
+      - agent/vt31-rapid-ce-subgroup-screen-20261013
+    paths:
+      - scripts/vt31_ce_touch_subgroup_decision_20261013.py
+      - tests/infrastructure/test_vt31_ce_touch_subgroup_decision_20261013.py
+      - .github/workflows/vt31-ce-subgroup-fast-screen.yml
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  ORIGINAL_M1_ARTIFACT: "11459859004"
+  ORIGINAL_EVENTS_ARTIFACT: "11657461650"
+  ORIGINAL_M1_SHA: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+jobs:
+  single-posthoc-subgroup-not-v1-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install study-only dependencies, lint and adversarial regression
+        run: |
+          set -euo pipefail
+          python -m pip install "ijson>=3.3,<4" "pytest>=8,<10" "ruff>=0.5,<1"
+          python -m py_compile \
+            scripts/vt31_ce_touch_subgroup_decision_20261013.py \
+            tests/infrastructure/test_vt31_ce_touch_subgroup_decision_20261013.py
+          ruff check \
+            scripts/vt31_ce_touch_subgroup_decision_20261013.py \
+            tests/infrastructure/test_vt31_ce_touch_subgroup_decision_20261013.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_ce_touch_subgroup_decision_20261013.py
+          PYTHONPATH=src:. python scripts/vt31_ce_touch_subgroup_decision_20261013.py --self-test
+      - name: Restore frozen historical development M1 and original 2140 offers
+        run: |
+          set -euo pipefail
+          mkdir -p input/m1 input/events result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ORIGINAL_M1_ARTIFACT}/zip" > market.zip
+          unzip -q market.zip -d input/m1
+          test -s input/m1/NAS100/market-evidence.json
+          echo "${ORIGINAL_M1_SHA}  input/m1/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ORIGINAL_EVENTS_ARTIFACT}/zip" > events.zip
+          unzip -q events.zip -d input/events
+          test -s input/events/vt31-ict-cleanroom-3y-m1-offer-ledger.json
+      - name: ONE exploratory old-source 15m CE-touch subgroup screen, no fills/PnL
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_ce_touch_subgroup_decision_20261013.py \
+            --market input/m1/NAS100/market-evidence.json \
+            --ledger input/events/vt31-ict-cleanroom-3y-m1-offer-ledger.json \
+            --out result/ce-subgroup-exploratory.json \
+            | tee result/ce-subgroup-summary.json
+      - name: Check source invariants and archive scientific decision without V1 claims
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("result/ce-subgroup-exploratory.json"))
+          assert p["old_candidate_count_NOT_V1"]==2140
+          assert p["all_signals_original_15m_from_next_open"]["n"]==2140
+          assert abs(p["all_signals_original_15m_from_next_open"]["mean_gross_pts"]+1.919664)<0.00002
+          assert p["gross_directional_results_NOT_CE_limit_trade_returns"] is True
+          assert p["G3_current_state"]=="PENDING_DUAL_SIGNATURE"
+          assert p["G3_code_sha"]=="78d4cdac0e09d1a6eef37b99c505ffc5098031fc"
+          assert p["G3_doc_sha"]=="a446afa17ed6e411b8f0b6fc182b103a78959a97"
+          assert p["economic_pf_drawdown_proven"] is False
+          assert p["go_live_or_certify"] is False
+          assert p["further_unapproved_G6_spending"]=="NO_GO"
+          assert p["holdout_opened"] is False
+          assert p["main_or_vps_modified"] is False
+          print("VT31 STOP/GO: subgroups exploratory only, 0 broker execution, no certificacion")
+          PY
+          git rev-parse HEAD > result/code-sha.txt
+          echo "ORIGINAL_DEVELOPMENT_ONLY_NO_V1_NO_PF_NO_HOLDOUT" > result/decision-scope.txt
+          (cd result && sha256sum *.txt *.json > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-rapid-ce-subgroup-${{ github.sha }}
+          path: result/
+          retention-days: 90
+          if-no-files-found: error
