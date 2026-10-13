@@ -6,6 +6,7 @@ on:
       - agent/vt31-g5-free-ctrader-tick-availability-20261013
     paths:
       - src/qore/infrastructure/ctrader_open_api_client.py
+      - src/qore/infrastructure/ctrader_demo_account_discovery.py
       - scripts/vt31_ctrader_nas100_tick_availability_probe.py
       - tests/infrastructure/test_vt31_ctrader_nas100_tick_availability_probe.py
       - .github/workflows/vt31-ctrader-nas100-tick-availability.yml
@@ -20,6 +21,7 @@ env:
   QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
   QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
   QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_VT31_READ_ONLY_SCOPE: "true"
   QORE_VT31_CTRADER_SYMBOL: ${{ vars.QORE_VT31_CTRADER_SYMBOL || 'NAS100' }}
 
 jobs:
