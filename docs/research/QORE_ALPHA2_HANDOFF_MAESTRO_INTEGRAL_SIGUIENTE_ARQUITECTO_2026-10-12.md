@@ -450,3 +450,38 @@ W1 PATR/W2 PADE = **`INCONCLUSIVE_UNDERPOWERED`**, no falsación. W3 CMTRL = **`
 **Concentración efectiva de moneda**: 28 pares FX = 8 monedas y ≤7 factores de rates. DEV media absoluta CHF **0,4194**, NZD **0,2903**; DIAG JPY **0,3411**, NZD **0,3255** (fraction total gross notional1); máximos mensuales por moneda **0,5833 DEV, 0,5000 DIAG**. No diversificación nominal de 28 contratos independientes. Retorno sintético en quote/base no USD portfolio NAV.
 
 **La prioridad siguiente NO es infraestructura interminable:** el mecanismo policy-rate carry concreto fue realmente probado y no dio edge bajo gate preinscrito. Mantener resultados y buscar decisiones estratégicas informadas. Futuro test verdadero forward requiere fuente `F1M` histórica y nuevos controles, *no rebrand del policy test*. No diluir tiempo en otro parámetro de estas familias sobre años gastados. Issue #886 lleva todo el cruce con segundo arquitecto, y #837 archivo original, #852 PIT broker spread, #868 identidad son tareas de calidad independientes. PR #840 DRAFT, 0 Alpha2 certificado, 0 órdenes, NO VPS/MT5/PAPER/LIVE/CIBO/Shared/QDLE.
+
+
+---
+
+## Anexo IX — Último carry FX28 VOL20: resultados 2016–2026 y stop
+
+**Solicitud del owner**: no pivotar todavía; una última hipótesis **carry FX con control de volatilidad realizada 20 sesiones** y diagnóstico extendido hasta 2026 para detectar si la prima puede sobrevivir riesgos de crash. El dueño observó accrual teórico positivo durante desarrollo+diag y Sharpe modelo +0,26 previo; advertencia: accrual positivo por ranking de policy rates es **en gran medida mecánico**, spot negativo no prueba causalidad de crashes. Menkhoff et al 2012 ligan FX carry a **sorpresas** de volatilidad, no certifican filtro 1/vol20; es hipótesis nueva preregistrada y evaluada.
+
+**PRE-OUTCOME freeze** [prereg VOL20 FX28](QORE_ALPHA2_FX28_POLICY_CARRY_VOL20_SINGLE_LAST_PREREG_2026-10-12.md) commit `9c51aa509040ebbd470a9c59d525d86760922c1b`, **antes de leer OHLC 2024-09..2026-09 de Alpha2**; nunca llamar 2016–2024 independente, ni "2024–26 virgin OOS" globalmente (otros sistemas QORE). 28 FX K8, mismos 8 policy rates BIS EOM premonth con 15d lag y long top6/short low6 w±1/12, 2bps supuesto por lado (4bps portfolio por mes). Un único escalado: `sigma_global_ann=sqrt(mean(stdev_i(log close/closeprev last20 closed common sessions)^2))*sqrt252`, **`s=min(1,0.10/sigma)`** reduce exposición y coste 4×s, NUNCA apalanca. DEV2016–21, DIAG2022–26 y **Oct2024–Aug2026** previamente embargado para Alpha2, 3month block bootstrap B2000, 24/24/12 months sample gate; PASS exigir media DIAG>0 y CI95 lower>0, Sharpe modelo DIAG>0.4, tramo retenido mean>0, sin variantes después de outcome.
+
+**Ejecución real exacta** [GitHub Actions **#38326753172**](https://github.com/mezas3238-hue/qore-core/actions/runs/38326753172), SUCCESS code HEAD `9ad87183b797087cf713cdc4a58a5867b0b2d28e`; Ruff PASS **6/6 synthetic**, original 7 Atlas+21 ICMarkets SHA11y RAW/QUALITY verified BEFORE sources, 8 BIS policy monthly history, **2604** common source UTC weekdays, 117/117 monthly portfolio observations, 0 órdenes. El Day legacy de los tests cerrados en 2024 conserva embargo: solo la nueva clase validada con límite exclusivo 2026-09-17 permite la extensión fuente. No se subieron OHLC ni rates históricos.
+
+**Artifact firmado** #11781920651 ZIP SHA256 `12ebdb395acc8180c8c36e0a2126aa299f14d118b5150a7cb9e94b2f85b6c0f5`, original re-download, ZIP and internal 2 SHA checked PASS, 117/117 rows check 6x6/cost weighted/scale positive<=1 PASS. **Auditoría independiente de continuidad: 93/93 meses compartidos contra el test original puro (#11780900569) reproducen exactamente LONG/SHORT, fechas, spot PnL, tasa accrued y total gross−cost con 0 divergencias; la única ausencia Oct2016 es warmup 20-day 21 cierres anteriores según prereg**, no omisión posthoc.
+
+[INFORME CIENTÍFICO DEFINITIVO](QORE_ALPHA2_FX28_POLICY_CARRY_VOL20_FINAL_2016_2026_REAL_RESULT_2026-10-12.md):
+
+| Renta ficticia mensual después del costo supuesto | DEV 2016–21 | DIAG 2022–26 | Tramo Alpha2 retenido Oct2024–Aug2026 |
+|---|---:|---:|---:|
+| N portfolios / calendar months | **61/64** | **56/56** | **23/23** |
+| Pure policy carry matched baseline bps/month | −3,70143 | +16,12516 | +14,56813 |
+| **VOL20 filtered bps/month** | **−4,51227** | **+15,94242** | **+11,96571** |
+| Paired filtered−pure bps/month | **−0,81084** | **−0,18274** | **−2,60242** |
+| **3mo block CI95 filtered** | **[−29,47708,+20,24788]** | **[−16,76352,+45,16249]** | **[−39,06059,+49,83848]** |
+| 3mo paired CI95 | [−2,04544,0] | [−3,43838,+2,85429] | [−7,80726,0] |
+| Sharpe anualizado MODELO filtered | −0,128 | **+0,464** | +0,387 |
+| Pure model Sharpe | −0,104 | +0,458 | +0,459 |
+| MODEL worst DD filtered vs pure | 8,20% vs8,16% | **5,82% vs6,21%** | **5,09% vs5,06%** |
+| Months s<1 | **5/61** | **5/56** | **1/23** |
+| Monthly filtered skew model | −0,284 | **−0,698** | **−1,270** |
+
+El risk scaling apenas tocó 5/56 DIAG y 1/23 retained. **Marzo2025 −322,78bps fue el peor mes y no se redujo en absoluto (s=1; vol histórica 8,12% por debajo target10%)**; en retained **abril2025 sí escaló a 0,637 una ganancia pura +164,69→filtrada +104,83bps**. En full DIAG drawdown model disminuye levemente pero retained ligeramente empeora; paired bps negativos en todas eras, CI de mejoras incluye 0. La asimetría mensual negativa es compatible con cola FX carry, no demuestra causalmente crash vs risk-off. No datos P&L real del broker/CFD forwards/swap.
+
+**Formal `POLICY_VOL20_FINAL_SCREEN_FAILED_CLOSE_LINE`**: aunque DIAG Sharpe model +0,464 supera 0,4, el límite inferior del IC95 **−16,76bps** es negativo; held-back media positiva pero CI amplísimo con 0. Se cumplió sample gate en DEV/DIAG/retained. STOP definitivo de esta familia de policy carry y este panel estudiado; no ajustar target10, vol20→60/10, VIX, filtro de DD, diferente subuniverse ni años. El experimento original forward 1M sin quotes `CARRY_NOT_IDENTIFIABLE_SPOT_ONLY` permanece diferente e inconcluso. Esto no falsifica universalmente carry FX, solo estas dos variantes policy proxy con fuente ejecutable aún faltante.
+
+**QORE Alpha2 0 edge net / 0 UTC001 certified / 0 órdenes, PR #840 DRAFT, no merge a MAIN, no VPS/MT5/Shared/CIBO/QDLE/PAPER/LIVE**. Pendientes independientes #837 custodia legal privada de 728 MB antes de vencimiento Atlas2026-12-16, #852 BIDASK/swap financiación/broker PIT, #868 contrato original Atlas/ICMarkets y permiso de fuente forward (#886). El siguiente arquitecto debe continuar con decisión estratégica sin resucitar parametrizaciones fallidas en datos expuestos.
