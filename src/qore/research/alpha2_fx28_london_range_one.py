@@ -306,7 +306,10 @@ def aggregate(extracted:Path)->dict:
             "source_symbol_day_eligibility_statuses":dict(source_eligible),
             "original_28_FX_weights_fixed_ex_ante":True,
         }
-    if not all(v["signal_sample_gate_52w"] for k,v in eras.items() if k!="PREVIOUSLY_EXPOSED_2024_2026"):
+    if not all(
+        v["signal_sample_gate_52w"]
+        for k,v in eras.items() if k!="PREVIOUSLY_EXPOSED_2024_2026"
+    ):
         status="SESSION_EXPANSION_UNDERPOWERED"
     elif all(eras[e]["mean_2bp_side_cost_proxy_bps_per_calendar_week"]>0
              and eras[e]["CI95_weekly_proxy_4week_synchronized_block_bps"][0]>0
