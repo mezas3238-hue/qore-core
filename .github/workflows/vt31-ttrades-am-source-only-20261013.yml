@@ -55,7 +55,7 @@ jobs:
             --market input/NAS100/market-evidence.json \
             --out result/ttrades-am-new-source-only.json \
             | tee result/ttrades-am-new-source-summary.json
-      - name: Gate: forbid profit factor, broker fills, unjustified performance claims
+      - name: "Gate - forbid profit factor, broker fills, unjustified performance claims"
         run: |
           set -euo pipefail
           python - <<'PY'
