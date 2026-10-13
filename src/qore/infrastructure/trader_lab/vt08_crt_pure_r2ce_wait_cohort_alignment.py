@@ -8,7 +8,6 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from dataclasses import asdict
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Callable
