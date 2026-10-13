@@ -214,7 +214,9 @@ def official_rate_history(biszip:Path)->tuple[dict[str,dict[str,float]],dict]:
                 rates[c][period]=rate
                 meta[c]["sources"].add((row.get("SOURCE_REF:Publication Source") or "")[:100])
                 meta[c]["compilations"].add((row.get("COMPILATION:Compilation") or "")[:130])
-                other=(row.get("SUPP_INFO_BREAKS:Supplemental information and breaks") or "").strip()
+                other=(
+                    row.get("SUPP_INFO_BREAKS:Supplemental information and breaks") or ""
+                ).strip()
                 if other:
                     meta[c]["break_samples"].add(other[:160])
     coverage={}
