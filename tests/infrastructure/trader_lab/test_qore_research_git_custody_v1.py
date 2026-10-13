@@ -150,15 +150,16 @@ class TestGitCustody(unittest.TestCase):
                     return _HISTORICAL
                 return value
 
-            with self.subTest(result=result), (
+            with (
+                self.subTest(result=result),
                 patch(f"{_MODULE}._git", side_effect=_good_git),
                 patch(f"{_MODULE}._ancestor"),
                 patch(f"{_MODULE}._blob", side_effect=mocked),
-            ):
-                with self.assertRaisesRegex(
+                self.assertRaisesRegex(
                     ValueError, "MANIFEST_JSON_INVALID|MANIFEST_NONEMPTY_OR_CHANGED"
-                ):
-                    g.verify_readonly_git_custody(_HEAD)
+                ),
+            ):
+                g.verify_readonly_git_custody(_HEAD)
 
     def test_missing_file_and_unavailable_git_fail_closed(self) -> None:
         with patch(f"{_MODULE}.subprocess.run", side_effect=FileNotFoundError()):
