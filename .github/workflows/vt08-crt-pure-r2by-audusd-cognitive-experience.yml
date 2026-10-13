@@ -1,16 +1,8 @@
 name: QORE VT08 CRT PURE R2-BY AUDUSD Cognitive Experience
 
+# Owner 2026-10-13: quantitative WFO paused; manual only until explicit order.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - agent/vt08-crt-pure-source-identity-001
-    paths:
-      - '.github/workflows/vt08-crt-pure-r2by-audusd-cognitive-experience.yml'
-      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2by_audusd_cognitive_experience_wf.py'
-      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_r2by_audusd_cognitive_experience_wf.py'
-      - 'src/qore/infrastructure/traders/crt_pure_cognitive_state.py'
-      - 'src/qore/infrastructure/traders/crt_pure_strategy_identity_memory.py'
 
 permissions:
   contents: read
