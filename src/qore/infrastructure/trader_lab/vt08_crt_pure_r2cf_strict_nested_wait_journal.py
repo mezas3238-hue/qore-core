@@ -7,10 +7,11 @@ No sizing, volume, leverage, risk allocation, merge or deployment.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import Counter
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -340,7 +341,7 @@ def run_market(
         "schema": SCHEMA,
         "identity": IDENTITY,
         "market": market,
-        "input_ledger_sha256": __import__("hashlib").sha256(
+        "input_ledger_sha256": hashlib.sha256(
             frozen_ledger.read_bytes()
         ).hexdigest(),
         "source_run_id": r2ce.FROZEN_LEDGER_RUNS[market],
