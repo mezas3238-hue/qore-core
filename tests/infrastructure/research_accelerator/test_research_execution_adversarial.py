@@ -68,8 +68,8 @@ def test_time_exit_only_on_real_observation_at_deadline() -> None:
     row = simulate_ticks(quotes, (order,), tick_size=TICK)[0]
     assert row["exit_reason"] == "TIME"
     assert row["closed_at"] == _time(2).isoformat()
-    assert row["gross_price_points_per_unit"] == "1"
-    assert row["net_price_points_per_unit"] == "1"
+    assert Decimal(row["gross_price_points_per_unit"]) == Decimal("1")
+    assert Decimal(row["net_price_points_per_unit"]) == Decimal("1")
 
 
 def test_missing_exit_quote_is_incomplete_not_a_zero_pnl_trade() -> None:
