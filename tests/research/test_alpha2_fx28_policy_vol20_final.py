@@ -76,7 +76,7 @@ def test_full28_monthly_one_filter_and_paired_benchmark_costs():
     data=synthetic_market()
     rates=synthetic_rates()
     output=evaluate(rates,data)
-    assert len(output["28_fx_exact_roster"]) if "28_fx_exact_roster" in output else output["FX_pair_count"]==28
+    assert output["FX_pair_count"]==28
     assert output["FX_currency_count"]==8
     assert output["orders"]==0
     assert output["status"]=="POLICY_VOL20_INCONCLUSIVE_MISSING_HOLDOUT"  # no DEV source
@@ -113,9 +113,9 @@ def test_absent_one_currency_rate_censors_month_without_rank_substitution():
         if val>="2025-01":
             rates["CHF"][val]=None
             break
-    # Do not assume a None policy value is a valid sortable rate.
-    with pytest.raises(TypeError):
-        evaluate(rates,data)
+    # A missing value disqualifies the complete 28-pair month.
+    result=evaluate(rates,data)
+    assert result["censor_counts"]["EIGHT_POLICY_PRIOR_EOM_MISSING"]>=1
 
 
 def test_original_native_m5_rolls_weekdays_only_and_respects_future_contract():
