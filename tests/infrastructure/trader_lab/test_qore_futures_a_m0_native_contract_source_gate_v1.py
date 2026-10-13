@@ -39,7 +39,10 @@ def leg(root,index,settle="17.50"):
         "volume_published_at_utc":"2020-04-21T04:10:00Z",
         "open_interest":3045 if index==0 else 1234,
         "open_interest_published_at_utc":"2020-04-21T06:00:00Z",
-        "exchange_first_notice_date":None if root in ("CL","NG") else ("2020-05-01" if index==0 else "2020-06-01"),
+        "exchange_first_notice_date":(
+            None if root in ("CL","NG")
+            else ("2020-05-01" if index==0 else "2020-06-01")
+        ),
         "risk_liquidation_cutoff_date":"2020-05-01" if index==0 else "2020-06-01",
         "last_trade_date":"2020-05-30" if index==0 else "2020-06-30",
         "contract_multiplier":"1000",
