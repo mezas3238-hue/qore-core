@@ -1,0 +1,25 @@
+# VT31 Puerta 3 — protocolo fijo de exclusión macro (fuentes oficiales)
+
+**Fecha 2026-10-13. PREREG ANTES DE CONSTRUIR EL ARCHIVO DE EVENTOS Y LEER RETORNOS CONDICIONADOS. NO ES UNA EJECUCIÓN.**
+
+### Hipótesis testable
+
+Los tres filtros VT31/C0G+OPS existentes podrían perder direccionalmente durante jornadas de decisiones de tipos de interés y anuncios de inflación o empleo; excluir las fechas económicas programadas de FOMC, CPI y NFP podría mejorar el retorno bruto +15m de la población fuente congelada de 2.140 eventos, sin cambiar un solo trader/parameter ni elegir la noticia que favorezca el resultado.
+
+### Fuentes y fecha/hora verdaderas
+
+1. BLS calendario oficial histórico completo de releases [2023](https://www.bls.gov/schedule/2023/home.htm), [2024](https://www.bls.gov/schedule/2024/home.htm), [2025](https://www.bls.gov/schedule/2025/home.htm), [2026](https://www.bls.gov/schedule/2026/home.htm); registrar **fecha efectiva de publicación** de **Consumer Price Index** y **Employment Situation (NFP)** y hora de publicación **08:30 ET**, no mes de referencia económica. Calendarios revisados pueden cambiar; guardar archivo fuente exacto+digest, `last_modified` observado y marcar eventos sin snapshot de programación previo como **`RETROSPECTIVE_DATE_NOT_STRICT_SCHEDULE_PIT`**, no fingir que estaba disponible anticipadamente.
+2. Fed [calendario FOMC 2023–2026](https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm); fechas de **decisión/comunicado** en día final de reunión regular (no día de inicio, no fecha de actas tres semanas después); para reuniones programadas estándar, **14:00 ET** (según [Fed schedule press release](https://www.federalreserve.gov/newsevents/pressreleases/monetary20240809a.htm)). Excluir eventos especiales/notational votes salvo confirmación de fecha/hora publicada verificable. Informar `FOMC_REGULAR_ONLY`.
+3. Periodo mercado original: **2023-10-01 a 2026-10-01 exclusivo**, zona `America/New_York` DST. Hash NAS100 M1 exacto `0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa`. Ledger COG+OPS 2140 original SHA256 `e9683d87f0645b488968aeb3e207347649f4e9aea5c535202ab4f024c22e7646`.
+4. **Antes de métricas**, comprobar que calendario identifica con fuentes suficientes todas las fechas de las tres familias durante todo el periodo. En cambios por paros gubernamentales/reprogramaciones, **no imputar la primera semana del mes como NFP** ni otra fecha esperada como CPI. Si faltan datos calendario para un mes, marcar **UNKNOWN** los días afectados de ese mes y reportar n excluidos; si cobertura incierta afecta el resultado primario, etiqueta **BLOCKED_CALENDAR_COVERAGE**, jamás `NO_MACRO`.
+
+### Ventana y contraste congelados
+
+- Política **día completo (00:00–23:59 NY)**: macro = fecha de publicación de CPI OR EMPLOYMENT SITUATION OR comunicado FOMC, cualquiera de los tres, para **las tres** ventanas 03/10/14. No elegir intervalo 15/30/60min de bloqueo tras mirar PnL. El full-day blackout es conocido ex-ante si el calendario lo fue, y conservador frente a horarios 08:30/14:00.
+- **Prueba primaria**: de los 2140 COG+OPS aprobados, medir retorno bruto firmado +15min desde OPEN M1 inmediatamente posterior a formación, con 16 M1 cronológicas, en los días **NO_MACRO**, compararlo con días **MACRO** y todo el universo. Semanas ISO como clusters bootstrap (2000, semilla 13102026). Medir **incremento del promedio NO_MACRO menos MACRO**, IC95 y n/cobertura de calendario. Igual para el control raw **primer FVG de la misma ventana**, para evitar atribución causal a COG cuando el mercado entero cambia en días macro. No medir PnL de CE/FVG stop.
+- **Puerta favorable solo EXPLORATORIA** si `mean(nonmacro selected)>0`, límite inferior de IC95 del retorno de no-macro >0, diferencial NO_MACRO−MACRO positivo con IC95 inferior >0, n≥100 en macro y no macro y >=20 semanas por grupo, y cobertura del calendario completa. Sin esos requisitos: `NO_SUPPORT` o `UNDERPOWERED`. Incluso si cumple: **NO_EDGE_ECONOMIC**, OOS obligatorio, no cambiar filtros retrospectivamente.
+- La división de población por fecha de noticia (y resultado) es diagnóstico sin prueba de trading ejecutable; costos/fills/PF/DD no inferibles con M1 OHLC. No operar noticias según directiva del propietario; no usar estudio como autorización.
+- **No mezclar** esta puerta con Gates2 de régimen, ni abrir combinaciones de noticia × régimen, ni optimizar excluyendo un subtipo macro si el conjunto falla. Un solo contraste global. Los hipotéticos eventos de apertura/cierre trimestral no se agregan sin preregistro independiente y fuente oficial robusta.
+- **Gate de infraestructura**: no autorizar respuesta `NO_SUPPORT_MACRO` ni cifras si falta calendario congelado verificable. Los hallazgos de gate1/gate2 quedan intactos. COG aislada sigue no identificada; G3 DOC `a446afa17ed6e411b8f0b6fc182b103a78959a97` + CODE `78d4cdac0e09d1a6eef37b99c505ffc5098031fc` continúan sin firma.
+
+**Estado actual**: `PREREGISTERED_PENDING_CANONICAL_CALENDAR_DATASET`. Este documento **no afirma ninguna ejecución de gate3**. Sin datos de macro completos no se puede decir edge o ausencia de edge.
