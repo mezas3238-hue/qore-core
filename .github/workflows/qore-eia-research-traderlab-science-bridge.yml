@@ -1,0 +1,91 @@
+name: QORE Research x Trader Lab EIA science-only handoff
+
+on:
+  push:
+    branches:
+      - research/qore-eia-research-traderlab-evidence-bridge-20261013
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_eia_research_science_handoff_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_eia_research_science_handoff_v1.py'
+      - '.github/scripts/qore_eia_research_science_receipt_v1.py'
+      - '.github/workflows/qore-eia-research-traderlab-science-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  read_only_science_handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ruff and Mypy for repository static rules
+        run: pip install "ruff>=0.5,<1" "mypy>=1.5,<2"
+      - name: Lint bridge, artifact provenance verifier and tests
+        run: >-
+          ruff check
+          src/qore/infrastructure/trader_lab/qore_eia_research_science_handoff_v1.py
+          tests/infrastructure/trader_lab/test_qore_eia_research_science_handoff_v1.py
+          .github/scripts/qore_eia_research_science_receipt_v1.py
+      - name: Static typecheck bridge code and tests
+        run: >-
+          mypy
+          src/qore/infrastructure/trader_lab/qore_eia_research_science_handoff_v1.py
+          tests/infrastructure/trader_lab/test_qore_eia_research_science_handoff_v1.py
+          .github/scripts/qore_eia_research_science_receipt_v1.py
+      - name: Run 14 synthetic adversarial trust-boundary tests
+        run: >-
+          python -m unittest discover -s tests/infrastructure/trader_lab
+          -p test_qore_eia_research_science_handoff_v1.py -v
+      - name: Download the exact original frozen EIA result artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-futures-a-eia-frozen-dev-diag-only-no-pnl
+          repository: mezas3238-hue/qore-core
+          run-id: 38448311219
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/qore-research-source
+      - name: Verify GitHub SHA/commit ancestry and record SCIENCE without Lab promotion
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python .github/scripts/qore_eia_research_science_receipt_v1.py \
+            --input "$RUNNER_TEMP/qore-research-source/qore_futures_a_eia_f1f2_prereg_dev_diag_only.json" \
+            --output "$RUNNER_TEMP/qore_research_eia_f1f2_science_handoff.json"
+      - name: Fail-closed final role and promotion assertions
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"qore_research_eia_f1f2_science_handoff.json"
+          r=json.loads(p.read_text())
+          assert r["qore_research_classification"]=="NO_SUPPORT_UNDER_PREREG"
+          assert r["cibo_research_contract_stage"]=="experiment"
+          assert r["trader_lab_state"]=="draft"
+          assert r["trader_lab_stage_evidence_produced"] is False
+          assert r["demo_eligible"] is False
+          assert r["execution_authority"] is False
+          assert r["has_economic_returns_or_fills"] is False
+          assert r["fresh_holdout_consumed"] is False
+          assert r["github_artifact_digest_verified"] is True
+          assert r["prereg_ancestor_verified"] is True
+          print("QORE_RESEARCH_HONEST_NO_SUPPORT_TRADER_LAB_REMAINS_DRAFT")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-eia-research-traderlab-science-only-receipt
+          path: ${{ runner.temp }}/qore_research_eia_f1f2_science_handoff.json
+          retention-days: 90
+          if-no-files-found: error
