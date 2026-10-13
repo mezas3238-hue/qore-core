@@ -1,0 +1,89 @@
+name: VT31 - generic pivot null + family overlap + common anchor (NO PNL)
+on:
+  push:
+    branches:
+      - agent/vt31-ttrades-ob-breaker-null-audit-20261013
+    paths:
+      - scripts/vt31_ob_breaker_negative_control_20261013.py
+      - tests/infrastructure/test_vt31_ob_breaker_negative_control_20261013.py
+      - docs/research/VT31_OB_BB_CONTROLS_PREREG_20261013.md
+      - docs/research/VT31_OB_BB_ARTIFACT_AUDIT_RESULT_20261013.md
+      - .github/workflows/vt31-ob-breaker-artifact-controls-20261013.yml
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_ARTIFACT: "11459859004"
+  MARKET_SHA: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+jobs:
+  negative-control-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Provenance and all synthetic attacks
+        run: |
+          set -euo pipefail
+          git cat-file -t 2748d59daf1d32d42b6dd41d37c6def1ab314e41
+          git merge-base --is-ancestor 2748d59daf1d32d42b6dd41d37c6def1ab314e41 HEAD
+          python -m pip install "ijson>=3.3,<4" "pytest>=8,<10" "ruff>=0.5,<1"
+          python -m py_compile scripts/vt31_ob_breaker_negative_control_20261013.py \
+            tests/infrastructure/test_vt31_ob_breaker_negative_control_20261013.py
+          ruff check scripts/vt31_ob_breaker_negative_control_20261013.py \
+            tests/infrastructure/test_vt31_ob_breaker_negative_control_20261013.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_ob_breaker_negative_control_20261013.py
+      - name: Fetch exact frozen research M1 with SHA256
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${MARKET_ARTIFACT}/zip" > market.zip
+          unzip -q market.zip -d input
+          test -s input/NAS100/market-evidence.json
+          echo "${MARKET_SHA}  input/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Run all three independent descriptive controls WITHOUT changing model
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_ob_breaker_negative_control_20261013.py \
+            --market input/NAS100/market-evidence.json \
+            --out result/ob-breaker-three-controls.json \
+            | tee result/three-controls-summary.json
+      - name: Strict no-profit and source invariants
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("result/ob-breaker-three-controls.json"))
+          assert p["controls_preregistered_commit"]=="2748d59daf1d32d42b6dd41d37c6def1ab314e41"
+          assert p["frozen_source_model_commit"]=="9f85b83e1bfd23c02e5f642bd33defa65208f015"
+          assert p["m1_frozen_sha256"]=="0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+          assert p["source_days"]==775 and p["source_union_days"]==212
+          f=p["each_family_common_anchor_and_matched_pivot_control"]
+          assert f["DISPLACEMENT_DIRECT"]["source_days"]==212
+          assert f["FVG_3M1"]["source_days"]==205
+          assert f["ORDER_BLOCK_RETEST"]["source_days"]==116
+          assert f["BREAKER_RETEST"]["source_days"]==84
+          assert p["economic_edge"]=="NOT_IDENTIFIED"
+          assert p["pf_dd_sharpe"] is None
+          assert p["no_trades_fills_quotes_orders"] is True
+          assert p["G3_original_signoff"]=="PENDING_DUAL_SIGNATURE"
+          assert p["common_anchor_groups_use_future_family_membership"] is True
+          assert not p["Fresh_Holdout_opened"] and not p["main_VPS_live_modified"]
+          print("ALL_CONTROLS_PASS_NO_EDGE",p["economic_edge"])
+          PY
+          git rev-parse HEAD > result/research-code-sha.txt
+          printf '%s\n' 'NO_TRADE_NO_PF_NO_HOLDOUT_NO_COMPARABLE_BROKER_QUOTES' > result/scope.txt
+          (cd result && sha256sum *.txt *.json > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ob-bb-three-controls-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
