@@ -41,3 +41,12 @@ How much does cohort alignment alter first-M15 Journey Memory, second cognitive 
 - If WAIT membership is too sparse for cells (minimum 30, prior 100 unchanged), report UNKNOWN/WAIT rather than silently loosening support.
 
 **Pre-result verdict:** no economic result from R2-CE can be asserted before workflow artifacts are checked.
+
+## Evidence transportation addendum — before reading R2-CE results (2026-10-13)
+
+The first read-only historical replay was blocked in cTrader DEMO-account discovery because the configured token lacks trading permissions. **No additional trading authorization is requested or required.** Instead the auditor consumes two already-issued **immutable original R2-CC and R2-CD GitHub Actions artifacts**, with frozen `delayed.jsonl` and `report.json` from runs `36173116494` (AUDUSD) and `36173125334` (USDJPY), respectively.
+
+- Runtime derives both new arms from the same frozen original source and delayed-trade ledgers, preserving entry/STOP_FIRST/lifecycle economics unchanged.
+- SHA256 for both original files must be logged as provenance. The offline control must exactly reproduce the original report's trade count, R, PF, DD, DOA, and origin counts; otherwise FAIL CLOSED.
+- Source artifact consumption is read-only using GitHub `actions: read`; no broker credentials, trading API or real accounts.
+- No new bars, reruns of market data adapters or fresh holdout are claimed. This change alters evidence transport ONLY, not the pre-registered arm definitions/thresholds or interpretation. The WAIT-aligned arm remains exploratory due to the in-sample prior-window membership selection.
