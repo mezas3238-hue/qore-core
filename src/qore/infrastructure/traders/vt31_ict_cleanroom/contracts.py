@@ -14,6 +14,11 @@ from zoneinfo import ZoneInfo
 NEW_YORK = ZoneInfo("America/New_York")
 MIN_INDEX_POINTS = Decimal("10")
 
+# Opt-in G3 code candidate, NOT a signed or active economic trading policy.
+LEGACY_FRAMEWORK_POLICY = "LEGACY_C3_CLOSE_SOURCE_V0"
+G3_MSS_FRAMEWORK_POLICY = "QORE_G3_MSS_CLOSE_V1_PROPOSED"
+FRAMEWORK_POLICIES = frozenset({LEGACY_FRAMEWORK_POLICY, G3_MSS_FRAMEWORK_POLICY})
+
 
 class SessionId(StrEnum):
     LONDON = "VT31_LONDON"
@@ -99,6 +104,10 @@ class CognitiveDecision:
     structure_break_confirmed_at: datetime
     source_provenance: str
     cognitive_version: str
+    # V1 requires the immutable close of the *actual MSS-confirmation M1*.
+    # A missing witness never becomes latest observed close automatically.
+    mss_anchor_close: Decimal | None = None
+    framework_policy: str = LEGACY_FRAMEWORK_POLICY
 
     def __post_init__(self) -> None:
         if not isinstance(self.session, SessionId) or not isinstance(self.side, Side):
@@ -113,6 +122,14 @@ class CognitiveDecision:
             raise ValueError("MSS swing pivot must be known before swing break")
         price(self.draw_target)
         price(self.structure_level)
+        if self.framework_policy not in FRAMEWORK_POLICIES:
+            raise ValueError("unrecognized versioned 10-point framework")
+        if self.framework_policy == G3_MSS_FRAMEWORK_POLICY:
+            if self.mss_anchor_close is None:
+                raise ValueError("V1 MSS close witness required")
+            price(self.mss_anchor_close)
+        elif self.mss_anchor_close is not None:
+            raise ValueError("legacy cognition cannot assert V1 MSS witness")
         if not self.draw_family or not self.source_provenance or not self.cognitive_version:
             raise ValueError("cognitive lineage and draw family required")
 
