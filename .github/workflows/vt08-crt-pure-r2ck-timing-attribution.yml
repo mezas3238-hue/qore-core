@@ -73,7 +73,7 @@ jobs:
           for f in evidence/older/report.json evidence/older/trades.jsonl evidence/recent/report.json evidence/recent/trades.jsonl; do test -s "$f"; done
           mkdir -p artifacts/${{ matrix.market }}
           sha256sum evidence/older/report.json evidence/older/trades.jsonl evidence/recent/report.json evidence/recent/trades.jsonl > artifacts/${{ matrix.market }}/SOURCE_SHA256.txt
-          python -m qore.infrastructure.trader_lab.vt08_crt_pure_r2cj_rolling_cost_margin \
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_r2ck_timing_attribution \
             artifacts/${{ matrix.market }} --market ${{ matrix.market }} \
             --older-trades evidence/older/trades.jsonl --older-report evidence/older/report.json \
             --recent-trades evidence/recent/trades.jsonl --recent-report evidence/recent/report.json \
