@@ -65,7 +65,7 @@ def _one_sided_fisher(
     row1 = up_back + down_back
     total_up = up_back + up_cont
     total_down = down_back + down_cont
-    total = row1 + total_down + up_cont
+    total = row1 + up_cont + down_cont
     denom = math.comb(total, row1)
     return sum(
         math.comb(total_up, s)
@@ -243,8 +243,8 @@ def build_handoff_receipt(raw: dict[str, Any]) -> ScientificHandoffReceipt:
     if set(roots) != set(REQUIRED_ROOTS) or len(roots) != len(results):
         raise ResearchHandoffError("ROOT_SWAP_OR_DUPLICATION")
     checked = [_verify_root(roots[name], name) for name in REQUIRED_ROOTS]
-    if all(r["decision"] == "CANDIDATE_DESERVES_HOLDOUT_PROPOSAL" for r in checked):
-        science = "AWAIT_SEPARATE_HOLDOUT_AUTHORIZATION"
+    if any(r["decision"] == "CANDIDATE_DESERVES_HOLDOUT_PROPOSAL" for r in checked):
+        science = "PARTIAL_CANDIDATE_HOLDOUT_NOT_AUTHORIZED"
     else:
         science = "NO_SUPPORT_UNDER_PREREG"
     if MANDATORY_STAGES[0] is not TraderLabStage.RESEARCH:
