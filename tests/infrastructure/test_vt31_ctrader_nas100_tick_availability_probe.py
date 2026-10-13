@@ -134,7 +134,7 @@ def test_four_samples_across_three_year_development_are_not_full_coverage() -> N
 def test_invalid_symbol_and_empty_samples_fail_closed() -> None:
     fake = FakeClient()
     with pytest.raises(PilotDataError, match="EXACT_BROKER_SYMBOL"):
-        read_pilot(fake, symbol_name="NAS100.suffix", windows=(WINDOW,))
+        read_pilot(fake, symbol_name="NAS100/CFD", windows=(WINDOW,))
     with pytest.raises(PilotDataError, match="PROBE_WINDOWS"):
         read_pilot(fake, symbol_name="NAS100", windows=())
     assert fake.calls == []
