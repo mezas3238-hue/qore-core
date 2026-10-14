@@ -42,9 +42,9 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2c_close_unmitigated_replay i
     first_r2c_trade,
     run_r2c,
 )
-from qore.infrastructure.traders.crt_pure_identity import (
+from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
+from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection,
-    CrtPureMarket,
 )
 from qore.infrastructure.traders.crt_pure_timing_policy import (
     NY,
