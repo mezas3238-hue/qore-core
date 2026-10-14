@@ -14,7 +14,6 @@ from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection as Direction,
 )
 
-
 BASE = datetime(2025, 3, 3, 12, tzinfo=UTC)
 
 
