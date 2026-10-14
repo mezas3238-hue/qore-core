@@ -235,7 +235,7 @@ def main() -> None:
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps({
+    headline = {
         k: report[k] for k in (
             "source_total_m1", "expected_closed_M1_session_slots",
             "observed_closed_M1_session_prefixes", "missing_M1_session_slots",
@@ -243,7 +243,28 @@ def main() -> None:
             "native_unique_first_theses_not_trades",
             "pair_matrix_actual_emitted_cog_only", "scope_verdict",
         )
-    }, sort_keys=True))
+    }
+    # Reasons are external *source* checks, not native trading outcomes.
+    discrepancies = [
+        emission for day in report["days"] for emission in day["emissions"]
+        if emission["p3_state"] != emission["v1_state"]
+    ]
+    headline["nonparity_cases_by_date"] = dict(sorted(Counter(
+        case["ny_date"] for case in discrepancies
+    ).items()))
+    headline["nonparity_reason_pairs"] = dict(sorted(Counter(
+        (case["p3_state"] + ":" + ",".join(case["p3_reasons"])
+         + " / " + case["v1_state"] + ":" + ",".join(case["v1_reasons"]))
+        for case in discrepancies
+    ).items()))
+    headline["top_witness_reason_codes"] = dict(
+        Counter(report["witness_reason_counts"]).most_common(15)
+    )
+    headline["native_emissions_by_date"] = {
+        day["ny_date"]: day["native_decisions_emitted_prefixes_not_trades"]
+        for day in report["days"]
+    }
+    print(json.dumps(headline, sort_keys=True))
 
 
 if __name__ == "__main__":
