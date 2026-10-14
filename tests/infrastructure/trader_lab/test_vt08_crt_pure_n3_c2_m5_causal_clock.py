@@ -110,7 +110,7 @@ def test_bearish_m5_close_crossing_without_far_touch() -> None:
     assert result["first_m5_wick_touching_far_boundary_slot"] is None
 
 
-def test_no_M5_close_crossing_is_recorded_not_dropped() -> None:
+def test_no_m5_close_crossing_is_recorded_not_dropped() -> None:
     b = (
         m5(0, 95, 98, 92, 93),
         m5(1, 93, 99, 90, 94),
