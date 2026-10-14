@@ -81,7 +81,7 @@ class TestZ2ContrarianSingleExam(unittest.TestCase):
                 (item.exit_date - item.entry_date).days,
                 z.EXIT_HORIZON_CALENDAR_DAYS,
             )
-        for a, b in zip(found, found[1:]):
+        for a, b in zip(found, found[1:], strict=False):
             self.assertGreater(b.entry_date, a.exit_date)
         self.assertEqual(len({e.report_date for e in found}), len(found))
 
