@@ -1,0 +1,19 @@
+# VT31 — PREREG L1/M4: TTrades four-leg breaker source witness (2026-10-14)
+
+PRE-CODE + PRE-3Y run. No Merge, no LIVE, no CIBO sizing, no economic replay. No edits to G3 nor legacy #906.
+
+## Source hierarchy
+Primary: https://ttrades.com/breaker-blocks-simplified/ (July 5, 2025): BULL Low→High→Lower Low→Higher High, BEAR High→Low→Higher High→Lower Low, followed by block candle(s) zone and retest. https://ttrades.com/the-am-silver-bullet-strategy-on-nq/ (June 19 2025) fixes first 10am sweep of 09–10 H1, 10–11am window and opposite H1 DOL. The existing #906 BREAKER_RETEST uses a confirmed 09h 3-bar pivot and retest level; it explicitly labels this a QORE proxy. One pivot is not proof of four-leg breaker structure.
+
+## Experiment defined before execution
+- Use exactly original 1,059,784 closed NAS100 M1 bars, artifact #11459859004, raw SHA256 0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa. Development corpus ALREADY SEEN, not OOS. Preserve #934 775 days, complete 09+10 H1 = 769, no post-outcome selection.
+- First sweep direction in NY 10–11 closes: high raid=SHORT, low raid=LONG, dual sweep in one candle UNKNOWN, later opposite sweep rejects, no second chance. H1 prior extremes must be from complete sixty M1 closed by 10am.
+- A strict 3-M1 pivot has middle high strictly greater than both neighbors, or middle low strictly less; its available_at is RIGHT neighbor M1 close. If same candle is BOTH types, UNKNOWN and not used. Pivots source 09h and 10h only, without using future M1.
+- QORE diagnostic first 09h pair: select FIRST chronologically confirmed LOW then HIGH for LONG, or FIRST HIGH then LOW for SHORT, both confirmed within 09h; no choosing a later favorable pair. Require directional zone candle(s) BETWEEN those 09 pivots: up-close LONG, down-close SHORT, whole-wick min/max envelope. This is a PROXY, not a unique author zone.
+- Find FIRST subsequent qualifying third pivot in 10am: LONG LOW below first 09h LOW, SHORT HIGH above first 09h HIGH, pivot middle at/after first raid M1; confirmation strictly before 11am. Then FIRST confirmed qualifying fourth pivot: LONG HIGH above 09h HIGH, SHORT LOW below 09h LOW, after third. If none, no witness. Do not look at price after fourth.
+- Preserve first-failure category: INCOMPLETE_09_10, NO_FIRST_RAID, DOUBLE_FIRST_RAID_UNKNOWN, OPPOSITE_RAID_BEFORE_CONTEXT, NO_H1_CONFIRMED_PAIR, NO_10AM_FIRST_FAILURE_SWING, NO_10AM_CONFIRMATION_SWING, NO_BLOCK_CANDLE_ZONE, FOUR_LEG_RESEARCH_WITNESS_NOT_AUTHOR_CERTIFIED. This strict 09-pair+10-break ordering may undercount genuine author patterns; NEVER describe counts as definitive number of true TTrades breakers.
+- Real output: per-day and total counts with source-clock evidence, 0 trades/ACK/lot/PNL, author_certified=false, no official L1/M4/L2–L10 certification. No tuning after seeing result. Compare #906 only conceptually; do not equate its earlier 84 level-proxy proposals to these signals.
+- Adversarial synthetic LONG/SHORT and DST, negative lone pivot (no four legs), equal-level not a breach, both raid sides, future event, missing minute, no block-zone candle, confirmation-time lookahead. Ruff/pytest + frozen source sha + G3 original SHA locks (COG d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9, OPS 0ce9707314aecb71155de8b57044b6ec028847b2, doc e99c70b4e018d626fb620d9a21b9314a51abc36d).
+
+## Gates
+Only prove one research source diagnostic. Missing complete TTrades author examples of breaker, OB family, displacement-causing swing; G3 two independent COG/OPS signatures issue #897, broker quote/contract #857/#900, L1 real EvaluationFreeze, full L2/L3, fresh L4, L5–L10 approvals. No production. If no instances in 3Y, label insufficient for method certification; do not relax rule in same version.
