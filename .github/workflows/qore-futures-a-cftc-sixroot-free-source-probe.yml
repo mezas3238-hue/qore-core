@@ -1,0 +1,106 @@
+name: QORE Futures A CFTC weekly source plus prereg one-shot diagnostic
+
+on:
+  push:
+    branches:
+      - research/qore-futures-a-cftc-disagg-sixroots-source-20261013
+    paths:
+      - '.github/scripts/qore_futures_a_cftc_sixroots_public_source_probe_v1.py'
+      - '.github/scripts/qore_futures_a_cftc_managed_money_one_shot_screen_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_futures_a_cftc_one_shot_screen_v1.py'
+      - 'docs/research/QORE_FUTURES_A_CFTC_MANAGED_MONEY_ONE_SHOT_EXPLORATORY_PREREG_2026-10-13.md'
+      - 'tests/infrastructure/trader_lab/test_qore_futures_a_cftc_source_probe_v1.py'
+      - '.github/workflows/qore-futures-a-cftc-sixroot-free-source-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      PYTHONPATH: src:.github/scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install static checkers
+        run: pip install "ruff>=0.5,<1" "mypy>=1.5,<2" "xlrd==2.0.2"
+      - name: Ruff
+        run: |
+          ruff check .github/scripts/qore_futures_a_cftc_sixroots_public_source_probe_v1.py \
+            tests/infrastructure/trader_lab/test_qore_futures_a_cftc_source_probe_v1.py \
+            .github/scripts/qore_futures_a_cftc_managed_money_one_shot_screen_v1.py \
+            tests/infrastructure/trader_lab/test_qore_futures_a_cftc_one_shot_screen_v1.py
+      - name: Mypy
+        run: |
+          mypy .github/scripts/qore_futures_a_cftc_sixroots_public_source_probe_v1.py \
+            tests/infrastructure/trader_lab/test_qore_futures_a_cftc_source_probe_v1.py
+      - name: Synthetic source trust-boundary tests
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_futures_a_cftc_source_probe_v1.py -v
+      - name: Test prereg one-shot causal/outcome scope synthetically
+        run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_futures_a_cftc_one_shot_screen_v1.py -v
+      - name: Inspect actual official 2012-2021 CFTC weekly archives
+        run: python .github/scripts/qore_futures_a_cftc_sixroots_public_source_probe_v1.py
+      - name: Enforce no outcome data, certification, trading or holdout
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("artifacts/research/cftc_sixroots_source_audit.json")
+          r=json.loads(p.read_text())
+          assert r["source_archive_years_actually_checked"]==list(range(2012,2022))
+          assert r["all_2012_2021_years_checked"] is True
+          assert r["root_count_verified_in_sample"]==6
+          assert r["source_has_native_expiry_ohlcv"] is False
+          assert r["source_is_executable_futures_market_data"] is False
+          assert r["hypothesis_tested"] is False
+          assert r["net_trading_edge_demonstrated"] is False
+          assert r["heldout_2022_plus_read"] is False
+          assert r["market_data_spend_usd"]==0
+          print("CFTC_SOURCE_ONLY_USD0_NO_EDGE_NO_HOLDOUT")
+          PY
+      - name: Check real prereg Git commit ancestry and immutable contents
+        run: |
+          git merge-base --is-ancestor e6821685cbefd775f820865e4d2b0d03ab94dff2 "$GITHUB_SHA"
+          test "$(git rev-parse e6821685cbefd775f820865e4d2b0d03ab94dff2:docs/research/QORE_FUTURES_A_CFTC_MANAGED_MONEY_ONE_SHOT_EXPLORATORY_PREREG_2026-10-13.md)" = "$(git rev-parse "$GITHUB_SHA":docs/research/QORE_FUTURES_A_CFTC_MANAGED_MONEY_ONE_SHOT_EXPLORATORY_PREREG_2026-10-13.md)"
+          echo "CFTC_ONE_SHOT_PREREG_GIT_PRIOR_TO_RESULTS"
+      - name: Execute prereg one-shot CFTC vs EIA association DEV DIAG only
+        run: python .github/scripts/qore_futures_a_cftc_managed_money_one_shot_screen_v1.py
+      - name: Enforce no future-holdout, no economic certification, no LIVE
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          p=Path("artifacts/research/cftc_mm_one_shot_diag.json")
+          o=json.loads(p.read_text())
+          h=o.pop("receipt_sha256")
+          assert hashlib.sha256(json.dumps(o,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()==h
+          assert o["prereg_commit"]=="e6821685cbefd775f820865e4d2b0d03ab94dff2"
+          assert o["reserve_2022_plus_outcomes_evaluated"] is False
+          assert o["unverified_first_published_at"] is True
+          assert o["native_expiry_trading_prices_available"] is False
+          assert o["economic_pnl_calculated"] is False
+          assert o["trader_eligible"] is False
+          assert o["live_enabled"] is False
+          assert o["market_data_spend_usd"]==0
+          assert set(o["roots"])=={"WTI","NG"}
+          print("CFTC_ONE_SHOT_ASSOCIATION_ONLY_NO_CERTIFIED_EDGE_NO_OOS")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-futures-a-cftc-six-root-official-source-census-only
+          path: artifacts/research/cftc_sixroots_source_audit.json
+          retention-days: 90
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-futures-a-cftc-eia-prereg-one-shot-no-holdout
+          path: artifacts/research/cftc_mm_one_shot_diag.json
+          retention-days: 90
+          if-no-files-found: error
