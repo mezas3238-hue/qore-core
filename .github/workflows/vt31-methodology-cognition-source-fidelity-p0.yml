@@ -39,6 +39,14 @@ jobs:
             tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py
           PYTHONPATH=src:. pytest -q -o addopts='' \
             tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py
+      - name: Regression - validate unchanged authentic COG OPS and G3 contracts
+        run: |
+          set -euo pipefail
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = "d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = "0ce9707314aecb71155de8b57044b6ec028847b2"
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = "e99c70b4e018d626fb620d9a21b9314a51abc36d"
+          python -m pip install -e ".[dev]"
+          PYTHONPATH=src:. pytest -q -o addopts=''             tests/infrastructure/test_vt31_ict_cleanroom_cognition.py             tests/infrastructure/test_vt31_ict_cleanroom_ops.py             tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py             tests/infrastructure/test_vt31_g3_mss_anchor_optin.py
       - name: Audit source and installed model boundaries without editing G3
         run: |
           set -euo pipefail
