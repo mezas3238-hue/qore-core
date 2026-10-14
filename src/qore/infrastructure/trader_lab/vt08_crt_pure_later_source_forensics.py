@@ -8,7 +8,6 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -65,10 +64,8 @@ def classify_preentry_context(
     overlap_price = bool(set(first_reference_prices) & set(later_reference_prices))
     parent_close = next((
         b.opened_at.isoformat() for b in pre_entry
-        if b.close_price < parent_side if bullish
-    ), None) if bullish else next((
-        b.opened_at.isoformat() for b in pre_entry
-        if b.close_price > parent_side
+        if (b.close_price < parent_side if bullish
+            else b.close_price > parent_side)
     ), None)
     midpoint = next((
         b.opened_at.isoformat() for b in pre_entry
