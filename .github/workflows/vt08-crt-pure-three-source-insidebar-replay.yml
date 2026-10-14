@@ -30,6 +30,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -e '.[dev,ctrader]'
+      - name: Show import style expected by Ruff
+        run: |
+          ruff check --select I --fix --diff tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py || true
       - name: Ruff source comparison
         run: >-
           ruff check
@@ -61,16 +64,26 @@ jobs:
           python-version: '3.12'
       - name: Install cTrader historical read-only consumer
         run: pip install -e '.[ctrader]'
-      - name: Historical access prerequisites (no orders, no discovery)
+      - name: Historical access prerequisites (never send orders)
         shell: bash
         run: |
           set -euo pipefail
-          for var in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN QORE_CTRADER_DEMO_ACCOUNT_ID; do
+          for var in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
             if [ -z "${!var:-}" ]; then
-              echo "::error::HISTORICAL_DATA_UNAVAILABLE: missing historical credential or account binding ($var). No broker trades attempted."
+              echo "::error::HISTORICAL_DATA_UNAVAILABLE: missing historical credential ($var). No broker orders attempted."
               exit 1
             fi
           done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            echo "Discovering cTrader historical data account ID (read-only; no trades)."
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if [ -z "$account_id" ]; then
+              echo "::error::HISTORICAL_DATA_UNAVAILABLE: data account discovery failed."
+              exit 1
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
       - name: Compare unchanged control vs Level-B inside-bar context
         shell: bash
         run: |
