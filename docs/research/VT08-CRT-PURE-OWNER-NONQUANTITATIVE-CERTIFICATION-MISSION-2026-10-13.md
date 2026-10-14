@@ -112,3 +112,17 @@ Cada gate se cierra **PASS** solo con evidencia directa identificable (fuente or
 - `src/qore/infrastructure/traders/crt_pure_certification_readiness.py`
 
 **GOBERNANZA ACTIVA:** PR #626 DRAFT, sin merge, sin VPS, DEMO, LIVE, producción o capital; BTCUSD market-research freeze preservado; trader VT08 sin sizing/lotaje/volumen/apalancamiento. CIBO/QORE Risk es autoridad externa de capital.
+
+---
+
+## Avance de examen real G-M1 — cierre textual, NO certificación (13-OCT-2026)
+
+**Documento rector actualizado de auditoría:** [Examen original RomeoTPT G-M1 y brecha de alcance de fuente](VT08-CRT-PURE-CERTIFICATION-PRIMARY-SOURCE-EXAM-GM1-2026-10-13.md).
+
+Se cotejaron directamente siete afirmaciones parciales con publicaciones textuales del **canal oficial RomeoTPT** (old CRTH; journey/reaction key level; destino familiar 50%; MOB; CRT incompleto; existencia de Model #1/OTE; disciplina de abstención). Cada una lleva URL primaria y una limitación explícita: ninguna ofrece un algoritmo completo de old-level selection ni cierra toda la metodología.
+
+**P0 descubierto:** `strategy_identity_ready() is True` porque `MODEL_1_REFERENCE_SELECTION` no está en el conjunto `CRT_PURE_CORE_EXECUTION_CONCEPTS`, aun cuando el registro específico Model #1 clasifica esa selección como `AMBIGUOUS`. La condición "core source ready" **no es** "Model #1 methodologically certified". Se bloquea G-M1/G-M5 hasta resolución de referencia o excepción rotulada y aprobada. No se altera el código ni se manipula retroactivamente ningún gate para fabricar un resultado.
+
+Se buscó una secuencia real H4/M15 persistida entre las 1.629 rutas de la rama, sin identificar barras OHLC suficientes para un caso causal verificado. Los ejemplos QC-003 siguen siendo **sintéticos** y no sustituyen G-M2. Próximo trabajo: primer caso original y expediente cualitativo, no testigos nuevos ni backtests.
+
+**Vigente:** G-M1 PARTIAL, G-M2 OPEN, G-M3 PARTIAL, G-M4 PARTIAL, G-M5 OPEN, certificación global FALSE.
