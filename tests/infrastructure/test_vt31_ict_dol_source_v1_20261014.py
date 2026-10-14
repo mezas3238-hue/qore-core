@@ -8,9 +8,9 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
+    NEW_YORK,
     CognitiveDecision,
     M1Bar,
-    NEW_YORK,
     SessionId,
     Side,
 )
