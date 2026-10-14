@@ -152,7 +152,7 @@ def test_manifest_source_reader_collects_only_expected_sha_form():
     assert VERSION == "vt31-nyam-source-research-v1"
 
 
-def test_dataset_changes_if_original_source_M1_changes():
+def test_dataset_changes_if_original_source_m1_changes():
     first = build()
     groups = fixtures()
     old = groups["2024-01-15"][10]
