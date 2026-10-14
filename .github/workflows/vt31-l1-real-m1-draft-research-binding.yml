@@ -45,7 +45,7 @@ jobs:
           PYTHONPATH=src:. pytest -q -o addopts='' \
             tests/infrastructure/test_vt31_l1_research_binding_20261014.py \
             tests/infrastructure/trader_lab/test_candidate_and_stage_evidence.py \
-            tests/infrastructure/trader_lab/test_lifecycle.py \
+            tests/infrastructure/trader_lab/test_lifecycle_and_promotion.py \
             tests/infrastructure/trader_lab/test_fast_forward.py \
             tests/infrastructure/test_vt31_l3_m1_source_parity_20261014.py \
             tests/infrastructure/test_vt31_m4_m5_ttrades_fvg_path_20261014.py \
