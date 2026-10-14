@@ -19,7 +19,6 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     NEW_YORK,
     M1Bar,
     SessionId,
-    Side,
 )
 from scripts.vt31_ttrades_am_cognitive_fidelity_witness_20261014 import (
     assess_ttrades_am_context,
