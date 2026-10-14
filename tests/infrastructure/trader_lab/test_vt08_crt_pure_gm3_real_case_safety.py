@@ -13,6 +13,9 @@ def blind_case() -> dict[str, object]:
     return {
         "market": "AUDUSD",
         "parent_H4_direction_context": "BULLISH",
+        "parent_H4_c3_opened_at_utc": "2025-03-03T10:00:00+00:00",
+        "parent_H4_C1_ohlc": {"opened_at_utc": "2025-03-03T02:00:00+00:00"},
+        "parent_H4_C2_ohlc": {"opened_at_utc": "2025-03-03T06:00:00+00:00"},
         "case_id": "fixture-causal-001",
         "decision_clock_utc": "2025-03-03T10:30:00+00:00",
         "is_execution_authorized": False,
@@ -69,4 +72,53 @@ def test_spoofed_source_or_btc_market_rejected() -> None:
     case = deepcopy(blind_case())
     case["market"] = "BTCUSD"
     with pytest.raises(ValueError, match="BTCUSD frozen"):
+        audit_blind_case(case)
+
+
+@pytest.mark.parametrize(
+    ("field", "content"),
+    (
+        ("future_C3_known_close", 110),
+        ("broker_fill", 0),
+        ("cash_sizing", 1),
+        ("after_c2_outcome", "WIN"),
+        ("secret_reveal", "C3"),
+    ),
+)
+def test_blind_review_disallows_unknown_payload_columns(
+    field: str, content: object
+) -> None:
+    case = blind_case()
+    case[field] = content
+    with pytest.raises(ValueError, match="sealed future|unexpected blind case fields"):
+        audit_blind_case(case)
+
+
+def test_fake_h4_origin_is_detected_before_cognition() -> None:
+    case = blind_case()
+    case["parent_H4_C2_ohlc"] = {"opened_at_utc": "2025-03-03T05:00:00+00:00"}
+    with pytest.raises(ValueError, match="noncausal or disconnected H4"):
+        audit_blind_case(case)
+
+
+def test_m15_prefix_must_begin_at_real_parent_c3_open() -> None:
+    case = blind_case()
+    case["parent_H4_c3_opened_at_utc"] = "2025-03-03T09:45:00+00:00"
+    case["parent_H4_C2_ohlc"] = {"opened_at_utc": "2025-03-03T05:45:00+00:00"}
+    case["parent_H4_C1_ohlc"] = {"opened_at_utc": "2025-03-03T01:45:00+00:00"}
+    with pytest.raises(ValueError, match="disconnected from parent"):
+        audit_blind_case(case)
+
+
+def test_boolean_price_is_not_valid_integer_ohlc() -> None:
+    case = blind_case()
+    case["M15_observed_prefix_through_C2"][0]["open_relative"] = True  # type: ignore[index]
+    with pytest.raises(ValueError, match="non-integer"):
+        audit_blind_case(case)
+
+
+def test_source_case_cannot_claim_fresh_holdout() -> None:
+    case = blind_case()
+    case["not_new_holdout"] = False
+    with pytest.raises(ValueError, match="fresh holdout"):
         audit_blind_case(case)
