@@ -1,0 +1,82 @@
+name: VT31 COG_EVIDENCE_V2 causal structural and doctrinal gate (NO ORDERS)
+on:
+  push:
+    branches:
+      - agent/vt31-cog-evidence-v2-causal-attestation-20261014
+    paths:
+      - scripts/vt31_cog_evidence_v2_20261014.py
+      - tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py
+      - docs/research/VT31_COG_EVIDENCE_V2_PREREG_2026-10-14.md
+      - docs/research/VT31_COG_EVIDENCE_V2_FIRST_VERDICT_2026-10-14.md
+      - .github/workflows/vt31-cog-evidence-v2-semantic-gate.yml
+permissions:
+  contents: read
+jobs:
+  v2-causal-methodology-mss-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pin prereg before code and unchanged G3 real-engine sources
+        run: |
+          set -euo pipefail
+          git cat-file -t 268da6ef24507f299f50d50723ba3c0c93a850ad
+          git merge-base --is-ancestor 268da6ef24507f299f50d50723ba3c0c93a850ad HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = "d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = "0ce9707314aecb71155de8b57044b6ec028847b2"
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = "e99c70b4e018d626fb620d9a21b9314a51abc36d"
+      - name: Check independent witness and semantic regression tests
+        run: |
+          set -euo pipefail
+          python -m pip install -e ".[dev]"
+          python -m py_compile \
+            scripts/vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py
+          ruff check \
+            scripts/vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/vt31-v2-regression-junit.xml \
+            | tee evidence/vt31-v2-regressions.txt
+      - name: Machine gate prevents fake method certification
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          s=Path("scripts/vt31_cog_evidence_v2_20261014.py").read_text()
+          assert "CONFIRMED" in s and "REJECTED" in s and "UNKNOWN" in s
+          assert "MSS_ANCHOR_CLOSE_MISMATCH_WITH_M1" in s
+          assert "PIVOT_LEVEL_OR_CONFIRMATION_INCONSISTENT" in s
+          assert "MSS_IMPULSE_UNDER_QORE_1P25_MEDIAN5" in s
+          assert "ICT_EXTERNAL_DOL_PROVENANCE_UNVERIFIED" in s
+          assert "method_certified: bool = False" in s
+          assert "cognition_certified: bool = False" in s
+          assert "live_authorized: bool = False" in s
+          print("V2 M0-M3 STRUCTURAL ATTESTATION ONLY")
+          print("VT31_TRADER_CERTIFICATION=PENDING")
+          print("ECONOMIC_EDGE=NOT_DEMONSTRATED")
+          print("MERGE_LIVE_VPS_ORDER_AUTHORITY=NONE")
+          PY
+          git rev-parse HEAD > evidence/software-commit-sha.txt
+          printf '%s\n' 268da6ef24507f299f50d50723ba3c0c93a850ad > evidence/prereg-commit.txt
+          printf '%s\n' "NO_LIVE_NO_ORDERS_NO_FILLS_NO_HOLDOUT_NO_CERTIFICATION" > evidence/scientific-scope.txt
+          (cd evidence && sha256sum *.txt *.xml > SHA256SUMS)
+          (cd evidence && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-cog-evidence-v2-source-attestation-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
