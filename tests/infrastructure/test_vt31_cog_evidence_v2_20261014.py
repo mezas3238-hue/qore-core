@@ -238,3 +238,63 @@ def test_wrong_profile_and_bad_session_never_assumed():
     )
     assert out.state == "REJECTED"
     assert "TTRADES_AM_ONLY_NY_AM" in out.rejected
+
+
+def test_real_cleanroom_cog_emits_dol_outside_ttrades_opposite_h1():
+    """REAL COG, not fabricated DTO: capture an original NY AM cognitive event.
+
+    A synthetically provided previous NY cash high is 150, while actual
+    09:00–10:00 high is 110; the existing cognitive engine chooses cash DOL.
+    It must NOT silently be called a TTrades AM decision.
+    """
+    from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
+        VT31CleanroomCognition,
+    )
+
+    current, clock = data(Side.LONG)
+    del clock
+    prior_start = datetime(2025, 6, 30, 9, 30, tzinfo=NY).astimezone(UTC)
+    prior_cash = tuple(
+        bar(
+            prior_start+timedelta(minutes=i),
+            o="110", h="150" if i == 33 else "114",
+            lo="80" if i == 45 else "108", c="111",
+        )
+        for i in range(390)
+    )
+    engine = VT31CleanroomCognition(
+        framework_policy=G3_MSS_FRAMEWORK_POLICY,
+    )
+    emitted = None
+    for row in prior_cash + current:
+        engine.observe_closed_m1(row)
+        if row.closed_at == current[-2].closed_at:
+            emitted = engine.assess(
+                session=SessionId.NY_AM, as_of=row.closed_at,
+            ).decision
+    assert emitted is not None
+    assert emitted.draw_family == "PRIOR_NY_CASH_SESSION_HIGH"
+    assert emitted.draw_target == Decimal("150")
+    assert emitted.structure_level == Decimal("104")
+    assert emitted.mss_anchor_close == current[-2].close
+
+    result = inspect_cog_evidence(
+        profile=TTRADES_AM, session=SessionId.NY_AM,
+        as_of=current[-2].closed_at, history=prior_cash+current[:-1],
+        cognition=emitted,
+    )
+    assert result.state == "REJECTED"
+    assert "DOL_NOT_OPPOSITE_9AM_H1_EXTREME" in result.rejected
+    assert result.observed_mss_close == Decimal("105")
+    assert result.observed_pivot_level == Decimal("104")
+
+    # Same genuine QORE DTO is not rejected for a nonexistent universal
+    # TTrades 09AM rule when evaluated as ICT_GENERAL_2023.
+    general = inspect_cog_evidence(
+        profile=ICT_GENERAL, session=SessionId.NY_AM,
+        as_of=current[-2].closed_at, history=prior_cash+current[:-1],
+        cognition=emitted,
+    )
+    assert general.state == "UNKNOWN"
+    assert "ICT_EXTERNAL_DOL_PROVENANCE_UNVERIFIED" in general.unknown
+    assert "DOL_NOT_OPPOSITE_9AM_H1_EXTREME" not in general.rejected
