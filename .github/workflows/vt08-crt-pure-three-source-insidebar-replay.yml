@@ -8,7 +8,9 @@ on:
       - '.github/workflows/vt08-crt-pure-three-source-insidebar-replay.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_three_source_insidebar_replay.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_density_root_cause_audit.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_density_root_cause_audit.py'
   workflow_dispatch:
 
 permissions:
@@ -30,12 +32,15 @@ jobs:
           ruff check
           src/qore/infrastructure/trader_lab/vt08_crt_pure_three_source_insidebar_replay.py
           src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py
+          src/qore/infrastructure/trader_lab/vt08_crt_pure_density_root_cause_audit.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py
+          tests/infrastructure/trader_lab/test_vt08_crt_pure_density_root_cause_audit.py
       - name: Mypy source comparison
         run: >-
           mypy
           src/qore/infrastructure/trader_lab/vt08_crt_pure_three_source_insidebar_replay.py
           src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py
+          src/qore/infrastructure/trader_lab/vt08_crt_pure_density_root_cause_audit.py
       - name: Pytest synthetic causal invariants
         run: >-
           pytest -q --no-cov
@@ -82,13 +87,20 @@ jobs:
           python -m qore.infrastructure.trader_lab.vt08_crt_pure_three_source_insidebar_replay \
             "$QORE_MARKET" "artifacts/$QORE_MARKET" --data-source atlas-original --source-root original-native-m5 \
             | tee "artifacts/$QORE_MARKET/stdout.log"
+      - name: Re-examine missed CRT sources WITHOUT creating new trades
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_density_root_cause_audit \
+            "$QORE_MARKET" original-native-m5 "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/density-stdout.log"
       - name: Bind immutable source and report hashes
         shell: bash
         run: |
           set -euo pipefail
           printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_MARKET/git-sha.txt"
           cd "artifacts/$QORE_MARKET"
-          sha256sum report.json diagnostics.jsonl stdout.log git-sha.txt > SHA256SUMS.txt
+          sha256sum report.json diagnostics.jsonl stdout.log density-root-cause.json density-stdout.log git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: vt08-three-source-context-${{ matrix.market }}-${{ github.sha }}
