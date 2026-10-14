@@ -1,0 +1,21 @@
+# VT31 L1 — PRE-REGISTER exact Trader Lab DRAFT binding on real historical NAS100 M1 · 2026-10-14
+
+**Committed before implementing or running the new binder.** This gate is specifically **identity/readiness**, NOT methodology approval, DEEP characterisation or DEMO. Original L1–L10 in Issue #473 and `src/qore/infrastructure/trader_lab/{candidate,lifecycle,stage_evidence,promotion}.py`.
+
+## Single frozen source and deterministic sampling
+- Only source NAS100 CFD original 3Y `NAS100/market-evidence.json`, GitHub artifact 11459859004, SHA256 `0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa`, exactly 1,059,784 M1. ALREADY DEVELOPMENT CONSUMED. OOS FALSE.
+- Read all M1 in source order and select **earliest chronologically sorted NY-local day with 60/60 closed M1 09–10 plus 60/60 closed M1 10–11**, no interpolation and no picking by profit or cognitive signal. Exactly 120 M1 from same day for an immutable *research dataset slice*. No future outcomes.
+- Convert 120 exact M1 into canonical `OhlcSnapshot` + `ReplayMarketDataObservation` with `ReplayAvailabilityBasis.STRUCTURAL_BOUNDARY`, `available_at=closed_at`. **Do NOT mislabel this as observed receipt/provider quote evidence**. Historical adapter `market-data.vt31-original-nas100-research` is a derived research port; does not claim NAS100/USTEC contract equivalence.
+- Build actual canonical `HistoricalOhlcReplayDataset` manifest, `ResearchRunEvidence`, `ResearchStrategyConfigurationManifest`, `ResearchRunStrategyBinding`, then `TraderLabCandidateBinding` for immutable candidate id `VT31-NAS100-RESEARCH-QORE-TTRADES-NYAM` and version `m1-source-research-v1`. Use stable UUID5 identities from fixed source sha, source day and version (no UUID random seed-hunting). Run has no execution model, no transaction cost model, no fills.
+- Strategy manifest explicit typed parameters: source SHA, 120 M1 count, NAS100, profile TTrades NYAM QORE PROXY, H1 09:00–10:00, first return MSS pivot+displacement QORE, first M1 FVG, minimum 10pt from true MSS close, C2 full-wick *reference*, profile author fidelity `UNVERIFIED`, broker contract `UNHOMOLOGATED`, no sizing, no orders, consumed development. Bind SHA256 of M2/M3 and M4/M5 source implementation files so any code change mutates candidate fingerprint (no inherited certification).
+- Create admin research timestamps deterministically from real GitHub commit metadata, never backdate claims or assert that source was blind at time of model creation. Research freeze may occur after dataset originally examined; classify `POST_DISCOVERY_RESEARCH_DRAFT` and **do not** issue `ResearchEvaluationFreezeEvidence` or `TraderLabStageQualification`; `TraderLabLifecycle.state=DRAFT` and `evaluate_demo_eligibility = NOT_ELIGIBLE_INCOMPLETE`.
+
+## Test falsifications and output
+1. Exact identity, instrument NAS100, M1 timeframe 60, real-source SHA, 120 bars, canonical dataset count, `STRUCTURAL_BOUNDARY`, same-day NY and sample chronological eligibility; CODE+SOURCE SHA.
+2. Rerun fixed inputs id/version/code returns identical fingerprint; modify config, software revision or version produces different fingerprint; tampering with fingerprint is rejected.
+3. Wrong instrument EURUSD; missing M1, duplicate, future or mismatch source SHA => reject/fail closed; wrong code SHA => new version/identity, never reuse prior binding.
+4. `DRAFT` is strictly enforced: no L1 RESEARCH_READY, no L2 replay stage, no L3 official, no OOS, no monetary evaluation / true broker fill or signed COG/OPS, risk/CIBO reviews/DEMO.
+5. SHA G3 `cognition.py` `d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9`, `operations.py` `0ce9707314aecb71155de8b57044b6ec028847b2`, methodological acta `e99c70b4e018d626fb620d9a21b9314a51abc36d` locked by CI. No merge/live/OMS/FundedNext VPS/sizing.
+
+## Success and blockers
+**Success** means canonical QORE Trader Lab exact candidate identity and immutable DRAFT lifecycle produced from a REAL M1 research slice (not a toy self-report), with reproducible fingerprint. This is a necessary L1 engineering subtask, **NOT L1 certification**. Still need authorial/source complete OB/Breaker, independent G3 signatures Issue #897, full exact strategy + honest prereg/fresh OOS, broker contract+bidask Issue #857/#900, full L2 economic replay, L3 true proof, L4–L10.
