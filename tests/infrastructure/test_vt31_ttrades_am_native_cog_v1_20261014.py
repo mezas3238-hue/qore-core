@@ -13,6 +13,10 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     SessionId,
     Side,
 )
+from scripts.vt31_cog_evidence_v2_20261014 import (
+    TTRADES_AM,
+    inspect_cog_evidence,
+)
 from scripts.vt31_mc_p2_ttrades_native_h1_evidence_20261014 import (
     native_ttrades_am_context,
 )
@@ -20,10 +24,6 @@ from scripts.vt31_ttrades_am_native_cog_v1_20261014 import (
     COG_VERSION,
     TARGET_FAMILY,
     propose_ttrades_am_cognition,
-)
-from scripts.vt31_cog_evidence_v2_20261014 import (
-    TTRADES_AM,
-    inspect_cog_evidence,
 )
 
 NY = ZoneInfo("America/New_York")
