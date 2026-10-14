@@ -99,7 +99,7 @@ class TestCftcOfficialSourceAudit(unittest.TestCase):
     def test_source_never_issues_prereg_or_trading_permission(self) -> None:
         self.assertEqual(c.SCHEMA, "qore.futures-a.cftc-sixroots.source-audit.v1")
         self.assertEqual(len(c.CONTRACT_CODES), 6)
-        self.assertEqual(c.YEARS, (2012, 2018, 2021))
+        self.assertEqual(c.YEARS, tuple(range(2012, 2022)))
 
 
 if __name__ == "__main__":
