@@ -17,7 +17,7 @@ import io
 import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 from pathlib import Path
 from typing import Any
 from urllib.request import urlopen
@@ -249,7 +249,7 @@ _PUBLIC_SAMPLES = {
         "usdjpy-5m-ohlcv-forex-historical-data/main/USDJPY_5m.csv"
     ),
 }
-_SCALE = Decimal("1000000")
+_SCALE = Decimal("100000000")
 
 
 def _required_csv_cell(row: dict[str, str | None], field: str) -> str:
@@ -287,10 +287,13 @@ def parse_public_sample_m5(
         vals: dict[str, int] = {}
         for field in ("open", "high", "low", "close"):
             dec = Decimal(_required_csv_cell(row, field))
-            scaled = dec * _SCALE
-            if not dec.is_finite() or scaled != int(scaled):
-                raise ValueError("public sample price precision or finiteness invalid")
-            vals[field] = int(scaled)
+            if not dec.is_finite():
+                raise ValueError("public sample price must be finite")
+            # Public CSVs can serialize binary-float tails; define a stable,
+            # finer-than-pip 1e-8 price representation, not truncation.
+            vals[field] = int(
+                (dec * _SCALE).to_integral_value(rounding=ROUND_HALF_EVEN)
+            )
         if (
             vals["low"] > min(vals["open"], vals["close"])
             or vals["high"] < max(vals["open"], vals["close"])
@@ -321,6 +324,7 @@ def parse_public_sample_m5(
         "source": "GETDATA_FINANCE_GITHUB_MIT_FREE_M5_SAMPLE",
         "url": _PUBLIC_SAMPLES[market],
         "raw_sha256": digest,
+        "price_normalization": "decimal_round_half_even_8_fractional_places",
         "raw_bytes": len(payload),
         "source_first_bar_utc": observed_times[0].isoformat(),
         "source_last_bar_utc": observed_times[-1].isoformat(),
