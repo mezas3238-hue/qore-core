@@ -204,7 +204,10 @@ def record(
     # The prior witness may report UNKNOWN or REJECTED. Known contradictions
     # outrank missing history; no UNKNOWN is ever promoted to confirmation.
     faults = tuple(dict.fromkeys(reasons))
-    hard_errors = [x for x in faults if not x.startswith("COG_MISSING_") and x not in UNKNOWN_CONTEXT and x not in {
+    hard_errors = [
+        x for x in faults
+        if not x.startswith("COG_MISSING_") and x not in UNKNOWN_CONTEXT
+        and x not in {
         "COG_DECISION_NOT_PRESENT",
         "ICT_SOURCE_DOCTRINE_NOT_YET_FORMALIZED",
     }]
