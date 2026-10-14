@@ -21,7 +21,10 @@ def test_current_lineage_is_source_open_and_not_certified() -> None:
     result = evaluate_certification_readiness(_current_evidence())
     assert result.stage is CrtPureCertificationStage.SOURCE_OPEN
     assert result.certified is False
-    assert result.blockers == ("CRT_PRIMARY_SOURCE_AND_STRATEGY_IDENTITY_NOT_CLOSED",)
+    assert result.blockers == (
+        "CRT_PRIMARY_SOURCE_AND_STRATEGY_IDENTITY_NOT_CLOSED",
+        "MODEL_1_REFERENCE_AND_SOURCE_SELECTION_NOT_CLOSED",
+    )
 
 
 def test_readiness_cannot_grant_deployment_authority() -> None:
@@ -42,7 +45,7 @@ def test_certified_flag_cannot_be_forged() -> None:
         )
 
 
-def test_all_validation_flags_are_required_for_certified_stage() -> None:
+def test_all_green_external_flags_cannot_fake_source_certification() -> None:
     evidence = CrtPureCertificationEvidence(
         source_identity_closed=True,
         audusd_history_verified=True,
@@ -61,9 +64,9 @@ def test_all_validation_flags_are_required_for_certified_stage() -> None:
         full_qore_green=True,
     )
     result = evaluate_certification_readiness(evidence)
-    assert result.stage is CrtPureCertificationStage.CERTIFIED
-    assert result.certified is True
-    assert result.blockers == ()
+    assert result.stage is CrtPureCertificationStage.SOURCE_OPEN
+    assert result.certified is False
+    assert result.blockers == ("MODEL_1_REFERENCE_AND_SOURCE_SELECTION_NOT_CLOSED",)
     assert result.demo_authorized is False
     assert result.live_authorized is False
     assert result.real_capital_authorized is False
