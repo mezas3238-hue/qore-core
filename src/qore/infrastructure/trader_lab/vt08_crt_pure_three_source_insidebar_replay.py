@@ -82,7 +82,7 @@ def count_inside_m15_bars(
     inside_count = sum(
         right.high_price < left.high_price
         and right.low_price > left.low_price
-        for left, right in zip(selected[:-1], selected[1:])
+        for left, right in zip(selected[:-1], selected[1:], strict=True)
     ) if complete else 0
     return C1InsideBarObservation(
         parent_c3_opened_at="",
