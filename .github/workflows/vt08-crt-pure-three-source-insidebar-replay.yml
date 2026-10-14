@@ -1,4 +1,4 @@
-name: QORE VT08 CRT PURE Three-Source Inside-Bar Research
+name: QORE VT08 CRT PURE Three-Source Original Native M5 Research
 
 on:
   push:
@@ -7,11 +7,13 @@ on:
     paths:
       - '.github/workflows/vt08-crt-pure-three-source-insidebar-replay.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_three_source_insidebar_replay.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py'
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   quality:
@@ -22,19 +24,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install -e '.[dev,ctrader]'
-      - name: Show import style expected by Ruff
-        run: |
-          ruff check --select I --fix --diff tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py || true
+      - run: pip install -e '.[dev]'
       - name: Ruff source comparison
         run: >-
           ruff check
           src/qore/infrastructure/trader_lab/vt08_crt_pure_three_source_insidebar_replay.py
+          src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py
       - name: Mypy source comparison
         run: >-
           mypy
           src/qore/infrastructure/trader_lab/vt08_crt_pure_three_source_insidebar_replay.py
+          src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py
       - name: Pytest synthetic causal invariants
         run: >-
           pytest -q --no-cov
@@ -55,20 +56,31 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install research dependencies (no broker auth)
-        run: pip install -e '.[ctrader]'
-      - name: Public sample source (licensed, no broker login)
+      - name: Install read-only research library (no broker credentials)
+        run: pip install -e .
+      - name: Recover original CIBO/QORE Native 10Y M5 per-market archive
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.market }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original-native-m5
+      - name: Confirm original source signature and retention metadata policy
+        shell: bash
         run: |
-          echo "Using MIT-licensed GetData Finance GitHub M5 samples."
-          echo "Scope: approximately 2026-03-26 through 2026-09-25; not full 2 years."
-          echo "No cTrader authentication, no orders, and no broker execution assumptions."
+          set -euo pipefail
+          test -s original-native-m5/symbol-consumption-manifest.json
+          test -s original-native-m5/MANIFEST_SHA256SUMS.txt
+          test -s original-native-m5/SYMBOL_SHA256SUMS.txt
+          test -d original-native-m5/RAW_M5_LEDGER
+          echo "Original Atlas provenance: run 35166210458 / 10Y M5, not public samples."
       - name: Compare unchanged control vs Level-B inside-bar context
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "artifacts/$QORE_MARKET"
           python -m qore.infrastructure.trader_lab.vt08_crt_pure_three_source_insidebar_replay \
-            "$QORE_MARKET" "artifacts/$QORE_MARKET" --data-source public-sample \
+            "$QORE_MARKET" "artifacts/$QORE_MARKET" --data-source atlas-original --source-root original-native-m5 \
             | tee "artifacts/$QORE_MARKET/stdout.log"
       - name: Bind immutable source and report hashes
         shell: bash
