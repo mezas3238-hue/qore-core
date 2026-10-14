@@ -133,8 +133,8 @@ def test_old_complete_cash_fallback_and_consumption_contradiction():
     assert p3.state == "REJECTED"
     assert "DOL_ALREADY_CONSUMED_AFTER_CONFIRMATION" in p3.reasons
     assert p3.source_start == friday[0].opened_at
-    assert v1.state == "UNKNOWN", v1.record()
-    assert "SOURCE_POOL_NOT_CAUSALLY_ATTESTABLE" in v1.reasons
+    assert v1.state == "REJECTED", v1.record()
+    assert "COG_DOL_ANNOUNCED_BEFORE_SOURCE_CLOSE" in v1.reasons
 
 
 def test_gap_after_asia_remains_unknown_for_both_not_confirmed():
