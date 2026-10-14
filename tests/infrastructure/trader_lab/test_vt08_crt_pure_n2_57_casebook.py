@@ -122,8 +122,8 @@ def test_parent_side_sweep_and_close_alerts_have_distinct_semantics() -> None:
         bullish=True, own_high=110, own_low=90,
         micro_c1=bar(0, 110, 90, 100),
         micro_c2=bar(1, 108, 74, 93),
-        micro_c3=bar(2, 109, 82, 85),
-        next_open=85, parent_high=120, parent_low=80,
+        micro_c3=bar(2, 109, 82, 104),
+        next_open=104, parent_high=120, parent_low=80,
     )
     assert result["micro_c2_swept_original_h4_c1_side"]
     assert not result["micro_c3_close_against_h4_original_thesis"]
