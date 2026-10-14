@@ -40,7 +40,7 @@ def _synthetic_zip(
                 day = day.replace(year=2022)
             info: dict[str, Any] = {
                 "CFTC_Contract_Market_Code": code,
-                "As_of_Date_Form_YYYY-MM-DD": day.isoformat(),
+                "As_of_Date_In_Form_YYMMDD": day.strftime("%y%m%d"),
                 "Market_and_Exchange_Names": (
                     "FAKE - SOME EXCHANGE" if mismatched_venue else _EXCHANGES[root]
                 ),
