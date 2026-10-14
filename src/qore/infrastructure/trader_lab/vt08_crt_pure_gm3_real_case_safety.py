@@ -40,6 +40,27 @@ from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
 
 SCHEMA = "qore.vt08.crt_pure.gm3_real_case_source_safety.v1"
 M15 = timedelta(minutes=15)
+H4 = timedelta(hours=4)
+BLIND_ALLOWED_FIELDS = frozenset(
+    {
+        "schema",
+        "case_id",
+        "market",
+        "decision_clock_utc",
+        "decision_clock_ny",
+        "parent_H4_c3_opened_at_utc",
+        "parent_H4_direction_context",
+        "parent_H4_C1_ohlc",
+        "parent_H4_C2_ohlc",
+        "M15_observed_prefix_through_C2",
+        "reference_level_selection",
+        "author_model1_equivalence",
+        "decision_to_be_made_by_reviewer",
+        "is_execution_authorized",
+        "not_new_holdout",
+        "future_C3_withheld_from_blind_file",
+    }
+)
 
 
 def audit_blind_case(case: dict[str, Any]) -> dict[str, Any]:
@@ -50,12 +71,28 @@ def audit_blind_case(case: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("must provide future-free blinded prefix")
     if any("reveal" in key.lower() or "future_C3_ohlc" in key for key in case):
         raise ValueError("sealed future must not enter G-M3 review")
+    unknown_fields = set(case).difference(BLIND_ALLOWED_FIELDS)
+    if unknown_fields:
+        raise ValueError("unexpected blind case fields: " + ",".join(sorted(unknown_fields)))
+    if case.get("not_new_holdout", True) is not True:
+        raise ValueError("prior research cohort cannot be relabelled as fresh holdout")
     market = CrtPureMarket(case["market"])
     if market is CrtPureMarket.BTCUSD:
         raise ValueError("BTCUSD frozen")
     clock = datetime.fromisoformat(case["decision_clock_utc"])
     if clock.tzinfo is None:
         raise ValueError("decision clock requires timezone")
+    if "parent_H4_c3_opened_at_utc" in case:
+        h4_open = datetime.fromisoformat(case["parent_H4_c3_opened_at_utc"])
+        h4_c1 = datetime.fromisoformat(case["parent_H4_C1_ohlc"]["opened_at_utc"])
+        h4_c2 = datetime.fromisoformat(case["parent_H4_C2_ohlc"]["opened_at_utc"])
+        if (
+            any(t.tzinfo is None for t in (h4_open, h4_c1, h4_c2))
+            or h4_c1 + H4 != h4_c2
+            or h4_c2 + H4 != h4_open
+            or not h4_open < clock <= h4_open + H4
+        ):
+            raise ValueError("noncausal or disconnected H4 parent lineage")
     candles = case["M15_observed_prefix_through_C2"]
     if len(candles) < 2:
         raise ValueError("missing closed C1/C2 evidence")
@@ -69,7 +106,7 @@ def audit_blind_case(case: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("noncontiguous M15 sequence")
         previous = opened
         for key in ("open_relative", "high_relative", "low_relative", "close_relative"):
-            if not isinstance(bar[key], int):
+            if type(bar[key]) is not int:
                 raise ValueError("non-integer original Atlas relative OHLC")
         if not bar["low_relative"] <= min(bar["open_relative"], bar["close_relative"]):
             raise ValueError("invalid M15 OHLC low")
@@ -89,6 +126,11 @@ def audit_blind_case(case: dict[str, Any]) -> dict[str, Any]:
         )
     if previous is None or previous + M15 != clock:
         raise ValueError("last M15 not closed at decision clock")
+    if (
+        "parent_H4_c3_opened_at_utc" in case
+        and candles[0]["opened_at_utc"] != case["parent_H4_c3_opened_at_utc"]
+    ):
+        raise ValueError("M15 prefix is disconnected from parent H4 C3")
     if case["reference_level_selection"] != "UNRESOLVED_BY_PRIMARY_SOURCE":
         raise ValueError("case unexpectedly claims closed reference")
     if case["author_model1_equivalence"] != "NOT_ADJUDICATED":
