@@ -62,7 +62,9 @@ def scenario(
     london_end = instant(2025, month, day, 5)
     history = upgrade(history, begin, asia_end, "110", "90")
     # Use non-consumptive London range for Asia tests.
-    london_high, london_low = ("104", "96") if source == "ASIA_NY_CLOCK" else ("120", "80")
+    london_high, london_low = (
+        ("104", "96") if source == "ASIA_NY_CLOCK" else ("120", "80")
+    )
     history = upgrade(
         history, asia_end, london_end, london_high, london_low,
     ) if session != SessionId.LONDON else history
@@ -104,7 +106,8 @@ def test_five_session_source_combinations_both_sides_and_dst(
     matched = next(p for p in out.pools if p.family == cognition.draw_family)
     assert matched.level == cognition.draw_target
     assert matched.state == "UNCONSUMED"
-    assert int(cognition.observed_at.astimezone(NEW_YORK).utcoffset().total_seconds()/3600) == utc_offset
+    hours = cognition.observed_at.astimezone(NEW_YORK).utcoffset()
+    assert int(hours.total_seconds() / 3600) == utc_offset
     assert not out.method_certified and not out.cognition_certified
     assert not out.execution_authorized
     assert out.record()["pools"][0]["source_end"]
@@ -125,7 +128,7 @@ def test_original_london_session_cannot_use_five_am_london_pool():
     bad = replace(
         cog, draw_family="LONDON_NY_CLOCK_HIGH",
         draw_target=Decimal("120"),
-        draw_level_observed_at=instant(2025, 7, 1, 5),
+        draw_level_observed_at=instant(2025, 7, 1, 3),
     )
     out = attest_ict_dol_source(
         as_of=cog.observed_at, session=cog.session, history=history,
@@ -175,7 +178,8 @@ def test_consumed_pool_cannot_be_revived_after_price_retreat():
     )
     assert out.state == "REJECTED"
     assert "COG_DOL_ALREADY_CONSUMED" in out.reasons
-    assert next(p for p in out.pools if p.family == cog.draw_family).first_touch_at == modified[index].closed_at
+    source = next(p for p in out.pools if p.family == cog.draw_family)
+    assert source.first_touch_at == modified[index].closed_at
 
 
 def test_missing_source_candle_causes_unknown_without_level_from_cog():
@@ -227,7 +231,9 @@ def test_stale_asof_or_wrong_session_cannot_authorize():
     history, cog = scenario()
     args = dict(as_of=cog.observed_at, session=cog.session, history=history)
     assert "COG_SESSION_OR_ASOF_MISMATCH" in attest_ict_dol_source(
-        **args, cognition=replace(cog, observed_at=cog.observed_at-timedelta(minutes=1)),
+        **args, cognition=replace(
+            cog, observed_at=cog.observed_at - timedelta(minutes=1)
+        ),
     ).reasons
     assert attest_ict_dol_source(
         **dict(args, session=SessionId.LONDON), cognition=cog,
@@ -257,7 +263,8 @@ def test_previous_cash_prior_weekday_complete_and_source_clock():
         history=history, cognition=cog,
     )
     assert out.state == "CONFIRMED", out.record()
-    assert next(p for p in out.pools if p.family == cog.draw_family).source_end == instant(2025, 6, 30, 16)
+    source = next(p for p in out.pools if p.family == cog.draw_family)
+    assert source.source_end == instant(2025, 6, 30, 16)
 
 
 def test_monday_previous_friday_without_weekend_market_calendar_unknown():
