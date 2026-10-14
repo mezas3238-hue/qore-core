@@ -1,6 +1,20 @@
 # QORE CORE — VT08 CRT PURE
 # HANDOFF MAESTRO DE CONTINUIDAD Y CERTIFICACIÓN — 14 OCT 2026
 
+## ORDEN VINCULANTE OWNER — CERTIFICACIÓN SIN SIZING (RATIFICADA 14-OCT-2026)
+
+**ESTÁ ABSOLUTAMENTE PROHIBIDO USAR SIZING PARA CERTIFICAR VT08**, no solamente en producción sino en **todos los Gates de certificación G-M1, G-M2, G-M3, G-M4 y G-M5**. Esta ratificación prevalece sobre cualquier redacción ambigua de este handoff y del histórico.
+
+- **NUNCA** introducir ni calcular en VT08 o en su prueba certificadora lotes, tamaño de posición, volumen, unidades de contrato, capital operativo, balance de cuenta, porcentaje de riesgo, apalancamiento, multiplicadores de capital, optimización de asignaciones o performance condicionada a sizing.
+- La certificación propia del trader es **exclusivamente de metodología original documentada, interpretación cognitiva, causalidad, decisiones EXECUTE conceptual / WAIT / ABSTAIN, no leakage, robustez de su identidad y cumplimiento del contrato**. La métrica de acierto/edge **sin tamaño de posición**, si se investiga en otro expediente, tampoco sustituye ni desbloquea la certificación cognitiva.
+- **CIBO/QORE Risk es el único soberano de sizing y volumen**; no trasvasar su cálculo al trader ni hacer de sus parámetros un criterio para declarar VT08 certificado. Las pruebas de integración G-M4 deben comprobar **ausencia de autoridad de sizing en VT08** y delegación efectiva al módulo soberano, no ejecutar o recomputar sizing para obtener PASS.
+- Si un test, runner, certificador o propuesta exigiera sizing para aprobar al trader: **FAIL_CLOSED / TEST_INVALID**, registrar causa y reparar separación de responsabilidades. No ajustar la regla, no usar sizing simulado, no renombrarlo como capital normalizado o riesgo en R para eludir la prohibición.
+- Los reportes históricos en **R** son caracterizaciones **legadas** de resultados brutos, no decisiones de tamaño ni parte de los Gates G-M1..G-M5. **No** efectuar nuevas simulaciones de riesgo monetario en el trabajo de certificación.
+- La certificación global y cualquier validación económica **son expedientes separados**, pendientes de autorización; jamás exigir que VT08 mismo calcule lotes o riesgo. **Un PASS cognitivo no autoriza órdenes DEMO/LIVE.**
+
+**En caso de conflicto entre metodologías, CI, documentación antigua y esta directiva del Owner, aplicar la prohibición y mantener VT08 NO CERTIFICADO hasta completar sus Gates sin sizing.**
+
+
 **REPOSITORIO SOBERANO:** [mezas3238-hue/qore-core](https://github.com/mezas3238-hue/qore-core)  
 **PR #626:** [VT08 CRT PURE — source identity + hybrid cognitive foundation](https://github.com/mezas3238-hue/qore-core/pull/626)  
 **RAMA:** agent/vt08-crt-pure-source-identity-001  
