@@ -36,7 +36,7 @@ jobs:
             tests/infrastructure/trader_lab/test_qore_futures_a_cftc_source_probe_v1.py
       - name: Synthetic source trust-boundary tests
         run: python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_futures_a_cftc_source_probe_v1.py -v
-      - name: Inspect actual official 2012 2018 2021 CFTC weekly archives
+      - name: Inspect actual official 2012-2021 CFTC weekly archives
         run: python .github/scripts/qore_futures_a_cftc_sixroots_public_source_probe_v1.py
       - name: Enforce no outcome data, certification, trading or holdout
         run: |
@@ -45,7 +45,8 @@ jobs:
           from pathlib import Path
           p=Path("artifacts/research/cftc_sixroots_source_audit.json")
           r=json.loads(p.read_text())
-          assert r["source_archive_years_actually_checked"]==[2012,2018,2021]
+          assert r["source_archive_years_actually_checked"]==list(range(2012,2022))
+          assert r["all_2012_2021_years_checked"] is True
           assert r["root_count_verified_in_sample"]==6
           assert r["source_has_native_expiry_ohlcv"] is False
           assert r["source_is_executable_futures_market_data"] is False
