@@ -10,9 +10,11 @@ on:
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_density_root_cause_audit.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_later_source_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_nested_m15_census.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_density_root_cause_audit.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_later_source_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_nested_m15_census.py'
   workflow_dispatch:
 
 permissions:
@@ -36,9 +38,11 @@ jobs:
           src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py
           src/qore/infrastructure/trader_lab/vt08_crt_pure_density_root_cause_audit.py
           src/qore/infrastructure/trader_lab/vt08_crt_pure_later_source_forensics.py
+          src/qore/infrastructure/trader_lab/vt08_crt_pure_nested_m15_census.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_density_root_cause_audit.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_later_source_forensics.py
+          tests/infrastructure/trader_lab/test_vt08_crt_pure_nested_m15_census.py
       - name: Mypy source comparison
         run: >-
           mypy
@@ -46,12 +50,14 @@ jobs:
           src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py
           src/qore/infrastructure/trader_lab/vt08_crt_pure_density_root_cause_audit.py
           src/qore/infrastructure/trader_lab/vt08_crt_pure_later_source_forensics.py
+          src/qore/infrastructure/trader_lab/vt08_crt_pure_nested_m15_census.py
       - name: Pytest synthetic causal invariants
         run: >-
           pytest -q --no-cov
           tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_density_root_cause_audit.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_later_source_forensics.py
+          tests/infrastructure/trader_lab/test_vt08_crt_pure_nested_m15_census.py
 
   historical_replay:
     needs: quality
@@ -108,13 +114,21 @@ jobs:
           python -m qore.infrastructure.trader_lab.vt08_crt_pure_later_source_forensics \
             "$QORE_MARKET" original-native-m5 "artifacts/$QORE_MARKET" \
             | tee "artifacts/$QORE_MARKET/later-source-forensics-stdout.log"
+      - name: Census preregistered independent micro-CRT N1 (no trades)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/research/VT08_CRT_PURE_NESTED_M15_SOURCE_PREREG_2026-10-14.md
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_nested_m15_census \
+            "$QORE_MARKET" original-native-m5 "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/nested-m15-stdout.log"
       - name: Bind immutable source and report hashes
         shell: bash
         run: |
           set -euo pipefail
           printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_MARKET/git-sha.txt"
           cd "artifacts/$QORE_MARKET"
-          sha256sum report.json diagnostics.jsonl stdout.log density-root-cause.json density-stdout.log later-source-forensics.json later-source-forensics-cases.jsonl later-source-forensics-stdout.log git-sha.txt > SHA256SUMS.txt
+          sha256sum report.json diagnostics.jsonl stdout.log density-root-cause.json density-stdout.log later-source-forensics.json later-source-forensics-cases.jsonl later-source-forensics-stdout.log nested-m15-census.json nested-m15-ledger.jsonl nested-m15-stdout.log git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: vt08-three-source-context-${{ matrix.market }}-${{ github.sha }}
