@@ -126,7 +126,7 @@ def test_parent_side_sweep_and_close_alerts_have_distinct_semantics() -> None:
         next_open=85, parent_high=120, parent_low=80,
     )
     assert result["micro_c2_swept_original_h4_c1_side"]
-    assert not result["micro_c3_close_against_h4_original_thesis"] is False
+    assert not result["micro_c3_close_against_h4_original_thesis"]
 
 
 def test_btcusd_frozen_before_any_casebook_market_access() -> None:
