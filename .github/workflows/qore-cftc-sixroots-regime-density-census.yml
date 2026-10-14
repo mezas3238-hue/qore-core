@@ -1,0 +1,66 @@
+name: QORE CFTC six-root existing-data regime census no outcomes
+
+on:
+  push:
+    branches:
+      - research/qore-cftc-sixroots-regime-density-census-20261013
+    paths:
+      - '.github/scripts/qore_cftc_sixroots_regime_density_census_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_cftc_sixroots_regime_density_census_v1.py'
+      - '.github/workflows/qore-cftc-sixroots-regime-density-census.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source_descriptive_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      PYTHONPATH: src:.github/scripts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ruff static checker
+        run: pip install "ruff>=0.5,<1" "xlrd==2.0.2"
+      - name: Lint source and synthetic controls
+        run: |
+          ruff check .github/scripts/qore_cftc_sixroots_regime_density_census_v1.py \
+            tests/infrastructure/trader_lab/test_qore_cftc_sixroots_regime_density_census_v1.py
+      - name: Synthetic chronology, sha, excluded-future, cooldown tests
+        run: >-
+          python -m unittest discover -s tests/infrastructure/trader_lab
+          -p test_qore_cftc_sixroots_regime_density_census_v1.py -v
+      - name: Census real CFTC source files 2012-2021 six roots no outcomes
+        run: python .github/scripts/qore_cftc_sixroots_regime_density_census_v1.py
+      - name: Ensure preserved no-edge scientific boundary and receipt integrity
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          r=json.loads(Path("artifacts/research/cftc_regime_density_sixroots.json").read_text())
+          sha=r.pop("receipt_sha256")
+          assert hashlib.sha256(json.dumps(r,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()==sha
+          assert r["expected_weekly_market_records"]==3132
+          assert r["years"]==list(range(2012,2022))
+          assert set(r["counts"])=={"CL","NG","GC","HG","ZC","ZS"}
+          assert sum(x["original_weeks"] for x in r["counts"].values())==3132
+          assert r["past_cftc_edge_hypotheses_reopened"] is False
+          assert r["market_price_outcomes_loaded"] is False
+          assert r["2022_plus_holdout_inspected"] is False
+          assert r["trading_edge_calculated"] is False
+          assert r["pnl_pf_dd_calculated"] is False
+          assert r["certification_allowed"] is False
+          assert r["real_money_or_live"] is False
+          assert r["cost_usd"]==0
+          print("CFTC_SOURCE_ONLY_REAL_REGIMES_ZERO_OUTCOME_NO_TRADING")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cftc-sixroots-extreme-regime-census-no-market-outcomes
+          path: artifacts/research/cftc_regime_density_sixroots.json
+          retention-days: 90
+          if-no-files-found: error
