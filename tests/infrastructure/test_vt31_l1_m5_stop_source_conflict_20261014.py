@@ -1,7 +1,6 @@
 """Author stop swing vs QORE C2 proxy: no trade/author certification tests."""
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -146,7 +145,7 @@ def test_corrupted_fvg_geometry_rejected_before_comparison():
         observe_stop_conflict(nine=nine, ten=ten, m4=bad)
 
 
-def test_disagreeing_H1_target_or_side_never_certifies_stop():
+def test_disagreeing_h1_target_or_side_never_certifies_stop():
     nine, ten, m4 = fixture()
     for item in (
         {**m4, "target_dol": "200"},
@@ -173,7 +172,7 @@ def test_mss_timestamp_mutated_rejected():
         observe_stop_conflict(nine=nine, ten=ten, m4=mutated)
 
 
-def test_source_H1_missing_hour_rejected():
+def test_source_h1_missing_hour_rejected():
     nine, ten, m4 = fixture()
     with pytest.raises(ValueError, match="H1_09_SOURCE_INCOMPLETE"):
         observe_stop_conflict(nine=nine[:59], ten=ten, m4=m4)
