@@ -13,7 +13,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_three_source_insidebar_replay 
 )
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 
-
 BASE = datetime(2026, 1, 2, 8, 0, tzinfo=UTC)
 
 
