@@ -17,9 +17,9 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import
     M15Bar,
     ParentCrt,
 )
-from qore.infrastructure.traders.crt_pure_identity import (
+from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
+from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection,
-    CrtPureMarket,
 )
 
 BASE = datetime(2026, 1, 12, 8, tzinfo=UTC)
