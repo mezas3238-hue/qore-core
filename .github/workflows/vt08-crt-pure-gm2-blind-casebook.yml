@@ -10,6 +10,8 @@ on:
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py'
   workflow_dispatch:
 
 permissions:
@@ -33,9 +35,9 @@ jobs:
         run: python -m pip install -e '.[dev]'
       - name: Enforce code hygiene and contract tests
         run: |
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
 
   generate_real_casebook:
     needs: quality
@@ -78,6 +80,26 @@ jobs:
           python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm2_real_casebook \
             "$QORE_MARKET" original-native-m5 "artifacts/$QORE_MARKET" \
             > "artifacts/$QORE_MARKET/stdout-manifest.json"
+      - name: Enumerate source-neutral dual H4 reference challenges from real blinded cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm1_reference_challenge \
+            "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/gm1-reference-dispute-stdout.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root=Path('artifacts')/os.environ['QORE_MARKET']
+          m=json.loads((root/'gm1-reference-dispute-summary.json').read_text())
+          assert m['cases']==24 and m['candidate_reference_count']==48
+          assert m['GM1_PASS'] is False and m['GM5_certificate_issued'] is False
+          assert m['sizing_performed'] is False
+          rows=[json.loads(x) for x in (root/'gm1-reference-dispute-reviewer-only.jsonl').read_text().splitlines() if x]
+          assert len(rows)==24
+          assert all(r['source_authorized_selection'] is None for r in rows)
+          PY
       - name: Run existing VT08 cognition on real case prefixes (G-M3 safety only)
         shell: bash
         run: |
@@ -121,12 +143,14 @@ jobs:
           set -euo pipefail
           printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_MARKET/git-sha.txt"
           cd "artifacts/$QORE_MARKET"
-          sha256sum gm2-real-casebook-manifest.json gm2-blind-cases.jsonl gm2-sealed-c3-witness.jsonl gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl gm3-safety-stdout.json stdout-manifest.json git-sha.txt > SHA256SUMS.txt
+          sha256sum gm1-reference-dispute-summary.json gm1-reference-dispute-reviewer-only.jsonl gm1-reference-dispute-stdout.json gm2-real-casebook-manifest.json gm2-blind-cases.jsonl gm2-sealed-c3-witness.jsonl gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl gm3-safety-stdout.json stdout-manifest.json git-sha.txt > SHA256SUMS.txt
       - name: Separate blinded reviewer packet from sealed C3 (no access control implied)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "reviewer-blind/$QORE_MARKET" "sealed-future/$QORE_MARKET"
+          cp "artifacts/$QORE_MARKET/gm1-reference-dispute-summary.json" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm1-reference-dispute-reviewer-only.jsonl" "reviewer-blind/$QORE_MARKET/"
           cp "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "reviewer-blind/$QORE_MARKET/"
           cp "artifacts/$QORE_MARKET/gm2-real-casebook-manifest.json" "reviewer-blind/$QORE_MARKET/"
           cp "artifacts/$QORE_MARKET/gm3-real-safety-summary.json" "reviewer-blind/$QORE_MARKET/"
@@ -134,7 +158,7 @@ jobs:
           cp "artifacts/$QORE_MARKET/git-sha.txt" "reviewer-blind/$QORE_MARKET/"
           cp "artifacts/$QORE_MARKET/gm2-sealed-c3-witness.jsonl" "sealed-future/$QORE_MARKET/"
           cp "artifacts/$QORE_MARKET/git-sha.txt" "sealed-future/$QORE_MARKET/"
-          (cd "reviewer-blind/$QORE_MARKET"; sha256sum gm2-blind-cases.jsonl gm2-real-casebook-manifest.json gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+          (cd "reviewer-blind/$QORE_MARKET"; sha256sum gm1-reference-dispute-summary.json gm1-reference-dispute-reviewer-only.jsonl gm2-blind-cases.jsonl gm2-real-casebook-manifest.json gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
           (cd "sealed-future/$QORE_MARKET"; sha256sum gm2-sealed-c3-witness.jsonl git-sha.txt > SHA256SUMS.txt)
           if grep -R -l 'C3_M5_reveal_after_independent_review' "reviewer-blind/$QORE_MARKET"; then
             echo "::error::Sealed future C3 leaked into blinded reviewer packet"
