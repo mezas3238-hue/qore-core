@@ -224,11 +224,15 @@ def attest_ict_dol_source(
     ):
         return result("REJECTED", ("COG_DOL_ANNOUNCED_BEFORE_SOURCE_CLOSE",), pools)
     if pool.level is None:
-        return result("UNKNOWN", ("SOURCE_POOL_NOT_CAUSALLY_ATTESTABLE", pool.reason), pools)
+        return result(
+            "UNKNOWN", ("SOURCE_POOL_NOT_CAUSALLY_ATTESTABLE", pool.reason), pools
+        )
     if cognition.draw_target != pool.level:
         return result("REJECTED", ("COG_DOL_PRICE_DISAGREES_WITH_SOURCE_M1",), pools)
     if pool.state == "CONSUMED":
         return result("REJECTED", ("COG_DOL_ALREADY_CONSUMED",), pools)
     if pool.state != "UNCONSUMED":
         return result("UNKNOWN", ("POOL_AVAILABILITY_UNVERIFIABLE", pool.reason), pools)
-    return result("CONFIRMED", ("M2_QORE_CONTEXT_DOL_SOURCE_AND_AVAILABILITY_ONLY",), pools)
+    return result(
+        "CONFIRMED", ("M2_QORE_CONTEXT_DOL_SOURCE_AND_AVAILABILITY_ONLY",), pools
+    )
