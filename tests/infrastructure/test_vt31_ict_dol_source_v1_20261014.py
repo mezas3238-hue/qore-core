@@ -232,7 +232,7 @@ def test_stale_asof_or_wrong_session_cannot_authorize():
     args = dict(as_of=cog.observed_at, session=cog.session, history=history)
     assert "COG_SESSION_OR_ASOF_MISMATCH" in attest_ict_dol_source(
         **args, cognition=replace(
-            cog, observed_at=cog.observed_at - timedelta(minutes=1)
+            cog, observed_at=cog.observed_at + timedelta(minutes=1)
         ),
     ).reasons
     assert attest_ict_dol_source(
