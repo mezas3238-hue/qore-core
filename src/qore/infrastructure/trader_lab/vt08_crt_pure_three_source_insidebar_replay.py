@@ -252,6 +252,13 @@ _PUBLIC_SAMPLES = {
 _SCALE = Decimal("1000000")
 
 
+def _required_csv_cell(row: dict[str, str | None], field: str) -> str:
+    cell = row.get(field)
+    if cell is None or not cell.strip():
+        raise ValueError(f"missing public-sample CSV field: {field}")
+    return cell
+
+
 def parse_public_sample_m5(
     market: CrtPureMarket, payload: bytes
 ) -> tuple[tuple[ReplayBar, ...], dict[str, Any]]:
@@ -270,7 +277,7 @@ def parse_public_sample_m5(
     by_time: dict[datetime, ReplayBar] = {}
     observed_times: list[datetime] = []
     for row in reader:
-        opened_at = datetime.fromisoformat(row["datetime"])
+        opened_at = datetime.fromisoformat(_required_csv_cell(row, "datetime"))
         if opened_at.tzinfo is None or opened_at.utcoffset() is None:
             raise ValueError("public sample timestamp must have UTC offset")
         if opened_at.utcoffset() != timedelta(0):
@@ -279,7 +286,7 @@ def parse_public_sample_m5(
             raise ValueError("public M5 sample timestamp is not aligned")
         vals: dict[str, int] = {}
         for field in ("open", "high", "low", "close"):
-            dec = Decimal(row[field])
+            dec = Decimal(_required_csv_cell(row, field))
             scaled = dec * _SCALE
             if not dec.is_finite() or scaled != int(scaled):
                 raise ValueError("public sample price precision or finiteness invalid")
