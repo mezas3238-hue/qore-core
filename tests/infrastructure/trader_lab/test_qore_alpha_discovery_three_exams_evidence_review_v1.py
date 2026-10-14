@@ -212,13 +212,10 @@ class TestPostmortemZeroNewOutcomes(unittest.TestCase):
             self.e, p.name, [p.name, "exact-E3-code-head-sha.txt"],
             "OUTPUT_SHA256SUMS.txt",
         )
-        # If the old data *had* a positive method, the review must surface
-        # it rather than assert it was zero.
-        result = a._check_e3(self.e)
-        self.assertEqual(
-            result["positive_gross_and_delta_both_periods_all_block_sensitivities"],
-            1,
-        )
+        # If the old data had a positive result, the known-negative
+        # closed-program conclusion must refuse to assert zero.
+        with self.assertRaisesRegex(a.EvidenceError, "PRIOR_CLOSURE_CONTRADICTS"):
+            a._check_e3(self.e)
 
 
 if __name__ == "__main__":
