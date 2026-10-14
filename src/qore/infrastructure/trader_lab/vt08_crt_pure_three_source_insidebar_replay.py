@@ -151,11 +151,18 @@ def compare_three_sources_inside_bar_context(
     trades, counters, parent_count = run_r2c(market, bars)
     parents = build_parent_crts(market, bars)
     m15 = aggregate_complete_m15(bars)
+    m15_by_time = {bar.opened_at: bar for bar in m15}
     c1_observations: dict[str, C1InsideBarObservation] = {}
 
     for parent in parents:
+        expected_bars = int((parent.c1.closed_at - parent.c1.opened_at) / M15)
+        c1_m15 = tuple(
+            m15_by_time[parent.c1.opened_at + index * M15]
+            for index in range(expected_bars)
+            if parent.c1.opened_at + index * M15 in m15_by_time
+        )
         observation = count_inside_m15_bars(
-            m15,
+            c1_m15,
             c1_opened_at=parent.c1.opened_at,
             c1_closed_at=parent.c1.closed_at,
         )
