@@ -23,11 +23,11 @@ NY = ZoneInfo("America/New_York")
 
 
 def bar(
-    t, o="100", h="102", l="98", c="101",
+    t, o="100", h="102", low="98", c="101",
 ):
     return M1Bar(
         t, t + timedelta(minutes=1),
-        Decimal(o), Decimal(h), Decimal(l), Decimal(c),
+        Decimal(o), Decimal(h), Decimal(low), Decimal(c),
     )
 
 
@@ -37,7 +37,7 @@ def fixture(side=Side.LONG, month=7, c2_level=None):
     nine = [bar(start9 + timedelta(minutes=i)) for i in range(60)]
     if side is Side.LONG:
         nine[10] = bar(nine[10].opened_at, h="130")
-        nine[20] = bar(nine[20].opened_at, l="90")
+        nine[20] = bar(nine[20].opened_at, low="90")
         nine[57] = bar(nine[57].opened_at, h="104")
         lvl = str(c2_level) if c2_level is not None else "93"
         ten = (
@@ -48,8 +48,8 @@ def fixture(side=Side.LONG, month=7, c2_level=None):
         )
     else:
         nine[10] = bar(nine[10].opened_at, h="110")
-        nine[20] = bar(nine[20].opened_at, l="70")
-        nine[57] = bar(nine[57].opened_at, l="96")
+        nine[20] = bar(nine[20].opened_at, low="70")
+        nine[57] = bar(nine[57].opened_at, low="96")
         lvl = str(c2_level) if c2_level is not None else "107"
         ten = (
             bar(start10, c="100"),
