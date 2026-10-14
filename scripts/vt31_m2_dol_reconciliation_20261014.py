@@ -107,6 +107,28 @@ def compare_one(
     pool = next((p for p in source.pools if p.family == label), None)
     if pool is None:
         raise AssertionError("MISSING_FROZEN_FAMILY")
+    # The DTO constructor correctly forbids facts confirmed AFTER as_of.
+    # Such a family cannot be probed; do not shift timestamps backwards.
+    if pool.source_end > as_of:
+        return {
+            "family": label,
+            "probe_not_authentic_cognition": True,
+            "v1_pool_state": pool.state,
+            "p3_state": "UNKNOWN_UNATTESTABLE_INPUT",
+            "v1_state": "UNKNOWN_UNATTESTABLE_INPUT",
+            "p3_reasons": ["SOURCE_NOT_CLOSED_FOR_COG_PROBE"],
+            "v1_reasons": ["SOURCE_NOT_CLOSED_FOR_COG_PROBE"],
+            "same_normalized_state": True,
+            "p3_source_start": None,
+            "v1_source_start": pool.source_start.isoformat(),
+            "p3_source_level": None,
+            "v1_source_level": (
+                str(pool.level) if pool.level is not None else None
+            ),
+            "method_certified": False,
+            "cognition_certified": False,
+            "execution_authorized": False,
+        }
     probe = CognitiveDecision(
         session=session, side=side, observed_at=as_of,
         draw_target=pool.level if pool.level is not None else Decimal("100"),
