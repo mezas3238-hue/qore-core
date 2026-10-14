@@ -325,3 +325,85 @@ def test_neither_method_nor_economic_gate_is_authorized():
     assert public["execution_authorized"] is False
     assert "profit_factor" not in public
     assert "lot_size" not in public
+
+
+def test_genuine_cleanroom_cog_pool_price_rebuilt_independently():
+    """Actual original engine emits cash=150; we verify source without its DTO.
+
+    The gap from prior cash close to current 09:00 means UNCONSUMED is not
+    attested. Source identity and level are verified, but availability UNKNOWN.
+    """
+    from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
+        VT31CleanroomCognition,
+    )
+    from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
+        G3_MSS_FRAMEWORK_POLICY,
+    )
+    from scripts.vt31_cog_evidence_v2_20261014 import (
+        ICT_GENERAL,
+        inspect_cog_evidence,
+    )
+
+    day9 = instant(2025, 7, 1, 9)
+    day10 = instant(2025, 7, 1, 10)
+    prev = instant(2025, 6, 30, 9, 30)
+
+    def native(
+        start: datetime, o: str, hi: str, lo: str, c: str,
+    ) -> M1Bar:
+        return M1Bar(
+            start, start + timedelta(minutes=1),
+            Decimal(o), Decimal(hi), Decimal(lo), Decimal(c),
+        )
+
+    prior_cash = tuple(
+        native(
+            prev + timedelta(minutes=i), "110",
+            "150" if i == 33 else "114",
+            "80" if i == 45 else "108", "111",
+        )
+        for i in range(390)
+    )
+    nine = [
+        native(day9 + timedelta(minutes=i), "100", "102", "98", "101")
+        for i in range(60)
+    ]
+    nine[10] = native(day9 + timedelta(minutes=10), "100", "110", "98", "101")
+    nine[20] = native(day9 + timedelta(minutes=20), "100", "102", "90", "101")
+    nine[57] = native(day9 + timedelta(minutes=57), "100", "104", "98", "101")
+    ten = (
+        native(day10, "100", "102", "98", "100"),
+        native(day10 + timedelta(minutes=1), "96", "99", "89", "95"),
+        native(day10 + timedelta(minutes=2), "94", "106", "93", "105"),
+    )
+    engine = VT31CleanroomCognition(
+        framework_policy=G3_MSS_FRAMEWORK_POLICY,
+    )
+    emitted = None
+    for row in prior_cash + tuple(nine) + ten:
+        engine.observe_closed_m1(row)
+        if row.closed_at == ten[-1].closed_at:
+            emitted = engine.assess(
+                session=SessionId.NY_AM, as_of=row.closed_at,
+            ).decision
+    assert emitted is not None
+    assert emitted.draw_family == "PRIOR_NY_CASH_SESSION_HIGH"
+    assert emitted.draw_target == Decimal("150")
+
+    raw_history = prior_cash + tuple(nine) + ten
+    m2 = attest_ict_dol_source(
+        as_of=ten[-1].closed_at, session=SessionId.NY_AM,
+        history=raw_history, cognition=emitted,
+    )
+    pool = next(p for p in m2.pools if p.family == emitted.draw_family)
+    assert pool.level == Decimal("150")  # source independent of DTO
+    assert pool.source_end == instant(2025, 6, 30, 16)
+    assert pool.state == "UNKNOWN"  # cannot infer no overnight touches
+    assert m2.state == "UNKNOWN"
+    assert "POOL_AVAILABILITY_UNVERIFIABLE" in m2.reasons
+    v2 = inspect_cog_evidence(
+        profile=ICT_GENERAL, session=SessionId.NY_AM,
+        as_of=ten[-1].closed_at, history=raw_history, cognition=emitted,
+    )
+    assert v2.state == "UNKNOWN"  # original V2 still not globally certified
+    assert not m2.method_certified and not m2.execution_authorized
