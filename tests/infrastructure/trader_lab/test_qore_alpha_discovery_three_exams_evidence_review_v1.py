@@ -6,7 +6,6 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 import qore_alpha_discovery_three_exams_evidence_review_v1 as a
 
