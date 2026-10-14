@@ -1,0 +1,113 @@
+name: VT31 L1 M5 C2 vs author stop swing source conflict 3Y NO TRADING
+on:
+  push:
+    branches:
+      - agent/vt31-l1-m5-stop-source-conflict-20261014
+    paths:
+      - 'scripts/vt31_l1_m5_stop_source_conflict_20261014.py'
+      - 'tests/infrastructure/test_vt31_l1_m5_stop_source_conflict_20261014.py'
+      - 'docs/research/VT31_L1_M5_C2_VS_TTRADES_SWING_STOP_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-l1-m5-stop-source-conflict.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  SOURCE_ARTIFACT: '11459859004'
+  SOURCE_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  author-stop-versus-qore-wick-no-orders:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pre-registered before implementation and immutable original G3 blobs
+        run: |
+          set -euo pipefail
+          git cat-file -t bd5a6f48345c974232a0a914f1a83b583952b9cf
+          git merge-base --is-ancestor bd5a6f48345c974232a0a914f1a83b583952b9cf HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Install and run source/Trader Lab adversarial regression
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          ruff check scripts/vt31_l1_m5_stop_source_conflict_20261014.py tests/infrastructure/test_vt31_l1_m5_stop_source_conflict_20261014.py
+          python -m py_compile scripts/vt31_l1_m5_stop_source_conflict_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_l1_m5_stop_source_conflict_20261014.py \
+            tests/infrastructure/test_vt31_l1_research_binding_20261014.py \
+            tests/infrastructure/test_vt31_l3_m1_source_parity_20261014.py \
+            tests/infrastructure/test_vt31_m4_m5_ttrades_fvg_path_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
+            tests/infrastructure/test_vt31_ict_dol_source_v1_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Download and verify exact original closed NAS100 M1 source
+        run: |
+          set -euo pipefail
+          mkdir -p input
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT}/zip" > original.zip
+          unzip -q original.zip -d input
+          test -s input/NAS100/market-evidence.json
+          echo "${SOURCE_SHA}  input/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Run 3Y preregistered M5 source-stop divergence audit on fixed 119 FVG
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_l1_m5_stop_source_conflict_20261014.py \
+            --market input/NAS100/market-evidence.json \
+            --out evidence/VT31_L1_M5_STOP_C2_VS_TTRADES_SOURCE_REAL_3Y.json \
+            | tee evidence/summary.json
+      - name: Fail closed if stop proxies interpreted as author stop or economic trades
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_L1_M5_STOP_C2_VS_TTRADES_SOURCE_REAL_3Y.json"))
+          assert p["original_3y_m1_sha256"]=="0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+          assert p["original_m1_count"]==1059784
+          assert p["prereg_commit"]=="bd5a6f48345c974232a0a914f1a83b583952b9cf"
+          assert p["fixed_m4_first_fvg_population"]==119 and len(p["cases"])==119
+          assert sum(p["c2_vs_pre_mss_extreme_counts"].values())==119
+          assert sum(p["c2_vs_first_raid_extreme_counts"].values())==119
+          assert sum(p["c2_relative_to_ce_counts"].values())==119
+          assert p["actual_author_swing_not_identifiable_by_proxy"] is True
+          assert p["ttrades_author_stop_certified"] is False
+          assert p["method_l1_certified"] is False
+          assert p["g3_dual_signoff_verified"] is False
+          assert p["broker_tick_and_contract_attested"] is False
+          assert p["orders_executed"]==0 and p["entry_execution_acks"]==0
+          assert p["risk_sizing_produced"] is False
+          assert p["PnL_PF_DD_Sharpe_Sortino"] is None
+          assert p["fresh_holdout_used"] is False
+          assert p["trader_certified"] is False and p["live_authorized"] is False
+          assert all(x["author_swing_identified"] is False and x["filled"] is False
+                     and x["ttrades_author_stop_certified"] is False and
+                     x["g3_c2_equals_author_stop"] is False for x in p["cases"])
+          print("ONLY_STRUCTURAL_PROXY_DIFFERENCE_WITHOUT_TTRADES_SWING_CERTIFICATION")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' bd5a6f48345c974232a0a914f1a83b583952b9cf > evidence/prereg_sha.txt
+          printf '%s\n' 'NO_MERGE_NO_LIVE_NO_SIZING_NO_AUTHOR_SWING_ID_NO_PNL_NO_OOS' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-stop-source-conflict-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
