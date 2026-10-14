@@ -26,6 +26,7 @@ from qore_futures_a_cftc_managed_money_one_shot_screen_v1 import (
     CftcPosition,
     _read_cftc_archive,
 )
+
 from qore.infrastructure.trader_lab.qore_futures_a_eia_f1f2_predictive_screen_v1 import (
     read_frozen_eia_xls,
 )
