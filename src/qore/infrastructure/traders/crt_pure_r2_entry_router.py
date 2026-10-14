@@ -16,13 +16,13 @@ from qore.infrastructure.traders.crt_pure_cognitive_contract import (
 from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection,
 )
-from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
-    unresolved_model1_source_concepts,
-)
 from qore.infrastructure.traders.crt_pure_model1 import (
     CrtPureModel1Confirmation,
     CrtPureModel1Direction,
     CrtPureModel1State,
+)
+from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
+    unresolved_model1_source_concepts,
 )
 
 
