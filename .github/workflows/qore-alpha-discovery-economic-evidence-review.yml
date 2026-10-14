@@ -1,0 +1,87 @@
+name: QORE Alpha Discovery P0 signed-evidence economic review (NO new PnL)
+
+on:
+  push:
+    branches:
+      - research/qore-alpha-discovery-economic-audit-20261013
+    paths:
+      - '.github/scripts/qore_alpha_discovery_three_exams_evidence_review_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_alpha_discovery_three_exams_evidence_review_v1.py'
+      - '.github/workflows/qore-alpha-discovery-economic-evidence-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  independently_classify_closed_economic_evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .github/scripts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ruff; no price-analysis or broker dependencies
+        run: pip install "ruff>=0.5,<1"
+      - name: Static lint and adversarial signed-evidence tests
+        run: |
+          ruff check .github/scripts/qore_alpha_discovery_three_exams_evidence_review_v1.py \
+            tests/infrastructure/trader_lab/test_qore_alpha_discovery_three_exams_evidence_review_v1.py
+          python -m unittest discover -s tests/infrastructure/trader_lab -p test_qore_alpha_discovery_three_exams_evidence_review_v1.py -v
+      - name: Download H-TOM-1 immutable 3-index economic gross results (NO raw OHLC)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-tom1-three-index-prereg-economic-gross-decision-be77998d185165ff0d2cce320d015981c8a8c631
+          run-id: '38502188181'
+          github-token: ${{ github.token }}
+          path: past-tom-1
+      - name: Download 7-method E3 existing economic panel results (NO raw OHLC)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-e3-original33-seven-method-robustness-845a7e351c1641025a6131271ae3ada37ebf37f1
+          run-id: '38262585848'
+          github-token: ${{ github.token }}
+          path: past-e3-native
+      - name: Download CFTC H-COT-2 final underpowered source-price diagnostic
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cftc-z2-final-extreme-reversal-dev-diag-reference-only
+          run-id: '38495515717'
+          github-token: ${{ github.token }}
+          path: past-cftc
+      - name: Reconcile original SHA and scientific verdicts; independent economics triage
+        run: |
+          python .github/scripts/qore_alpha_discovery_three_exams_evidence_review_v1.py \
+            past-tom-1 past-e3-native past-cftc \
+            artifacts/research/qore_alpha_discovery_three_closed_exams_review.json
+      - name: Fail closed on dishonest program outcome or holdout
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          p=Path("artifacts/research/qore_alpha_discovery_three_closed_exams_review.json")
+          x=json.loads(p.read_text())
+          h=x.pop("receipt_sha256")
+          assert hashlib.sha256(json.dumps(x,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()==h
+          assert [s["source_run_id"] for s in x["studies"]]==[38502188181,38262585848,38495515717]
+          assert x["studies"][0]["three_of_three_diag_absolute_gross_negative"] is True
+          assert x["studies"][1]["positive_gross_and_delta_both_periods_all_block_sensitivities"]==0
+          assert x["studies"][2]["trading_edge_refuted_universally"] is False
+          assert x["future_trading_outcomes_read"] is False
+          assert x["new_market_prices_downloaded"] is False
+          assert x["historical_broker_net_calculated"] is False
+          assert x["new_traders_certified"] == 0
+          assert x["real_capital_or_live_authorized"] is False
+          assert x["market_data_spend_usd"] == 0
+          print("PROGRAM_POSTMORTEM_NO_NEW_PNL_NO_HOLDOUT_NO_CERTIFICATION")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-alpha-discovery-three-signed-exams-independent-economic-triage
+          path: artifacts/research/qore_alpha_discovery_three_closed_exams_review.json
+          retention-days: 90
+          if-no-files-found: error
