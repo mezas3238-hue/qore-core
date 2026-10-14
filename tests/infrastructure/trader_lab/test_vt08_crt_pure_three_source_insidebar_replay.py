@@ -109,8 +109,8 @@ def test_public_m5_parser_has_utc_time_and_immutable_checksum() -> None:
     )
     bars, source = parse_public_sample_m5(CrtPureMarket.AUDUSD, sample)
     assert len(bars) == 2
-    assert bars[0].open_price == 700000
-    assert bars[0].high_price == 701000
+    assert bars[0].open_price == 70000000
+    assert bars[0].high_price == 70100000
     assert source["source"] == "GETDATA_FINANCE_GITHUB_MIT_FREE_M5_SAMPLE"
     assert len(source["raw_sha256"]) == 64
     assert source["history_complete_two_years"] is False
@@ -140,3 +140,16 @@ def test_public_m5_parser_rejects_duplicate_timestamps() -> None:
     sample = b"datetime,open,high,low,close\n" + row + row
     with pytest.raises(ValueError, match="not strictly ascending"):
         parse_public_sample_m5(CrtPureMarket.AUDUSD, sample)
+
+
+
+def test_public_sample_binary_float_tail_rounds_at_fixed_resolution() -> None:
+    sample = (
+        b"datetime,open,high,low,close\n"
+        b"2026-04-01T08:00:00+00:00,"
+        b"0.7000000000000001,0.7010000000000001,0.6990,0.7005\n"
+    )
+    bars, source = parse_public_sample_m5(CrtPureMarket.AUDUSD, sample)
+    assert bars[0].open_price == 70000000
+    assert bars[0].high_price == 70100000
+    assert source["price_normalization"] == "decimal_round_half_even_8_fractional_places"
