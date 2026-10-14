@@ -1,0 +1,104 @@
+name: VT31 L3-prep closed M1 1x 32x SOURCE parity NO LAB QUALIFICATION
+on:
+  push:
+    branches:
+      - agent/vt31-l3-fastforward-source-parity-20261014
+    paths:
+      - 'scripts/vt31_l3_m1_source_parity_20261014.py'
+      - 'tests/infrastructure/test_vt31_l3_m1_source_parity_20261014.py'
+      - 'docs/research/VT31_L3_M1_SOURCE_PARITY_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-l3-source-prefix-parity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_ARTIFACT: '11459859004'
+  FROZEN_MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  source-only-l3-preparatory-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prereg precedes code and immutable G3 COG OPS
+        run: |
+          set -euo pipefail
+          git cat-file -t 51eb61d6982c67026bdca39dd301b380347d54bd
+          git merge-base --is-ancestor 51eb61d6982c67026bdca39dd301b380347d54bd HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Install and test source-prefix accelerated parity + legacy regressions
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          ruff check scripts/vt31_l3_m1_source_parity_20261014.py tests/infrastructure/test_vt31_l3_m1_source_parity_20261014.py
+          python -m py_compile scripts/vt31_l3_m1_source_parity_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_l3_m1_source_parity_20261014.py \
+            tests/infrastructure/test_vt31_m4_m5_ttrades_fvg_path_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
+            tests/infrastructure/test_vt31_ict_dol_source_v1_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Restore the exact previously consumed NAS100 historical corpus
+        run: |
+          set -euo pipefail
+          mkdir -p input
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${MARKET_ARTIFACT}/zip" > frozen.zip
+          unzip -q frozen.zip -d input
+          test -s input/NAS100/market-evidence.json
+          echo "${FROZEN_MARKET_SHA}  input/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Compare full development 3Y market event sequence and source decisions
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_l3_m1_source_parity_20261014.py \
+            --market input/NAS100/market-evidence.json \
+            --out evidence/VT31_SOURCE_ONLY_L3_PREP_1X_32X_PARITY.json \
+            | tee evidence/summary.json
+      - name: Immutable scope/evidence checks
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_SOURCE_ONLY_L3_PREP_1X_32X_PARITY.json"))
+          assert p["prereg_commit"] == "51eb61d6982c67026bdca39dd301b380347d54bd"
+          assert p["market_sha256"] == "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+          assert p["original_m1_count"] == 1059784
+          assert p["reference_case_parity"] is True and p["simulated_clock_parity"] is True
+          assert p["declared_virtual_speed_factor"] == 32
+          assert p["first_return_only_cognitive_contexts"] == 128
+          assert p["M4_source_state_counts"]["FVG_GEOMETRY_ATTESTED_NOT_EXECUTABLE"] == 119
+          assert p["reference_batch_cases_sha256"] == p["one_x_cases_sha256"] == p["thirty_two_x_cases_sha256"]
+          assert p["wall_advance_1x_us"] == 32*p["wall_advance_32x_us"]
+          for gate in ("trader_lab_L1_qualified","trader_lab_L2_qualified","trader_lab_L3_qualified","trader_lab_candidate_binding_present","trader_certified","demo_eligible","live_authorized"):
+              assert p[gate] is False
+          assert p["economic_evaluation"] is None and p["execution_ACK_fills"] == 0
+          assert p["sizing_produced"] is False and p["fresh_holdout_used"] is False
+          print("SOURCE_PARITY_PASS_NOT_TRADER_LAB_STAGE_OR_PROFITABILITY_QUALIFICATION")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 51eb61d6982c67026bdca39dd301b380347d54bd > evidence/prereg.txt
+          printf '%s\n' 'NO_REAL_TRADE_NO_DEMO_ELIGIBLE_NO_OFFICIAL_L3_NO_OOS_NO_PNL_NO_SIZING' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-l3-preparatory-source-parity-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
