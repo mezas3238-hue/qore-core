@@ -1,0 +1,76 @@
+name: VT31 P0 Methodology and Cognitive Source Fidelity (NO TRADES)
+on:
+  push:
+    branches:
+      - agent/vt31-methodology-cognition-certification-p0-20261014
+    paths:
+      - scripts/vt31_ttrades_am_cognitive_fidelity_witness_20261014.py
+      - tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py
+      - docs/research/VT31_METHOD_COG_CERTIFICATION_PLAN_PREREG_2026-10-14.md
+      - docs/research/VT31_METHOD_COG_CERTIFICATION_FIRST_VERDICT_2026-10-14.md
+      - .github/workflows/vt31-methodology-cognition-source-fidelity-p0.yml
+permissions:
+  contents: read
+jobs:
+  doctrinal-cognition-source-witness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify prereg ancestry no post-result methodology adjustment
+        run: |
+          set -euo pipefail
+          git cat-file -t 4477540e928dc9ec3bdbe437e2bea7a01990c9c9
+          git merge-base --is-ancestor 4477540e928dc9ec3bdbe437e2bea7a01990c9c9 HEAD
+      - name: Strict code quality and actual closed-M1 source-contract adversarial QA
+        run: |
+          set -euo pipefail
+          python -m pip install "pytest>=8,<10" "ruff>=0.5,<1"
+          python -m py_compile \
+            scripts/vt31_ttrades_am_cognitive_fidelity_witness_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py
+          ruff check \
+            scripts/vt31_ttrades_am_cognitive_fidelity_witness_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py
+      - name: Audit source and installed model boundaries without editing G3
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("scripts/vt31_ttrades_am_cognitive_fidelity_witness_20261014.py").read_text()
+          assert "CONTEXT_CONFORMANT_ONLY" in p
+          assert "methodology_certified: bool = False" in p
+          assert "cognitive_certified: bool = False" in p
+          assert "execution_authorized: bool = False" in p
+          assert "DOL_NOT_OPPOSITE_9AM_H1_EXTREME" in p
+          assert "BOTH_H1_SIDES_SWEPT_UNKNOWN_INTRABAR_ORDER" in p
+          assert "MSS_NOT_AFTER_SWEEP" in p
+          cog=Path("src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py").read_text()
+          assert 'Decimal("1.25")' in cog
+          assert 'name="PRIOR_NY_CASH_SESSION"' in cog
+          assert 'p.side is shift.side' in cog
+          print("SOURCE_FIDELITY_GATE_M0_M3_SOFTWARE_WITNESS_ONLY")
+          print("TRADER_METHOD_CERTIFIED=FALSE")
+          print("COG_COGNITIVE_CERTIFIED=FALSE")
+          print("EXECUTION_AUTHORIZED=FALSE")
+          PY
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/witness_commit.txt
+          git show 78d4cdac0e09d1a6eef37b99c505ffc5098031fc:src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py \
+            | sha256sum > evidence/G3_cognition_source_sha256.txt
+          echo "P0 M0-M3 CHARACTERIZATION ONLY; NO TRADE / NO OOS / NO PNL" > evidence/scope.txt
+          (cd evidence && sha256sum *.txt > SHA256SUMS)
+          (cd evidence && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-method-cog-m0-m3-source-fidelity-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
