@@ -4,7 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import M15Bar
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
+    M15Bar,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_three_source_insidebar_replay import (
     compare_three_sources_inside_bar_context,
     count_inside_m15_bars,
