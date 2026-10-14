@@ -1,0 +1,97 @@
+name: VT31 M4 P1 frozen 128 actual M1 contexts first FVG causal-prefix parity
+on:
+  push:
+    branches:
+      - agent/vt31-m4-p1-prefix-falsification-20261014
+    paths:
+      - 'scripts/vt31_m4_first_fvg_prefix_audit_20261014.py'
+      - 'tests/infrastructure/test_vt31_m4_first_fvg_prefix_audit_20261014.py'
+      - 'docs/research/VT31_M4_P1_REAL_M1_PREFIX_PARITY_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-m4-p1-source-prefix-parity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+  ARTIFACT_ID: '11459859004'
+jobs:
+  actual-real-m1-first-fvg-prefix-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prereg and immutable original G3
+        run: |
+          set -euo pipefail
+          git cat-file -t 8a4a3a83c954cf5a148c0a42324cd91d8205d829
+          git merge-base --is-ancestor 8a4a3a83c954cf5a148c0a42324cd91d8205d829 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Install and adversarial regression before source
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          ruff check scripts/vt31_m4_first_fvg_prefix_audit_20261014.py tests/infrastructure/test_vt31_m4_first_fvg_prefix_audit_20261014.py
+          python -m py_compile scripts/vt31_m4_first_fvg_prefix_audit_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_m4_first_fvg_prefix_audit_20261014.py \
+            tests/infrastructure/test_vt31_m4_m5_ttrades_fvg_path_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/junit.xml | tee evidence/pytest-log.txt
+      - name: Retrieve 3Y real original NAS100 source with SHA
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Re-run 128 fixed M4 proposals on EVERY actual closed-M1 prefix
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m4_first_fvg_prefix_audit_20261014.py \
+            --market source/NAS100/market-evidence.json \
+            --out evidence/VT31_M4_FIRST_FVG_PREFIX_128_REAL_CONTEXTS.json \
+            | tee evidence/prefix-summary.json
+      - name: No-PnL and zero-order provenance SHA registry
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M4_FIRST_FVG_PREFIX_128_REAL_CONTEXTS.json'))
+          assert p['source_total_m1']==1059784 and p['m2m3_candidate_days']==128
+          assert p['causal_first_fvg_geometry_parity'] is True
+          assert all(x['causal_first_fvg_and_C2_immutable'] for x in p['cases'])
+          assert p['economic_pnl'] is None and p['profit_factor'] is None
+          assert p['fills_or_ack']==0
+          assert p['trading_authorized'] is False and p['live_authorized'] is False
+          assert p['method_certified'] is False and p['cognition_certified'] is False
+          print('SOURCE_PREFIX_CAUSAL_M4_PASS_NOT_TRADER_CERTIFIED')
+          PY
+          git rev-parse HEAD > evidence/source-run-commit.txt
+          printf '%s\n' 8a4a3a83c954cf5a148c0a42324cd91d8205d829 > evidence/prereg.txt
+          printf '%s\n' 'NO_LIVE_NO_MERGE_NO_OOS_NO_FILLS_NO_PNL_NO_SIZING' > evidence/scope.txt
+          (cd evidence && sha256sum *.txt *.xml *.json > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-m4-128-m1-source-prefix-audit-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
