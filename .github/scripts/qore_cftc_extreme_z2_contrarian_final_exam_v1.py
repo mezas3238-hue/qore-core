@@ -18,10 +18,6 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.trader_lab.qore_futures_a_eia_f1f2_predictive_screen_v1 import (
-    read_frozen_eia_xls,
-)
-
 from qore_futures_a_cftc_managed_money_one_shot_screen_v1 import (
     CFTC_URL,
     CONTRACT_CODES,
@@ -29,6 +25,9 @@ from qore_futures_a_cftc_managed_money_one_shot_screen_v1 import (
     EIA_KEYS,
     CftcPosition,
     _read_cftc_archive,
+)
+from qore.infrastructure.trader_lab.qore_futures_a_eia_f1f2_predictive_screen_v1 import (
+    read_frozen_eia_xls,
 )
 
 PREREG_SHA = "1cca3399514125ba11ae446a059e09382c605d40"
