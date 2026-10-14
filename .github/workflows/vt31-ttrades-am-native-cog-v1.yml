@@ -1,0 +1,74 @@
+name: VT31 TTrades NY AM native COG candidate M2 M3 NO TRADE
+on:
+  push:
+    branches:
+      - agent/vt31-ttrades-am-native-cog-v1-20261014
+    paths:
+      - 'scripts/vt31_ttrades_am_native_cog_v1_20261014.py'
+      - 'tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py'
+      - 'docs/research/VT31_TTRADES_AM_NATIVE_COG_V1_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-ttrades-am-native-cog-v1.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-ttrades-cog-profile-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check prereg ancestor and G3 locked sources
+        run: |
+          set -euo pipefail
+          git cat-file -t d51f097eddebeab6776e0a17f5503f9863283213
+          git merge-base --is-ancestor d51f097eddebeab6776e0a17f5503f9863283213 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Install dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Static analysis
+        run: |
+          set -euo pipefail
+          ruff check scripts/vt31_ttrades_am_native_cog_v1_20261014.py tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py
+          python -m py_compile scripts/vt31_ttrades_am_native_cog_v1_20261014.py
+      - name: Run source COG M2/M3 and frozen G3 regressions
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
+            tests/infrastructure/test_vt31_ict_dol_source_v1_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/VT31-M2-M3-TTRADES-junit.xml \
+            | tee evidence/VT31-M2-M3-TTRADES-regressions.txt
+      - name: Prohibit promotion to method trading or sizing
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from scripts.vt31_ttrades_am_native_cog_v1_20261014 import NativeCogProposal
+          for key in ('method_certified', 'cognition_certified', 'execution_authorized'):
+              assert NativeCogProposal.__dataclass_fields__[key].default is False
+          print('COG_SOURCE_CONTEXT_ONLY_NO_TRADE_OR_METHOD_CERTIFICATE')
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' d51f097eddebeab6776e0a17f5503f9863283213 > evidence/precode_prereg.txt
+          printf '%s\n' 'NO_MERGE_NO_LIVE_NO_OMS_NO_SIZING_NO_PNL_NO_HOLDOUT' > evidence/scope.txt
+          (cd evidence && sha256sum *.txt *.xml > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ttrades-native-cog-v1-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
