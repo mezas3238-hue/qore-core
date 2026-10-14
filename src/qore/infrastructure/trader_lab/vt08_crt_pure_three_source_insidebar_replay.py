@@ -11,11 +11,16 @@ promotion can be inferred from these exploratory statistics.
 from __future__ import annotations
 
 import argparse
+import csv
+import hashlib
+import io
 import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from urllib.request import urlopen
 
 from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import (
     END_EXCLUSIVE,
@@ -231,14 +236,131 @@ def compare_three_sources_inside_bar_context(
     )
 
 
+
+# MIT-licensed free *samples*, independent of the unavailable IC Markets feed.
+# The raw URL is fixed per approved symbol; no credential or order API is used.
+_PUBLIC_SAMPLES = {
+    CrtPureMarket.AUDUSD: (
+        "https://raw.githubusercontent.com/getdata-finance/"
+        "audusd-5m-ohlcv-forex-historical-data/main/AUDUSD_5m.csv"
+    ),
+    CrtPureMarket.USDJPY: (
+        "https://raw.githubusercontent.com/getdata-finance/"
+        "usdjpy-5m-ohlcv-forex-historical-data/main/USDJPY_5m.csv"
+    ),
+}
+_SCALE = Decimal("1000000")
+
+
+def parse_public_sample_m5(
+    market: CrtPureMarket, payload: bytes
+) -> tuple[tuple[ReplayBar, ...], dict[str, Any]]:
+    """Validate public sample OHLC, timestamps, scale, and source fingerprint.
+
+    Provides *OHLC only*. Spread, execution costs and IC Markets equivalence
+    are intentionally NOT asserted. Historical preview only, not full two years.
+    """
+    if market not in _PUBLIC_SAMPLES:
+        raise ValueError("BTCUSD is frozen; no public sample study")
+    digest = hashlib.sha256(payload).hexdigest()
+    reader = csv.DictReader(io.StringIO(payload.decode("utf-8-sig")))
+    required = {"datetime", "open", "high", "low", "close"}
+    if not reader.fieldnames or not required.issubset(reader.fieldnames):
+        raise ValueError("public sample must contain datetime/open/high/low/close")
+    by_time: dict[datetime, ReplayBar] = {}
+    observed_times: list[datetime] = []
+    for row in reader:
+        opened_at = datetime.fromisoformat(row["datetime"])
+        if opened_at.tzinfo is None or opened_at.utcoffset() is None:
+            raise ValueError("public sample timestamp must have UTC offset")
+        if opened_at.utcoffset() != timedelta(0):
+            raise ValueError("public sample timestamps must be UTC")
+        if opened_at.second or opened_at.microsecond or opened_at.minute % 5:
+            raise ValueError("public M5 sample timestamp is not aligned")
+        vals: dict[str, int] = {}
+        for field in ("open", "high", "low", "close"):
+            dec = Decimal(row[field])
+            scaled = dec * _SCALE
+            if not dec.is_finite() or scaled != int(scaled):
+                raise ValueError("public sample price precision or finiteness invalid")
+            vals[field] = int(scaled)
+        if (
+            vals["low"] > min(vals["open"], vals["close"])
+            or vals["high"] < max(vals["open"], vals["close"])
+            or vals["low"] > vals["high"]
+            or vals["low"] <= 0
+        ):
+            raise ValueError("public sample candle violates OHLC geometry")
+        observed_times.append(opened_at)
+        if START - timedelta(days=1) <= opened_at < END_EXCLUSIVE + timedelta(days=1):
+            bar = ReplayBar(
+                opened_at=opened_at,
+                open_price=vals["open"],
+                high_price=vals["high"],
+                low_price=vals["low"],
+                close_price=vals["close"],
+            )
+            previous = by_time.setdefault(opened_at, bar)
+            if previous != bar:
+                raise ValueError("public sample has contradictory duplicate candle")
+    if not observed_times or not by_time:
+        raise ValueError("public sample lacks bars in research window")
+    if any(right <= left for left, right in zip(
+        observed_times[:-1], observed_times[1:], strict=True
+    )):
+        raise ValueError("public sample timestamps are not strictly ascending")
+    bars = tuple(by_time[t] for t in sorted(by_time))
+    return bars, {
+        "source": "GETDATA_FINANCE_GITHUB_MIT_FREE_M5_SAMPLE",
+        "url": _PUBLIC_SAMPLES[market],
+        "raw_sha256": digest,
+        "raw_bytes": len(payload),
+        "source_first_bar_utc": observed_times[0].isoformat(),
+        "source_last_bar_utc": observed_times[-1].isoformat(),
+        "window_first_bar_utc": bars[0].opened_at.isoformat(),
+        "window_last_bar_utc": bars[-1].opened_at.isoformat(),
+        "window_m5_bars": len(bars),
+        "bid_ask_available": False,
+        "broker_equivalence_validated": False,
+        "history_complete_two_years": False,
+        "free_sample_not_full_history": True,
+    }
+
+
+def load_public_sample_m5(
+    market: CrtPureMarket,
+) -> tuple[tuple[ReplayBar, ...], dict[str, Any]]:
+    if market not in _PUBLIC_SAMPLES:
+        raise ValueError("BTCUSD frozen")
+    with urlopen(_PUBLIC_SAMPLES[market], timeout=30) as response:
+        payload = response.read(12_000_001)
+    if len(payload) > 12_000_000:
+        raise ValueError("public sample unexpectedly exceeds size cap")
+    return parse_public_sample_m5(market, payload)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("market", choices=["AUDUSD", "USDJPY"])
     parser.add_argument("output", type=Path)
+    parser.add_argument(
+        "--data-source",
+        choices=("ctrader", "public-sample"),
+        default="public-sample",
+    )
     args = parser.parse_args()
     market = CrtPureMarket(args.market)
-    bars = load_two_year_m5(market)
+    provenance: dict[str, Any]
+    if args.data_source == "public-sample":
+        bars, provenance = load_public_sample_m5(market)
+    else:
+        bars = load_two_year_m5(market)
+        provenance = {
+            "source": "CTRADER_HISTORICAL_M5",
+            "broker_equivalence_validated": False,
+        }
     report, ledger = compare_three_sources_inside_bar_context(market, bars)
+    report["data_provenance"] = provenance
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "report.json").write_text(
         json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8"
