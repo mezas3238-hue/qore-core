@@ -7,9 +7,10 @@ This separately assesses a frozen research *QORE proxy*, not author fidelity.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     CognitiveDecision,
@@ -26,6 +27,7 @@ from scripts.vt31_mc_p2_ttrades_native_h1_evidence_20261014 import (
 )
 
 PROFILE = "TTRADES_NY_AM_2025_QORE_G3_FIRST_FVG_RESEARCH_PROXY"
+NY = ZoneInfo("America/New_York")
 MIN_FRAMEWORK_POINTS = Decimal("10")
 
 
@@ -104,11 +106,17 @@ def first_fvg_and_source_path(
     as_of = utc(ten[-1].closed_at)
     if not _ordered(nine, ten):
         return outcome("UNKNOWN", "CLOSED_M1_GAP_OR_DUPLICATE")
-    source = native_ttrades_am_context(
-        as_of=as_of, nine=nine, ten=ten,
+    mss_index = next(
+        (k for k, b in enumerate(ten) if utc(b.closed_at) == mss_at),
+        None,
     )
-    if source.state not in ("RETURN_INSIDE_OBSERVED", "AWAIT_RETURN"):
-        return outcome("UNKNOWN", "NATIVE_H1_SOURCE_NOT_STABLE", source.state)
+    if mss_index is None:
+        return outcome("UNKNOWN", "MSS_M1_NOT_IN_TEN_AM_HOUR")
+    source = native_ttrades_am_context(
+        as_of=mss_at, nine=nine, ten=ten[:mss_index + 1],
+    )
+    if source.state != "RETURN_INSIDE_OBSERVED":
+        return outcome("UNKNOWN", "FIRST_RETURN_SOURCE_NOT_AT_MSS", source.state)
     if (
         source.candidate_side != cognition.side.value
         or source.opposite_h1_dol != cognition.draw_target
@@ -212,7 +220,7 @@ def first_fvg_and_source_path(
         ):
             continue
         if utc(c.closed_at).astimezone(
-            __import__("zoneinfo").ZoneInfo("America/New_York")
+            NY
         ).hour != 10:
             return outcome(
                 "WINDOW_CLOSED_FOR_NEW_LIMIT", "FIRST_ELIGIBLE_FVG_AT_11AM_CLOSE",
