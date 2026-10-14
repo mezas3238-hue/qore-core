@@ -13,12 +13,12 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     Side,
 )
 from scripts.vt31_ict_dol_source_v1_20261014 import attest_ict_dol_source
-from scripts.vt31_mc_p3_ict_independent_dol_20261014 import verify_ict_dol_from_m1
 from scripts.vt31_m2_dol_reconciliation_20261014 import (
     DATES,
     audit_days,
     compare_one,
 )
+from scripts.vt31_mc_p3_ict_independent_dol_20261014 import verify_ict_dol_from_m1
 
 
 def instant(y: int, m: int, d: int, h: int, minute: int = 0) -> datetime:
