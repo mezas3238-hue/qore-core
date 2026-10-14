@@ -1,7 +1,7 @@
 """Official CFTC six-commodity source audit; zero price/outcome inspection.
 
-Reads CFTC Disaggregated FUTURES ONLY annual archives for 2012, 2018,
-and 2021 (source identity snapshots). No strategy, no COT edge/PnL, no holdout.
+Reads official CFTC Disaggregated FUTURES ONLY annual archives
+from 2012 through 2021 inclusive (complete pre-reserve source census). No strategy, no COT edge/PnL, no holdout.
 Outputs metadata counts and input digests, never trader positions.
 """
 from __future__ import annotations
@@ -19,7 +19,7 @@ from typing import Any
 
 SCHEMA = "qore.futures-a.cftc-sixroots.source-audit.v1"
 URL = "https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year}.zip"
-YEARS = (2012, 2018, 2021)  # Audit sample only; NOT 2012-2021 full coverage.
+YEARS = tuple(range(2012, 2022))  # Pre-2022 only; reserved OOS never fetched.
 CONTRACT_CODES = {
     "CL": "067651",  # NYMEX WTI physical
     "NG": "023651",  # NYMEX natural gas
@@ -159,7 +159,7 @@ def main() -> None:
         "source_issuer": "US-CFTC",
         "source_class": "disaggregated-futures-only-weekly-aggregate",
         "source_archive_years_actually_checked": list(YEARS),
-        "all_2012_2021_years_checked": False,
+        "all_2012_2021_years_checked": True,
         "roots_expected": sorted(CONTRACT_CODES),
         "root_count_verified_in_sample": 6,
         "sample_years": annual,
