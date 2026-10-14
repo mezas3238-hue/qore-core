@@ -112,7 +112,7 @@ def test_false_mss_close_assertion_is_rejected_against_actual_m1():
     assert "MSS_ANCHOR_CLOSE_MISMATCH_WITH_M1" in out.rejected
 
 
-def test_later_revalidation_checks_original_mss_not_last_M1():
+def test_later_revalidation_checks_original_mss_not_last_m1():
     bars, dto = data()
     assert bars[-1].close != dto.mss_anchor_close
     assert inspect(bars, dto).state == "CONFIRMED"
@@ -160,7 +160,7 @@ def test_h1_missing_unknown_not_automatically_no_raid():
     assert "H1_09_10_NOT_COMPLETE" in out.unknown
 
 
-def test_double_extreme_sweep_in_one_M1_unknown_not_false_pass():
+def test_double_extreme_sweep_in_one_m1_unknown_not_false_pass():
     bars, dto = data()
     altered = list(bars)
     altered[61] = bar(START10+timedelta(minutes=1),
