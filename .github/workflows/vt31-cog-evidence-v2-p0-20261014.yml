@@ -1,0 +1,86 @@
+name: VT31 COG Evidence V2 - cognitive provenance and fidelity QA (NO TRADES)
+on:
+  push:
+    branches:
+      - agent/vt31-cog-evidence-v2-p0-20261014
+    paths:
+      - scripts/vt31_cog_evidence_v2_20261014.py
+      - tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py
+      - docs/research/VT31_COG_EVIDENCE_V2_ACCEPTANCE_CONTRACT_2026-10-14.md
+      - docs/research/VT31_COG_EVIDENCE_V2_P0_RESULTS_2026-10-14.md
+      - .github/workflows/vt31-cog-evidence-v2-p0-20261014.yml
+permissions:
+  contents: read
+jobs:
+  causal-cognition-shadow-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check prereg preceded code and baseline source unchanged
+        run: |
+          set -euo pipefail
+          git cat-file -t 8eba5dc25929e040f74b55d7c9507393e8919f32
+          git merge-base --is-ancestor 8eba5dc25929e040f74b55d7c9507393e8919f32 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = "d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = "0ce9707314aecb71155de8b57044b6ec028847b2"
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = "e99c70b4e018d626fb620d9a21b9314a51abc36d"
+      - name: Execute adversarial V2 tests, source-fidelity predecessor and COG OPS G3 regressions
+        run: |
+          set -euo pipefail
+          python -m pip install -e ".[dev]"
+          python -m py_compile scripts/vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py
+          ruff check scripts/vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py
+      - name: Write immutable sample CONFIRMED/REJECTED as-of provenance records
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          PYTHONPATH=src:. python - <<'PY'
+          import json
+          import runpy
+          from dataclasses import replace
+          from decimal import Decimal
+          from pathlib import Path
+          ns=runpy.run_path("tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py")
+          nine,ten,a=ns["genuine_contract_fixture"]()
+          confirm=ns["evaluate"](nine,ten,a)
+          rejected=ns["evaluate"](nine,ten,replace(
+              a,decision=replace(a.decision,draw_target=Decimal("150"))
+          ))
+          assert confirm.status == "CONFIRMED" and rejected.status == "REJECTED"
+          assert confirm.evidence_sha256 != rejected.evidence_sha256
+          assert not confirm.execution_authorized and not rejected.execution_authorized
+          assert not confirm.methodology_certified and not confirm.cognition_certified
+          assert not rejected.methodology_certified and not rejected.cognition_certified
+          Path("evidence/cog-evidence-v2-context-synthetic.json").write_text(
+              json.dumps({"confirmed":json.loads(confirm.to_json()),
+                          "rejected":json.loads(rejected.to_json())},
+                         indent=2,sort_keys=True)+"\n"
+          )
+          print("COG_EVIDENCE_V2_AUDIT_ONLY",confirm.status,rejected.status)
+          PY
+          git rev-parse HEAD > evidence/source-head.txt
+          printf '%s\n' "NO_METHODOLOGY_CERT_NO_TRADING_NO_SIZING_NO_EDGE_NO_HOLDOUT" \
+            > evidence/scope.txt
+          (cd evidence && sha256sum *.txt *.json > SHA256SUMS)
+          (cd evidence && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-cog-evidence-v2-context-only-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
