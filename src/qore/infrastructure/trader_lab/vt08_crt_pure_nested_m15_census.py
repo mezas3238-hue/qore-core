@@ -82,6 +82,7 @@ def census_micro_crt(
     counts: Counter[str] = Counter()
     parent_hits: Counter[str] = Counter()
     rejected_88_hits: set[str] = set()
+    aligned_next_untouched_untraded_parents: set[str] = set()
     for parent in parents:
         key = parent.c3_opened_at.isoformat()
         slots = int((parent.c3_closed_at - parent.c3_opened_at) / M15)
@@ -134,6 +135,13 @@ def census_micro_crt(
             )
             if old_target_touched:
                 counts["OLD_H4_C1_MIDPOINT_TOUCHED_BEFORE_MICRO_DECISION"] += 1
+            if alignment == "SAME_H4_DIRECTION" and executable_clock:
+                counts["ALIGNED_AND_NEXT_M15_AVAILABLE"] += 1
+                if not old_target_touched:
+                    counts["ALIGNED_NEXT_AND_OLD_H4_TARGET_UNTOUCHED"] += 1
+                    if key not in old_traded:
+                        counts["ALIGNED_NEXT_UNTOUCHED_OLD_R2C_PARENT_REJECTED"] += 1
+                        aligned_next_untouched_untraded_parents.add(key)
             ledger.append({
                 "market": market.value,
                 "parent_c3_opened_at": key,
@@ -193,6 +201,9 @@ def census_micro_crt(
         "unique_h4_parents_with_candidate": len(parent_hits),
         "unique_previously_rejected_88_parents_with_micro": len(rejected_88_hits),
         "multiple_micro_per_parent_count": sum(v > 1 for v in parent_hits.values()),
+        "unique_parent_h4_aligned_next_untouched_no_old_r2c_trade": len(
+            aligned_next_untouched_untraded_parents
+        ),
         "counts": dict(sorted(counts.items())),
         "posthoc_performance_selection": False,
         "return_or_R_computed": False,
