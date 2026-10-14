@@ -122,9 +122,33 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_MARKET/git-sha.txt"
           cd "artifacts/$QORE_MARKET"
           sha256sum gm2-real-casebook-manifest.json gm2-blind-cases.jsonl gm2-sealed-c3-witness.jsonl gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl gm3-safety-stdout.json stdout-manifest.json git-sha.txt > SHA256SUMS.txt
+      - name: Separate blinded reviewer packet from sealed C3 (no access control implied)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "reviewer-blind/$QORE_MARKET" "sealed-future/$QORE_MARKET"
+          cp "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm2-real-casebook-manifest.json" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm3-real-safety-summary.json" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm3-real-safety-ledger.jsonl" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/git-sha.txt" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm2-sealed-c3-witness.jsonl" "sealed-future/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/git-sha.txt" "sealed-future/$QORE_MARKET/"
+          (cd "reviewer-blind/$QORE_MARKET"; sha256sum gm2-blind-cases.jsonl gm2-real-casebook-manifest.json gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+          (cd "sealed-future/$QORE_MARKET"; sha256sum gm2-sealed-c3-witness.jsonl git-sha.txt > SHA256SUMS.txt)
+          if grep -R -l 'C3_M5_reveal_after_independent_review' "reviewer-blind/$QORE_MARKET"; then
+            echo "::error::Sealed future C3 leaked into blinded reviewer packet"
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
-          name: vt08-gm2-blind-real-cases-${{ matrix.market }}-${{ github.sha }}
-          path: artifacts/${{ matrix.market }}
+          name: vt08-gm2-reviewer-blind-only-${{ matrix.market }}-${{ github.sha }}
+          path: reviewer-blind/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-gm2-sealed-future-only-${{ matrix.market }}-${{ github.sha }}
+          path: sealed-future/${{ matrix.market }}
           if-no-files-found: error
           retention-days: 90
