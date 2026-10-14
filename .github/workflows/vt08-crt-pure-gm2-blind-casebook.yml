@@ -29,8 +29,6 @@ jobs:
           python-version: '3.12'
       - name: Install read-only test dependencies
         run: python -m pip install -e '.[dev]'
-      - name: Reveal exact isort style without changing source
-        run: ruff check --select I --fix --diff tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py || true
       - name: Enforce code hygiene and contract tests
         run: |
           ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py
