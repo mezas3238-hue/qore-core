@@ -1,0 +1,111 @@
+name: QORE VT08 G-M2 Real Blinded Casebook (non-economic)
+
+on:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-gm2-blind-casebook.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: vt08-gm2-blind-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only test dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Enforce code hygiene and contract tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py
+
+  generate_real_casebook:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [AUDUSD, USDJPY]
+    env:
+      QORE_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only repo (no broker login)
+        run: python -m pip install -e .
+      - name: Retrieve original immutable CIBO Atlas per-market M5 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.market }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original-native-m5
+      - name: Verify original provenance and files exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s original-native-m5/git-sha.txt
+          test -s original-native-m5/symbol-consumption-manifest.json
+          test -s original-native-m5/MANIFEST_SHA256SUMS.txt
+          test -s original-native-m5/SYMBOL_SHA256SUMS.txt
+          test -d original-native-m5/RAW_M5_LEDGER
+      - name: Produce real historical G-M2 cases with future withheld
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "artifacts/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm2_real_casebook \
+            "$QORE_MARKET" original-native-m5 "artifacts/$QORE_MARKET" \
+            > "artifacts/$QORE_MARKET/stdout-manifest.json"
+      - name: Validate no certification was accidentally emitted
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root = Path('artifacts') / os.environ['QORE_MARKET']
+          m = json.loads((root / 'gm2-real-casebook-manifest.json').read_text())
+          blind = [json.loads(l) for l in (root / 'gm2-blind-cases.jsonl').read_text().splitlines() if l]
+          sealed = [json.loads(l) for l in (root / 'gm2-sealed-c3-witness.jsonl').read_text().splitlines() if l]
+          assert m['case_count'] == len(blind) == len(sealed) > 0
+          assert [c['case_id'] for c in blind] == [c['case_id'] for c in sealed]
+          assert all(c['future_C3_withheld_from_blind_file'] for c in blind)
+          assert all(not c['is_execution_authorized'] for c in blind)
+          assert m['gm5_certificate_issued'] is False
+          assert m['global_certified'] is False
+          assert m['live_authorized'] is False
+          PY
+      - name: Bind source and provenance to immutable commit hash
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_MARKET/git-sha.txt"
+          cd "artifacts/$QORE_MARKET"
+          sha256sum gm2-real-casebook-manifest.json gm2-blind-cases.jsonl gm2-sealed-c3-witness.jsonl stdout-manifest.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-gm2-blind-real-cases-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
