@@ -251,6 +251,9 @@ def main() -> None:
             "method_certified", "cognition_certified",
         )
     }
+    # Timestamp-only source-gap fingerprints for technical review.
+    # No OHLC prices, broker credentials or data-leaking market records.
+    headline["unique_intervals_timestamp_only"] = out["unique_intervals"]
     print(json.dumps(headline, sort_keys=True))
 
 
