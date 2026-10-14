@@ -13,7 +13,7 @@ import json
 import re
 import urllib.request
 import zipfile
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -30,7 +30,7 @@ CONTRACT_CODES = {
 }
 REQUIRED_COLUMNS = (
     "CFTC_Contract_Market_Code",
-    "As_of_Date_Form_YYYY-MM-DD",
+    "As_of_Date_In_Form_YYMMDD",
     "Market_and_Exchange_Names",
     "Open_Interest_All",
     "M_Money_Positions_Long_All",
@@ -94,7 +94,11 @@ def parse_cftc_source(binary: bytes, year: int) -> dict[str, Any]:
         if root in ("ZC", "ZS") and "CHICAGO BOARD OF TRADE" not in market_name:
             raise CftcSourceError("WRONG_CBOT_EXCHANGE")
         try:
-            day = date.fromisoformat(row["As_of_Date_Form_YYYY-MM-DD"].strip())
+            stamp = row["As_of_Date_In_Form_YYMMDD"].strip()
+            pattern = "%y%m%d" if len(stamp) == 6 else "%Y%m%d"
+            if not stamp.isdigit() or len(stamp) not in (6, 8):
+                raise ValueError("Invalid official CFTC date encoding")
+            day = datetime.strptime(stamp, pattern).date()
         except (KeyError, ValueError) as exc:
             raise CftcSourceError("BAD_CFTC_REPORT_DATE") from exc
         if day.year != year or day.weekday() != 1 or day >= date(2022, 1, 1):
