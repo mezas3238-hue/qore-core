@@ -16,6 +16,9 @@ from qore.infrastructure.traders.crt_pure_cognitive_contract import (
 from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection,
 )
+from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
+    unresolved_model1_source_concepts,
+)
 from qore.infrastructure.traders.crt_pure_model1 import (
     CrtPureModel1Confirmation,
     CrtPureModel1Direction,
@@ -148,3 +151,38 @@ def assess_unclosed_entry_family(
             "NO_FALLBACK_ENTRY",
         ),
     )
+
+
+def assess_model1_certification_entry_family(
+    *,
+    parent_direction: CrtPureCandidateDirection,
+    confirmation: CrtPureModel1Confirmation | None,
+) -> CrtPureR2EntryAssessment:
+    """Source-aware G-M1/G-M4 assessment; legacy lab route stays unchanged.
+
+    Crucially, the old-level reference selector must be adjudicated before
+    any Methodology/Certification path reports conceptual EXECUTE. A source
+    family cannot inherit generic strategy_identity_ready=True.
+    """
+    preliminary = assess_model1_entry_family(
+        parent_direction=parent_direction,
+        confirmation=confirmation,
+    )
+    if preliminary.action is CrtPureReasoningAction.ABSTAIN:
+        return preliminary
+    blockers = unresolved_model1_source_concepts()
+    if blockers:
+        return CrtPureR2EntryAssessment(
+            family=CrtPureR2EntryFamily.MODEL_1,
+            state=CrtPureR2EntryState.UNRESOLVED,
+            action=CrtPureReasoningAction.WAIT,
+            evidence_tokens=preliminary.evidence_tokens,
+            why=(
+                "MODEL_1_SOURCE_FAMILY_NOT_CLOSED",
+                *(f"UNRESOLVED:{concept.value}" for concept in blockers),
+                "DO_NOT_PROMOTE_LEGACY_LAB_EXECUTE",
+                "NO_C3_OPEN_FALLBACK",
+                "NO_CAPITAL_OR_EXECUTION_AUTHORITY",
+            ),
+        )
+    return preliminary
