@@ -67,3 +67,33 @@ La ruta de pruebas del [workflow Three-Source Inside-Bar](https://github.com/mez
 **Regla de interpretación:** si se ejecuta, sería un **diagnóstico histórico preliminar con una nueva fuente de datos**, no el replay cTrader originalmente planificado. Los subgrupos por inside bars se comparan dentro de cada feed, nunca se equiparan estadísticas del nuevo CSV con las de cTrader como si fueran intercambiables. Es obligatorio recuperar del run los artefactos `report.json` y `diagnostics.jsonl` antes de publicar resultados numéricos.
 
 **Corrida posterior al último cambio de pruebas:** [GitHub Actions #38545562931](https://github.com/mezas3238-hue/qore-core/actions/runs/38545562931). Su estado requiere verificación en Actions; no se anticipa éxito ni fracaso.
+
+
+## V. CORRECCIÓN CONFIRMADA — VELAS NATIVAS DE QORE EXISTEN EN ACTIONS
+
+**ACTUALIZACIÓN QUE PREVALECE SOBRE EL APARTADO IV (14-OCT-2026):** El Owner indicó correctamente que los millones de velas originales YA ESTABAN EN GITHUB. El error fue buscar solo el árbol de archivos/commits, cuando **los datasets de años están alojados en GitHub Actions artifacts**. Las muestras de terceros fueron innecesarias, su ruta se retiró del módulo experimental y **NO son la fuente de las pruebas vigentes**. No volver a buscar Dukascopy/GetData Finance para este trabajo.
+
+### Inventario probado por lectura DIRECTA de la API Actions
+
+- [Issue #837 Data Vault y expiración](https://github.com/mezas3238-hue/qore-core/issues/837): declara explícitamente que las barras RAW están en artifacts, NO commits.
+- [Fuente G0 33/33 y 24.377.420 barras M5 con SHA anual](https://github.com/mezas3238-hue/qore-core/blob/research/qore-native-final33-tail-ready-g0-20261012/docs/research/QORE_NATIVE_FULL_33_MARKETS_G0_EXECUTED_FINAL_2026-10-12.md).
+- **12 Atlas/CIBO originales M5**: [Actions run #35166210458](https://github.com/mezas3238-hue/qore-core/actions/runs/35166210458), 13 archivos, 12 símbolos. Fuente catalogada como `CIBO_MARKET_ATLAS_10Y_CONSUMPTION_V1`, commit productor `ab782b8e9f890f86a2b6500070f0556b4b685e3d`, RAW `RAW_M5_LEDGER/{year}.jsonl`, `MANIFEST_SHA256SUMS.txt`, `PARTITION_MANIFEST/{year}.sha256`; export original 2016-09-17→2026-09-17. **Fecha de expiración verificada:** 2026-12-16T00:21:18Z.
+- **21 nuevos ICMarkets cTrader M5**: [Actions run #38193802541](https://github.com/mezas3238-hue/qore-core/actions/runs/38193802541), source 21/21 presentes y `expired=false`, expiración 2027-01-10T01:56Z. No mezclar cuentas/brokers sin homologar.
+- **M1 existente para AUDUSD/USDJPY**: [Actions run #35548099334](https://github.com/mezas3238-hue/qore-core/actions/runs/35548099334), artifacts `10618116387` AUDUSD (92,50 MB) y `10617557766` USDJPY (97,67 MB), `expired=false`, vencimiento 2026-12-20. El ensayo actual solo usa M5, pero el corpus M1 está encontrado.
+
+| Símbolo VT08 | artifact ID M5 | ZIP SHA256 (metadata de API) | Tamaño aprox. |
+|---|---:|---|---|
+| AUDUSD | 10475697610 | `ac72aaf438c164cd79691a7cf1f3f0a68f4c65aa6a91a921a721c7a04ebdc2f0` | 21,47 MB |
+| USDJPY | 10475389415 | `e3ac9a45f3000c3e3bd93e50c730c952ddd08f77f1c857b5c4b3a67679fcaa51` | 22,25 MB |
+
+### Recuperación implementada y límites
+
+- **Archivo lector:** `src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py`. Usa los JSONL originales con precios enteros cTrader native; verifica `git-sha.txt` del productor, identidad `CIBO_MARKET_ATLAS_10Y_CONSUMPTION_V1`, manifiesto raíz SHA y los 3 años consumidos 2024,2025,2026 con sus SHA de `RAW_M5_LEDGER`, `DATA_QUALITY_LEDGER` y particiones. No llama a cTrader ni a URLs de datos externos.
+- **Flujo principal:** `.github/workflows/vt08-crt-pure-three-source-insidebar-replay.yml`; `actions/download-artifact@v4` con fuente exacta `run-id: 35166210458`, patrón `qore-cibo-market-atlas-10y-windowed-${{ matrix.market }}-ab782...`, y `github.token` `actions:read` en el propio repositorio. Se evita re-descargar datos desde broker.
+- **Código:** `vt08_crt_pure_three_source_insidebar_replay.py` ha eliminado interfaz pública GitHub/GetData/Dukascopy; `--source-root original-native-m5 --data-source atlas-original`. Control experimental R2C y variantes Level B no se cambian.
+- **Fuente acotada:** original Atlas acaba 2026-09-17; el replay VT08 que se había fijado hasta 2026-09-21 **no tiene los 4 últimos días del control**, y se registra `history_complete_for_requested_2y=false`. No inventar datos ni extrapolar 10Y completos a 2Y sin este matiz.
+- **Holdout:** la ventana 2024-2026 **ya fue usada en estudios VT08** y QORE Native tiene restricciones de embargo de diagnóstico. Marcar `this_period_previously_consumed_holdout=true`; las cifras son exploratorias/no una validación OOS limpia. El propietario deberá designar otro conjunto verdaderamente nuevo si quiere certificación estadística independiente.
+- **Costes:** OHLC, no histórico BID/ASK de entradas/salidas; no hay PF net ejecutable/broker, no autorización LIVE, NO sizing, NO merge.
+- **Backup urgente:** [Issue #837](https://github.com/mezas3238-hue/qore-core/issues/837) sigue abierto por vencimientos de diciembre. El run nueva investigación no es sustituto de archivo histórico duradero.
+
+**Replay actualizado de originales:** [Actions #38546723415](https://github.com/mezas3238-hue/qore-core/actions/runs/38546723415). Los artefactos de resultado solo se consideran obtenidos si los jobs de ambos símbolos terminan SUCCESS y `report.json`/SHA256 existe; no presentar como concluido por un log parcial.
