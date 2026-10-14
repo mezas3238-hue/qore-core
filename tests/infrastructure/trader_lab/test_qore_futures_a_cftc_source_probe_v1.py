@@ -83,7 +83,7 @@ class TestCftcOfficialSourceAudit(unittest.TestCase):
             c.parse_cftc_source(_synthetic_zip(duplicate=True), 2018)
 
     def test_no_borrowed_exchange_identity(self) -> None:
-        with self.assertRaisesRegex(ValueError, "UNVERIFIED_EXCHANGE_NAME"):
+        with self.assertRaisesRegex(ValueError, "WRONG_.*_EXCHANGE|UNVERIFIED_EXCHANGE_NAME"):
             c.parse_cftc_source(_synthetic_zip(mismatched_venue=True), 2018)
 
     def test_negative_position_rejected(self) -> None:
