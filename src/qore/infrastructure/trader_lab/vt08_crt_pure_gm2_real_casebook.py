@@ -136,10 +136,11 @@ def create_blind_casebook(
             )
             if future[0].opened_at != evidence_at:
                 raise ValueError("M5 reveal clock not contiguous with C2")
-            identifier = hashlib.sha256(
+            identity_text = (
                 f"{market.value}|{parent_id}|{c1.opened_at.isoformat()}|"
-                f"{c2.opened_at.isoformat()}".encode("utf-8")
-            ).hexdigest()[:20]
+                f"{c2.opened_at.isoformat()}"
+            )
+            identifier = hashlib.sha256(identity_text.encode()).hexdigest()[:20]
             prefix = parent_m15[:i + 2]
             blind = {
                 "schema": SCHEMA,
