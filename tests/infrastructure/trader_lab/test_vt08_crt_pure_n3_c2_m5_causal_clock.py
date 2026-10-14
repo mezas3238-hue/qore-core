@@ -157,7 +157,7 @@ def test_btcusd_is_frozen() -> None:
         census_c2_to_m5(CrtPureMarket.BTCUSD, ())
 
 
-def test_n3b_new_m5_evidence_can_precede_far_wick_in_later_M5() -> None:
+def test_n3b_new_m5_evidence_can_precede_far_wick_in_later_m5() -> None:
     # The third M5 makes the far target later, which MUST NOT invalidate
     # information demonstrably known at the first M5 close.
     bars = (
@@ -174,7 +174,7 @@ def test_n3b_new_m5_evidence_can_precede_far_wick_in_later_M5() -> None:
     ) == (True, True)
 
 
-def test_n3b_same_M5_wick_far_prevents_clean_prefix_even_if_close_confirms() -> None:
+def test_n3b_same_m5_wick_far_prevents_clean_prefix_even_if_close_confirms() -> None:
     bars = (
         m5(0, 95, 112, 94, 101),
         m5(1, 101, 105, 98, 104),
@@ -189,7 +189,7 @@ def test_n3b_same_M5_wick_far_prevents_clean_prefix_even_if_close_confirms() -> 
     ) == (True, False)
 
 
-def test_n3b_C2_midpoint_already_beyond_does_not_claim_new_M5_evidence() -> None:
+def test_n3b_c2_midpoint_already_beyond_does_not_claim_new_m5_evidence() -> None:
     bars = (
         m5(0, 101, 106, 100, 104),
         m5(1, 104, 108, 102, 105),
