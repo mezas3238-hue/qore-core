@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
+    model1_source_ready,
     strategy_identity_ready,
 )
 
@@ -97,6 +98,12 @@ def evaluate_certification_readiness(
 
     if not evidence.source_identity_closed or not strategy_identity_ready():
         blockers.append("CRT_PRIMARY_SOURCE_AND_STRATEGY_IDENTITY_NOT_CLOSED")
+    # A caller cannot turn source-traceable Model #1 into a certified strategy
+    # simply by setting every supplied evidence boolean to True.
+    # The canonical registry, not economic flags, owns this readiness fact.
+    if not model1_source_ready():
+        blockers.append("MODEL_1_REFERENCE_AND_SOURCE_SELECTION_NOT_CLOSED")
+    if blockers:
         return CrtPureCertificationReadiness(
             stage=CrtPureCertificationStage.SOURCE_OPEN,
             blockers=tuple(blockers),
