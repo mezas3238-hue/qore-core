@@ -52,6 +52,30 @@ def strategy_identity_ready() -> bool:
     return not unresolved_core_execution_concepts()
 
 
+MODEL1_SOURCE_CONCEPTS: Final[tuple[CrtPureConceptId, ...]] = (
+    CrtPureConceptId.MODEL_1_ENTRY,
+    CrtPureConceptId.MODEL_1_TIMEFRAME_ALIGNMENT,
+    CrtPureConceptId.MODEL_1_REFERENCE_SELECTION,
+)
+
+
+def unresolved_model1_source_concepts() -> tuple[CrtPureConceptId, ...]:
+    """Model #1-specific proof, distinct from the legacy broad identity boolean.
+
+    IMPORTANT: a general CRT source identity is not a source-closed Model #1
+    method. Do not infer or optimize an old-high/old-low selector from PnL.
+    """
+    promoted = set(promotable_concepts())
+    return tuple(concept for concept in MODEL1_SOURCE_CONCEPTS if concept not in promoted)
+
+
+def model1_source_ready() -> bool:
+    """False until ALL Model #1 primary concepts are source-adjudicated."""
+    return not unresolved_model1_source_concepts()
+
+
+
+
 @lru_cache(maxsize=1)
 def _strategy_identity_cached() -> dict[str, object]:
     promoted = promotable_concepts()
