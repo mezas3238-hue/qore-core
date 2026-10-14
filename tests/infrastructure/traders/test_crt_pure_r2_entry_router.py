@@ -16,6 +16,7 @@ from qore.infrastructure.traders.crt_pure_model1 import (
 from qore.infrastructure.traders.crt_pure_r2_entry_router import (
     CrtPureR2EntryFamily,
     CrtPureR2EntryState,
+    assess_model1_certification_entry_family,
     assess_model1_entry_family,
     assess_unclosed_entry_family,
 )
@@ -119,3 +120,58 @@ def test_ote_and_time_families_fail_closed_until_source_contract_closes() -> Non
         result = assess_unclosed_entry_family(family)
         assert result.action is CrtPureReasoningAction.WAIT
         assert result.state is CrtPureR2EntryState.UNRESOLVED
+
+
+
+def test_certification_route_fails_closed_on_unresolved_old_reference_even_if_confirmed() -> None:
+    candidate = detect_model1_candidate(
+        reference=CrtPureModel1Reference(
+            kind=CrtPureModel1ReferenceKind.OLD_LOW,
+            price=95,
+            evidence_id="unadjudicated-old-low",
+        ),
+        candle=_bar(0, 96, 97, 92, 93),
+    )
+    assert candidate is not None
+    confirmed = assess_model1_confirmation(
+        candidate=candidate,
+        candle=_bar(15, 94, 98, 93, 97),
+    )
+    # This remains available only as legacy research characterization.
+    legacy = assess_model1_entry_family(
+        parent_direction=CrtPureCandidateDirection.BULLISH,
+        confirmation=confirmed,
+    )
+    assert legacy.action is CrtPureReasoningAction.EXECUTE
+    # The certification-facing assessment MUST NOT inherit that permission.
+    audited = assess_model1_certification_entry_family(
+        parent_direction=CrtPureCandidateDirection.BULLISH,
+        confirmation=confirmed,
+    )
+    assert audited.action is CrtPureReasoningAction.WAIT
+    assert audited.state is CrtPureR2EntryState.UNRESOLVED
+    assert "UNRESOLVED:model_1_reference_selection" in audited.why
+    assert audited.grants_execution_authority is False
+    assert audited.grants_capital_authority is False
+
+
+def test_certification_route_preserves_abstain_on_parent_conflict() -> None:
+    candidate = detect_model1_candidate(
+        reference=CrtPureModel1Reference(
+            kind=CrtPureModel1ReferenceKind.OLD_HIGH,
+            price=105,
+            evidence_id="unadjudicated-old-high",
+        ),
+        candle=_bar(0, 104, 108, 103, 107),
+    )
+    assert candidate is not None
+    confirmed = assess_model1_confirmation(
+        candidate=candidate, candle=_bar(15, 105, 106, 100, 103)
+    )
+    audited = assess_model1_certification_entry_family(
+        parent_direction=CrtPureCandidateDirection.BULLISH,
+        confirmation=confirmed,
+    )
+    assert audited.action is CrtPureReasoningAction.ABSTAIN
+    assert audited.grants_execution_authority is False
+    assert audited.grants_capital_authority is False
