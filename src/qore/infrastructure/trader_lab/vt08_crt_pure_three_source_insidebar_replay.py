@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -27,7 +27,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import (
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
     M15Bar,
     Model1LabTrade,
-    ParentCrt,
     _fold,
     _summary,
     aggregate_complete_m15,
