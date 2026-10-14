@@ -161,6 +161,7 @@ def test_equal_pivot_high_not_confirmed_as_swing():
     day, hours = source()
     changed = list(hours[9])
     changed[20] = with_prices(changed[20], high=104)
+    changed[50] = with_prices(changed[50], high=104)
     hours[9] = tuple(changed)
     out = audit_day(day, hours)
     assert out["state"] == "NO_H1_CONFIRMED_PAIR"
