@@ -50,3 +50,20 @@ La decisión **previa al PnL** es: comenzar con **una sola** hipótesis Level B 
 **Contexto certificación:** el Owner ha autorizado retornar a replays de investigación expresamente en esta orden, revocando la pausa de *nuevos replays* exclusivamente para esta comparación. Esto **no** revoca `NO MERGE`, `NO LIVE`, `NO PRODUCTION`, `NO FUNDEDNEXT LIVE`, `NO VPS`, `NO SIZING DENTRO DEL TRADER`. Tampoco permite alterar `CERTIFIED` o el bloqueo previo de `MODEL_1_REFERENCE_SELECTION` por resultados históricos. La ambigüedad de fuente debe cerrarse documentalmente o rotularse como política QORE seleccionada independientemente del PnL; el replay solo evalúa la variante.
 
 **CERTIFICATION STATE: OPEN.**  
+
+
+## IV. Incidente de permisos y replay complementario público, gratuito
+
+El intento de prueba histórica [cTrader, workflow #38544999814](https://github.com/mezas3238-hue/qore-core/actions/runs/38544999814) aprobó los controles de **calidad** (Ruff, Mypy, 6/6 tests) pero falló antes de acceder a velas para ambos mercados. El descubrimiento de cuenta devolvió exactamente el error `CTraderDemoAccountDiscoveryError: cTrader token does not carry trading permission`. **No** se inició replay económico, y **no** se pidió ampliar permisos de trading ni se colocaron órdenes. No se sortea el control de permisos.
+
+Se encontró una **alternativa de datos M5 gratuita** y se verificó el archivo LICENSE bajo MIT en dos repositorios públicos de GetData Finance:
+- [AUDUSD M5: muestra gratuita](https://github.com/getdata-finance/audusd-5m-ohlcv-forex-historical-data) y [licencia](https://github.com/getdata-finance/audusd-5m-ohlcv-forex-historical-data/blob/main/LICENSE).
+- [USDJPY M5: muestra gratuita](https://github.com/getdata-finance/usdjpy-5m-ohlcv-forex-historical-data) y [licencia](https://github.com/getdata-finance/usdjpy-5m-ohlcv-forex-historical-data/blob/main/LICENSE).
+
+Cobertura declarada por proveedor: **2026-03-26→2026-09-25**, aproximadamente seis meses. La ventana fija del replay anterior termina `2026-09-21T00:00Z`, así que el investigador limita el análisis al segmento dentro de esa ventana, conservando margen de cierre. **NO** son dos años de IC Markets, ni tienen validación BID/ASK/spread/comisiones. El trabajo con este feed NO puede declarar certificación o exactitud de ejecución de un broker real.
+
+La ruta de pruebas del [workflow Three-Source Inside-Bar](https://github.com/mezas3238-hue/qore-core/actions/workflows/vt08-crt-pure-three-source-insidebar-replay.yml) se ha cambiado de autenticación cTrader a descarga de CSV público usando solo `urllib`, símbolos fijos AUDUSD/USDJPY, tope de bytes, hash SHA-256 del fichero original, verificación UTC y geometría OHLC, validación de duplicados y una salida `data_provenance` con primera/última barra. No requiere token, autorización de trading, VPS ni dinero. Se detiene ante formato inválido.
+
+**Regla de interpretación:** si se ejecuta, sería un **diagnóstico histórico preliminar con una nueva fuente de datos**, no el replay cTrader originalmente planificado. Los subgrupos por inside bars se comparan dentro de cada feed, nunca se equiparan estadísticas del nuevo CSV con las de cTrader como si fueran intercambiables. Es obligatorio recuperar del run los artefactos `report.json` y `diagnostics.jsonl` antes de publicar resultados numéricos.
+
+**Corrida posterior al último cambio de pruebas:** [GitHub Actions #38545562931](https://github.com/mezas3238-hue/qore-core/actions/runs/38545562931). Su estado requiere verificación en Actions; no se anticipa éxito ni fracaso.
