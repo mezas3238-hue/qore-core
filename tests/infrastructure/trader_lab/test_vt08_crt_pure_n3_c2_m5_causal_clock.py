@@ -9,6 +9,7 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_n3_c2_m5_causal_clock import (
     c2_purge_return,
     census_c2_to_m5,
     first_m5_observation,
+    new_early_m5_prefix_state,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import M15Bar
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
@@ -154,3 +155,80 @@ def test_m5_aggregation_mismatch_rejected() -> None:
 def test_btcusd_is_frozen() -> None:
     with pytest.raises(ValueError, match="BTCUSD frozen"):
         census_c2_to_m5(CrtPureMarket.BTCUSD, ())
+
+
+def test_n3b_new_m5_evidence_can_precede_far_wick_in_later_M5() -> None:
+    # The third M5 makes the far target later, which MUST NOT invalidate
+    # information demonstrably known at the first M5 close.
+    bars = (
+        m5(0, 95, 102, 94, 101),
+        m5(1, 101, 105, 98, 104),
+        m5(2, 104, 112, 103, 109),
+    )
+    assert new_early_m5_prefix_state(
+        c2_midpoint_already_closed_beyond=False,
+        first_m5_midpoint_close_slot=1,
+        micro_c1=m15(0, 100, 110, 90, 100),
+        direction=CrtPureCandidateDirection.BULLISH,
+        m5_c3=bars,
+    ) == (True, True)
+
+
+def test_n3b_same_M5_wick_far_prevents_clean_prefix_even_if_close_confirms() -> None:
+    bars = (
+        m5(0, 95, 112, 94, 101),
+        m5(1, 101, 105, 98, 104),
+        m5(2, 104, 108, 103, 105),
+    )
+    assert new_early_m5_prefix_state(
+        c2_midpoint_already_closed_beyond=False,
+        first_m5_midpoint_close_slot=1,
+        micro_c1=m15(0, 100, 110, 90, 100),
+        direction=CrtPureCandidateDirection.BULLISH,
+        m5_c3=bars,
+    ) == (True, False)
+
+
+def test_n3b_C2_midpoint_already_beyond_does_not_claim_new_M5_evidence() -> None:
+    bars = (
+        m5(0, 101, 106, 100, 104),
+        m5(1, 104, 108, 102, 105),
+        m5(2, 105, 112, 103, 110),
+    )
+    assert new_early_m5_prefix_state(
+        c2_midpoint_already_closed_beyond=True,
+        first_m5_midpoint_close_slot=1,
+        micro_c1=m15(0, 100, 110, 90, 100),
+        direction=CrtPureCandidateDirection.BULLISH,
+        m5_c3=bars,
+    ) == (False, False)
+
+
+def test_n3b_slot_three_not_early_even_if_it_closes_beyond() -> None:
+    bars = (
+        m5(0, 95, 99, 93, 96),
+        m5(1, 96, 100, 94, 99),
+        m5(2, 99, 109, 97, 105),
+    )
+    assert new_early_m5_prefix_state(
+        c2_midpoint_already_closed_beyond=False,
+        first_m5_midpoint_close_slot=3,
+        micro_c1=m15(0, 100, 110, 90, 100),
+        direction=CrtPureCandidateDirection.BULLISH,
+        m5_c3=bars,
+    ) == (False, False)
+
+
+def test_n3b_bearish_far_low_untouched_through_slot_two() -> None:
+    bars = (
+        m5(0, 105, 108, 101, 102),
+        m5(1, 102, 104, 93, 96),
+        m5(2, 96, 99, 85, 88),
+    )
+    assert new_early_m5_prefix_state(
+        c2_midpoint_already_closed_beyond=False,
+        first_m5_midpoint_close_slot=2,
+        micro_c1=m15(0, 100, 110, 90, 100),
+        direction=CrtPureCandidateDirection.BEARISH,
+        m5_c3=bars,
+    ) == (True, True)
