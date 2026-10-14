@@ -1,0 +1,100 @@
+name: VT31 M4 M5 first FVG causal M1 source path (NO FILLS)
+on:
+  push:
+    branches:
+      - agent/vt31-m4-m5-ttrades-source-path-20261014
+    paths:
+      - 'scripts/vt31_m4_m5_ttrades_fvg_path_20261014.py'
+      - 'scripts/vt31_m4_m5_ttrades_census_20261014.py'
+      - 'tests/infrastructure/test_vt31_m4_m5_ttrades_fvg_path_20261014.py'
+      - 'docs/research/VT31_M4_M5_TTRADES_SOURCE_FVG_PATH_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-m4-m5-ttrades-source-path.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  ARTIFACT_ID: '11459859004'
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  source-gates-no-execution:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preregistered before code and three frozen G3 blob hashes
+        run: |
+          set -euo pipefail
+          git cat-file -t e7470c9cc9e48cf7e869baf35ac8fc80bc6279c8
+          git merge-base --is-ancestor e7470c9cc9e48cf7e869baf35ac8fc80bc6279c8 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Install, static verify, regression suite
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          ruff check scripts/vt31_m4_m5_ttrades_fvg_path_20261014.py scripts/vt31_m4_m5_ttrades_census_20261014.py tests/infrastructure/test_vt31_m4_m5_ttrades_fvg_path_20261014.py
+          python -m py_compile scripts/vt31_m4_m5_ttrades_fvg_path_20261014.py scripts/vt31_m4_m5_ttrades_census_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_m4_m5_ttrades_fvg_path_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
+            tests/infrastructure/test_vt31_ict_dol_source_v1_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Download exact 3Y original closed M1 and check SHA256
+        run: |
+          set -euo pipefail
+          mkdir -p input
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > original-m1.zip
+          unzip -q original-m1.zip -d input
+          test -s input/NAS100/market-evidence.json
+          echo "${MARKET_SHA}  input/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Run M4 M5 M1 causal census with locked original M2 population
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m4_m5_ttrades_census_20261014.py \
+            --market input/NAS100/market-evidence.json \
+            --out evidence/VT31_M4_M5_REAL_M1_SOURCE_CENSUS.json \
+            | tee evidence/summary.json
+      - name: Source-only gates and evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_M4_M5_REAL_M1_SOURCE_CENSUS.json"))
+          assert p["original_M1_count"]==1059784
+          assert p["M2_M3_cognitive_contexts"]==128
+          assert sum(p["M4_source_state_counts"].values())==128
+          assert sum(p["M5_hypothetical_source_path_counts"].values())==p["M4_source_state_counts"].get("FVG_GEOMETRY_ATTESTED_NOT_EXECUTABLE",0)
+          assert p["trader_certified"] is False and p["live_authorized"] is False
+          assert p["broker_order_ACK_count"]==0 and p["orders_submitted"]==0
+          assert p["entries_executed"]==0 and p["PnL_PF_WR_DD_Sharpe"] is None
+          assert p["is_fresh_holdout"] is False
+          assert p["broker_tick_size_attested"] is False
+          print("M4_M5_GEOMETRY_NOT_AUTHOR_OR_ECONOMIC_CERTIFICATION")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' e7470c9cc9e48cf7e869baf35ac8fc80bc6279c8 > evidence/prereg_sha.txt
+          printf '%s\n' 'NO_MERGE_NO_LIVE_NO_SIZING_NO_FILLS_NO_PNL_NO_HOLDOUT' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-m4-m5-source-census-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
