@@ -1,7 +1,8 @@
 """Official CFTC six-commodity source audit; zero price/outcome inspection.
 
 Reads official CFTC Disaggregated FUTURES ONLY annual archives
-from 2012 through 2021 inclusive (complete pre-reserve source census). No strategy, no COT edge/PnL, no holdout.
+from 2012 through 2021 inclusive (full pre-reserve source census).
+No strategy, no COT edge/PnL, no holdout.
 Outputs metadata counts and input digests, never trader positions.
 """
 from __future__ import annotations
