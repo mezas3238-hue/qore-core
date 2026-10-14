@@ -38,8 +38,14 @@ def market(
     start9 = datetime(2025, month, 15, 9, tzinfo=NY).astimezone(UTC)
     start10 = datetime(2025, month, 15, 10, tzinfo=NY).astimezone(UTC)
     nine = [bar(start9 + timedelta(minutes=i)) for i in range(60)]
-    nine[10] = bar(start9 + timedelta(minutes=10), h="130")
-    nine[20] = bar(start9 + timedelta(minutes=20), low="70")
+    nine[10] = bar(
+        start9 + timedelta(minutes=10),
+        h="130" if side is Side.LONG else "110",
+    )
+    nine[20] = bar(
+        start9 + timedelta(minutes=20),
+        low="90" if side is Side.LONG else "70",
+    )
     nine[57] = (
         bar(start9 + timedelta(minutes=57), h="104")
         if side is Side.LONG
