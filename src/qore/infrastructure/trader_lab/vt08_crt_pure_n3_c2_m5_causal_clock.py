@@ -126,6 +126,38 @@ def first_m5_observation(
     }
 
 
+
+def new_early_m5_prefix_state(
+    *,
+    c2_midpoint_already_closed_beyond: bool,
+    first_m5_midpoint_close_slot: int | None,
+    micro_c1: M15Bar,
+    direction: CrtPureCandidateDirection,
+    m5_c3: tuple[ReplayBar, ...],
+) -> tuple[bool, bool]:
+    """Only M5 candles <= first evidence close can affect an N3B flag.
+
+    Returns (new early evidence, far boundary untouched at its exact close).
+    The future third M5 candle is NOT read if first evidence is on slot 1/2.
+    """
+    if len(m5_c3) != 3:
+        raise ValueError("N3B expects three M5 witness candles")
+    if (
+        c2_midpoint_already_closed_beyond
+        or first_m5_midpoint_close_slot not in (1, 2)
+    ):
+        return False, False
+    assert first_m5_midpoint_close_slot is not None
+    prefix = m5_c3[:first_m5_midpoint_close_slot]
+    untouched = not any(
+        b.high_price >= micro_c1.high_price
+        if direction is CrtPureCandidateDirection.BULLISH
+        else b.low_price <= micro_c1.low_price
+        for b in prefix
+    )
+    return True, untouched
+
+
 def census_c2_to_m5(
     market: CrtPureMarket,
     bars: tuple[ReplayBar, ...],
@@ -206,19 +238,16 @@ def census_c2_to_m5(
             # first M5 close beyond midpoint requires C2 NOT already beyond.
             # For structural far-side state use only the M5 prefix known at
             # that first early close; NEVER inspect later C3 M5 bars to gate.
-            new_m5_early = (
-                not already_beyond_mid and mid_slot in (1, 2)
-            )
-            far_untouched_at_early_m5_close = False
-            if new_m5_early:
-                assert isinstance(mid_slot, int)
-                observed_prefix = micro3_m5[:mid_slot]
-                far_untouched_at_early_m5_close = not any(
-                    b.high_price >= c1.high_price
-                    if direction is CrtPureCandidateDirection.BULLISH
-                    else b.low_price <= c1.low_price
-                    for b in observed_prefix
+            new_m5_early, far_untouched_at_early_m5_close = (
+                new_early_m5_prefix_state(
+                    c2_midpoint_already_closed_beyond=already_beyond_mid,
+                    first_m5_midpoint_close_slot=mid_slot,
+                    micro_c1=c1,
+                    direction=direction,
+                    m5_c3=micro3_m5,
                 )
+            )
+            if new_m5_early:
                 counts["N3B_NEW_FIRST_M5_MIDPOINT_CLOSE_BEFORE_C3_END"] += 1
                 if far_untouched_at_early_m5_close:
                     counts["N3B_NEW_M5_EVIDENCE_FAR_UNTOUCHED_AT_CLOSE"] += 1
