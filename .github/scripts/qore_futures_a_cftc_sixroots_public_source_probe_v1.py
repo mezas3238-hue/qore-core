@@ -101,7 +101,8 @@ def parse_cftc_source(binary: bytes, year: int) -> dict[str, Any]:
             day = datetime.strptime(stamp, pattern).date()
         except (KeyError, ValueError) as exc:
             raise CftcSourceError("BAD_CFTC_REPORT_DATE") from exc
-        if day.year != year or day.weekday() != 1 or day >= date(2022, 1, 1):
+        if day.year != year or day.weekday() > 2 or day >= date(2022, 1, 1):
+            print("CFTC_UNEXPECTED_REPORT_CALENDAR", root, day.isoformat(), day.weekday())
             raise CftcSourceError("REPORT_DATE_OUTSIDE_AUDIT_SCOPE")
         if day in observations[root]:
             raise CftcSourceError("DUPLICATE_CFTC_MARKET_WEEK")
