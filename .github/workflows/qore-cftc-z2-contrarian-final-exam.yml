@@ -1,0 +1,81 @@
+name: QORE CFTC extreme z2 contrarian final scientific exam (NO LIVE)
+
+on:
+  push:
+    branches:
+      - research/qore-cftc-extreme-z2-contrarian-final-exam-20261013
+    paths:
+      - '.github/scripts/qore_cftc_extreme_z2_contrarian_final_exam_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_cftc_extreme_z2_contrarian_final_exam_v1.py'
+      - '.github/workflows/qore-cftc-z2-contrarian-final-exam.yml'
+      - 'docs/research/QORE_CFTC_EXTREME_POSITION_Z2_CONTRARIAN_SINGLE_FINAL_PREREG_2026-10-13.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  one_final_reference_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      PYTHONPATH: src:.github/scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test and frozen EIA reader
+        run: pip install "ruff>=0.5,<1" "xlrd==2.0.2"
+      - name: Lint and compile PRE-RESULT code and synthetic tests
+        run: |
+          ruff check .github/scripts/qore_cftc_extreme_z2_contrarian_final_exam_v1.py \
+            tests/infrastructure/trader_lab/test_qore_cftc_extreme_z2_contrarian_final_exam_v1.py
+          python -m py_compile .github/scripts/qore_cftc_extreme_z2_contrarian_final_exam_v1.py
+      - name: Test z104 crossing, 8-week cooldown, 42d exit, no OOS, inference gates
+        run: >-
+          python -m unittest discover -s tests/infrastructure/trader_lab
+          -p test_qore_cftc_extreme_z2_contrarian_final_exam_v1.py -v
+      - name: Enforce independent immutable prereg is Git ancestor before results
+        run: |
+          test "$GITHUB_SHA" != "1cca3399514125ba11ae446a059e09382c605d40"
+          git merge-base --is-ancestor 1cca3399514125ba11ae446a059e09382c605d40 "$GITHUB_SHA"
+          test "$(git rev-parse 1cca3399514125ba11ae446a059e09382c605d40:docs/research/QORE_CFTC_EXTREME_POSITION_Z2_CONTRARIAN_SINGLE_FINAL_PREREG_2026-10-13.md)" = "$(git rev-parse "$GITHUB_SHA":docs/research/QORE_CFTC_EXTREME_POSITION_Z2_CONTRARIAN_SINGLE_FINAL_PREREG_2026-10-13.md)"
+          test -z "$(git status --porcelain -- docs/research/QORE_CFTC_EXTREME_POSITION_Z2_CONTRARIAN_SINGLE_FINAL_PREREG_2026-10-13.md)"
+          echo "CFTC_Z2_PRE_REGISTERED_BEFORE_NEW_OUTCOMES"
+      - name: Run EXACTLY ONE final extreme contrarian screen on WTI/NG DEV DIAG
+        run: python .github/scripts/qore_cftc_extreme_z2_contrarian_final_exam_v1.py
+      - name: Validate receipt, false privilege, and sealed future holdouts
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          f=Path("artifacts/research/cftc_extreme_z2_final_exam.json")
+          o=json.loads(f.read_text())
+          digest=o.pop("receipt_sha256")
+          assert hashlib.sha256(json.dumps(o,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()==digest
+          assert o["prereg_commit"]=="1cca3399514125ba11ae446a059e09382c605d40"
+          assert o["holdout_2022_2024_opened"] is False
+          assert o["fx_holdout_consumed"] is False
+          assert o["historical_eia_backfill_first_published_at_verified"] is False
+          assert o["native_futures_execution_data_available"] is False
+          assert o["profit_factor_or_net_pnl_calculated"] is False
+          assert o["trader_certified"] is False
+          assert o["live_or_demo_enabled"] is False
+          assert o["new_data_purchase_usd"]==0
+          assert set(o["roots"])=={"WTI","NG"}
+          assert o["final_scientific_verdict"] in (
+            "PRELIMINARY_REFERENCE_ASSOCIATION_NOT_TRADABLE",
+            "CLOSED_INCONCLUSIVE_LOW_POWER",
+            "NO_SUPPORT_FINAL_CFTC_FAMILY_FOR_QORE",
+          )
+          print("CFTC_Z2_FINAL_NO_TRADER_NO_OOS_NO_LIVE")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cftc-z2-final-extreme-reversal-dev-diag-reference-only
+          path: artifacts/research/cftc_extreme_z2_final_exam.json
+          retention-days: 90
+          if-no-files-found: error
