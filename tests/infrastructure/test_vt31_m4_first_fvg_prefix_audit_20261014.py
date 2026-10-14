@@ -7,11 +7,11 @@ import pytest
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import M1Bar, Side
 from scripts.vt31_m4_first_fvg_prefix_audit_20261014 import prefix_parity
-from scripts.vt31_ttrades_am_native_cog_v1_20261014 import (
-    propose_ttrades_am_cognition,
-)
 from scripts.vt31_m4_m5_ttrades_fvg_path_20261014 import (
     first_fvg_and_source_path,
+)
+from scripts.vt31_ttrades_am_native_cog_v1_20261014 import (
+    propose_ttrades_am_cognition,
 )
 
 NY = ZoneInfo("America/New_York")
@@ -80,7 +80,7 @@ def test_exact_first_fvg_c3_ce_c2_persist_over_all_closed_prefixes(side):
     ("TOUCH", "TOUCH_NOT_FILL"),
     ("AMBIGUOUS", "AMBIGUOUS_M1_SEQUENCE_NO_FILL"),
 ])
-def test_final_first_M5_terminal_event_never_uses_early_future(later, path):
+def test_final_first_m5_terminal_event_never_uses_early_future(later, path):
     nine, ten, cog = _source(later=later)
     result = prefix_parity(nine=nine, ten=ten, cognition=cog)
     assert result["final_m5_source_path"] == path
@@ -97,7 +97,7 @@ def test_no_eligible_fvg_not_misreported_as_entry():
     assert result["earliest_terminal_path"] is None
 
 
-def test_original_first_C3_not_selected_before_its_close():
+def test_original_first_c3_not_selected_before_its_close():
     nine, ten, cog = _source()
     before = first_fvg_and_source_path(
         nine=nine, ten=ten[:3], cognition=cog,
@@ -112,6 +112,7 @@ def test_original_first_C3_not_selected_before_its_close():
 
 def test_audit_never_calls_broker_order_or_sizing():
     from inspect import getsource
+
     from scripts import vt31_m4_first_fvg_prefix_audit_20261014 as mod
 
     body = getsource(mod.prefix_parity) + getsource(mod.audit_groups)
