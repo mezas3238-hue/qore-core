@@ -13,7 +13,7 @@ import math
 import random
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from pathlib import Path
 from statistics import mean
 from typing import Any
