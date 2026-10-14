@@ -46,6 +46,7 @@ def source(month=7, side="LONG"):
         ten[5] = with_prices(ten[5], high=112)
     else:
         nine[10] = with_prices(nine[10], high=110)
+        nine[15] = with_prices(nine[15], close=99)
         nine[20] = with_prices(nine[20], low=90)
         nine[40] = with_prices(nine[40], low=70)
         nine[50] = with_prices(nine[50], high=130)
