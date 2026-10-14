@@ -222,3 +222,63 @@ def test_first_return_but_bad_profile_cannot_pass_m4():
     assert result["filled"] is False
     assert result["method_certified"] is False
     assert result["ce_research_only"] == "101.5"
+
+
+@pytest.mark.parametrize("side", [Side.LONG, Side.SHORT])
+def test_real_first_return_with_nine_points_cannot_pass_framework(side):
+    nine, ten = market(side=side)
+    nine = list(nine)
+    if side is Side.LONG:
+        nine[10] = bar(nine[10].opened_at, h="114")
+    else:
+        nine[20] = bar(nine[20].opened_at, low="86")
+    nine = tuple(nine)
+    cog = proposal(nine, ten)
+    out = first_fvg_and_source_path(
+        nine=nine, ten=ten[:4], cognition=cog,
+    )
+    assert out.state == "NO_FRAMEWORK"
+    assert out.potential_points_at_mss == Decimal("9")
+    assert out.first_fvg_confirmed_at is None
+
+
+@pytest.mark.parametrize("side", [Side.LONG, Side.SHORT])
+def test_ten_points_from_actual_mss_close_at_exact_boundary(side):
+    nine, ten = market(side=side)
+    nine = list(nine)
+    if side is Side.LONG:
+        nine[10] = bar(nine[10].opened_at, h="115")
+    else:
+        nine[20] = bar(nine[20].opened_at, low="85")
+    nine = tuple(nine)
+    cog = proposal(nine, ten)
+    out = first_fvg_and_source_path(
+        nine=nine, ten=ten[:4], cognition=cog,
+    )
+    assert out.state == "FVG_GEOMETRY_ATTESTED_NOT_EXECUTABLE"
+    assert out.potential_points_at_mss == Decimal("10")
+    assert not out.execution_authorized
+
+
+def test_first_fvg_exactly_at_11am_is_not_an_order():
+    nine, ten = market()
+    cog = proposal(nine, ten)
+    early = (
+        bar(ten[3].opened_at, "105", "105", "93", "100"),
+    )
+    middle = tuple(
+        bar(ten[0].opened_at + timedelta(minutes=i))
+        for i in range(4, 59)
+    )
+    last = bar(
+        ten[0].opened_at + timedelta(minutes=59),
+        "105", "107", "104", "106",
+    )
+    whole = ten[:3] + early + middle + (last,)
+    assert len(whole) == 60
+    out = first_fvg_and_source_path(
+        nine=nine, ten=whole, cognition=cog,
+    )
+    assert out.state == "WINDOW_CLOSED_FOR_NEW_LIMIT"
+    assert out.first_fvg_confirmed_at is None
+    assert out.execution_authorized is False
