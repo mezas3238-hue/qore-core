@@ -91,14 +91,14 @@ def test_am_happy_context_but_never_certified_as_trader() -> None:
     assert d["first_sweep_closed_at"].endswith("+00:00")
 
 
-def test_missing_9am_H1_can_never_be_invented() -> None:
+def test_missing_9am_h1_can_never_be_invented() -> None:
     h9, ten, dto = fixtures()
     r = check(h9[1:], ten, dto)
     assert "H1_09_10_NOT_COMPLETE" in r.reason_codes
     assert r.status == "REJECTED"
 
 
-def test_missing_10am_prefix_or_stale_COG_rejected() -> None:
+def test_missing_10am_prefix_or_stale_cog_rejected() -> None:
     h9, ten, dto = fixtures()
     r = check(h9, ten[:-1], dto)
     assert "COG_AS_OF_NOT_LAST_CLOSED_M1" in r.reason_codes
@@ -142,7 +142,7 @@ def test_opposite_raid_after_first_sweep_revokes_approval() -> None:
     assert "OPPOSITE_H1_RAID_AFTER_FIRST_SWEEP" in r.reason_codes
 
 
-def test_MSS_before_raid_or_not_observed_never_passes() -> None:
+def test_mss_before_raid_or_not_observed_never_passes() -> None:
     h9, ten, dto = fixtures()
     early = replace(dto, structure_break_confirmed_at=ten[0].closed_at)
     assert "MSS_NOT_AFTER_SWEEP" in check(h9, ten, early).reason_codes
@@ -154,7 +154,7 @@ def test_MSS_before_raid_or_not_observed_never_passes() -> None:
     ).reason_codes
 
 
-def test_MSS_not_displaced_back_inside_hour_is_vetoed() -> None:
+def test_mss_not_displaced_back_inside_hour_is_vetoed() -> None:
     h9, ten, dto = fixtures()
     outside = ten[:2] + (candle(
         2, hour=10, o="94", h="100", lo="88", c="89",
@@ -164,7 +164,7 @@ def test_MSS_not_displaced_back_inside_hour_is_vetoed() -> None:
     ).reason_codes
 
 
-def test_closest_previous_session_DOL_is_not_TTrades_9am_opposite() -> None:
+def test_closest_previous_session_dol_is_not_ttrades_9am_opposite() -> None:
     h9, ten, dto = fixtures()
     # Characterization of the real cleanroom producer's prior-NY pool family:
     old = replace(
@@ -176,7 +176,7 @@ def test_closest_previous_session_DOL_is_not_TTrades_9am_opposite() -> None:
     assert r.target_expected == Decimal("110")
 
 
-def test_incorrect_clock_profile_and_9am_not_universal_ICT_rule() -> None:
+def test_incorrect_clock_profile_and_9am_not_universal_ict_rule() -> None:
     h9, ten, dto = fixtures()
     london = replace(dto, session=SessionId.LONDON)
     assert "WRONG_METHOD_PROFILE_SESSION" in check(
