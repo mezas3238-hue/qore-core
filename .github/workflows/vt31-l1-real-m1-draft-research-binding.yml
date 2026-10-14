@@ -1,0 +1,116 @@
+name: VT31 L1 canonical Trader Lab DRAFT research binding real 120 NAS100 M1
+on:
+  push:
+    branches:
+      - agent/vt31-l1-research-draft-binding-20261014
+    paths:
+      - 'scripts/vt31_l1_research_binding_20261014.py'
+      - 'tests/infrastructure/test_vt31_l1_research_binding_20261014.py'
+      - 'docs/research/VT31_L1_CANONICAL_RESEARCH_DRAFT_BINDING_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-l1-real-m1-draft-research-binding.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  ARTIFACT_ID: '11459859004'
+  ORIGINAL_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  candidate-bound-real-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enforce source prereg ancestor + exact G3 COG OPS hashes
+        run: |
+          set -euo pipefail
+          git cat-file -t f5db95eac6cd275add0ed8dafc814932f742b4b5
+          git merge-base --is-ancestor f5db95eac6cd275add0ed8dafc814932f742b4b5 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Dependencies, static checks and mandatory source regressions
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          ruff check scripts/vt31_l1_research_binding_20261014.py tests/infrastructure/test_vt31_l1_research_binding_20261014.py
+          python -m py_compile scripts/vt31_l1_research_binding_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_l1_research_binding_20261014.py \
+            tests/infrastructure/trader_lab/test_candidate_and_stage_evidence.py \
+            tests/infrastructure/trader_lab/test_lifecycle_and_promotion.py \
+            tests/infrastructure/trader_lab/test_fast_forward.py \
+            tests/infrastructure/test_vt31_l3_m1_source_parity_20261014.py \
+            tests/infrastructure/test_vt31_m4_m5_ttrades_fvg_path_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
+            tests/infrastructure/test_vt31_ict_dol_source_v1_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Recover exact original 3Y NAS100 M1, precheck SHA
+        run: |
+          set -euo pipefail
+          mkdir -p input
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > source.zip
+          unzip -q source.zip -d input
+          test -s input/NAS100/market-evidence.json
+          echo "${ORIGINAL_SHA}  input/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Build actual canonical ResearchRun StrategyBinding and Trader Lab DRAFT candidate
+        run: |
+          set -euo pipefail
+          # Recorded process time is this immutable code commit, never the market-day timestamp.
+          ADMIN_AT="$(git show -s --format=%cI HEAD)"
+          PYTHONPATH=src:. python scripts/vt31_l1_research_binding_20261014.py \
+            --market input/NAS100/market-evidence.json \
+            --revision "${GITHUB_SHA}" --administrative-at "${ADMIN_AT}" \
+            --out evidence/VT31_CANONICAL_TRADER_LAB_RESEARCH_DRAFT_120_REAL_M1.json \
+            | tee evidence/summary.json
+      - name: Reject any promotion/false broker evidence, preserve immutable results
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_CANONICAL_TRADER_LAB_RESEARCH_DRAFT_120_REAL_M1.json"))
+          assert p["source_raw_sha256"]=="0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+          assert p["original_m1_count"]==1059784
+          assert p["m1_sample_observations"]==120 and p["market"]=="NAS100"
+          assert p["availability_basis"]=="STRUCTURAL_BOUNDARY_NOT_PROVIDER_RECEIPT"
+          assert p["prereg_commit"]=="f5db95eac6cd275add0ed8dafc814932f742b4b5"
+          assert p["trader_lab_state"]=="draft" and p["trader_lab_completed_stages"]==[]
+          assert p["demo_eligibility"]=="not_eligible_incomplete"
+          assert p["trader_lab_L1_method_author_certified"] is False
+          assert p["trader_lab_L2_replay_qualified"] is False
+          assert p["trader_lab_L3_fast_forward_qualified"] is False
+          assert p["broker_contract_homologated"] is False
+          assert p["broker_tick_ack_or_fills"]==0 and p["sizing_calculated"] is False
+          assert p["evaluation_economic"] is None and p["fresh_holdout"] is False
+          assert p["trader_certified"] is False and p["live_authorized"] is False
+          assert all(len(p[x])==64 for x in (
+              "research_dataset_digest", "research_run_input_fingerprint",
+              "strategy_config_digest", "research_strategy_binding_fingerprint",
+              "trader_lab_candidate_fingerprint"))
+          print("CANONICAL_RESEARCH_CANDIDATE_BOUND_BUT_DRAFT_NOT_L1_OR_DEMO_CERTIFIED")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' f5db95eac6cd275add0ed8dafc814932f742b4b5 > evidence/prereg_sha.txt
+          printf '%s\n' 'NO_L1_STAGE_PASS_NO_RESEARCH_BLINDNESS_NO_OOS_NO_ORDERS_NO_SIZING_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-real-m1-canonical-draft-binding-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
