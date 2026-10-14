@@ -9,7 +9,7 @@ Frozen G3 COG/OPS and source V2 are not modified.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 from statistics import median
 from typing import Any
