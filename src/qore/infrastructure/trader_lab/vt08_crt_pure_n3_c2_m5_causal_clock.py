@@ -140,6 +140,7 @@ def census_c2_to_m5(
     counts: Counter[str] = Counter()
     parent_ids: set[str] = set()
     aligned_parents: set[str] = set()
+    n3b_strict_parents: set[str] = set()
     ledger: list[dict[str, Any]] = []
     for parent in parents:
         pk = parent.c3_opened_at.isoformat()
@@ -201,6 +202,41 @@ def census_c2_to_m5(
                 counts["M5_MIDPOINT_CLOSE_BEFORE_FULL_M15_C3_CLOSE"] += 1
             if mid_slot == far_slot and mid_slot is not None:
                 counts["MID_AND_FAR_ON_SAME_M5_BAR_ORDER_UNKNOWN"] += 1
+            # N3B preregistered AFTER N3 aggregate read. A genuinely *new*
+            # first M5 close beyond midpoint requires C2 NOT already beyond.
+            # For structural far-side state use only the M5 prefix known at
+            # that first early close; NEVER inspect later C3 M5 bars to gate.
+            new_m5_early = (
+                not already_beyond_mid and mid_slot in (1, 2)
+            )
+            far_untouched_at_early_m5_close = False
+            if new_m5_early:
+                assert isinstance(mid_slot, int)
+                observed_prefix = micro3_m5[:mid_slot]
+                far_untouched_at_early_m5_close = not any(
+                    b.high_price >= c1.high_price
+                    if direction is CrtPureCandidateDirection.BULLISH
+                    else b.low_price <= c1.low_price
+                    for b in observed_prefix
+                )
+                counts["N3B_NEW_FIRST_M5_MIDPOINT_CLOSE_BEFORE_C3_END"] += 1
+                if far_untouched_at_early_m5_close:
+                    counts["N3B_NEW_M5_EVIDENCE_FAR_UNTOUCHED_AT_CLOSE"] += 1
+                else:
+                    counts["N3B_NEW_M5_EVIDENCE_FAR_ALREADY_TOUCHED"] += 1
+            n3b_strict = bool(
+                new_m5_early
+                and far_untouched_at_early_m5_close
+                and aligned
+                and not h4_old_target_touched
+            )
+            if n3b_strict:
+                counts["N3B_STRICT_CONTEXT_EVENTS_NOT_TRADES"] += 1
+                n3b_strict_parents.add(pk)
+                counts[
+                    "N3B_STRICT_PERIOD_1" if c2.opened_at < FOLD_1_END
+                    else "N3B_STRICT_PERIOD_2"
+                ] += 1
             n1_confirmed = micro_crt_direction(c1, c2, c3) is direction
             if n1_confirmed:
                 counts["PREVIOUS_N1_M15_C3_CONFIRMATION"] += 1
@@ -226,6 +262,12 @@ def census_c2_to_m5(
                 "aligned_with_H4": aligned,
                 "old_h4_midpoint_pre_touched_at_C2_close": h4_old_target_touched,
                 "micro_midpoint_closed_through_at_C2_close": already_beyond_mid,
+                "N3B_first_M5_new_evidence_before_C3_close": new_m5_early,
+                "N3B_far_boundary_untouched_at_first_early_M5_close": (
+                    far_untouched_at_early_m5_close if new_m5_early else None
+                ),
+                "N3B_aligned_H4_old_target_pristine_new_M5_event": n3b_strict,
+                "N3B_prereg_registered_after_prior_N3_aggregate_counts": True,
                 "micro_c3_opened_at": c3.opened_at.isoformat(),
                 "micro_c3_full_close_relative": c3.close_price,
                 "n1_conditional_C3_M15_confirmation": n1_confirmed,
@@ -280,6 +322,8 @@ def census_c2_to_m5(
         "previous_N1_confirmations_reconciled": counts[
             "PREVIOUS_N1_M15_C3_CONFIRMATION"
         ],
+        "N3B_strict_unique_H4_contexts_NOT_TRADES": len(n3b_strict_parents),
+        "N3B_extra_prereg_is_after_N3_aggregate_results": True,
         "clock_counters": dict(sorted(counts.items())),
         "C2_eligibility_does_not_inspect_C3_M5": True,
         "lower_timeframe_entry_rule_source_adjudicated": False,
