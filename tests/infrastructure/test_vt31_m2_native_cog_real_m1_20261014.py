@@ -7,8 +7,8 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    M1Bar,
     NEW_YORK,
+    M1Bar,
 )
 from scripts.vt31_m2_dol_reconciliation_20261014 import DATES
 from scripts.vt31_m2_native_cog_real_m1_20261014 import (
