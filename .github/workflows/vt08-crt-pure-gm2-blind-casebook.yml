@@ -8,6 +8,8 @@ on:
       - '.github/workflows/vt08-crt-pure-gm2-blind-casebook.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py'
   workflow_dispatch:
 
 permissions:
@@ -31,9 +33,9 @@ jobs:
         run: python -m pip install -e '.[dev]'
       - name: Enforce code hygiene and contract tests
         run: |
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
 
   generate_real_casebook:
     needs: quality
@@ -76,6 +78,23 @@ jobs:
           python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm2_real_casebook \
             "$QORE_MARKET" original-native-m5 "artifacts/$QORE_MARKET" \
             > "artifacts/$QORE_MARKET/stdout-manifest.json"
+      - name: Run existing VT08 cognition on real case prefixes (G-M3 safety only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm3_real_case_safety \
+            "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/gm3-safety-stdout.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root=Path('artifacts')/os.environ['QORE_MARKET']
+          m=json.loads((root/'gm3-real-safety-summary.json').read_text())
+          assert m['cases']>0 and m['actions']=={'ABSTAIN':m['cases']}
+          assert m['methodological_GM3_certified'] is False
+          assert m['sizing_or_broker_orders'] is False
+          PY
       - name: Validate no certification was accidentally emitted
         shell: bash
         run: |
@@ -102,7 +121,7 @@ jobs:
           set -euo pipefail
           printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_MARKET/git-sha.txt"
           cd "artifacts/$QORE_MARKET"
-          sha256sum gm2-real-casebook-manifest.json gm2-blind-cases.jsonl gm2-sealed-c3-witness.jsonl stdout-manifest.json git-sha.txt > SHA256SUMS.txt
+          sha256sum gm2-real-casebook-manifest.json gm2-blind-cases.jsonl gm2-sealed-c3-witness.jsonl gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl gm3-safety-stdout.json stdout-manifest.json git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: vt08-gm2-blind-real-cases-${{ matrix.market }}-${{ github.sha }}
