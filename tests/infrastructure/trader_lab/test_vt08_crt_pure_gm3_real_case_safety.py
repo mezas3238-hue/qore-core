@@ -12,6 +12,7 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_gm3_real_case_safety import (
 def blind_case() -> dict[str, object]:
     return {
         "market": "AUDUSD",
+        "parent_H4_direction_context": "BULLISH",
         "case_id": "fixture-causal-001",
         "decision_clock_utc": "2025-03-03T10:30:00+00:00",
         "is_execution_authorized": False,
