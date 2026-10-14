@@ -45,6 +45,7 @@ jobs:
         run: >-
           pytest -q --no-cov
           tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py
+          tests/infrastructure/trader_lab/test_vt08_crt_pure_density_root_cause_audit.py
 
   historical_replay:
     needs: quality
