@@ -71,6 +71,8 @@ def parse_cftc_source(binary: bytes, year: int) -> dict[str, Any]:
         raise CftcSourceError("NO_CSV_HEADERS")
     fields = {name.strip().lstrip("\ufeff") for name in table.fieldnames}
     if not set(REQUIRED_COLUMNS).issubset(fields):
+        print("CFTC_SOURCE_SCHEMA_HEADERS", sorted(fields)[:32])
+        print("CFTC_SOURCE_SCHEMA_MISSING", sorted(set(REQUIRED_COLUMNS) - fields))
         raise CftcSourceError("REQUIRED_DISAGGREGATED_FIELDS_ABSENT")
     by_code = {v: k for k, v in CONTRACT_CODES.items()}
     observations: dict[str, set[date]] = {root: set() for root in CONTRACT_CODES}
