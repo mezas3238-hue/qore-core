@@ -11,7 +11,6 @@ from typing import Any
 # Source script lives under .github/scripts, available in CI PYTHONPATH.
 import qore_futures_a_cftc_sixroots_public_source_probe_v1 as c
 
-
 _EXCHANGES = {
     "CL": "WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE",
     "NG": "NATURAL GAS - NEW YORK MERCANTILE EXCHANGE",
