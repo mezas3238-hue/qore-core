@@ -201,7 +201,7 @@ def test_first_eligible_fvg_persists_even_if_second_available():
     assert out.c2_full_wick_reference == ten[2].low
 
 
-def test_closed_m1_gaps_no_FVG_or_exec():
+def test_closed_m1_gaps_no_fvg_or_exec():
     nine, ten = market()
     cog = proposal(nine, ten)
     out = first_fvg_and_source_path(
