@@ -41,3 +41,23 @@
  
 ## Gobernanza
 **NO MERGE, NO LIVE/DEMO/FundedNext/VPS, NO sizing propio VT31 (CIBO CMA tiene autoridad), NO orden al broker, NO certificación ficticia.** La ingeniería causal no implica que el trader sea rentable; Gates M2/M3/M4/M5/M6 y Trader Lab L1–L10 continúan abiertos.
+
+## ADENDA — diez intervalos exactos confirmados por CI posterior
+Nueva ejecución [GitHub Actions #38650526641 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38650526641), código `df06ae660906e020e90b8477e3b1306a0a53e120`, **111/111 PASS**, produjo el mismo denominador y matriz y publicó **solo timestamps** de los intervalos. [Artifact #11934487630](https://github.com/mezas3238-hue/qore-core/actions/runs/38650526641/artifacts/11934487630) ZIP SHA256 `cd038697d7024804f770a8f7001a1a978812a7a5ca883b17b5eb2181f0a113c6`.
+
+| Intervalo M1 faltante [inicio UTC → fin excl. UTC] | Minutos | Lectura del reloj NY, **no calendario del CFD** |
+| --- | ---: | --- |
+| 2024-01-12 21:59 → 2024-01-14 23:00 | 2.941 | Viernes 16:59 → domingo 18:00, cruza fin de semana |
+| 2024-01-15 18:00 → 2024-01-15 23:00 | 300 | Lunes 13:00 → 18:00, día de festivo cash Nasdaq |
+| 2024-04-15 20:59 → 2024-04-15 22:00 | 61 | Lunes 16:59 → 18:00 |
+| 2024-07-15 20:59 → 2024-07-15 22:00 | 61 | Lunes 16:59 → 18:00 |
+| 2024-10-14 21:00 → 2024-10-14 22:00 | 60 | Lunes 17:00 → 18:00 |
+| 2025-01-13 21:59 → 2025-01-13 23:00 | 61 | Lunes 16:59 → 18:00 |
+| 2025-04-14 20:59 → 2025-04-14 22:00 | 61 | Lunes 16:59 → 18:00 |
+| 2025-07-14 20:59 → 2025-07-14 22:00 | 61 | Lunes 16:59 → 18:00 |
+| 2026-01-12 21:59 → 2026-01-12 23:00 | 61 | Lunes 16:59 → 18:00 |
+| 2026-09-14 21:00 → 2026-09-14 22:00 | 60 | Lunes 17:00 → 18:00 |
+
+**Hallazgo técnico significativo:** 8/10 huecos están concentrados en la franja **16:59/17:00–18:00 NY de lunes**, compatible con la hipótesis de una pausa diaria del mercado CFD, **no demostración** de que las M1 debían estar ausentes; el otro hueco de 300min coincide con el festivo cash 15-ENE-2024 y el de 2.941min cruza el fin de semana. El hecho de que ocho ejemplos sean lunes deriva de las doce fechas del muestreo prefijado (martes con warmup lunes); **no** estimar de aquí un patrón válido para todos los lunes o todos los días.
+
+**Resolución próxima propuesta, sin promover M2:** nueva evidencia PIT de horarios de NAS100/USTEC *broker exacto* para esas 10 ventanas, y demostración `market_closed_interval` con calendario versionado, contrato de sesión y hash; si prueba cierre efectivo, futuro verificador puede tratar intervalo como *no-opportunity* bajo protocolo aprobado y prereg independiente, nunca imputar OHLC ni decretar que no hubo barrido donde sí pudo negociarse. Hasta entonces **563 emisiones quedan sin fuente completamente validada** y **M2 NO CERTIFIED**. La CI anterior y ésta tienen 111 pruebas en gran parte solapadas, NO 222 muestras independientes.
