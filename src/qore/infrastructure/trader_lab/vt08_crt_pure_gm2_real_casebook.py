@@ -59,7 +59,7 @@ def _bucket(
     prior: tuple[CrtPureCandidateDirection, ...],
 ) -> tuple[str, CrtPureCandidateDirection | None]:
     """Only C1, completed C2, and previously closed signals are admissible."""
-    low_sweep = c2.low_price < c1.low_price
+    if c2.opened_at != c1.closed_at or c1.high_price <= c1.low_price:\n        return "INVALID_NONCONTIGUOUS_OR_BAD_REFERENCE", None\n    low_sweep = c2.low_price < c1.low_price
     high_sweep = c2.high_price > c1.high_price
     direction = c2_purge_return(c1, c2)
     if direction is None:
