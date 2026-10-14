@@ -104,10 +104,16 @@ def test_duplicate_and_unsorted_source_m1_fails_closed():
         missing_intervals((orig[1], orig[0]) + orig[2:], a, a+timedelta(minutes=5))
 
 
-def test_future_bar_overlap_rejected_not_inferred():
+def test_bars_at_and_after_asof_do_not_enter_causal_interval():
     a = at(2025, 7, 1, 7)
-    with pytest.raises(ValueError, match="INCOMPLETE_AFTER_ASOF"):
-        missing_intervals(bars(a, 5), a, a+timedelta(minutes=4, seconds=30))
+    # The auditor is intentionally prefix-scoped even when the caller has
+    # a larger immutable source array; no future bar can cure a past gap.
+    series = bars(a, 5)
+    assert missing_intervals(series, a, a+timedelta(minutes=4)) == ()
+    removed = series[:2] + series[3:]
+    assert missing_intervals(
+        removed, a, a+timedelta(minutes=4)
+    ) == ((a+timedelta(minutes=2), a+timedelta(minutes=3)),)
 
 
 def test_unaligned_and_inverted_asof_rejected():
