@@ -1,0 +1,99 @@
+name: VT31 TTrades method 3Y M1 source census NO RETURNS
+on:
+  push:
+    branches:
+      - agent/vt31-ttrades-am-method-m1-census-20261014
+    paths:
+      - 'scripts/vt31_ttrades_am_method_m1_census_20261014.py'
+      - 'tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py'
+      - 'docs/research/VT31_TTRADES_AM_METHOD_REAL_M1_CENSUS_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-ttrades-am-method-m1-census.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  M1_FROZEN_ARTIFACT: '11459859004'
+  M1_FROZEN_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  source-only-real-m1-method-census:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate prereg and frozen original G3
+        run: |
+          set -euo pipefail
+          git cat-file -t 41b97b356de031bd19b7fa0ef9144841d7683254
+          git merge-base --is-ancestor 41b97b356de031bd19b7fa0ef9144841d7683254 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Static and unit tests
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          ruff check scripts/vt31_ttrades_am_method_m1_census_20261014.py tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py
+          python -m py_compile scripts/vt31_ttrades_am_method_m1_census_20261014.py
+          mkdir -p output
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
+            tests/infrastructure/test_vt31_ict_dol_source_v1_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=output/M1_COG_method_census_junit.xml \
+            | tee output/M1_COG_method_tests.txt
+      - name: Download frozen original 3Y NAS100 M1, assert SHA first
+        run: |
+          set -euo pipefail
+          mkdir -p input
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${M1_FROZEN_ARTIFACT}/zip" > frozen.zip
+          unzip -q frozen.zip -d input
+          test -s input/NAS100/market-evidence.json
+          echo "${M1_FROZEN_SHA}  input/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Audit TTrades NY AM first-return cognitive context on M1 history only
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_ttrades_am_method_m1_census_20261014.py \
+            --market input/NAS100/market-evidence.json \
+            --out output/VT31_TTRADES_AM_M1_METHOD_CENSUS.json \
+            | tee output/VT31_TTRADES_AM_M1_METHOD_SUMMARY.json
+      - name: Enforce source-only scope and signed evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open('output/VT31_TTRADES_AM_M1_METHOD_CENSUS.json'))
+          assert p['market_sha256']=='0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+          assert p['market_m1_count']==1059784
+          assert p['preregistered_document_commit']=='41b97b356de031bd19b7fa0ef9144841d7683254'
+          assert sum(p['state_counts'].values())==p['observed_days_total']
+          assert p['M2_M3_context_only_candidates_not_trades']==p['state_counts'].get('MSS_ATTESTED_CONTEXT_ONLY', 0)
+          assert p['trader_certified'] is False and p['live_authorized'] is False
+          assert p['economic_PF_drawdown_sharpe'] is None
+          assert p['quotes_bid_ask_order_ACK_count']==0
+          assert p['no_sizing_and_no_future_outcomes'] is True
+          print('SOURCE_M1_COGNITIVE_CONTEXT_ONLY_NO_TRADES_NO_EDGE_PROOF')
+          PY
+          git rev-parse HEAD > output/commit_sha.txt
+          printf '%s\n' 41b97b356de031bd19b7fa0ef9144841d7683254 > output/prereg_sha.txt
+          printf '%s\n' 'NO_LIVE_NO_MERGE_NO_SIZING_NO_PNL_NO_HOLDOUT' > output/scope.txt
+          (cd output && sha256sum *.txt *.json *.xml > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-native-ttrades-3y-m1-source-census-${{ github.sha }}
+          path: output/
+          retention-days: 90
+          if-no-files-found: error
