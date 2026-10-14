@@ -19,7 +19,6 @@ from scripts.vt31_m4_m5_ttrades_census_20261014 import (
     census,
 )
 from scripts.vt31_m4_m5_ttrades_fvg_path_20261014 import (
-    M4M5SourcePath,
     first_fvg_and_source_path,
 )
 from scripts.vt31_ttrades_am_method_m1_census_20261014 import (
