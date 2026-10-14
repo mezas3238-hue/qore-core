@@ -266,6 +266,14 @@ def main() -> None:
         "unavailable": report["unavailable_source_probes"],
         "matrix": report["paired_state_matrix"],
         "disagreement_count": len(report["disagreements"]),
+        "difference_cases_without_prices": [
+            {
+                key: row.get(key) for key in (
+                    "ny_date", "session", "family", "side",
+                    "p3_state", "v1_state", "p3_reasons", "v1_reasons",
+                )
+            } for row in report["disagreements"]
+        ],
         "method_certified": False,
     }, sort_keys=True))
 
