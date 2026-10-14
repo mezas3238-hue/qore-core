@@ -1,0 +1,126 @@
+name: QORE Native H-TOM-1 precommitted US index economic GROSS-only test
+on:
+  push:
+    branches:
+      - research/qore-native-tom-index-single-exam-20261013
+    paths:
+      - 'src/qore/infrastructure/trader_lab/qore_native_us_index_tom_single_exam_v1.py'
+      - 'tests/infrastructure/trader_lab/test_qore_native_us_index_tom_single_exam_v1.py'
+      - '.github/workflows/qore-native-us-index-tom-single-exam.yml'
+      - 'docs/research/QORE_NATIVE_US_INDEX_TOM_H1_SINGLE_ECONOMIC_GROSS_PREREG_2026-10-13.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  prereg_synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Require original prereg ancestor and immutable blob
+        run: |
+          git merge-base --is-ancestor 358d2d0e9691a95bbd9c121ea62b0075c2182975 "$GITHUB_SHA"
+          test "$(git rev-parse 358d2d0e9691a95bbd9c121ea62b0075c2182975:docs/research/QORE_NATIVE_US_INDEX_TOM_H1_SINGLE_ECONOMIC_GROSS_PREREG_2026-10-13.md)" = "$(git rev-parse "$GITHUB_SHA":docs/research/QORE_NATIVE_US_INDEX_TOM_H1_SINGLE_ECONOMIC_GROSS_PREREG_2026-10-13.md)"
+      - name: Validate synthetic economic boundaries before reading prices
+        run: |
+          ruff check --select F,E4,E7,E9 src/qore/infrastructure/trader_lab/qore_native_us_index_tom_single_exam_v1.py tests/infrastructure/trader_lab/test_qore_native_us_index_tom_single_exam_v1.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_qore_native_us_index_tom_single_exam_v1.py
+  original_index_source_and_gross:
+    needs: prereg_synthetic
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [SP500, US30, NAS100]
+    env:
+      SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Immutable original twelve market aggregate source
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-aggregate-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original12-aggregate
+      - name: Immutable original M5 for the preselected index
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: raw-original
+      - name: Audit eleven-year source SHA then execute fixed economic test
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_us_index_tom_single_exam_v1 symbol "$SYMBOL" raw-original original12-aggregate research-witness
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          symbol=os.environ["SYMBOL"]
+          d=json.loads(Path(f"research-witness/qore-tom-single-{symbol}.json").read_text())
+          assert d["identity"]==symbol
+          assert d["prereg_sha"]=="358d2d0e9691a95bbd9c121ea62b0075c2182975"
+          assert d["source_all_11_years_SHA_verified"] is True
+          assert d["prices_post_2024_09_17_read"] is False
+          assert d["future_holdout_return_inspected"] is False
+          assert d["historical_bidask_net_calculated"] is False
+          assert d["capital_risked"] is False
+          print("H_TOM_1",symbol,d["dev"]["verdict"],d["diag"]["verdict"])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-tom1-market-${{ matrix.symbol }}-${{ github.sha }}
+          path: research-witness/
+          retention-days: 90
+          if-no-files-found: warn
+  decide_once_three_indices:
+    needs: original_index_source_and_gross
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-tom1-market-*-${{ github.sha }}
+          path: witnesses3
+      - name: Aggregate without winner selection or native-futures/net claims
+        run: |
+          python -m qore.infrastructure.trader_lab.qore_native_us_index_tom_single_exam_v1 aggregate witnesses3 decision
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("decision/qore-tom-final-three-index.json").read_text())
+          assert set(d["symbols"])=={"SP500","US30","NAS100"}
+          assert d["prereg_sha"]=="358d2d0e9691a95bbd9c121ea62b0075c2182975"
+          assert d["holdout_2024_09_17_plus_consumed"] is False
+          assert d["broker_historical_net_executed"] is False
+          assert d["edge_certified"] is False
+          assert d["traders_certified"]==0 and not d["capital_real_risked"]
+          print("H_TOM_1_FINAL_SCIENTIFIC_VERDICT",d["verdict"])
+          PY
+          printf '%s\n' "$GITHUB_SHA" > decision/exact-code-head-sha.txt
+          (cd decision && sha256sum qore-tom-final-three-index.json exact-code-head-sha.txt > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-native-tom1-three-index-prereg-economic-gross-decision-${{ github.sha }}
+          path: decision/
+          retention-days: 90
+          if-no-files-found: error
