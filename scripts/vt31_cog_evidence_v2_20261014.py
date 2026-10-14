@@ -54,6 +54,10 @@ class CogEvidenceV2:
     as_of_utc: str
     session: str
     cog_state: str
+    cog_missing: tuple[str, ...]
+    verified_htf: tuple[str, ...]
+    source_pool_count: int
+    causal_closed_m1_count: int
     cog_decision_present: bool
     side: str | None
     draw_family: str | None
@@ -142,6 +146,14 @@ def record(
             reasons.append("COG_DECISION_STATE_MISMATCH")
     else:
         reasons.append("COG_DECISION_NOT_PRESENT")
+    if decision is not None and not {"M15", "H1"}.issubset(
+        set(assessment.verified_htf)
+    ):
+        reasons.append("COG_HTF_EVIDENCE_CONTRADICTS_PROVEN_DECISION")
+    if decision is None:
+        reasons.extend(
+            "COG_MISSING_" + item for item in assessment.missing
+        )
     if decision is None and assessment.state == "CAUSAL_DRAW_AND_SHIFT_PROVEN":
         reasons.append("COG_STATE_CLAIMS_ABSENT_DECISION")
 
@@ -156,6 +168,27 @@ def record(
                 current_ny_10am=current_ny_10am,
             )
             reasons.extend(proof.reason_codes)
+            if current_ny_10am:
+                mss_bars = [
+                    b for b in current_ny_10am
+                    if utc(b.closed_at) == utc(decision.structure_break_confirmed_at)
+                ]
+                if len(mss_bars) == 1:
+                    candle = mss_bars[0]
+                    if (
+                        decision.framework_policy
+                        == "QORE_G3_MSS_CLOSE_V1_PROPOSED"
+                        and decision.mss_anchor_close != candle.close
+                    ):
+                        reasons.append("MSS_ANCHOR_CLOSE_NOT_EQUAL_WITNESS_M1")
+                    if (
+                        decision.side.value == "LONG"
+                        and candle.close <= decision.structure_level
+                    ) or (
+                        decision.side.value == "SHORT"
+                        and candle.close >= decision.structure_level
+                    ):
+                        reasons.append("MSS_BREAK_LEVEL_NOT_CROSSED_BY_CLOSE")
             if proof.reference_high is not None:
                 h = str(proof.reference_high)
             if proof.reference_low is not None:
@@ -171,7 +204,7 @@ def record(
     # The prior witness may report UNKNOWN or REJECTED. Known contradictions
     # outrank missing history; no UNKNOWN is ever promoted to confirmation.
     faults = tuple(dict.fromkeys(reasons))
-    hard_errors = [x for x in faults if x not in UNKNOWN_CONTEXT and x not in {
+    hard_errors = [x for x in faults if not x.startswith("COG_MISSING_") and x not in UNKNOWN_CONTEXT and x not in {
         "COG_DECISION_NOT_PRESENT",
         "ICT_SOURCE_DOCTRINE_NOT_YET_FORMALIZED",
     }]
@@ -195,6 +228,10 @@ def record(
         "as_of_utc": at.isoformat(),
         "session": assessment.session.value,
         "cog_state": assessment.state,
+        "cog_missing": assessment.missing,
+        "verified_htf": assessment.verified_htf,
+        "source_pool_count": assessment.source_pool_count,
+        "causal_closed_m1_count": assessment.causal_closed_m1_count,
         "cog_decision_present": decision is not None,
         "side": side,
         "draw_family": family,
