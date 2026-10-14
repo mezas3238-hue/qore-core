@@ -12,11 +12,13 @@ on:
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_later_source_forensics.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_nested_m15_census.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_n2_57_casebook.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_n3_c2_m5_causal_clock.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_density_root_cause_audit.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_later_source_forensics.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_nested_m15_census.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_n2_57_casebook.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_n3_c2_m5_causal_clock.py'
   workflow_dispatch:
 
 permissions:
@@ -42,11 +44,13 @@ jobs:
           src/qore/infrastructure/trader_lab/vt08_crt_pure_later_source_forensics.py
           src/qore/infrastructure/trader_lab/vt08_crt_pure_nested_m15_census.py
           src/qore/infrastructure/trader_lab/vt08_crt_pure_n2_57_casebook.py
+          src/qore/infrastructure/trader_lab/vt08_crt_pure_n3_c2_m5_causal_clock.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_density_root_cause_audit.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_later_source_forensics.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_nested_m15_census.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_n2_57_casebook.py
+          tests/infrastructure/trader_lab/test_vt08_crt_pure_n3_c2_m5_causal_clock.py
       - name: Mypy source comparison
         run: >-
           mypy
@@ -56,6 +60,7 @@ jobs:
           src/qore/infrastructure/trader_lab/vt08_crt_pure_later_source_forensics.py
           src/qore/infrastructure/trader_lab/vt08_crt_pure_nested_m15_census.py
           src/qore/infrastructure/trader_lab/vt08_crt_pure_n2_57_casebook.py
+          src/qore/infrastructure/trader_lab/vt08_crt_pure_n3_c2_m5_causal_clock.py
       - name: Pytest synthetic causal invariants
         run: >-
           pytest -q --no-cov
@@ -64,6 +69,7 @@ jobs:
           tests/infrastructure/trader_lab/test_vt08_crt_pure_later_source_forensics.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_nested_m15_census.py
           tests/infrastructure/trader_lab/test_vt08_crt_pure_n2_57_casebook.py
+          tests/infrastructure/trader_lab/test_vt08_crt_pure_n3_c2_m5_causal_clock.py
 
   historical_replay:
     needs: quality
@@ -136,13 +142,21 @@ jobs:
           python -m qore.infrastructure.trader_lab.vt08_crt_pure_n2_57_casebook \
             "$QORE_MARKET" original-native-m5 "artifacts/$QORE_MARKET" \
             | tee "artifacts/$QORE_MARKET/n2-57-casebook-stdout.log"
+      - name: N3 inspect causal C2-close M15 to lower M5 C3 clocks, NO TRADES
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/research/VT08_CRT_PURE_N3_C2_CLOSE_M5_CAUSAL_BRIDGE_PREREG_2026-10-14.md
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_n3_c2_m5_causal_clock \
+            "$QORE_MARKET" original-native-m5 "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/n3-c2-m5-stdout.log"
       - name: Bind immutable source and report hashes
         shell: bash
         run: |
           set -euo pipefail
           printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_MARKET/git-sha.txt"
           cd "artifacts/$QORE_MARKET"
-          sha256sum report.json diagnostics.jsonl stdout.log density-root-cause.json density-stdout.log later-source-forensics.json later-source-forensics-cases.jsonl later-source-forensics-stdout.log nested-m15-census.json nested-m15-ledger.jsonl nested-m15-stdout.log n2-57-casebook-summary.json n2-57-casebook-full.jsonl n2-57-casebook-stdout.log git-sha.txt > SHA256SUMS.txt
+          sha256sum report.json diagnostics.jsonl stdout.log density-root-cause.json density-stdout.log later-source-forensics.json later-source-forensics-cases.jsonl later-source-forensics-stdout.log nested-m15-census.json nested-m15-ledger.jsonl nested-m15-stdout.log n2-57-casebook-summary.json n2-57-casebook-full.jsonl n2-57-casebook-stdout.log n3-c2-m5-summary.json n3-c2-m5-ledger.jsonl n3-c2-m5-stdout.log git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: vt08-three-source-context-${{ matrix.market }}-${{ github.sha }}
