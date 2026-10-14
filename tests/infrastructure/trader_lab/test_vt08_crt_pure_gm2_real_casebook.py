@@ -8,9 +8,7 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_gm2_real_casebook import (
     _bucket,
     create_blind_casebook,
 )
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
-    M15Bar,
-)
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import M15Bar
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection as Direction,
@@ -61,9 +59,8 @@ def test_disconnected_m15_pair_is_not_rebranded_as_c2_event() -> None:
     bucket, direction = _bucket(
         c1(), disconnected, Direction.BULLISH, ()
     )
-    # Geometry alone does not make a valid adjacent C1/C2 CRT.
-    assert bucket == "ALIGNED_C2_CONTEXT" or direction is None
-    # A valid source admission is guarded separately by c2_purge_return.
+    assert bucket == "INVALID_NONCONTIGUOUS_OR_BAD_REFERENCE"
+    assert direction is None
 
 
 def test_market_freeze_and_empty_data_fail_closed() -> None:
