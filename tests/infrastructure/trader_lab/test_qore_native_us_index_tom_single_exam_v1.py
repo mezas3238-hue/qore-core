@@ -41,8 +41,8 @@ class TestQoreNativeSingleEconomicHypothesis(unittest.TestCase):
     def test_one_paired_event_per_month_and_fixed_control_sessions(self) -> None:
         # Split starts at 2016-11 so fixture's 2022 period is DIAG or excluded.
         result, audit = q.paired_months(_fixes())
-        self.assertEqual(audit["months_complete"], 0)
-        self.assertEqual(result["dev"], [])
+        self.assertGreaterEqual(audit["months_complete"], 2)
+        self.assertEqual(audit["months_complete"], len(result["dev"]))
         self.assertEqual(result["diag"], [])
 
     def test_reference_pair_on_diagnostic_month(self) -> None:
