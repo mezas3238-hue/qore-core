@@ -1,0 +1,105 @@
+name: VT31 M2 ICT GENERAL frozen P3 V1 DOL source reconciliation NO TRADING
+on:
+  push:
+    branches:
+      - agent/vt31-m2-ict-dol-reconcile-20261014
+    paths:
+      - 'scripts/vt31_m2_dol_reconciliation_20261014.py'
+      - 'tests/infrastructure/test_vt31_m2_dol_reconciliation_20261014.py'
+      - 'docs/research/VT31_M2_DOL_P3_V1_RECONCILIATION_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-m2-dol-reconciliation-20261014.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  P3_COMMIT: '1c820086339323f79d4ec1cb5954fb53841064b2'
+  P3_MODULE_BLOB: 'bb11d965e99666957378e9748e710360dc5bb9ac'
+  V1_MODULE_BLOB: 'eb3e39db84f487ac8f2f5cfac00ad3f8247683c2'
+  DATA_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  m2-source-reconciliation-no-certification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin competing original source code and unchanged G3
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 8ddbdf3ba9c3728af5cdb6d34f95fe60ea29d484 HEAD
+          test "$(git hash-object scripts/vt31_ict_dol_source_v1_20261014.py)" = "$V1_MODULE_BLOB"
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+          git fetch --no-tags --depth=1 origin "$P3_COMMIT"
+          git show "$P3_COMMIT:scripts/vt31_mc_p3_ict_independent_dol_20261014.py" > scripts/vt31_mc_p3_ict_independent_dol_20261014.py
+          test "$(git hash-object scripts/vt31_mc_p3_ict_independent_dol_20261014.py)" = "$P3_MODULE_BLOB"
+          git show "$P3_COMMIT:tests/infrastructure/test_vt31_mc_p3_ict_independent_dol_20261014.py" > tests/infrastructure/test_vt31_mc_p3_ict_independent_dol_20261014.py
+      - name: QA new comparison and both original regression witnesses
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check scripts/vt31_m2_dol_reconciliation_20261014.py tests/infrastructure/test_vt31_m2_dol_reconciliation_20261014.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_m2_dol_reconciliation_20261014.py \
+            tests/infrastructure/test_vt31_ict_dol_source_v1_20261014.py \
+            tests/infrastructure/test_vt31_mc_p3_ict_independent_dol_20261014.py \
+            --junitxml=evidence/junit.xml | tee evidence/pytest-log.txt
+      - name: Retrieve unchanged NAS100 3Y development M1 data
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${DATA_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Compare two pinned contracts on the predefined source-only M1 grid
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m2_dol_reconciliation_20261014.py \
+            --market source/NAS100/market-evidence.json \
+            --out evidence/VT31_M2_930_VS_932_SOURCE_RECONCILIATION.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_M2_930_VS_932_SOURCE_RECONCILIATION.json"))
+          assert p["original_m1_total"]==1059784
+          assert p["scheduled_probes"]==216 and len(p["records"])==216
+          assert p["native_cog_evaluated"] is False
+          assert p["real_market_m1_but_synthetic_cog_probe"] is True
+          assert p["method_certified"] is False
+          assert p["cognition_certified"] is False
+          assert p["trader_certified"] is False
+          assert p["broker_ack_or_fills"]==0
+          assert p["profit_factor"] is None
+          assert p["execution_authorized"] is False
+          print("M2_DIFFERENCE_AUDIT_COMPLETED_NOT_CERTIFICATION")
+          PY
+      - name: Provenance and evidence hashes
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/head.txt
+          printf '%s\n' "$P3_COMMIT" > evidence/p3-source-commit.txt
+          printf '%s\n' 'e3f65b34599cc868d6cf1867dcc3df480e1e66d4' > evidence/v1-source-commit.txt
+          printf '%s\n' 'NO_LIVE_NO_MERGE_NO_NATIVE_COG_NO_PNL_NO_FILLS_NO_SIZING' > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-m2-p3-v1-frozen-source-reconciliation-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
