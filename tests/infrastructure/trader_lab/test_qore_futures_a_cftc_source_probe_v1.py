@@ -8,10 +8,10 @@ import zipfile
 from datetime import date, timedelta
 from typing import Any
 
-from qore.infrastructure.trader_lab import qore_research_zero_budget_intake_v1 as q
-
 # Source script lives under .github/scripts, available in CI PYTHONPATH.
 import qore_futures_a_cftc_sixroots_public_source_probe_v1 as c
+
+from qore.infrastructure.trader_lab import qore_research_zero_budget_intake_v1 as q
 
 
 _EXCHANGES = {
