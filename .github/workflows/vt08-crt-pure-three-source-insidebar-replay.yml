@@ -1,0 +1,94 @@
+name: QORE VT08 CRT PURE Three-Source Inside-Bar Research
+
+on:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-three-source-insidebar-replay.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_three_source_insidebar_replay.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e '.[dev,ctrader]'
+      - name: Ruff source comparison
+        run: >-
+          ruff check
+          src/qore/infrastructure/trader_lab/vt08_crt_pure_three_source_insidebar_replay.py
+          tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py
+      - name: Mypy source comparison
+        run: >-
+          mypy
+          src/qore/infrastructure/trader_lab/vt08_crt_pure_three_source_insidebar_replay.py
+      - name: Pytest synthetic causal invariants
+        run: >-
+          pytest -q --no-cov
+          tests/infrastructure/trader_lab/test_vt08_crt_pure_three_source_insidebar_replay.py
+
+  historical_replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [AUDUSD, USDJPY]
+    env:
+      QORE_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install cTrader historical read-only consumer
+        run: pip install -e '.[ctrader]'
+      - name: Historical access prerequisites (no orders, no discovery)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for var in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN QORE_CTRADER_DEMO_ACCOUNT_ID; do
+            if [ -z "${!var:-}" ]; then
+              echo "::error::HISTORICAL_DATA_UNAVAILABLE: missing historical credential or account binding ($var). No broker trades attempted."
+              exit 1
+            fi
+          done
+      - name: Compare unchanged control vs Level-B inside-bar context
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "artifacts/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_three_source_insidebar_replay \
+            "$QORE_MARKET" "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/stdout.log"
+      - name: Bind immutable source and report hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_MARKET/git-sha.txt"
+          cd "artifacts/$QORE_MARKET"
+          sha256sum report.json diagnostics.jsonl stdout.log git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-three-source-context-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
