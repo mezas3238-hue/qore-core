@@ -4,13 +4,16 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from qore.infrastructure.trader_lab.vt08_crt_pure_original_atlas_reader import (
+    _ledger,
+    load_atlas_vt08_m5,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
     M15Bar,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_three_source_insidebar_replay import (
     compare_three_sources_inside_bar_context,
     count_inside_m15_bars,
-    parse_public_sample_m5,
 )
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 
@@ -99,57 +102,20 @@ def test_zero_duration_c1_is_rejected() -> None:
     with pytest.raises(ValueError, match="positive duration"):
         count_inside_m15_bars((), c1_opened_at=BASE, c1_closed_at=BASE)
 
+def test_original_qore_native_reader_rejects_frozen_market(tmp_path) -> None:
+    with pytest.raises(ValueError, match="BTCUSD frozen"):
+        load_atlas_vt08_m5(CrtPureMarket.BTCUSD, tmp_path)
 
 
-def test_public_m5_parser_has_utc_time_and_immutable_checksum() -> None:
-    sample = (
-        b"datetime,open,high,low,close,volume\n"
-        b"2026-04-01T08:00:00+00:00,0.70000,0.70100,0.69900,0.70050,100\n"
-        b"2026-04-01T08:05:00+00:00,0.70050,0.70120,0.70010,0.70110,90\n"
-    )
-    bars, source = parse_public_sample_m5(CrtPureMarket.AUDUSD, sample)
-    assert len(bars) == 2
-    assert bars[0].open_price == 70000000
-    assert bars[0].high_price == 70100000
-    assert source["source"] == "GETDATA_FINANCE_GITHUB_MIT_FREE_M5_SAMPLE"
-    assert len(source["raw_sha256"]) == 64
-    assert source["history_complete_two_years"] is False
-    assert source["bid_ask_available"] is False
+def test_original_qore_native_sha_ledger_detects_unsafe_path(tmp_path) -> None:
+    witness = tmp_path / "SYMBOL_SHA256SUMS.txt"
+    witness.write_text("a" * 64 + "  ../escaped.jsonl\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="unsafe original Atlas"):
+        _ledger(witness)
 
 
-def test_public_m5_parser_rejects_non_utc_timezone() -> None:
-    sample = (
-        b"datetime,open,high,low,close\n"
-        b"2026-04-01T08:00:00+02:00,0.7000,0.7010,0.6990,0.7005\n"
-    )
-    with pytest.raises(ValueError, match="must be UTC"):
-        parse_public_sample_m5(CrtPureMarket.AUDUSD, sample)
-
-
-def test_public_m5_parser_rejects_false_ohlc_geometry() -> None:
-    sample = (
-        b"datetime,open,high,low,close\n"
-        b"2026-04-01T08:00:00+00:00,0.7000,0.6990,0.6980,0.7005\n"
-    )
-    with pytest.raises(ValueError, match="violates OHLC geometry"):
-        parse_public_sample_m5(CrtPureMarket.AUDUSD, sample)
-
-
-def test_public_m5_parser_rejects_duplicate_timestamps() -> None:
-    row = b"2026-04-01T08:00:00+00:00,0.7000,0.7010,0.6990,0.7005\n"
-    sample = b"datetime,open,high,low,close\n" + row + row
-    with pytest.raises(ValueError, match="not strictly ascending"):
-        parse_public_sample_m5(CrtPureMarket.AUDUSD, sample)
-
-
-
-def test_public_sample_binary_float_tail_rounds_at_fixed_resolution() -> None:
-    sample = (
-        b"datetime,open,high,low,close\n"
-        b"2026-04-01T08:00:00+00:00,"
-        b"0.7000000000000001,0.7010000000000001,0.6990,0.7005\n"
-    )
-    bars, source = parse_public_sample_m5(CrtPureMarket.AUDUSD, sample)
-    assert bars[0].open_price == 70000000
-    assert bars[0].high_price == 70100000
-    assert source["price_normalization"] == "decimal_round_half_even_8_fractional_places"
+def test_original_qore_native_sha_ledger_detects_duplicate_witness(tmp_path) -> None:
+    witness = tmp_path / "SYMBOL_SHA256SUMS.txt"
+    witness.write_text(("a" * 64 + "  foo.jsonl\n") * 2, encoding="utf-8")
+    with pytest.raises(ValueError, match="unsafe original Atlas"):
+        _ledger(witness)
