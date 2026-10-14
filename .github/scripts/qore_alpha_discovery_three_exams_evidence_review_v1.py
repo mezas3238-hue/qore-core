@@ -17,7 +17,7 @@ TOM_RUN = 38502188181
 TOM_SHA = "be77998d185165ff0d2cce320d015981c8a8c631"
 TOM_PREREG = "358d2d0e9691a95bbd9c121ea62b0075c2182975"
 E3_RUN = 38262585848
-E3_SHA = "30627d762f60f6cba78064e2e63c19ce98b4b7e0"
+E3_SHA = "845a7e351c1641025a6131271ae3ada37ebf37f1"
 CFTC_RUN = 38495515717
 CFTC_PREREG = "1cca3399514125ba11ae446a059e09382c605d40"
 MARKETS = ("SP500", "US30", "NAS100")
@@ -82,6 +82,8 @@ def _check_e3(root: Path) -> dict[str, Any]:
         "qore-native-e3-seven-method-block-shrinkage-posthoc.json",
         "OUTPUT_SHA256SUMS.txt",
     )
+    if (root / "exact-E3-code-head-sha.txt").read_text().strip() != E3_SHA:
+        raise EvidenceError("E3_ORIGINAL_CODE_SHA_CHANGED")
     doc = _read_json(file)
     if (
         doc.get("identity") != "QORE_NATIVE_E3_POSTHOC_SEVEN_METHOD_MULTIWEEK_SHRINKAGE_V1"
@@ -99,6 +101,12 @@ def _check_e3(root: Path) -> dict[str, Any]:
         raise EvidenceError("E3_NOT_SEVEN_METHOD_FAMILY")
     if len({x["method_id"] for x in cohort}) != 7:
         raise EvidenceError("DUPLICATE_E3_METHOD")
+    if any(
+        x["positive_gross_and_delta_both_periods_all_L"] is True
+        or x["BH_q_below_10pct_both_periods_all_L"] is True
+        for x in cohort
+    ):
+        raise EvidenceError("E3_PRIOR_CLOSURE_CONTRADICTS_ORIGINAL_CLAIM")
     return {
         "family": "QORE_NATIVE_E3_SEVEN_METHODS_33_MARKETS",
         "source_run_id": E3_RUN,
