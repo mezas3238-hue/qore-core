@@ -13,7 +13,6 @@ import qore_futures_a_cftc_sixroots_public_source_probe_v1 as c
 
 from qore.infrastructure.trader_lab import qore_research_zero_budget_intake_v1 as q
 
-
 _EXCHANGES = {
     "CL": "WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE",
     "NG": "NATURAL GAS - NEW YORK MERCANTILE EXCHANGE",
