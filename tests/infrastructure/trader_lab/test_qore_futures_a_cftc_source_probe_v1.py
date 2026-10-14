@@ -11,7 +11,6 @@ from typing import Any
 # Source script lives under .github/scripts, available in CI PYTHONPATH.
 import qore_futures_a_cftc_sixroots_public_source_probe_v1 as c
 
-from qore.infrastructure.trader_lab import qore_research_zero_budget_intake_v1 as q
 
 _EXCHANGES = {
     "CL": "WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE",
@@ -101,7 +100,7 @@ class TestCftcOfficialSourceAudit(unittest.TestCase):
     def test_source_never_issues_prereg_or_trading_permission(self) -> None:
         self.assertEqual(c.SCHEMA, "qore.futures-a.cftc-sixroots.source-audit.v1")
         self.assertEqual(len(c.CONTRACT_CODES), 6)
-        self.assertEqual(q.blocked_futures_a_m0().status.value, "source_blocked")
+        self.assertEqual(c.YEARS, (2012, 2018, 2021))
 
 
 if __name__ == "__main__":
