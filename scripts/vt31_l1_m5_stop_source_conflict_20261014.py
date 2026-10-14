@@ -14,6 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import M1Bar
 from scripts.vt31_m4_m5_ttrades_census_20261014 import census
@@ -74,7 +75,7 @@ def observe_stop_conflict(
     if side not in ("LONG", "SHORT"):
         raise ValueError("SIDE_UNKNOWN")
     if not complete_hour(nine[0].opened_at.astimezone(
-        __import__("zoneinfo").ZoneInfo("America/New_York")
+        ZoneInfo("America/New_York")
     ).date().isoformat(), 9, nine):
         raise ValueError("H1_09_SOURCE_INCOMPLETE")
     if any(
