@@ -195,7 +195,7 @@ def attest_ict_dol_source(
     if any(utc(b.closed_at) > at for b in history):
         return result("REJECTED", ("FUTURE_M1_FORBIDDEN",))
     stamps = tuple(utc(b.opened_at) for b in history)
-    if any(left >= right for left, right in zip(stamps, stamps[1:])):
+    if any(left >= right for left, right in zip(stamps, stamps[1:], strict=False)):
         return result("REJECTED", ("M1_DUPLICATE_OR_UNSORTED",))
     if utc(history[-1].closed_at) != at:
         return result("UNKNOWN", ("ASOF_CLOSED_M1_NOT_PRESENT",))
