@@ -1,0 +1,73 @@
+name: VT31 MC-P2 native 9AM H1 source evidence and V2 COG agreement NO TRADE
+on:
+  push:
+    branches:
+      - agent/vt31-mc-p2-ttrades-native-context-20261014
+    paths:
+      - 'scripts/vt31_mc_p2_ttrades_native_h1_evidence_20261014.py'
+      - 'tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py'
+      - 'docs/research/VT31_MC_P2_TTRADES_NATIVE_H1_SOURCE_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-mc-p2-ttrades-native-h1-evidence.yml'
+permissions:
+  contents: read
+jobs:
+  native-h1-mss-source-semantic-gates:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enforce prereg ancestry and exact untouched G3 sources
+        run: |
+          set -euo pipefail
+          git cat-file -t 910426029b4a3098327cbc8b7f334a307fed2bc1
+          git merge-base --is-ancestor 910426029b4a3098327cbc8b7f334a307fed2bc1 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Install scientific-test dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Run P2 native source and V2 real-Cog semantic tests
+        run: |
+          set -euo pipefail
+          ruff check scripts/vt31_mc_p2_ttrades_native_h1_evidence_20261014.py tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py
+          python -m py_compile scripts/vt31_mc_p2_ttrades_native_h1_evidence_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/MC-P2-V2-COG-OPS-junit.xml \
+            | tee evidence/MC-P2-V2-COG-OPS-regression.txt
+      - name: Ensure test witness cannot authorize real trading
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from scripts.vt31_mc_p2_ttrades_native_h1_evidence_20261014 import NativeAmContext, NativeCogComparison
+          for clazz in (NativeAmContext, NativeCogComparison):
+              values = {key: field.default for key, field in clazz.__dataclass_fields__.items()}
+              assert values['method_certified'] is False
+              assert values['cognition_certified'] is False
+              assert values['execution_authorized'] is False
+          print('MC_P2_NATIVE_H1_SOURCE_EVIDENCE_ONLY_METHOD_CERTIFIED_FALSE')
+          print('COG_V2_NOT_REPLACED_OR_PROMOTED_NO_VT31_ORDERS')
+          PY
+          git rev-parse HEAD > evidence/test_commit.txt
+          printf '%s\n' 910426029b4a3098327cbc8b7f334a307fed2bc1 > evidence/preprice-prereg.txt
+          printf '%s\n' 'NO_LIVE_NO_MERGE_NO_HOLDOUT_NO_PNL_NO_TRADER_CERTIFICATION' > evidence/scope.txt
+          (cd evidence && sha256sum *.txt *.xml > SHA256SUMS)
+          (cd evidence && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-mc-p2-native-ttrades-m1-h1-source-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
