@@ -1,0 +1,61 @@
+name: VT31 MC-P1 Actual COG vs TTrades NY AM source certification boundary
+on:
+  push:
+    branches:
+      - agent/vt31-mc-p1-real-cog-vs-source-gates-20261014
+    paths:
+      - 'scripts/vt31_mc_p1_real_cog_crossprofile_witness_20261014.py'
+      - 'tests/infrastructure/test_vt31_mc_p1_real_cog_crossprofile_20261014.py'
+      - 'docs/research/VT31_MC_P1_REAL_COG_SOURCE_PROFILE_ADVERSARIAL_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-mc-p1-real-cog-vs-ttrades-source.yml'
+permissions:
+  contents: read
+jobs:
+  actual-cog-independent-source-witness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prereg was committed before tests
+        run: |
+          set -euo pipefail
+          git cat-file -t 1f65915f45fcfb41884f122a922315afc5523b33
+          git merge-base --is-ancestor 1f65915f45fcfb41884f122a922315afc5523b33 HEAD
+      - name: Verify frozen COG OPS Acta G3 bytes
+        run: |
+          set -euo pipefail
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Install QA tools
+        run: python -m pip install -e '.[dev]'
+      - name: Static quality and causal adverse QA on authentic COG producer
+        run: |
+          set -euo pipefail
+          ruff check scripts/vt31_mc_p1_real_cog_crossprofile_witness_20261014.py tests/infrastructure/test_vt31_mc_p1_real_cog_crossprofile_20261014.py
+          python -m py_compile scripts/vt31_mc_p1_real_cog_crossprofile_witness_20261014.py
+          PYTHONPATH=src:. pytest -q -o addopts='' tests/infrastructure/test_vt31_mc_p1_real_cog_crossprofile_20261014.py tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py
+      - name: Existing actual COG OPS G3 M1 regressions
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. pytest -q -o addopts='' tests/infrastructure/test_vt31_ict_cleanroom_cognition.py tests/infrastructure/test_vt31_ict_cleanroom_ops.py tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py tests/infrastructure/test_vt31_g3_mss_anchor_optin.py
+      - name: Generate exact JSON witness and checksums, never live
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          PYTHONPATH=src:. python -m scripts.vt31_mc_p1_real_cog_crossprofile_witness_20261014 > evidence/actual_cog_vs_ttrades_am.json
+          git rev-parse HEAD > evidence/test_commit.txt
+          printf '%s\n' 'METHOD_CERTIFIED=FALSE COG_CERTIFIED=FALSE EDGE=UNKNOWN OPERATION=NO_GO' > evidence/scope.txt
+          ( cd evidence && sha256sum *.txt *.json > SHA256SUMS )
+          ( cd evidence && sha256sum -c SHA256SUMS )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-mc-p1-real-cog-vs-ttrades-am-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
