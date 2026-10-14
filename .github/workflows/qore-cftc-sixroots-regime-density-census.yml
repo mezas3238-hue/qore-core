@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install Ruff static checker
-        run: pip install "ruff>=0.5,<1"
+        run: pip install "ruff>=0.5,<1" "xlrd==2.0.2"
       - name: Lint source and synthetic controls
         run: |
           ruff check .github/scripts/qore_cftc_sixroots_regime_density_census_v1.py \
