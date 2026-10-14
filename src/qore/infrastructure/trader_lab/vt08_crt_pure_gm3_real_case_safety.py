@@ -26,6 +26,13 @@ from qore.infrastructure.traders.crt_pure_cognitive_state import (
     reason,
 )
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
+from qore.infrastructure.traders.crt_pure_methodology_candidate import (
+    CrtPureCandidateDirection,
+)
+from qore.infrastructure.traders.crt_pure_r2_entry_router import (
+    CrtPureR2EntryState,
+    assess_model1_certification_entry_family,
+)
 from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
     model1_source_ready,
     unresolved_model1_source_concepts,
@@ -117,6 +124,22 @@ def audit_blind_case(case: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("unresolved Model #1 was incorrectly promoted")
     if decision.grants_capital_authority:
         raise ValueError("cognitive output must never grant capital authority")
+    # No source-authenticated Model #1 candidate exists in the blind casebook.
+    # Integrate the real H4 context with the source-aware G-M4 certification
+    # router; this audits the missing-source barrier, not a full E2E execution.
+    router = assess_model1_certification_entry_family(
+        parent_direction=CrtPureCandidateDirection(
+            case["parent_H4_direction_context"]
+        ),
+        confirmation=None,
+    )
+    if (
+        router.action is not CrtPureReasoningAction.WAIT
+        or router.state is not CrtPureR2EntryState.UNRESOLVED
+        or router.grants_capital_authority
+        or router.grants_execution_authority
+    ):
+        raise ValueError("G-M4 router bypassed unresolved Model #1 source")
     return {
         "schema": SCHEMA,
         "case_id": case["case_id"],
@@ -126,6 +149,10 @@ def audit_blind_case(case: dict[str, Any]) -> dict[str, Any]:
         "unresolved_source_concepts": blockers,
         "reason_action": decision.action.value,
         "reason_why": decision.auditable_why,
+        "certification_router_action": router.action.value,
+        "certification_router_state": router.state.value,
+        "certification_router_why": router.why,
+        "G_M4_missing_source_router_safety_checked": True,
         "G_M3_source_fidelity_certified": False,
         "G_M3_safety_fail_closed_checked": True,
         "no_profit_loss_or_sizing_used": True,
@@ -152,6 +179,10 @@ def main() -> None:
         "actions": dict(sorted(stats.items())),
         "methodological_GM3_certified": False,
         "source_only_safety_barrier_checked": True,
+        "G_M4_unresolved_source_router_actions": dict(
+            sorted(Counter(row["certification_router_action"] for row in rows).items())
+        ),
+        "G_M4_missing_source_router_safety_checked": True,
         "full_cognitive_reconciliation_completed": False,
         "GM4_end_to_end_certified": False,
         "GM5_certified": False,
