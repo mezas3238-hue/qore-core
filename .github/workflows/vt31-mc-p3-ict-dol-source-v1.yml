@@ -1,0 +1,72 @@
+name: VT31 MC-P3 ICT GENERAL independent DOL M1 source audit NO TRADING
+on:
+  push:
+    branches:
+      - agent/vt31-mc-p3-ict-general-dol-source-20261014
+    paths:
+      - 'scripts/vt31_mc_p3_ict_independent_dol_20261014.py'
+      - 'tests/infrastructure/test_vt31_mc_p3_ict_independent_dol_20261014.py'
+      - 'docs/research/VT31_MC_P3_ICT_GENERAL_INDEPENDENT_DOL_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-mc-p3-ict-dol-source-v1.yml'
+permissions:
+  contents: read
+jobs:
+  true-cog-independent-ict-dol-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source prereg ancestor and G3 blob lock
+        run: |
+          set -euo pipefail
+          git cat-file -t 68f5dbd17e0da59c305c1a0b7a0a633eb0ca1f97
+          git merge-base --is-ancestor 68f5dbd17e0da59c305c1a0b7a0a633eb0ca1f97 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Install test deps
+        run: python -m pip install -e '.[dev]'
+      - name: Run independent DOL price and actual COG adversarial tests plus V2 regression
+        run: |
+          set -euo pipefail
+          ruff check scripts/vt31_mc_p3_ict_independent_dol_20261014.py tests/infrastructure/test_vt31_mc_p3_ict_independent_dol_20261014.py
+          python -m py_compile scripts/vt31_mc_p3_ict_independent_dol_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_mc_p3_ict_independent_dol_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/MC-P3-ICT-DOL-junit.xml \
+            | tee evidence/MC-P3-ICT-DOL-regression.txt
+      - name: Explicit fail-closed no trader certification gates
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from scripts.vt31_mc_p3_ict_independent_dol_20261014 import IndependentDolEvidence, GeneralCogDolComparison
+          for obj in (IndependentDolEvidence, GeneralCogDolComparison):
+              attrs = {k:f.default for k,f in obj.__dataclass_fields__.items()}
+              assert attrs['method_certified'] is False
+              assert attrs['cognition_certified'] is False
+              assert attrs['execution_authorized'] is False
+          print('MC_P3_QORE_PRICE_LINEAGE_ONLY_NO_ICT_AUTHOR_CERTIFICATION')
+          PY
+          git rev-parse HEAD > evidence/head_commit.txt
+          printf '%s\n' 68f5dbd17e0da59c305c1a0b7a0a633eb0ca1f97 > evidence/source_prereg.txt
+          printf '%s\n' 'NOT_METHOD_CERTIFIED_NOT_PROFITABLE_PROVEN_NO_MERGE_LIVE_HOLDOUT' > evidence/scope.txt
+          (cd evidence && sha256sum *.txt *.xml > SHA256SUMS)
+          (cd evidence && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-mc-p3-ict-independent-dol-source-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
