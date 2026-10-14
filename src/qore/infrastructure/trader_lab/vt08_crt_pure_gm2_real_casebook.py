@@ -11,7 +11,7 @@ import argparse
 import hashlib
 import json
 from collections import Counter
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, timedelta
 from pathlib import Path
 from typing import Any
 
