@@ -141,7 +141,7 @@ def closed_pre_c2_h1_receipts(
         return []
     if any(bar.closed_at.astimezone(UTC) > cutoff for bar in bars):
         raise ValueError("pre-C2 H1 source contains future information")
-    return [_bar_receipt(bar,raw_m15_sha,"M15_PRE_C2_H1") for bar in bars]
+    return [_bar_receipt(bar,raw_m15_sha,"M15") for bar in bars]
 
 
 def _sample_records(rows: list[dict[str, object]], n: int=8) -> list[dict[str, object]]:
