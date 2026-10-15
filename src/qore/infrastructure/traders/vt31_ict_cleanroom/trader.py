@@ -15,6 +15,9 @@ from typing import Literal
 
 from .cognition import CognitiveAssessment, VT31CleanroomCognition
 from .contracts import (
+    FRAMEWORK_POLICIES,
+    G3_MSS_FRAMEWORK_POLICY,
+    LEGACY_FRAMEWORK_POLICY,
     NEW_YORK,
     M1Bar,
     MethodologyDecision,
@@ -60,10 +63,27 @@ class VT31Trader:
     instrument = INSTRUMENT
 
     def __init__(
-        self, *, cognition: VT31CleanroomCognition | None = None
+        self, *, cognition: VT31CleanroomCognition | None = None,
+        framework_policy: str | None = None,
     ) -> None:
+        # Opt-in versioned framework binding: legacy default is untouched.
+        # A mismatched COG/OPS contract is rejected BEFORE any market M1.
+        selected = (
+            LEGACY_FRAMEWORK_POLICY
+            if framework_policy is None else framework_policy
+        )
+        if selected not in FRAMEWORK_POLICIES:
+            raise ValueError("VT31_UNKNOWN_EXPLICIT_FRAMEWORK_POLICY")
+        if cognition is not None and not isinstance(
+            cognition, VT31CleanroomCognition
+        ):
+            raise ValueError("VT31_ORIGINAL_COGNITION_REQUIRED")
+        if cognition is not None and cognition.framework_policy != selected:
+            raise ValueError("VT31_COG_OPS_FRAMEWORK_MISMATCH_BEFORE_M1")
+        self.framework_policy = selected
         self.cognition = (
-            cognition if cognition is not None else VT31CleanroomCognition()
+            cognition if cognition is not None
+            else VT31CleanroomCognition(framework_policy=selected)
         )
         self._windows: dict[
             tuple[str, SessionId], IctSilverBulletOperations
@@ -72,6 +92,10 @@ class VT31Trader:
         self.total_source_windows_seen = 0
 
     def on_closed_m1(self, bar: M1Bar) -> UnifiedVT31Observation:
+        if self.cognition.framework_policy != self.framework_policy:
+            raise ValueError("VT31_COG_OPS_POLICY_CHANGED_AFTER_CONSTRUCTION")
+        if self.framework_policy not in FRAMEWORK_POLICIES:
+            raise ValueError("VT31_UNKNOWN_EXPLICIT_FRAMEWORK_POLICY")
         if not isinstance(bar, M1Bar):
             raise ValueError("VT31 accepts only valid cleanroom M1Bar")
         at = utc(bar.closed_at)
@@ -123,7 +147,10 @@ class VT31Trader:
         self.cognition.observe_closed_m1(bar)
         self.total_closed_m1 += 1
         if ops is None:
-            ops = IctSilverBulletOperations(session=window, day=opened)
+            ops = IctSilverBulletOperations(
+                session=window, day=opened,
+                framework_policy=self.framework_policy,
+            )
             self._windows[key] = ops
             self.total_source_windows_seen += 1
 
@@ -163,6 +190,8 @@ class VT31Trader:
         or claim a fill. May be called by the scientific replay after the
         hour is *completely classified* as incomplete.
         """
+        if self.cognition.framework_policy != self.framework_policy:
+            raise ValueError("VT31_COG_OPS_POLICY_CHANGED_AFTER_CONSTRUCTION")
         if not isinstance(bar, M1Bar):
             raise ValueError("requires cleanroom validated M1")
         local_hour = utc(bar.opened_at).astimezone(NEW_YORK).hour
@@ -193,6 +222,12 @@ class VT31Trader:
             "session_models": ("LONDON", "NEW_YORK"),
             "ny_windows": ("VT31_NY_AM", "VT31_NY_PM"),
             "single_cognitive_memory": True,
+            "explicit_framework_policy": self.framework_policy,
+            "G3_opt_in_research_only": (
+                self.framework_policy == G3_MSS_FRAMEWORK_POLICY
+            ),
+            "methodology_certified": False,
+            "cognition_certified": False,
             "closed_m1_received": self.total_closed_m1,
             "source_windows_seen": self.total_source_windows_seen,
             "session_windows": windows,
