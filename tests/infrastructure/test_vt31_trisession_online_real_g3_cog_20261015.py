@@ -185,7 +185,7 @@ def test_sealed_future_ledger_cannot_be_provided_to_online_replay():
     import inspect
 
     names = inspect.signature(replay_online_g3).parameters
-    assert tuple(names) == ("rows", "expected_m1")
+    assert tuple(names) == ("rows", "expected_m1", "native_trader_g3")
     assert "ledger" not in names
 
 
@@ -202,29 +202,16 @@ def test_source_day_timezone_aware_constant():
     assert datetime(2025, 1, 15, 3, tzinfo=NEW_YORK).utcoffset() == timedelta(hours=-5)
     assert datetime(2025, 7, 15, 3, tzinfo=NEW_YORK).utcoffset() == timedelta(hours=-4)
 
-def test_native_vt31_trader_still_initializes_legacy_ops_under_g3_cog():
-    """Discoverable integration blocker, never relabel it as native G3 PASS."""
+def test_original_g3_without_explicit_optin_rejected_at_constructor():
+    """G3 COG must never silently bootstrap original LEGACY OPS."""
     from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
         VT31CleanroomCognition,
     )
-    from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-        LEGACY_FRAMEWORK_POLICY,
-        M1Bar,
-    )
     from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
 
-    original = VT31Trader(cognition=VT31CleanroomCognition(
+    original_cog = VT31CleanroomCognition(
         framework_policy=G3_MSS_FRAMEWORK_POLICY,
-    ))
-    opened = datetime(2025, 7, 15, 3, tzinfo=NEW_YORK).astimezone(UTC)
-    bar = M1Bar(
-        opened, opened + timedelta(minutes=1),
-        __import__("decimal").Decimal("100"),
-        __import__("decimal").Decimal("102"),
-        __import__("decimal").Decimal("98"),
-        __import__("decimal").Decimal("101"),
     )
-    original.on_closed_m1(bar)
-    ops = original._windows[("2025-07-15", SessionId.LONDON)]
-    assert original.cognition.framework_policy == G3_MSS_FRAMEWORK_POLICY
-    assert ops.framework_policy == LEGACY_FRAMEWORK_POLICY
+    with pytest.raises(ValueError, match="FRAMEWORK_MISMATCH_BEFORE_M1"):
+        VT31Trader(cognition=original_cog)
+    assert original_cog._observed_count == 0
