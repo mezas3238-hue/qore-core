@@ -151,6 +151,12 @@ def source_protected_swing(
             "PROTECTED_SWING_NOT_CONFIRMED_WAIT",
             "OPPOSING_CANDLE_SERIES_MISSING", raid=raid_at,
         )
+    if opposing_series[-1].closed_at == ten[-1].closed_at:
+        return emit(
+            "PROTECTED_SWING_NOT_CONFIRMED_WAIT",
+            "NO_CLOSED_CONFIRMATION_AFTER_OPPOSING_CANDLE_SERIES",
+            raid=raid_at,
+        )
     actual = {b.closed_at: b for b in ten}
     if (
         any(b.closed_at not in actual or actual[b.closed_at] != b
