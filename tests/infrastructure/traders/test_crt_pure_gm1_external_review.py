@@ -25,11 +25,17 @@ def fixture() -> dict:
     return {
         "pull": {
             "number": 626, "state": "open", "merged_at": None,
-            "head": {"sha": SHA, "ref": "agent/vt08-crt-pure-source-identity-001"},
-            "base": {"repo": {
-                "full_name": "mezas3238-hue/qore-core",
-                "owner": {"id": OWNER_ID},
-            }},
+            "head": {
+                "sha": SHA, "ref": "agent/vt08-crt-pure-source-identity-001",
+                "repo": {"full_name": "mezas3238-hue/qore-core"},
+            },
+            "base": {
+                "ref": "agent/vt08-crt-cognitive-architecture-freeze-001",
+                "repo": {
+                    "full_name": "mezas3238-hue/qore-core",
+                    "owner": {"id": OWNER_ID},
+                },
+            },
             "user": {"id": OWNER_ID},
         },
         "reviews": [{
@@ -42,7 +48,7 @@ def fixture() -> dict:
             "created_at": "2026-10-15T18:01:00Z",
             "updated_at": "2026-10-15T18:01:00Z",
         }],
-        "commits": [{"author": {"id": OWNER_ID}}],
+        "commits": [{"sha": SHA, "author": {"id": OWNER_ID}}],
         "dossier": DOSSIER,
         "owner_id": OWNER_ID,
         "reviewer_id": REVIEWER_ID,
@@ -94,6 +100,9 @@ def test_mutated_dossier_hash_cancels_both_signatures() -> None:
     ("wrong_owner", "OWNER_ACCEPTANCE_NOT_VERIFIED"),
     ("wrong_pr", "WRONG_PR_OR_MUTATED_SCOPE"),
     ("wrong_branch", "WRONG_PR_OR_MUTATED_SCOPE"),
+    ("wrong_base", "WRONG_PR_OR_MUTATED_SCOPE"),
+    ("wrong_repo", "WRONG_PR_OR_MUTATED_SCOPE"),
+    ("history_head_mismatch", "COMMIT_HISTORY_HEAD_MISMATCH"),
     ("reviewer_is_author", "REVIEWER_IS_PR_AUTHOR"),
     ("reviewer_is_committer", "REVIEWER_CONTRIBUTED_TO_PR"),
     ("unlinked_committer", "UNLINKED_COMMIT_AUTHOR"),
@@ -117,6 +126,12 @@ def test_attestation_attacks_deny_witness(mutation: str, blocker: str) -> None:
         data["pull"]["number"] = 627
     elif mutation == "wrong_branch":
         data["pull"]["head"]["ref"] = "agent/untrusted-branch"
+    elif mutation == "wrong_base":
+        data["pull"]["base"]["ref"] = "main"
+    elif mutation == "wrong_repo":
+        data["pull"]["head"]["repo"]["full_name"] = "random/fork"
+    elif mutation == "history_head_mismatch":
+        data["commits"][0]["sha"] = "b" * 40
     elif mutation == "reviewer_is_author":
         data["pull"]["user"]["id"] = REVIEWER_ID
     elif mutation == "reviewer_is_committer":
