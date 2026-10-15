@@ -161,3 +161,24 @@ def test_snapshot_is_readonly_and_no_method_sizing_or_orders():
     assert snap.entry_authorized is False
     assert snap.cognitive_decision_emitted is False
     assert snap.qore_proxy_authorial_certified is False
+
+
+def test_first_return_exactly_11am_expires_without_fake_post_session_wait():
+    nine, ten = fixture()
+    bars = list(ten)
+    # First raid at 10:02, remain outside 09H until last possible closed M1.
+    for i in range(2, 59):
+        bars[i] = m1(
+            ten[i].opened_at, o="85", h="89", lo="82", c="86",
+        )
+    bars[59] = m1(
+        ten[59].opened_at, o="96.9", h="99", lo="95", c="97",
+    )
+    cog = warmed(nine)
+    for bar in bars:
+        state = cog.observe_closed_m1(bar)
+    assert state.as_of.astimezone(NY).hour == 11
+    assert state.first_return_at == bars[-1].closed_at
+    assert state.state == "EXPIRED"
+    assert state.first_qore_proxy_observed_at is None
+    assert not state.cognitive_decision_emitted
