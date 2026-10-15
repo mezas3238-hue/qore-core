@@ -1,0 +1,13 @@
+# VT31 M5 — PREREG: TESTIGO DE SWING CAUSANTE VS PIVOTES QORE
+**15-OCT-2026 ANTES DE CÓDIGO.** Owner exige certificar **metodología y cognitiva**, no PF, DD, Sharpe, Sortino ni sizing. Prerregistro hijo #958; G3 COG/OPS y fuente #929 originales sin modificar.
+
+**Fuente primaria:** [TTrades AM Silver Bullet](https://ttrades.com/the-am-silver-bullet-strategy-on-nq/) exige stop **más allá del swing high/low que causó el displacement**, no “siempre máximo/minimo de primer barrido” ni “C2 full wick + un tick” QORE. Artículo y [PDF de TTrades](https://ttrades.com/wp-content/uploads/2026/01/Silver_Bullet_AM_Session_TTrades_PDF.pdf) no especifican algoritmo pivote3, definición numérica de “causó”, confirmación de swing M1 o desempate de múltiples swings. NO declarar stop autoral verificado con pivote QORE.
+
+### Población y condiciones inmutables
+- Misma M1 histórica 1.059.784 de desarrollo ya observado, SHA256 `0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa`; originales 775 días y 483 contextos `FIRST_RETURN_NO_QORE_MSS` [#934]. Observaciones QORE FVG 457 y ausencia 26 en [PR #958]; **NO son trades**.
+- FVG de origen solo `audit_family_one_day(...)` de #958, no modificarla, sin precio. Para cada primer FVG, buscar en prefix M1 10h **hasta ANTES de ese FVG** pivotes estrictos de 3 velas (swing high para SHORT; swing low LONG), con `right_candle.closed_at < fvg_confirmed_at` para prohibir pivote aún no conocido. Ventana de búsqueda desde la primera vuelta (as_of de censo) hasta FVG; la elección pivot3 es **SOLO QORE proxy**, NO “swing que causó displacement” validado.
+- Contar `NO_QORE_PIVOT_CANDIDATE`, `ONE_QORE_PIVOT_CAUSATION_NOT_PROVEN`, `MULTIPLE_QORE_PIVOTS_CAUSATION_UNDETERMINED`, `NO_QORE_FVG_EVIDENCE`. Todos M5 `AUTHOR_CAUSATIVE_SWING_NOT_ESTABLISHED` y `stop_price=null`. Un pivot reconocido o único NO basta para adjudicar causalidad ni stop.
+- Reportar cada día/primer ejemplo cronológico de categoría y marcas de confirmación pivot; no revelar precios, no usar PnL, no posición.
+- Adversarios: pivote3 verdadero solo si derecha M1 cerrada, antes del source as-of; igualdad no forma pivot, lado LONG/SHORT simétrico, múltiples candidatos no se fusionan, futuro prohibido, no selección numérica stop, concepto de swing H1 ≠ previo sweep extreme sin prueba.
+- CI Ruff/pytest + GitHub original M1 checksum+hash + artifact. Verde demuestra capacidad de reconocer **incertidumbre causal y abstenerse**, NO M5 aprobado ni trader certificado.
+- M6 issue #897 sigue OPEN y exige dos revisores independientes verificables, no simular firmas del único owner; certificados por perfil/version/gate no emitidos. Sin merge/live/demo/VPS/FundedNext/lotaje propio.
