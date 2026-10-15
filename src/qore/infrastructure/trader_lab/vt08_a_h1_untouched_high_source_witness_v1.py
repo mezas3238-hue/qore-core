@@ -167,6 +167,10 @@ def witness_events(
     unique_decisions: set[str] = set()
     missing_quote_cutoff = 0
     all_have_multiple = 0
+    no_observed_high = 0
+    exactly_one_observed_high = 0
+    above_proxy_any = 0
+    above_proxy_multiple = 0
     for case in by_time:
         if not isinstance(case, dict) or case.get("market") != market:
             raise ValueError("cross-market candidate in frozen catalog")
@@ -232,8 +236,17 @@ def witness_events(
             for x in st.active
             if x.origin_h1_closed_at <= t
         ] if has_bar_at_cutoff else []
+        n_above = sum(1 for x in targets if x["higher_than_c2_close_proxy"])
+        if not targets:
+            no_observed_high += 1
+        if len(targets) == 1:
+            exactly_one_observed_high += 1
         if len(targets) > 1:
             all_have_multiple += 1
+        if n_above:
+            above_proxy_any += 1
+        if n_above > 1:
+            above_proxy_multiple += 1
         results.append({
             "market": market, "decision_at_utc": key,
             "c2_opened_at_utc": _iso(c2),
@@ -241,9 +254,7 @@ def witness_events(
             "c2_close_price_source_proxy": str(c2_close),
             "untouched_h1_high_candidates": targets,
             "witness_count": len(targets),
-            "candidate_targets_above_c2_close_proxy": sum(
-                1 for x in targets if x["higher_than_c2_close_proxy"]
-            ),
+            "candidate_targets_above_c2_close_proxy": n_above,
             "author_target_selected": False,
             "author_target_validated": False,
             "broker_target_order_created": False,
@@ -257,6 +268,10 @@ def witness_events(
         "frozen_source_events": len(results),
         "cases_missing_m15_at_c3_cutoff": missing_quote_cutoff,
         "cases_multiple_observed_h1_highs": all_have_multiple,
+        "cases_zero_observed_h1_highs": no_observed_high,
+        "cases_exactly_one_observed_h1_high": exactly_one_observed_high,
+        "cases_any_high_above_c2_close_proxy": above_proxy_any,
+        "cases_multiple_highs_above_c2_close_proxy": above_proxy_multiple,
         "observed_h1_highs_formed": st.h1_formed,
         "observed_h1_highs_touched": st.levels_touched,
         "source_gap_resets": st.source_gaps,
