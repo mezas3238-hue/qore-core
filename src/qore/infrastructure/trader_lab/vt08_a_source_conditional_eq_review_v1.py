@@ -61,6 +61,8 @@ def _m30(
     start: datetime,
     n: int,
     step: int,
+    market: str,
+    source_raw_market_map: Mapping[str, str],
 ) -> tuple[Decimal, Decimal, Decimal, Decimal]:
     if len(ids) != n or len(set(ids)) != n:
         raise ValueError("missing/duplicate M30 constituent bars")
@@ -69,8 +71,28 @@ def _m30(
         raw = catalog.get(key)
         if not isinstance(raw, dict) or raw.get("profile") != profile:
             raise ValueError("missing authenticated expected-profile bar")
+        if (
+            raw.get("market") != market
+            or source_raw_market_map.get(str(raw.get("source_raw_sha256"))) != market
+            or raw.get("semantics") != "OBSERVED_OHLC_ONLY_NOT_TTRADES_RULE"
+        ):
+            raise ValueError("foreign/unverified bar source custody")
         at = _utc(raw.get("opened_at_utc"))
         closed = _utc(raw.get("closed_at_utc"))
+        body = {
+            "profile": profile,
+            "source_raw_sha256": raw.get("source_raw_sha256"),
+            "opened_at_utc": at.isoformat(),
+            "closed_at_utc": closed.isoformat(),
+            "ohlc": tuple(raw.get("ohlc", ())),
+        }
+        if raw.get("source_bar_id") != key or hashlib.sha256(
+            json.dumps(body, sort_keys=True, separators=(",", ":"), allow_nan=False)
+            .encode("utf-8")
+        ).hexdigest() != key:
+            raise ValueError("physical bar source SHA changed")
+        if _utc(raw.get("available_at_utc")) != closed:
+            raise ValueError("physical source timestamp drift")
         if at != start + timedelta(minutes=step * i):
             raise ValueError("noncontiguous source bars")
         if closed != at + timedelta(minutes=step):
@@ -143,12 +165,18 @@ def conditional_eq_witnesses(
         m15_ids = sources.get("c2_m15_raw_bar_receipts")
         if not isinstance(m3_ids, list) or not isinstance(m15_ids, list):
             raise ValueError("M3/M15 source ids required")
-        m3 = _m30(bars, m3_ids, profile="M3", start=c2_open, n=10, step=3)
-        m15 = _m30(bars, m15_ids, profile="M15", start=c2_open, n=2, step=15)
+        m3 = _m30(
+            bars, m3_ids, profile="M3", start=c2_open, n=10, step=3,
+            market=market, source_raw_market_map=raw_market,
+        )
+        m15 = _m30(
+            bars, m15_ids, profile="M15", start=c2_open, n=2, step=15,
+            market=market, source_raw_market_map=raw_market,
+        )
         if m3 != m15:
             raise ValueError("native M3/M15 C2 physical OHLC mismatch")
         op, high, low, close = m3
-        if not (low < op < high and low < close < high and close > op):
+        if not (low <= op <= high and low <= close <= high and close > op):
             raise ValueError("not the frozen bullish C2 reversal family")
         prior_h1 = sources.get("pre_c2_h1_m15_raw_bar_receipts")
         if not isinstance(prior_h1, list):
@@ -168,6 +196,30 @@ def conditional_eq_witnesses(
                     raise ValueError("H1 bar future/noncontiguous")
                 if _utc(raw.get("closed_at_utc")) > c2_open:
                     raise ValueError("H1 context reads from C2 future")
+                if (
+                    raw.get("market") != market
+                    or raw_market.get(str(raw.get("source_raw_sha256"))) != market
+                    or raw.get("semantics") != "OBSERVED_OHLC_ONLY_NOT_TTRADES_RULE"
+                ):
+                    raise ValueError("H1 source bar market/raw custody invalid")
+                opened = _utc(raw.get("opened_at_utc"))
+                closed = _utc(raw.get("closed_at_utc"))
+                if closed - opened != timedelta(minutes=15):
+                    raise ValueError("H1 M15 constituent duration invalid")
+                if _utc(raw.get("available_at_utc")) != closed:
+                    raise ValueError("H1 source availability mismatch")
+                body = {
+                    "profile": "M15",
+                    "source_raw_sha256": raw.get("source_raw_sha256"),
+                    "opened_at_utc": opened.isoformat(),
+                    "closed_at_utc": closed.isoformat(),
+                    "ohlc": tuple(raw.get("ohlc", ())),
+                }
+                if hashlib.sha256(json.dumps(
+                    body, sort_keys=True, separators=(",", ":"), allow_nan=False,
+                ).encode("utf-8")).hexdigest() != key:
+                    raise ValueError("H1 physical source SHA drift")
+                _ohlc(raw)
         else:
             h1_incomplete += 1
         observed.append({
