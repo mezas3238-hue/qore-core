@@ -56,7 +56,10 @@ def test_single_real_producer_across_all_three_dst_windows(month):
     assert engine["source_bars_consumed"] == len(rows)
     assert engine["one_trader"] == "VT31"
     assert engine["framework_policy"] == G3_MSS_FRAMEWORK_POLICY
-    assert engine["one_cognition"] and engine["no_execution_or_sizing"]\n    assert engine["original_ops_G3_research_windows"] == 3\n    assert not engine["native_VT31Trader_G3_integration_complete"]\n    assert engine["M7_blocker_native_coordinator_still_defaults_OPS_to_LEGACY"]
+    assert engine["one_cognition"] and engine["no_execution_or_sizing"]
+    assert engine["original_ops_G3_research_windows"] == 3
+    assert not engine["native_VT31Trader_G3_integration_complete"]
+    assert engine["M7_blocker_native_coordinator_still_defaults_OPS_to_LEGACY"]
 
 
 @pytest.mark.parametrize("month", [1, 7])
