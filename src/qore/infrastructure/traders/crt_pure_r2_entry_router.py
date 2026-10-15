@@ -21,8 +21,8 @@ from qore.infrastructure.traders.crt_pure_model1 import (
     CrtPureModel1Direction,
     CrtPureModel1State,
 )
-from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
-    unresolved_model1_source_concepts,
+from qore.infrastructure.traders.crt_pure_three_source_methodology import (
+    current_three_source_methodology,
 )
 
 
@@ -158,11 +158,10 @@ def assess_model1_certification_entry_family(
     parent_direction: CrtPureCandidateDirection,
     confirmation: CrtPureModel1Confirmation | None,
 ) -> CrtPureR2EntryAssessment:
-    """Source-aware G-M1/G-M4 assessment; legacy lab route stays unchanged.
+    """G-M1/G-M4 route uses Owner's tri-source QORE contract, not Romeo-only.
 
-    Crucially, the old-level reference selector must be adjudicated before
-    any Methodology/Certification path reports conceptual EXECUTE. A source
-    family cannot inherit generic strategy_identity_ready=True.
+    The legacy lab geometry stays a hypothesis. No conceptual EXECUTE until
+    ALL seven triad operational contracts are adjudicated.
     """
     preliminary = assess_model1_entry_family(
         parent_direction=parent_direction,
@@ -170,7 +169,7 @@ def assess_model1_certification_entry_family(
     )
     if preliminary.action is CrtPureReasoningAction.ABSTAIN:
         return preliminary
-    blockers = unresolved_model1_source_concepts()
+    blockers = current_three_source_methodology().blockers
     if blockers:
         return CrtPureR2EntryAssessment(
             family=CrtPureR2EntryFamily.MODEL_1,
@@ -178,8 +177,8 @@ def assess_model1_certification_entry_family(
             action=CrtPureReasoningAction.WAIT,
             evidence_tokens=preliminary.evidence_tokens,
             why=(
-                "MODEL_1_SOURCE_FAMILY_NOT_CLOSED",
-                *(f"UNRESOLVED:{concept.value}" for concept in blockers),
+                "CRT_THREE_SOURCE_QORE_METHOD_NOT_CLOSED",
+                *blockers,
                 "DO_NOT_PROMOTE_LEGACY_LAB_EXECUTE",
                 "NO_C3_OPEN_FALLBACK",
                 "NO_CAPITAL_OR_EXECUTION_AUTHORITY",
