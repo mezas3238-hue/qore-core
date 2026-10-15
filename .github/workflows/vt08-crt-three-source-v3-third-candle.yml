@@ -1,0 +1,99 @@
+name: VT08 CRT Tri-Source V3 Third Candle (Development Only)
+
+on:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-three-source-v3-third-candle.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: vt08-crt-three-source-v3-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff / Mypy / Pytest V3 causal contract (no economics)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py
+
+  real-original-atlas:
+    needs: contract-quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [AUDUSD, USDJPY]
+    env:
+      QORE_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Recover original immutable Atlas M5 without broker credentials
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.market }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original-native-m5
+      - name: Run preregistered V3 source/cognitive input census on all H4 parents
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s original-native-m5/git-sha.txt
+          test -s original-native-m5/MANIFEST_SHA256SUMS.txt
+          test -d original-native-m5/RAW_M5_LEDGER
+          mkdir -p "v3-causal/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_v3_confirmed_h4_census \
+            "$QORE_MARKET" original-native-m5 "v3-causal/$QORE_MARKET" \
+            | tee "v3-causal/$QORE_MARKET/stdout-summary.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path("v3-causal")/os.environ["QORE_MARKET"]
+          m=json.loads((p/"three-source-v3-third-candle-summary.json").read_text())
+          rows=[json.loads(x) for x in (p/"three-source-v3-third-candle-ledger.jsonl").read_text().splitlines() if x]
+          assert m["complete_h4_c1_c2_contexts"]==len(rows) and len(rows)>0
+          assert sum(m["state_counts"].values())==len(rows)
+          assert m["sizing_used"] is False and m["conceptual_only_no_pnl"] is True
+          assert m["GLOBAL_CERTIFIED"] is False and m["not_fresh_holdout"] is True
+          assert all(r["not_a_trade"] and r["no_sizing_or_capital_authority"] for r in rows)
+          assert len({r["source_event_id"] for r in rows})==len(rows)
+          assert all(
+             (r["decision_clock_utc"] is not None) ==
+             (r["conceptual_state"]=="CONCEPTUAL_CANDIDATE_V3")
+             for r in rows
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "v3-causal/$QORE_MARKET/git-sha.txt"
+          (cd "v3-causal/$QORE_MARKET"; sha256sum three-source-v3-third-candle-summary.json three-source-v3-third-candle-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Publish research-only V3 pre-outcome artifact (no future prices, no fills)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-three-source-v3-third-candle-dev-only-${{ matrix.market }}-${{ github.sha }}
+          path: v3-causal/${{ matrix.market }}
+          retention-days: 90
+          if-no-files-found: error
