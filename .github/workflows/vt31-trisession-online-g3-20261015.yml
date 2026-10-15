@@ -1,0 +1,113 @@
+name: VT31 three-session ONLINE original G3 COG and H1 09 source WAIT
+on:
+  push:
+    branches:
+      - agent/vt31-trisession-online-g3-asof-h1wait-20261015
+    paths:
+      - 'scripts/vt31_trisession_online_real_g3_cog_20261015.py'
+      - 'tests/infrastructure/test_vt31_trisession_online_real_g3_cog_20261015.py'
+      - '.github/workflows/vt31-trisession-online-g3-20261015.yml'
+      - 'docs/research/VT31_TRISESION_ONLINE_G3_H1_FAILCLOSED_PREREG_2026-10-15.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  original-g3-online-3-sessions-causal-m1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prereg before code and frozen G3 OPS fingerprints
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 71770492abec4d4429ba69097c35570854b0beaf HEAD
+          git merge-base --is-ancestor 05f46858b2bf34042c7823a5334809adc141a279 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object scripts/vt31_m0_predecision_method_router_20261015.py)" = 73e628e37795b746b5d339585e27b307df2e2e1c
+      - name: Adversarial ORIGINAL G3 cognition and three-session temporal source
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check scripts/vt31_trisession_online_real_g3_cog_20261015.py tests/infrastructure/test_vt31_trisession_online_real_g3_cog_20261015.py
+          python -m py_compile scripts/vt31_trisession_online_real_g3_cog_20261015.py
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_trisession_online_real_g3_cog_20261015.py \
+            tests/infrastructure/test_vt31_trisession_real_m1_causal_coverage_20261015.py \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Retrieve and verify authentic M1, plus independently sealed PREVIOUS coverage ledger
+        run: |
+          set -euo pipefail
+          mkdir -p source frozen-ledger
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > market.zip
+          unzip -q market.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/12000338010/zip" > ledger.zip
+          unzip -q ledger.zip -d frozen-ledger
+          test -s frozen-ledger/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json
+          (cd frozen-ledger && sha256sum -c SHA256SUMS)
+      - name: Strictly online one trader G3 replay over 1,059,784 real M1
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_trisession_online_real_g3_cog_20261015.py \
+            --market source/NAS100/market-evidence.json \
+            --coverage-ledger frozen-ledger/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json \
+            --out evidence/VT31_ORIGINAL_G3_THREE_SESSIONS_ONLINE_REAL_2325.json \
+            | tee evidence/session_summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_ORIGINAL_G3_THREE_SESSIONS_ONLINE_REAL_2325.json'))
+          assert p['source_hash']=='0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+          assert p['prior_independent_ledger_sha']=='7dba2c0ed15255ef1b4b5e5a277199940e785aa7e99c36a5d095bb18d4de501d'
+          assert p['runtime_single_persistent_original_G3']['source_bars_consumed']==1059784
+          assert p['runtime_single_persistent_original_G3']['one_trader']=='VT31'
+          assert p['runtime_single_persistent_original_G3']['framework_policy']=='QORE_G3_MSS_CLOSE_V1_PROPOSED'
+          assert p['posthoc_coverage_ledger_never_used_in_online_admission'] is True
+          assert len(p['full_2325_day_session_G3_casebook'])==2325
+          assert set(p['three_sessions_online_causal_G3_diagnostics'])=={
+            'VT31_LONDON','VT31_NY_AM','VT31_NY_PM'}
+          assert all(not p[k] for k in (
+            'owner_approved_profile','author_certified_London','author_certified_NYAM',
+            'author_certified_NYPM','m2_m3_m4_m5_complete',
+            'two_human_signatures_M6','m7_trader_certified',
+          ))
+          assert p['trade_count']==p['sizing']==0
+          summary=p['three_sessions_online_causal_G3_diagnostics']
+          assert summary['VT31_NY_AM']['online_H1_veto_days']>=2
+          assert all(x['anchor_days']==775 for x in summary.values())
+          for x in p['full_2325_day_session_G3_casebook']:
+            assert not x['author_method_certified']
+            assert not x['cognition_certified']
+            assert not x['trade_authorized']
+          print('ORIGINAL_G3_THREE_SESSIONS_TRUE_ONLINE_COG_NOT_CERTIFIED')
+          PY
+      - name: Hash and upload reproducible research evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/executed_commit.txt
+          printf '%s\n' 71770492abec4d4429ba69097c35570854b0beaf > evidence/prereg_commit.txt
+          printf '%s\n' 'NO_AUTHOR_CERTIFICATE_NO_ORDERS_NO_SIZING_NO_PNL' > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-original-g3-online-trisession-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
