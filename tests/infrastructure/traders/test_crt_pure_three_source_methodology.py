@@ -65,7 +65,7 @@ def test_owner_specific_engineering_requires_explicit_approval_and_reason() -> N
 
 
 def test_source_supported_contract_does_not_accept_invented_evidence_urls() -> None:
-    with pytest.raises(ValueError, match="not present"):
+    with pytest.raises(ValueError, match="not in adjudication registry"):
         CrtThreeSourceRuleContract(
             rule=CrtThreeSourceRule.ENTRY_CONFIRMATION,
             decision=CrtThreeSourceDecision.SOURCE_SUPPORTED,
