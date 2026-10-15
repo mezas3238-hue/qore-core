@@ -81,6 +81,15 @@ def evaluate_methodological_gm5(
         f"{g.gate_id}_NOT_PASS:{g.state.value}"
         for g in gates if g.state is not CrtPureMethodGateState.PASS
     ]
+    # Self-declared PASS is not an authenticated independent review.
+    # Current gate evidence carries only free-text reviewer/ref claims and a
+    # boolean no-leak statement; none can prove signer identity, SHA binding,
+    # blinded review or independence. Refuse G-M5 until a trusted verifier is
+    # designed and actually wired in (do not accept an injectable True flag).
+    blockers.extend(
+        f"{g.gate_id}_PASS_ATTESTATION_UNVERIFIED"
+        for g in gates if g.state is CrtPureMethodGateState.PASS
+    )
     source = current_three_source_methodology()
     blockers.extend(source.blockers)
     return CrtPureMethodCertificate(
