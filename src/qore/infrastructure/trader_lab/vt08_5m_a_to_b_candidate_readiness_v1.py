@@ -111,6 +111,20 @@ def inspect_architect_a_candidate(
             raise Vt08CandidateBoundaryError("future source confirmation forbidden")
 
     blockers: list[str] = []
+    # Claimed SOURCE_COMPLETE from A V1 does NOT authenticate a trade bundle:
+    # B01 carried entry at exact H4 open, PS-only stop, fixed 2R and next-H4
+    # lifecycle as QORE CONTAINMENTS. The author methodology cannot be certified
+    # by signing such an envelope, even if every timestamp is internally valid.
+    basis_names = ("entry_basis", "stop_basis", "target_basis", "filled_lifecycle")
+    basis_values = tuple(envelope.get(name) for name in basis_names)
+    if any(
+        not isinstance(value, str)
+        or not value.strip()
+        or "QORE_CONTAINMENT" in value
+        or value.startswith("UNVERIFIED")
+        for value in basis_values
+    ):
+        blockers.append("A_B:NON_SOURCE_CONTAINMENT_BUNDLE")
     raw_bias = envelope.get("bias_feature_cutoff")
     if raw_bias == "UNATTESTED_IN_LEGACY_B01_CANDIDATE":
         blockers.append("A_B:DAILY_BIAS_SOURCE_TIME_UNATTESTED")
