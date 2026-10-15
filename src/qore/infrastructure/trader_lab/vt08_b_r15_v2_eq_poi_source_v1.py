@@ -45,16 +45,18 @@ def bullish_c2_eq_conditional(
     if not low < high or not opened < closed:
         raise ValueError("R15 frozen C2 must have bullish body")
     full = (high + low) / 2
-    close_to_low = (closed + low) / 2
+    incorrect_v2 = (closed + low) / 2
+    against_bearish_swing_close_to_high = (closed + high) / 2
     return {
         "c2_body": "BULLISH",
         "source_EQ_if_swing_is_bullish": str(full),
-        "source_EQ_if_swing_is_bearish": str(close_to_low),
+        "source_EQ_if_swing_is_bearish": str(against_bearish_swing_close_to_high),
+        "incorrect_v2_bullish_c2_close_plus_low": str(incorrect_v2),
         "chosen_author_swing_identity": None,
         "chosen_trade_EQ": None,
         "candidate_branch_for_bullish_swing": "FULL_HIGH_LOW",
         "counterfactual_wrong_close_to_low_for_bullish_swing": (
-            full != close_to_low
+            full != incorrect_v2
         ),
     }
 
