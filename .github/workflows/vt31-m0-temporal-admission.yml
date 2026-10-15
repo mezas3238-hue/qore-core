@@ -5,7 +5,11 @@ on:
       - agent/vt31-m0-temporal-causal-admission-20261015
     paths:
       - 'scripts/vt31_m0_temporal_admission_20261015.py'
+      - 'scripts/vt31_m0_predecision_method_router_20261015.py'
+      - 'scripts/vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py'
       - 'tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py'
+      - 'tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py'
+      - 'docs/research/VT31_M0_REAL_COG_INVOCATION_PREREG_2026-10-15.md'
       - 'docs/research/VT31_M0_TEMPORAL_ADMISSION_PREREG_2026-10-15.md'
       - '.github/workflows/vt31-m0-temporal-admission.yml'
   workflow_dispatch:
@@ -26,6 +30,8 @@ jobs:
         run: |
           set -euo pipefail
           git cat-file -t 92dfdba4feda628c8ddb09521959601dfde20191
+          git cat-file -t 19000e58f29e18ab80ce4a926156010e4994ccc3
+          git merge-base --is-ancestor 19000e58f29e18ab80ce4a926156010e4994ccc3 HEAD
           git merge-base --is-ancestor 92dfdba4feda628c8ddb09521959601dfde20191 HEAD
           test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
           test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
@@ -34,11 +40,12 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install -e '.[dev]' pytest-xdist
-          ruff check scripts/vt31_m0_temporal_admission_20261015.py tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py
+          ruff check scripts/vt31_m0_temporal_admission_20261015.py scripts/vt31_m0_predecision_method_router_20261015.py scripts/vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py
           python -m py_compile scripts/vt31_m0_temporal_admission_20261015.py
           mkdir -p evidence
           PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
             tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
             tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
             tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
             tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
@@ -66,6 +73,7 @@ jobs:
           PY
           git rev-parse HEAD > evidence/commit_sha.txt
           printf '%s\n' 92dfdba4feda628c8ddb09521959601dfde20191 > evidence/prereg_sha.txt
+          printf '%s\n' 19000e58f29e18ab80ce4a926156010e4994ccc3 >> evidence/prereg_sha.txt
           printf '%s\n' 'RESEARCH_ONLY_NO_PNL_NO_OMS_NO_SIGNED_METHOD' > evidence/scope.txt
           (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
       - uses: actions/upload-artifact@v4
