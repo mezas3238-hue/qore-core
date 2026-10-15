@@ -19,8 +19,8 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     G3_MSS_FRAMEWORK_POLICY,
-    M1Bar,
     NEW_YORK,
+    M1Bar,
     SessionId,
     Side,
     utc,
