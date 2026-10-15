@@ -1,0 +1,21 @@
+# VT31 COG V3 — pre-registro de continuidad íntegra M1 entre retesteos (15 Oct 2026)
+
+**Rama base:** PR #983 HEAD `32f6d46d596cd3c9a9de9be4df40e2937c4629a2`. COG original G3, OPS, acta metodológica, selección M0 y propuestas M4 previas **inmutables**.
+**Objetivo:** corrección de trazabilidad cognitiva, **sin trading**. Reutilizar candidato V2 por composición/versionado, no afirmar que sea el COG nativo oficial.
+
+## B25 — fallo de frontera identificado ANTES de código
+En `scripts/vt31_m0_m4_context_memory_cog_candidate_20261015.py`, `capture_context()` graba `prefix_sha256` del evento M0. Cada `assess_later_retest()` comprueba únicamente `tape_sha256(closed_m1[:ctx.prefix_count]) == ctx.prefix_sha256`. **No sella la cola M1 vista en evaluaciones posteriores**. Después de aceptar `as_of=t1`, la misma instancia puede aceptar `as_of=t2` con velas entre M0 y t1 modificadas retrospectivamente, siempre que la 09H, primera raid y retorno nativos sigan idénticos. Riesgo: fuente histórica mutable y prueba de causalidad falsa. Segundo problema: V2 mueve `_last_assessed = at` antes de evaluar familia M4; si entrada falsificada da `REJECT`, consume artificialmente ese minuto, y el mismo minuto auténtico queda rechazado como replay.
+
+## Hipótesis y contrato causales pre-registrados
+1. Construir `VT31ContinuousSealCandidate` V3 que delegue en V2, con un `ObservedTapeSeal` inmutable `(last_as_of, count, sha256_total)`, inicializado únicamente cuando M0 creó contexto positivo. El sello V3 conserva **todo** el prefijo válido de la última observación (no sólo M0); sin token M0 no existe sello.
+2. En cada M4, antes de llamar a V2, validar que `closed_m1` sea tupla de `M1Bar`, que no se retroceda el reloj, `len(rows) > seal.count` y que `tape_sha256(rows[:seal.count]) == seal.sha256_total`. Un solo byte/cambio de OHLC o timestamps de una vela **ya observada** => `REJECT SOURCE_OBSERVED_TAPE_FORK` sin invocar V2/M4.
+3. Conservar los filtros originales V2: primera raid y retorno inmutables, ventana 10:00–11:00 Nueva York con EST/EDT, sin huecos M1, OHLC fuente M4 verificable contra `M1Bar`, espera autoral M3/M4/M5. Nunca producir `CognitiveDecision`, trade, sizing ni OMS.
+4. Si la evaluación V2 termina en `WAIT` y la fuente completa es válida, sellar **el prefijo entero hasta el minuto actual**, incluso cuando `family_evidence=None` (una abstención también observa M1). Si termina `REJECT`, **no** cambiar último sello ni consumir `as_of`; se puede presentar evidencia corregida del mismo minuto. Hasta que V2 adopte API transaccional pública, implementar un adaptador V3 de rollback **limitado a `_last_assessed`**, con comprobación prereg del contrato de V2 (V2 no modifica `_source` en retest). No modificar V2 protegido históricamente.
+5. Validar tipos de series M4 `opposing_candles`, `zone_candles`, `swing_legs` como tuplas; entradas deformadas deben producir `REJECT`, nunca TypeError ni dejar reloj avanzado. Las entradas que el V2 todavía acepta pero no homologan fuente autoral siguen WAIT.
+6. Contrapruebas LONG/SHORT × enero EST / julio EDT, M0 positivo; primer retest WAIT sin familia, segundo retest auténtico WAIT; mismo segundo retest con edición de `high` de una M1 vista en el primero (y que no cambie 09H/first-sweep/return) => REJECT **antes** de delegar V2; edición en M0 también REJECT; lo mismo para `open/close/low` y timestamps; gap 10H; sesión cruzada; mismo `as_of` repetido; M4 OHLC falsificada REJECT, sello preservado, reenvío con fuente auténtica mismo minuto WAIT; series sin tipo REJECT y posterior recuperación.
+7. Evidencia: Python 3.12, pytest-xdist, Ruff, conteo reproducible con dossier JSON EST/EDT, SHA256SUMS; tres blobs G3 inmutables verificados y prereg SHA ancestor en CI. Ningún test sintético ni PASS equivale a fuente de mercado real/ICT autoral o firmas COG/OPS.
+
+## Estado de certificación
+`METHODOLOGY_PENDING`, `COGNITION_PENDING`: M0 Owner sin firmar; M3 swing/MSS autoral por resolver; M4 cuatro familias; M5 swing que causó displacement; dos firmas independientes COG/OPS faltantes (#897). No sizing, PnL, OMS, LIVE, VPS, fills, main merge. PR DRAFT.
+
+**Falsador:** si un cambio en OHLC de velas observadas tras M0 alcanza V2, o un REJECT consume `as_of`, esta ronda falla y no puede producir una atestación de continuidad.
