@@ -1,0 +1,87 @@
+name: VT31 original G3 cognition qualitative judgment court NO PNL
+on:
+  push:
+    branches:
+      - agent/vt31-original-cog-qualitative-adversarial-20261014
+    paths:
+      - 'scripts/vt31_original_g3_cog_qualitative_court_20261014.py'
+      - 'tests/infrastructure/test_vt31_original_g3_cog_qualitative_court_20261014.py'
+      - 'docs/research/VT31_ORIGINAL_G3_COG_QUALITATIVE_ADVERSARIAL_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-original-g3-cog-qualitative-court.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-cognitive-reasoning-adversarial-no-pnl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert prereg, original G3 COG OPS and method exact blob SHAs
+        run: |
+          set -euo pipefail
+          git cat-file -t d5a783d7bf4b7ffe4c91b9feffabdf53146a962c
+          git merge-base --is-ancestor d5a783d7bf4b7ffe4c91b9feffabdf53146a962c HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Original genuine cognition semantic reasoning and regression, no historical market scan
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          ruff check scripts/vt31_original_g3_cog_qualitative_court_20261014.py tests/infrastructure/test_vt31_original_g3_cog_qualitative_court_20261014.py
+          python -m py_compile scripts/vt31_original_g3_cog_qualitative_court_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_original_g3_cog_qualitative_court_20261014.py \
+            tests/infrastructure/test_vt31_method_cog_scenario_court_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_m1_execution.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_original_g3_cog_qualitative_court_20261014.py \
+            --out evidence/VT31_ORIGINAL_G3_COG_QUALITATIVE_CASE_DOSSIER.json \
+            | tee evidence/qualitative_case_summary.json
+      - name: Validate actual G3 behavior without falsely certifying methodology and cognition
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_ORIGINAL_G3_COG_QUALITATIVE_CASE_DOSSIER.json"))
+          assert p["kind"]=="VT31_ORIGINAL_G3_COG_AUTHENTIC_QUALITATIVE_CASES"
+          assert p["original_cog_directly_invoked"] is True
+          assert p["prereg_commit"]=="d5a783d7bf4b7ffe4c91b9feffabdf53146a962c"
+          assert p["original_source_hash"]["git_blob_sha1"]=="d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          assert len(p["cases"])==10
+          assert [x["observed"]["action"] for x in p["cases"]]==[
+              "LONG","LONG","WAIT","WAIT","WAIT","WAIT","WAIT","REJECT","LONG","LONG"]
+          assert all(x["original_g3_cog_integrity_witnessed"] and
+                     not x["author_method_certified"] and
+                     not x["human_independent_review"] and
+                     not x["execution_authorized"] for x in p["cases"])
+          assert p["methodology_status"].startswith("PENDING_")
+          assert p["cognitive_status"].startswith("PENDING_")
+          assert p["human_cog_ops_signature_proven"] is False
+          assert p["financial_results"] is None
+          assert p["fresh_holdout_used"] is False
+          assert p["orders_executed"]==p["trader_sizing_actions"]==0
+          assert p["trader_certified"] is False and p["live_authorized"] is False
+          print("ORIGINAL_G3_COG_QUALITATIVE_CASES_REPRODUCIBLE_NO_AUTHORITY_NO_PNL")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' d5a783d7bf4b7ffe4c91b9feffabdf53146a962c > evidence/prereg_sha.txt
+          printf '%s\n' 'ORIGINAL_G3_JUDGMENT_ONLY_METHOD_AND_COGNITION_NOT_CERTIFIED_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-original-g3-cognitive-judgment-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
