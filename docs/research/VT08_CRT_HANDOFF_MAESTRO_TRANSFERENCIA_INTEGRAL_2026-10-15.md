@@ -257,3 +257,22 @@ Los tres modelos son **síntesis de ingeniería QORE predefinidas**, no implemen
 - **Capital/operaciones:** ningún permiso, 0 sizing. PR #626 permanece DRAFT/unmerged.
 
 **REGLA FINAL PARA EL PRÓXIMO ARQUITECTO:** No abandones CRT por un subconjunto V2/V3 adverso, pero tampoco transformes una hipótesis falsada en certificado porque sus tests pasan. Usa las tres fuentes, crea mecanismos CRT completos causalmente justificados, conserva el histórico de falsaciones, consigue evaluación realmente independiente y datos ejecutables OOS nuevos, y exige **TODOS** los Gates; sin sizing de VT08. CIBO/Risk es autoridad separada. Si no hay evidencia suficiente, el único dictamen aceptable es **NOT_CERTIFIED**.
+
+
+---
+
+## Addendum 15-OCT — hardening anti-self-attestation y dossier G-M1 del sucesor
+
+**Nueva ronda después de takeover:** branch `agent/vt08-crt-pure-source-identity-001`, PR #626 permanece DRAFT, sin merge, sin órdenes ni sizing. Baseline inicial `a260abf13477a7a9e449c6088314e4f70da5e81c`. **Nueva evidencia de quality CI:** [run #38786465193](https://github.com/mezas3238-hue/qore-core/actions/runs/38786465193) **SUCCESS** sobre commit `839ba9d8687fa35eefdbc7f55dba8848fdce8f91` (Ruff/mypy/pytest de pipeline CRT). Los commits intermedios del primer intento fallaron Ruff por un docstring mal formateado, corregido en `cf97771a`; no atribuir sus fallos a error de estrategia.
+
+**Hallazgo P0 ratificado:** `CrtThreeSourceRuleContract.independent_adjudication_id`, `owner_approval_id` y `CrtPureMethodGateEvidence.independent_adjudicator` son cadenas proporcionables por llamador; el atributo `no_future_leak_attested` es un booleano. La implementación previa permitía a una **tupla hipotética de siete reglas** obtener `methodology_closed=True` al llenar esas cadenas, aunque `current_three_source_methodology()` permanecía OPEN. El gate G-M5 seguía cerrado en estado corriente, pero el evaluador hipotético podía confundir "declaraciones" con "aprobaciones".
+
+**Corrección implementada y auditada:**
+- `crt_pure_three_source_methodology.py`: `proposal_complete` mide si se han presentado propuestas de las siete reglas; **nunca** lo equipara a `methodology_closed`. Agrega blocker `METHODOLOGY_INDEPENDENT_APPROVAL_UNVERIFIED` sin un verificador independiente confiable. Las siete políticas reales continúan OPEN.
+- `crt_pure_methodological_certification.py`: todo PASS autodeclarado trae `G-Mx_PASS_ATTESTATION_UNVERIFIED`. Cuatro PASS sintéticos jamás emiten G-M5; no basta un ID/URL/booleano. **Esto es protección temporal fail-closed**, NO autenticación de review ya implementada.
+- Tests negativos añadidos en `test_crt_pure_three_source_methodology.py` y `test_crt_pure_methodological_certification.py`, junto con actualización de expectativa de cierre hipotético. CI `#38786170231` y `#38786465193` SUCCESS.
+- Nuevo [dossier G-M1 con siete reglas revisables](VT08_CRT_GM1_SEVEN_RULES_REVIEW_DOSSIER_2026-10-15.md): propuestas concretas y contrapruebas, con G2 multirreferencia y G7 rearm identificados como NO totalmente implementados/adjudicados. **Ninguna regla promovida a aprobada**; V3 adversa, no OOS.
+
+**Atlas12 urgencia revalidada con GitHub API:** los 13 artefactos de [run #35166210458](https://github.com/mezas3238-hue/qore-core/actions/runs/35166210458) aparecen `expired=false` con `expires_at=2026-12-16T00:21:18Z`, incluyendo originales AUDUSD `artifact_id=10475697610` y USDJPY `artifact_id=10475389415`. Existe **sólo retención temporal**; [issue #837](https://github.com/mezas3238-hue/qore-core/issues/837) OPEN. No exportación, vault o restore hecho en esta ronda. No copiar datos licenciados ni inventar backup.
+
+**Nueva cola inmediata:** (1) construir verificador de review GitHub independiente realmente autenticado, SHA/contract-digest-bound, anti-self-approval y anti-replay; no insertar parámetro `verified=True` inyectable; (2) revisor externo adjudica semántica de G1–G7 y los contraejemplos; (3) G-M2 blind, G-M3 discrepancias y G-M4 revisión formal de 5 UNKNOWN; (4) custodia aprobada de Atlas12 antes de diciembre; (5) Gates globales sobre nueva hipótesis/fuente BID/ASK/fresh OOS, DD sólo CIBO/Risk. **G-M1..G-M4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED**. No sizing, órdenes, broker, PR merge ni promoción a producción.
