@@ -1,0 +1,24 @@
+# VT31 — PRERREGISTRO ANTES DEL CÓDIGO: TRI-SESSION M1 SOURCE COVERAGE Y CIERRE DE BRECHAS M0/M1
+
+**Fecha:** 15 de octubre de 2026 · Mandato Owner: **cerrar TODAS** las ventanas London, New York AM y New York PM, sin declarar certificación por ingeniería parcial. Base exacta: [PR #978](https://github.com/mezas3238-hue/qore-core/pull/978) commit `92c0a1e224e46588e4d2642104db4a9115d80d57`. No modificar código G3 COG/OPS ni archivos reservados por otros arquitectos. Esta lane añade cuatro archivos nuevos aislados.
+
+## 1. Pregunta y universo fijados
+
+Reutilizar **el histórico NAS100 M1 REAL** de GitHub Actions artifact #11459859004, miembro `NAS100/market-evidence.json`, SHA256 `0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa`, exactamente 1.059.784 M1 (desarrollo YA visto, no OOS ni BID/ASK). La investigación NY AM existente identifica 775 NY days (fuente grupos 09–10). El censo tri-sesión utiliza **los mismos 775 días** como denominador primario, sin descartar días por ausencia de Londres o NY PM; contar cuántos minutos M1 existen para las ventanas 03–04 (London), 10–11 (NY AM), 14–15 (NY PM), todas en America/New_York, DST propio del día, y 09–10 como **fuente H1 TTrades NY AM exclusivamente**.
+
+Los perfiles ya preseleccionados antes de sesión son `ICT_GENERAL_2023` para London y NY PM, `TTRADES_NY_AM_2025` para NY AM; política M0 [#971/#978] **research y no aprobada por Owner**. No trasladar H1 09 de TTrades a las dos ventanas ICT.
+
+## 2. Adjudicación y controles a priori
+
+- Leer todo el archivo por streaming UNA VEZ, validar encabezado, SHA, orden global monotónico, 1 minuto exacto, M1 aware UTC y OHLC finito; guardar sólo M1 de horas NY 03, 09, 10 y 14, 775 días de referencia determinados por horas 09/10; conservar resto de días como estadística secundaria sin usarlos para sesgar el denominador.
+- Para cada día y sesión, construir los 60 cierres exactos con offset correcto DST. Clases finales **antes de ver datos**: `CLOSED_M1_WINDOW_COMPLETE_CONTEXT_ONLY` (60 barras exactamente contiguas), `PARTIAL_M1_WINDOW_SOURCE_UNKNOWN` (1–59, 0=no), `NO_M1_WINDOW_SOURCE_UNKNOWN` (0). NY AM exige además las 60 barras H1 09 fuente completas: si no, `TTRADES_H1_09_SOURCE_INCOMPLETE_WAIT` como estado soberano incluso si hay ventana 10 completa. Nunca inferir calendario CFD o mercado abierto/cerrado a partir de 0 barras.
+- Verificar min/máx timestamps por sesión y bloquear muestras de otra ventana, fuente naive, OHLC corrupto, duplicados, gaps, que una vela no esté cerrada en su as_of o que se intente extender el reloj/las ventanas. El atributo `SOURCE_COMPLETE` significa **sólo** cobertura M1 y NO ICT/TTrades metodología certificada ni COG PASS.
+- Ejecutar además `admission_court()` de PR #978 inalterado y exigir **16 escenarios** originales en las tres sesiones: 4 London, 8 NY AM, 4 NY PM; LONG/SHORT, EST/EDT, originales COG llamados sólo donde pasó gate; 8 ICT `UNDERDETERMINED`, 4 TTrades context conformant, 4 WAIT MIN10. Esto conserva prueba del productor original, pero NO confiere doctrina ICT ni convierte datos reales en reconocimiento de MSS.
+- Cohortes primarias 775 NY días x3 = 2325 evaluaciones `day-session`. Emplear scalar y dos procesos `fork` sobre datos ya cargados, ordenar `(day, session)`, comparar SHA256 del casebook JSON entero; no sólo contadores. En falta de capacidad fork, fallar pipeline, nunca presentar paridad inventada.
+- Controles explícitos por certificado: `M0_profile_research=True`, `M1_trisession_coverage_audited=True` sólo si los controles anteriores prueban ingeniería. **M2 DOCTRINAL/M3-M5 RUNTIME/M6 DUAL HUMAN SIGNATURES/M7 CERTIFICATION = FALSE**. No OPS DTO, órdenes, fills, sizing, PF/DD/Sharpe/Sortino, ni LIVE/DEMO/VPS. Mantener los tres expedientes independientes y sin promover un PASS temporal a certificado.
+
+## 3. Criterios de cierre y falsación
+
+Éxito de esta ronda = un reporte reproducible del inventario M1 comparativo **sin excluir sesiones incompletas**, 16 ejemplos del COG research conservados, dos hashes casebook idénticos, y documentación de brechas específicas London/NY AM/NY PM. Si el archivo original, 775 NY días, categorías NY AM o 16 casos cambian, el workflow falla; no “ajustar” expectativa a resultados. No hay objetivo de cantidad de operaciones: 0 es permitido y UNKNOWN es conclusión legítima.
+
+**Siguiente trabajo para cerrar efectivamente:** especificación autoral separada por perfil ICT-general London/NY PM vs TTrades AM, displacement, 4 familias M4, swing causante M5, pruebas M1 causal en COG/OPS runtime único, firmas humanas #897 y cierre M7. Este testigo M0/M1 no puede certificar por sí solo ninguna de las tres ventanas.
