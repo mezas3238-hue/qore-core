@@ -159,6 +159,14 @@ def run(market: str, m3_path: Path, m15_path: Path) -> dict[str, object]:
         # Keep only compact pre-entry classification for complete census.
         # Materialize full source receipts for 8 time-stratified cases/stage.
         rows[stage].append({"c2_open":c2_open,"details":detail})
+    # The Owner cap is earliest geometrically eligible C2 per market/NY day.
+    # This is an UPPER BOUND on true TTrades entries, not a selection by PnL.
+    first_by_ny_day:dict[str,datetime]={}
+    for item in rows[STAGES[5]]:
+        c2_at=item["c2_open"]
+        assert isinstance(c2_at,datetime)
+        day=c2_at.astimezone(NY).date().isoformat()
+        first_by_ny_day.setdefault(day,c2_at)
     examples:dict[str,list[dict[str,object]]]={}
     for stage in STAGES:
         # Export ALL pre-outcome single-PS geometry for independent reviewer B;
@@ -209,6 +217,10 @@ def run(market: str, m3_path: Path, m15_path: Path) -> dict[str, object]:
         "stage_counts_by_year":{y:{s:c[s] for s in STAGES}
                                 for y,c in sorted(years.items())},
         "all_unique_proxy_cases_with_raw_receipts":len(rows[STAGES[5]]),
+        "earliest_unique_proxy_per_market_ny_day_upper_bound":len(first_by_ny_day),
+        "same_day_extra_structural_precursors_excluded_by_owner_cap":(
+            len(rows[STAGES[5]])-len(first_by_ny_day)
+        ),
         "examples_by_stage":examples,
         "M30_SOURCE_GEOMETRY_ONLY":True,
         "AUTHOR_RELEVANT_SWING_POI_BREAKER_TARGET_PENDING":True,
