@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections import Counter
 from collections.abc import Mapping
 from datetime import datetime, timedelta
 from decimal import Decimal
