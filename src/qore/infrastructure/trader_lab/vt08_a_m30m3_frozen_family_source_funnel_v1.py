@@ -241,6 +241,13 @@ def run(market: str, m3_path: Path, m15_path: Path) -> dict[str, object]:
                 "broker_fill":False,
                 "pnl_read":False,
             })
+    full_h1_unique = [
+        case for case in examples[STAGES[5]]
+        if case["pre_c2_h1_context_available"]
+    ]
+    full_h1_ny_days = {
+        case["ny_date"] for case in full_h1_unique
+    }
     return {
         "schema":SCHEMA,
         "market":market,
@@ -252,6 +259,8 @@ def run(market: str, m3_path: Path, m15_path: Path) -> dict[str, object]:
         "stage_counts_by_year":{y:{s:c[s] for s in STAGES}
                                 for y,c in sorted(years.items())},
         "all_unique_proxy_cases_with_raw_receipts":len(rows[STAGES[5]]),
+        "unique_ps_proxy_cases_with_three_closed_pre_c2_h1":len(full_h1_unique),
+        "distinct_ny_days_with_h1_and_unique_ps_proxy":len(full_h1_ny_days),
         "earliest_unique_proxy_per_market_ny_day_upper_bound":len(first_by_ny_day),
         "same_day_extra_structural_precursors_excluded_by_owner_cap":(
             len(rows[STAGES[5]])-len(first_by_ny_day)
