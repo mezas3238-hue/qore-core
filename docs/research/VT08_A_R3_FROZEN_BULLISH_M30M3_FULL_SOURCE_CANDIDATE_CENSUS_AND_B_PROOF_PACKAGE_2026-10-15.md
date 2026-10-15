@@ -52,3 +52,18 @@ B debe descargar los cinco artefactos R3 y auditar su productor **sin usar el c�
 Los Gates heredados VT08 `PF>=1.80`, `DD<=6R`, `MonteCarlo p95 DD<=15R`, `P(terminal>0)>=0.90`, media R no negativa, no sustituyen automáticamente las puertas históricas de #787 `PFnet>1.15, >=100 fills` del ensayo terminado. Sharpe/Sortino/densidad nuevos sin umbral Owner versionado siguen PENDING, jamás inventarlos. Economía futura solo sobre resultados **1R homogéneos** para evaluar método, sin lote adaptativo, sizing, apalancamiento ni composición.
 
 **Estado y STOP verificable:** `METHODOLOGY_SOURCE_NOT_CERTIFIED`; PR #765 DRAFT, PR B #764 DRAFT, no merges, sin permiso VPS/DEMO/LIVE, sin abrir 7Y, sin operación. Si fuente relevante no reproducible, resolución de familia `NO_ESPECIFICABLE` y sin atribuir resultado negativo al método TTrades completo. Es un límite científico real, no un problema que resuelva escribir cientos de tests.
+
+
+## 6. Índice exacto de artefactos con verificación de manifiesto y vencimiento
+
+Última comprobación posterior al manifiesto congelado: [run #38715560333](https://github.com/mezas3238-hue/qore-core/actions/runs/38715560333), **5/5 SUCCESS**, HEAD ejecutado `394116f13449fc310d7fbc5f0b5f60aa1bb247d4`. Cada ejecución vuelve a leer M3/M15 del proveedor guardado, reproduce categorías y sumas sin PnL, compara hashes y conteos contra `VT08_A_FROZEN_M30M3_BULLISH_FIRST_FAIL_COUNTS_2026-10-15.json` y rechaza discrepancias. Artefactos **contienen el censo por año + 2.657 recibos positivos totales + muestras negativas**, con C1, C2 y 3 H1 previas donde disponibles.
+
+| Mercado | Artefacto GitHub Actions ID | Caduca (UTC) |
+|---|---:|---|
+| EURJPY | [11962966523](https://github.com/mezas3238-hue/qore-core/actions/runs/38715560333/artifacts/11962966523) | 2026-11-14 09:48 |
+| USDCHF | [11962777123](https://github.com/mezas3238-hue/qore-core/actions/runs/38715560333/artifacts/11962777123) | 2026-11-14 09:48 |
+| NZDUSD | [11962337776](https://github.com/mezas3238-hue/qore-core/actions/runs/38715560333/artifacts/11962337776) | 2026-11-14 09:48 |
+| CADJPY | [11961903553](https://github.com/mezas3238-hue/qore-core/actions/runs/38715560333/artifacts/11961903553) | 2026-11-14 09:48 |
+| USDCAD | [11962906707](https://github.com/mezas3238-hue/qore-core/actions/runs/38715560333/artifacts/11962906707) | 2026-11-14 09:48 |
+
+**Custodia P0:** copiar estos paquetes a almacenamiento seguro permitido ANTES del vencimiento, con SHA256 ZIP calculado y permisos/licencia verificados. El manifiesto de estadísticas está comiteado, pero el código reproducible aún necesita los raws originales de Actions: el informe por sí solo NO sustituye el respaldo del archivo bruto. No comitear datos de precio cTrader con licencia a repositorio público.
