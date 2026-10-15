@@ -10,7 +10,7 @@ import hashlib
 import json
 from collections import deque
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
