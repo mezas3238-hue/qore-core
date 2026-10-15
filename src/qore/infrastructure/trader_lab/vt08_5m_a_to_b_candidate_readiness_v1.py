@@ -12,6 +12,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Final
 
+from qore.infrastructure.trader_lab.vt08_b_r16_owner_scope_no_alpha_v1 import (
+    FOREIGN_STRATEGY_FIELDS,
+    no_excluded_alpha_lineage,
+)
+
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     CAUSAL_FIELDS,
     RESEARCH_MARKETS,
@@ -65,6 +70,27 @@ def inspect_architect_a_candidate(
     Cognitive V1 situation field timestamps. The truthful answer is blocked,
     not an invented set of confirmations.
     """
+    # Owner scope is a mandatory A→B ingestion invariant, not merely an
+    # offline R16 census. A nested fallback/model may not sneak into cognition
+    # even if a caller claims a completed A/B contract or valid source clocks.
+    try:
+        no_excluded_alpha_lineage(envelope)
+    except ValueError as exc:
+        raise Vt08CandidateBoundaryError(
+            "VT08 OWNER excluded QORE-alpha lineage at A/B ingress"
+        ) from exc
+    pending: list[object] = [envelope]
+    while pending:
+        part = pending.pop()
+        if isinstance(part, Mapping):
+            for key, value in part.items():
+                if key in FOREIGN_STRATEGY_FIELDS and value not in (None, "", (), []):
+                    raise Vt08CandidateBoundaryError(
+                        "VT08 OWNER foreign or parallel strategy at A/B ingress"
+                    )
+                pending.append(value)
+        elif isinstance(part, (tuple, list)):
+            pending.extend(part)
     if envelope.get("schema") != SCHEMA:
         raise Vt08CandidateBoundaryError("A->B candidate schema mismatch")
     source_id = envelope.get("source_event_id")
