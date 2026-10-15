@@ -133,6 +133,16 @@ def reconcile_v3_gm4_case(
         raise ValueError("BTCUSD is frozen")
     clock = source["decision_clock_utc"]
     c3_start_s = source["c3_H4_opened_at_utc"]
+    if source["parent_direction"] not in ("BULLISH", "BEARISH"):
+        raise ValueError("source parent direction invalid")
+    if (
+        type(post_decision["source_m15_invalidating_extreme_relative"]) is not int
+        or source["structural_invalidation_price_if_candidate"]
+        != str(post_decision["source_m15_invalidating_extreme_relative"])
+    ):
+        raise ValueError("source/price structural invalidation mismatch")
+    if type(post_decision["fixed_parent_h4_target_twice_relative"]) is not int:
+        raise ValueError("original parent target price not integer")
     if not all((
         cognition["source_event_id"] == event_id,
         post_decision["source_event_id"] == event_id,
@@ -180,6 +190,8 @@ def reconcile_v3_gm4_case(
             opened.tzinfo is None
             or opened.astimezone(UTC) < decision.astimezone(UTC)
             or closed.astimezone(UTC) > (c3_start + H4).astimezone(UTC)
+            or (opened.astimezone(UTC) - c3_start.astimezone(UTC)).total_seconds()
+            % M5.total_seconds() != 0
         ):
             raise ValueError("post-decision M5 hit was not causally observable")
         observed_at = closed.isoformat()
