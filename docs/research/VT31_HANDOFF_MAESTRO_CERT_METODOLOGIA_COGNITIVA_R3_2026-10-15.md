@@ -1,0 +1,50 @@
+# VT31 — HANDOFF MAESTRO R3 · VEREDICTO REAL DE CERTIFICACIÓN METODOLÓGICA Y COGNITIVA
+
+**Fecha:** 2026-10-15. **Mandato soberano del Owner:** CERTIFICAR metodología y cognitiva, NO exclusivamente cuantitativa. Trabajo activo encadenado hasta este checkpoint (8 expedientes inmutables, gates de fuente y tribunal final). GitHub `mezas3238-hue/qore-core`; alcance de arquitectura es INVESTIGACIÓN READ-ONLY, no producción. El Owner solicita no detenerse por cada resultado. Queda estrictamente prohibido fabricar homologaciones o firmas para simular certificación.
+
+## 0. Dictamen de certificación, evidencia formal y dónde retomar
+- [PR #964 DRAFT](https://github.com/mezas3238-hue/qore-core/pull/964), rama `agent/vt31-method-cognitive-certification-evidence-gate-20261015`, basado en #962, #961, #956, #955, #953, #951, #950 y #948 (stacked).
+- Pre-registro **antes de código** `1ef9f86ccecc4e9606855a8d1d706a08a45eb428`, documento `docs/research/VT31_METHODOLOGY_COGNITION_CERTIFICATION_DECISION_LEDGER_PREREG_2026-10-15.md`.
+- [CI #38715458476 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38715458476), commit código verificado **`8772c944471bdbe7e3c083c0b84645afc0beeca0`**, **73/73 pytest PASS**, Ruff PASS, py_compile PASS, tres blobs G3 originales protegidos PASS. CI descargó los ocho ZIP de GitHub Actions y validó SHA256 completo de cada uno, luego de cada fichero interior `SHA256SUMS`; consultó en tiempo real `GET PR#896/reviews`, `requested_reviewers`, `Issue#897`.
+- **[Artefacto final #11961992708](https://github.com/mezas3238-hue/qore-core/actions/runs/38715458476/artifacts/11961992708)** ZIP sha256 **`34cf82a5c236584a2d7c278c3fd94393a83efd1349664c464f5624d26434d562`**, incluye `VT31_CERTIFICACION_METODOLOGIA_COGNITIVA_DECISION_REAL.json`, fuentes congeladas con hashes, JUnit y scope. Es la fuente del estado aprobado/pendiente por requisito, no inferencia de conversaciones.
+- **VEREDICTO: METODOLOGÍA=`PENDIENTE`; COGNITIVA=`PENDIENTE`; TRADER=`NO_CERTIFICADO`; NO producción.** A pesar de los tests de software verdes, faltan condiciones necesarias explícitas. Sin dual signatures #897 no se puede emitir el certificado formal.
+
+## 1. Logros técnicamente demostrados, no confundir con certificación total
+| Dimensión | Evidencia con COG original o testigo independiente | Código / CI | Conclusión estricta |
+|---|---|---|---|
+| COG REAL Londres | LONG DOL cash + memoria; WAIT faltante HTF/MSS/pool, DOL consumido/pivote roto; REJECT tiempo futuro | [#948](https://github.com/mezas3238-hue/qore-core/pull/948), CI #38671368366 66 PASS | juicio causal funcional en sintético |
+| COG REAL NY AM | LONG cash HIGH150 vs TTrades 09h HIGH110 | [#950](https://github.com/mezas3238-hue/qore-core/pull/950), CI #38671726622 73 PASS | incompatibilidad TTrades específica, no rechazo ICT general |
+| M0 perfil | TTrades AM REJECT, ICT GENERAL UNKNOWN; Londres no adopta regla 09h AM | [#951](https://github.com/mezas3238-hue/qore-core/pull/951), CI #38706697043 80 PASS | auditoría sombra READ-ONLY, **no** selector oficial |
+| COG REAL NY PM | LONG, WAIT según MSS/HTF, revalidación e invalidación, rechazo backdating | [#953](https://github.com/mezas3238-hue/qore-core/pull/953), CI #38707397529 41 PASS | lógica QORE NYPM observada |
+| COG REAL SHORT | SHORT para Londres / NY AM / NY PM, invierno EST/verano EDT, con contrafactual `close94→97`⇒WAIT, DOl consumido, pivot invalidado | [#955](https://github.com/mezas3238-hue/qore-core/pull/955), CI #38708707140 46 PASS | COG causal SHORT; DOL 80 ≠ TTrades 09h 90 |
+| TTrades contexto fuente y COG G3 MSS | nuevo DTO RESEARCH por subperfil TTrades 09h, 4 casos CONTEXT_CONFIRMED; 4 casos WAIT si autor DOL 5/4 pt viola G3 MIN10 | [#956](https://github.com/mezas3238-hue/qore-core/pull/956), CI #38709608789 58 PASS | conflicto QORE/TTrades explícito; no COG G3 integrado |
+| M4 OB/Breaker | author-provided rules 50% BODY OB/HTF/serie y Breaker 4 swings/zona/retest; verifica #906 proxy blob inmutable `c8b96c26fc60ae86c1fcccb0877354093b3782bb`; rechazos causales | [#961](https://github.com/mezas3238-hue/qore-core/pull/961), CI #38714144265 65 PASS | source structure research sí; **no** ejemplo autoral completo aprobado |
+| M5 protected swing | fuente TTrades 2025 confirma swing por sweep+close sobre/bajo candle series. LONG low89 vs segunda wick93, SHORT high111 vs segunda wick109, EST/EDT; sin cierre WAIT | [#962](https://github.com/mezas3238-hue/qore-core/pull/962), CI #38714817522 69 PASS | swing fuente CONTEXT witnessed; NO identificación final swing causante, G3 C2 ni SL broker |
+
+Fuentes primarias: [TTrades AM NQ](https://ttrades.com/the-am-silver-bullet-strategy-on-nq/); [Order Blocks](https://ttrades.com/order-blocks-simplified/); [Breaker Blocks](https://ttrades.com/breaker-blocks-simplified/); [Protected Swings](https://ttrades.com/protected-swings-understanding-trends-and-invalidations/); [Stop Loss Mastery](https://ttrades.com/stop-loss-mastery-using-protected-swings-for-precise-invalidations/). **ICT 2023 ventanas London 03–04, NY AM 10–11, NY PM 14–15 distinto de TTrades específico NY AM 2025 H1 09–10**. Parámetros QORE MSS body1.25×mediana5, pivote3bar, FVG CE, stop C2, MIN10 **no atribuir al autor** por estar codificados.
+
+## 2. Bloqueos formales METODOLOGÍA (exactos al gate final)
+1. **M0 native profile selector governed**: solo existe auditor sombra y propuesta research. Falta selector de identidad causal realmente conectado a la decisión nativa del mismo VT31; nunca cambiar fuente tras ver el DOL o PnL. Requiere versión, matriz, review.
+2. **M2 original native TTrades method fidelity**: G3 real NY AM LONG usa DOL 150 vs TTrades H1 110, SHORT DOL80 vs TTrades LOW90. #956 propuesta read-only versionada NO reprograma COG original. Elegir separadamente si el VT31 oficial es ICT_GENERAL/QORE, TTrades AM o perfiles explícitos preseleccionados.
+3. **M3 author MSS**: QORE MSS 3bar/1.25×median5 funciona causal en casos, pero falta correspondencia fiel de toda la doctrina original y casos adversariales de autor. No certificar una regla numérica auto-inventada como ICT.
+4. **M4 author OB/Breaker cases**: artículo reconoce candle series, HTF POI y mean50 OB, y cuatro legs+zone+retest Breaker; #961 prueba solo escenarios SINTÉTICOS. PR #906 legacy un pivote y último opposing, NO autor. Necesarios ejemplos fuente etiquetados positivos/negativos, zone selection, invalidación y prioridad entre 4 familias bajo un solo método.
+5. **M5 exact displacement-causing swing and stop**: #962 protected swing causal existe, pero **no prueba swing preciso que CAUSÓ displacement**, ni equivalencia G3 C2 FULL WICK, ni tiempo de confirmación para SL operativo. Exige fuente específica anotada + política versionada; nunca convertir una mecha posterior en stop sin causa.
+6. **M6 independent human method/source review**: falta juicio humano identificable sobre un candidato exacto.
+7. **M6 two distinct COG/OPS signatures** [Issue #897](https://github.com/mezas3238-hue/qore-core/issues/897): PR #896 `reviews=[]`, `requested_reviewers=[]` en comprobación en vivo de la última CI. Una sola cuenta Owner/autores no puede firmar como dos personas distintas. Faltan roles/identidades autorizadas + reviews reales sobre SHAs exactos.
+
+## 3. Bloqueos formales COGNITIVA (exactos al gate final)
+1. **COG native selected-method fidelity**: G3 original todavía discrepa del subperfil TTrades DOL; propuesta #956 NO es salida del código productivo G3.
+2. **COG actual OB/Breaker/swing coverage**: no hay trace del COG original que explique selección real de las cuatro familias y del swing-stop autoral con casos positivos y negativos, ni su decisión WAIT para fuente indeterminada.
+3. **COG independent human scenario review**: aún no se han adjudicado trazas originales por tercero con fuente primary example caso a caso, sin conocimiento de resultado económico.
+4. **COG+OPS dual signatures**: ausentes; Issue #897 sin reviews auténticas.
+
+## 4. Procedimiento directo para completar certificados
+**Paso A — Metodología first.** Fijar identidad del perfil gobernado del trader *único* VT31, versionar sin tocar el G3 protegido previo a firmas, aplicar regla correcta por sesión; si TTrades source DOL válido pero incumple QORE MIN10, documentar `WAIT` como conflicto QORE (no bajar 10 por rentabilidad). Construir y firmar ejemplos autorales de OB/Breaker/protected swing/causal stop.
+**Paso B — COG REAL, no testigo.** Alimentar al mismo motor G3 versionado con casos ciegos de cada familia y sesión LONG/SHORT/WAIT, contrafactual una M1; conservar `CognitiveAssessment`, `CognitiveTelemetry`, facts + reasons + hashes. Auditor independiente distingue error cognitivo de fuente indeterminada.
+**Paso C — Gobernanza.** Designar y registrar dos identidades GitHub humanas DISTINTAS COG y OPS, con autoridad real, verificar `APPROVED` code+acta exactos y checklist de casos. Ni dueño único ni agentes con una sola cuenta pueden reemplazar esto; Issue #897.
+**Paso D — Emisión doble.** `CERTIFICADO_METODOLOGIA` solo si TODOS sus bloqueos cerrados, firmados; `CERTIFICADO_COGNITIVA` solo si TODOS los suyos cerrados, firmados. `CERTIFICADO_TRADER` integral únicamente cuando corresponda a contratos superiores. No asumir rentabilidad por estas certificaciones.
+
+## 5. Principio de seguridad y continuidad
+**No MERGE/main, no LIVE/producción/VPS/FundedNext LIVE, no orders/OMS/fake fills, no sizing en trader: CIBO CMA/ QDLE central.** Gates cuantitativos PF/DD/Sortino y OOS real permanecen expediente económico separado para eventual DEMO. El corpus 3Y NAS100 previamente examinado es DEVELOPMENT y no permite hacer fresh OOS de nuevo. En esta cadena **NO** se reabrieron 3Y ni se optimizó rentabilidad.
+
+**El dictamen no declara una certificación que no ocurrió.** El expediente de evidencia y hashes hace visible qué falta en términos comprobables. Este handoff R3 se agrega tras la CI final #38715458476; su nuevo commit documental NO se hace pasar por code SHA ya ejecutado.
