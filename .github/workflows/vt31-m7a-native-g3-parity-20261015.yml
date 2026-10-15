@@ -1,0 +1,119 @@
+name: VT31 native G3 OPS policy tri-session 1M M1 full parity no trading
+on:
+  push:
+    branches:
+      - agent/vt31-m7-native-g3-ops-policy-20261015
+    paths:
+      - 'src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py'
+      - 'scripts/vt31_trisession_online_real_g3_cog_20261015.py'
+      - 'scripts/vt31_m7a_native_g3_full_m1_parity_20261015.py'
+      - 'tests/infrastructure/test_vt31_trisession_online_real_g3_cog_20261015.py'
+      - 'tests/infrastructure/test_vt31_m7a_native_g3_policy_trisession_20261015.py'
+      - 'docs/research/VT31_M7A_NATIVE_G3_COORDINATOR_TRISESION_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-m7a-native-g3-parity-20261015.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  original-G3-native-trader-three-windows-no-cert:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify pre-registration and G3 original immutable source locks
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 09b285911087374282dd9b9d29e598b1821f589d HEAD
+          git merge-base --is-ancestor cfab08786ecc09ed0b3b0a930d46d74345235fff HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/contracts.py)" = "$(git rev-parse cfab08786ecc09ed0b3b0a930d46d74345235fff:src/qore/infrastructure/traders/vt31_ict_cleanroom/contracts.py)"
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Run versioned native G3 tests, original cognition, all 3 windows
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py scripts/vt31_trisession_online_real_g3_cog_20261015.py scripts/vt31_m7a_native_g3_full_m1_parity_20261015.py tests/infrastructure/test_vt31_m7a_native_g3_policy_trisession_20261015.py tests/infrastructure/test_vt31_trisession_online_real_g3_cog_20261015.py
+          python -m py_compile src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py scripts/vt31_m7a_native_g3_full_m1_parity_20261015.py
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m7a_native_g3_policy_trisession_20261015.py \
+            tests/infrastructure/test_vt31_trisession_online_real_g3_cog_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_trisession_real_m1_causal_coverage_20261015.py \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Retrieve independently frozen REAL NAS100 M1 and sealed PR980 coverage
+        run: |
+          set -euo pipefail
+          mkdir -p source frozen-ledger
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/12000338010/zip" > ledger.zip
+          unzip -q ledger.zip -d frozen-ledger
+          (cd frozen-ledger && sha256sum -c SHA256SUMS)
+          test -s frozen-ledger/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json
+      - name: Execute native VT31Trader G3 plus independent G3 adapter over all 1059784 M1
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m7a_native_g3_full_m1_parity_20261015.py \
+            --market source/NAS100/market-evidence.json \
+            --coverage-ledger frozen-ledger/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json \
+            --out evidence/VT31_M7A_NATIVE_G3_OPS_TRISESION_REAL_M1_PARITY.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M7A_NATIVE_G3_OPS_TRISESION_REAL_M1_PARITY.json'))
+          assert p['M1_exact_closed_bars']==1059784
+          assert p['full_casebook_json_sha256']=='cae03ff5faaaebabef4c6f4eed736d802061bfc8598f311fb4a0e27129591de1'
+          assert p['three_session_causal_casebook_exact_parity'] is True
+          assert p['native_VT31Trader_G3_research_optin_connected'] is True
+          assert p['native_VT31Trader_one_original_G3_COG'] is True
+          assert p['original_G3_OPS_real_instances']>0
+          assert p['native_framework_contract_engineering']=='PASS_RESEARCH_ONLY'
+          x=p['session_G3_diagnostics_not_trades']
+          assert set(x)=={'VT31_LONDON','VT31_NY_AM','VT31_NY_PM'}
+          assert {k:v['original_G3_cog_call_events_not_trades'] for k,v in x.items()}=={
+            'VT31_LONDON':46440,'VT31_NY_AM':46235,'VT31_NY_PM':44515}
+          assert {k:v['original_G3_positive_M1_observations_not_trades'] for k,v in x.items()}=={
+            'VT31_LONDON':27986,'VT31_NY_AM':19302,'VT31_NY_PM':15630}
+          for key in ('native_source_M0_method_profile_signed','native_M2_ICT_TTRADES_doctrine_certified',
+                      'native_M3_author_displacement_certified','native_M4_four_entry_families_certified',
+                      'native_M5_causative_swing_certified','two_independent_human_reviews_M6',
+                      'M7_integrated_full_3_sessions_certified','london_certified','ny_am_certified',
+                      'ny_pm_certified','methodology_certified','cognition_certified','VT31_trader_certified',
+                      'live_demo_vps_authorized'):
+            assert p[key] is False, key
+          assert p['orders']==p['broker_fills']==p['sizing']==0
+          print('VT31_NATIVE_G3_G3_TRISESSION_M7A_RESEARCH_ENGINEERING_ONLY_PASS')
+          PY
+      - name: Hash evidence, preserve immutable provenance
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/executed_commit_sha.txt
+          printf '%s\n' '09b285911087374282dd9b9d29e598b1821f589d' > evidence/prereg_commit.txt
+          printf '%s\n' 'G3_NATIVE_RESEARCH_ONLY_NO_AUTHOR_CERTIFICATE_NO_ORDERS_NO_SIZING_NO_PNL' > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-m7a-native-g3-trisession-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
