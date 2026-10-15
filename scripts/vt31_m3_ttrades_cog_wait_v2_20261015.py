@@ -196,6 +196,7 @@ def audit_483_real_first_returns(
     records: list[dict[str, Any]] = []
     first_by_class: dict[str, dict[str, Any]] = {}
     states = Counter()
+    end_window_states = Counter()
     for line in census["source_classifications"]:
         if line["classification"] != "FIRST_RETURN_NO_QORE_MSS":
             continue
@@ -246,6 +247,7 @@ def audit_483_real_first_returns(
         }:
             raise AssertionError("V2_INCONSISTENT_WITH_FROZEN_M3_CASE_STATES")
         states[first_terminal.state] += 1
+        end_window_states[end.state] += 1
         record = {
             "ny_day": day,
             "first_return_at": return_time.isoformat(),
@@ -282,6 +284,7 @@ def audit_483_real_first_returns(
         "source_scope": "DEVELOPMENT_ALREADY_USED_NO_OOS",
         "frozen_first_returns": 483,
         "v2_cognitive_states": dict(sorted(states.items())),
+        "v2_end_of_window_states": dict(sorted(end_window_states.items())),
         "first_real_example_each_state": first_by_class,
         "all_real_483_cog_records": records,
         "v2_explicit_wait_implemented": True,
@@ -317,6 +320,7 @@ def main() -> None:
         "source_m1_total": total,
         "frozen_first_returns": report["frozen_first_returns"],
         "v2_states": report["v2_cognitive_states"],
+        "v2_end_of_window_states": report["v2_end_of_window_states"],
         "first_real_examples": report["first_real_example_each_state"],
         "m3_method_certified": report["m3_method_certified"],
         "v2_never_constructs_CognitiveDecision": True,
