@@ -1,0 +1,24 @@
+# VT31 — Prerregistro: mismo trader G3 real, tres sesiones, flujo causal M1 ONLINE + veto H1 09 TTrades
+
+**15-OCT-2026 — NO económico, NO órdenes, NO sizing y NO certificación automática.**
+
+**Base congelada:** tri-sesión [PR #980](https://github.com/mezas3238-hue/qore-core/pull/980) commit `05f46858b2bf34042c7823a5334809adc141a279`, historial NAS100 1.059.784 M1 `0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa`, censo 775 fechas NY × 3 ventanas full SHA `7dba2c0ed15255ef1b4b5e5a277199940e785aa7e99c36a5d095bb18d4de501d`. **Este fichero debe committearse ANTES de escribir el ejecutor/tests**. Esta lane suma archivos nuevos; no edita COG/OPS G3 ni PR #980/#978/#977.
+
+## Hipótesis falsable
+
+El replay retrospectivo original `vt31_ict_cleanroom_cog_real_3y_fast_v1.scan` decide a la hora final si la ventana fue completa y después reinyecta las barras de esa hora al motor COG. Aunque el COG usa prefijos cerrados, tal admisión retroactiva no es una política online: a las 03:01, 10:01 o 14:01 todavía se desconoce si los restantes 59 minutos tendrán datos. Además NY AM **TTrades** debe tener 09:00–10:00 NY H1 completa ANTES de ejecutar la cognitiva. ¿Se puede ejecutar el **mismo VT31Trader y el auténtico VT31CleanroomCognition G3** sobre cada M1 sólo al cerrar, registrar toda hipótesis y NEGAR/WAIT por fuente incompleta sin mirar el resto del día? El censo 3 sesiones reveló 4 días con 09 H1 incompleta (algunos con 10h completa) y ventanas parciales relevantes.
+
+## Método declarado por anticipado
+
+1. Instanciar **una única** `VT31Trader(VT31CleanroomCognition(framework_policy=G3_MSS_FRAMEWORK_POLICY))`, memoria compartida inmutable e integridad SHA G3 y OPS. No crear traders por sesión ni operar. Leer el histórico NAS100 M1 original en orden una sola vez (file SHA/header verificados), M1 UTC y OHLC válidos.
+2. Para toda vela recibida fuera de las 03h, 10h, 14h NY, alimentar memoria usando el productor original `on_closed_m1`. La hora **09** acumula exactamente las M1 cerradas disponibles *hasta cada instante*.
+3. Para London y NY PM, en la primera M1 de ventana (minuto 00) permitir **sólo hipótesis de investigación** G3. Sin primer minuto ⇒ `SOURCE_START_MISSING_WAIT` (nunca invocar COG). Tras un gap interno, lo previo permanece registrado con su as_of causal, pero desde el gap ⇒ `SOURCE_GAP_WAIT` sin nuevos DTO/COG; alimentar M1 presentes sólo como market memory. No ocultar hipótesis previas por análisis retrospectivo.
+4. Para NY AM (perfil TTrades NY AM), **antes** de 10:00 exigir exactamente los 60 M1 de 09–10 ya **cerrados** con horas NY DST y secuencia exacta. Falla H1 ⇒ `SOURCE_09H_INCOMPLETE_WAIT`, COG no invocado en absoluto esa ventana; sí incluir market facts en memoria. **No** imponer H1 09 a London/NY PM.
+5. **Nunca** evaluar la completitud final de la ventana antes de que termine: cada invocación G3 se hace al `as_of == closed_at` de la M1 actual. El reporte adjudica final `COMPLETE/INCOMPLETE` sólo después de terminado el replay, usando el ledger PR #980 para la validación a posteriori. Comparar EXACTAMENTE 775 x 3 = 2325 filas con el casebook anterior, incluyendo días con cero M1; faltantes no significan broker CLOSED.
+6. Cortar el replay si el input se retrasa, duplica o solapa M1, rompe la identidad del símbolo o si una valoración intenta ver H1 todavía no cerrada. Pruebas negativas contra spoof de NYAM/London/NY PM, meses EST/EDT, H1 ausente o incompleta, gap después de hipotética cognición; sin (re-)enviar órdenes.
+7. Reportar por sesión `closed_M1_seen`, `original_G3_COG_invocations`, `original_G3_positive_observations` (con reiteraciones indicadas **NO TRADES**), `original_OPS_research_candidate_windows` (si se computan), `H1_WAIT`, `source_gap_wait`, `retrospectively_incomplete_windows_with_earlier_asof_COG`, hashes de casebook y muestras fechadas. **No** interpretar `COG decision` como un MSS autoral: G3 es una regla QORE research con body/mediana/pivote propios.
+8. Correr workflow GitHub con tests adversariales y barrido auténtico NAS100, enlazar run + artifact. Si falla una invariante, NO retocar umbral para que cuadren outputs. Aserciones a priori: conteo original 775 y ledger 774/769/741, H1 faltantes NYAM 4, igualdad de fuente/casos y no certificados; **no preregistramos** un número esperado de observaciones positivas.
+
+## Seguridad y cierre
+
+El ejecutor es **adjudicador causal de investigación**, no componente productivo: no fusionar a main ni entrar OMS/DEMO/LIVE/VPS. M0 perfil owner aún sin firma, M2 ICT-author DOL London/NYPM desconocido, M3 displacement MSS fuente, M4 entradas completas, M5 swing causante, M6 dos firmas humanas independientes [#897](https://github.com/mezas3238-hue/qore-core/issues/897) y M7 tres certificados siguen pendientes. Un estado `UNKNOWN/WAIT` NO se convierte en certificado ni en fallo económico.
