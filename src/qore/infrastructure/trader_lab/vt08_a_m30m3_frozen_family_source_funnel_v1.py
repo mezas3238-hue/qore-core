@@ -121,6 +121,29 @@ def classify(
     }
 
 
+def closed_pre_c2_h1_receipts(
+    i15: dict[datetime, Vt08B01Bar],
+    *,
+    c2_open: datetime,
+    raw_m15_sha: str,
+) -> list[dict[str, object]]:
+    """Three H1 closed candles as 12 original M15 bars, NEVER C2 future.
+
+    The author's relevant swing still cannot be inferred solely from this
+    window. B must independently judge semantic relevance; this method only
+    supplies complete preceding clock-bounded physical context.
+    """
+    cutoff=c2_open.astimezone(UTC)
+    latest_hour_end=cutoff.replace(minute=0,second=0,microsecond=0)
+    begin=latest_hour_end-timedelta(hours=3)
+    bars=closed_source_window(i15,begin=begin,count=12,minutes=15)
+    if bars is None:
+        return []
+    if any(bar.closed_at.astimezone(UTC) > cutoff for bar in bars):
+        raise ValueError("pre-C2 H1 source contains future information")
+    return [_bar_receipt(bar,raw_m15_sha,"M15_PRE_C2_H1") for bar in bars]
+
+
 def _sample_records(rows: list[dict[str, object]], n: int=8) -> list[dict[str, object]]:
     if len(rows) <= n:
         return rows
@@ -182,6 +205,12 @@ def run(market: str, m3_path: Path, m15_path: Path) -> dict[str, object]:
             assert isinstance(c2_open,datetime)
             c2=closed_source_window(i3,begin=c2_open,count=10,minutes=3)
             c2_15=closed_source_window(i15,begin=c2_open,count=2,minutes=15)
+            c1=closed_source_window(
+                i3,begin=c2_open-timedelta(minutes=30),count=10,minutes=3,
+            )
+            pre_h1=closed_pre_c2_h1_receipts(
+                i15,c2_open=c2_open,raw_m15_sha=m15_sha,
+            )
             c3_open=c2_open+timedelta(minutes=30)
             examples[stage].append({
                 "market":market,
@@ -194,6 +223,12 @@ def run(market: str, m3_path: Path, m15_path: Path) -> dict[str, object]:
                 "details":item["details"],
                 "source_m3_file_sha256":m3_sha,
                 "source_m15_file_sha256":m15_sha,
+                "c1_m3_raw_bar_receipts":[
+                    _bar_receipt(x,m3_sha,"M3") for x in c1
+                ] if c1 is not None else [],
+                "pre_c2_h1_m15_raw_bar_receipts":pre_h1,
+                "pre_c2_h1_context_available":len(pre_h1)==12,
+                "reference_swing_author_relevance_validated":False,
                 "c2_m3_raw_bar_receipts":[
                     _bar_receipt(x,m3_sha,"M3") for x in c2
                 ] if c2 is not None else [],
