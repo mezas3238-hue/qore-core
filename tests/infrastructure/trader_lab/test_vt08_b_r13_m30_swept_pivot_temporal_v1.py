@@ -42,7 +42,8 @@ def fixture(tmp_path: Path, monkeypatch):
         p.write_text(json.dumps({
             "environment": "demo", "read_only": True,
             "account_is_live": False, "symbol": {"symbol_name": M},
-            "period": period, "bars": rows,
+            **({"period": period, "bars": rows} if period == "M3"
+               else {"periods": {"M15": rows}}),
         }), encoding="utf-8")
         return p, hashlib.sha256(p.read_bytes()).hexdigest()
     p3, sha3 = write("m3.json", m3_bars, "M3")
@@ -128,7 +129,7 @@ def test_c1_three_m30_pivot_impossible_from_real_low_sweep(
 def test_fake_m15_low_sweep_gets_rejected(tmp_path: Path, monkeypatch) -> None:
     report, m3, m15 = fixture(tmp_path, monkeypatch)
     d = json.loads(m15.read_text())
-    d["bars"][2]["low"] = "100"
+    d["periods"]["M15"][2]["low"] = "100"
     m15.write_text(json.dumps(d), encoding="utf-8")
     with pytest.raises(ValueError, match="digest"):
         run(report, m3, m15)
@@ -146,7 +147,7 @@ def test_m15_receipt_tampering_cannot_pass(tmp_path: Path, monkeypatch) -> None:
 def test_m3_vs_m15_c1_disagreement_rejected(tmp_path: Path, monkeypatch) -> None:
     report, m3, m15 = fixture(tmp_path, monkeypatch)
     x = json.loads(m15.read_text())
-    x["bars"][0]["low"] = "98.5"
+    x["periods"]["M15"][0]["low"] = "98.5"
     m15.write_text(json.dumps(x), encoding="utf-8")
     sha = hashlib.sha256(m15.read_bytes()).hexdigest()
     monkeypatch.setitem(r13.PINNED_M15, M, sha)
