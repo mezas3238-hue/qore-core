@@ -30,7 +30,7 @@ def test_one_source_may_support_rule_without_romeo_exclusivity() -> None:
         rule=CrtThreeSourceRule.REFERENCE_ELIGIBILITY,
         decision=CrtThreeSourceDecision.SOURCE_SUPPORTED,
         source_name="SpeculatorFL",
-        source_locator="https://threadreaderapp.com/thread/1784493604473618604",
+        source_locator="https://threadreaderapp.com/thread/1784493604473618604#31",
         operational_rule="Hypothetical fully specified causal rule for a future independent review",
         independent_adjudication_id="EXAMPLE_TEST_REVIEW_ONLY",
     )
@@ -102,21 +102,33 @@ def test_duplicate_omitted_or_out_of_order_contracts_cannot_close() -> None:
         evaluate_three_source_methodology(tuple(reversed(wrong)))
 
 
-def test_all_hypothetically_reviewed_contracts_can_close_without_romeo_only() -> None:
-    # This is a PROGRAMMATIC POSSIBILITY test, not a QORE evidence submission.
+def test_proposed_qore_engineering_cannot_change_current_certificate() -> None:
+    # Simulated agreements prove only code can represent an alternative.
+    # The actual frozen source registry is unchanged and all rules remain OPEN.
     example = tuple(
         CrtThreeSourceRuleContract(
             rule=rule,
-            decision=CrtThreeSourceDecision.SOURCE_SUPPORTED,
-            operational_rule=f"test-only causal semantics for {rule.value}",
-            source_name="SpeculatorFL",
-            source_locator="https://threadreaderapp.com/thread/1784493604473618604",
+            decision=CrtThreeSourceDecision.OWNER_APPROVED_QORE_ENGINEERING,
+            operational_rule=f"TEST_ONLY_SPEC_NOT_A_REAL_APPROVAL:{rule.value}",
             independent_adjudication_id="EXAMPLE_NOT_REAL_REVIEW",
+            owner_approval_id="EXAMPLE_NOT_REAL_APPROVAL",
+            conflict_resolution="Test-only QORE synthesis; not an author claim",
         )
         for rule in CrtThreeSourceRule
     )
     hypothetical = evaluate_three_source_methodology(example)
     assert hypothetical.methodology_closed is True
     assert hypothetical.grants_trading_authority is False
-    # Actual policy did NOT change through this hypothetical constructor.
     assert current_three_source_methodology().methodology_closed is False
+
+
+def test_unrelated_valid_corpus_url_does_not_prove_a_different_rule() -> None:
+    with pytest.raises(ValueError, match="source rule evidence"):
+        CrtThreeSourceRuleContract(
+            rule=CrtThreeSourceRule.DESTINATION_LIFECYCLE,
+            decision=CrtThreeSourceDecision.SOURCE_SUPPORTED,
+            source_name="SpeculatorFL",
+            source_locator="https://threadreaderapp.com/thread/1784493604473618604#31",
+            operational_rule="TEST-ONLY non-source destination claim",
+            independent_adjudication_id="EXAMPLE_NOT_REAL_REVIEW",
+        )
