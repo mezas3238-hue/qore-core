@@ -1,0 +1,90 @@
+name: VT31 Source-First TTrades Cog Source Author vs G3 Min10 NO PNL
+on:
+  push:
+    branches:
+      - agent/vt31-ttrades-profile-source-bound-cognition-20261015
+    paths:
+      - 'scripts/vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py'
+      - 'tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py'
+      - 'docs/research/VT31_PROFILE_TTRADES_SOURCE_FIRST_COG_ADAPTER_MIN10_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-ttrades-cog-source-first-g3-min10.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  methodology-first-cog-qualitative-conflict:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert preregistration and actual original protected G3
+        run: |
+          set -euo pipefail
+          git cat-file -t 39d64d80c9090dd2d1dd97be6003084b75f1eb1f
+          git merge-base --is-ancestor 39d64d80c9090dd2d1dd97be6003084b75f1eb1f HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: COG research source-first versus author H1 DOL and frozen G3 MIN10
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          ruff check scripts/vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py
+          python -m py_compile scripts/vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_original_g3_cog_short_sessions_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_m0_profile_shadow_attestation_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
+            tests/infrastructure/test_vt31_original_cog_nyam_ttrades_source_conflict_20261014.py \
+            tests/infrastructure/test_vt31_original_g3_cog_qualitative_court_20261014.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            --out evidence/VT31_TTRADES_PROFILE_SOURCE_BOUND_G3_MIN10_NO_PNL.json \
+            | tee evidence/summary.json
+      - name: Assert method-source and framework conflict never automatically certify
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_TTRADES_PROFILE_SOURCE_BOUND_G3_MIN10_NO_PNL.json"))
+          assert p["prereg_commit"]=="39d64d80c9090dd2d1dd97be6003084b75f1eb1f"
+          assert p["original_frozen_g3_code_sha"]["git_blob_sha1"]=="d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          assert len(p["cases"])==8
+          assert sum(x["status"]=="RESEARCH_TTRADES_CONTEXT_CONFORMANT_NOT_CERTIFIED" for x in p["cases"])==4
+          assert sum(x["status"]=="G3_MIN10_AND_TTRADES_SOURCE_TARGET_CONFLICT_WAIT" for x in p["cases"])==4
+          for x in p["cases"]:
+              assert x["actual_original_cog_unchanged"] is True
+              assert not x["author_complete_method_certified"] and not x["method_certified"]
+              assert not x["cognition_certified"] and not x["human_signed"]
+              assert not x["operations_authorized"] and x["broker_orders"]==x["trader_sizing"]==0
+              if x["status"]=="RESEARCH_TTRADES_CONTEXT_CONFORMANT_NOT_CERTIFIED":
+                  assert x["independent_v2_state"]=="CONFIRMED"
+                  assert x["proposed"] is not None
+              else:
+                  assert x["proposed"] is None
+                  assert float(x["projected_index_points"]) < 10
+          assert p["input_historical_3y_data_used"] is False
+          assert not p["trader_method_certified"] and not p["trader_cognitive_certified"]
+          assert not p["independent_human_method_source_review"]
+          assert not p["independent_human_cog_ops_dual_signatures"]
+          assert not p["economic_backtest_run"] and not p["live_authorized"]
+          assert p["orders_filled"]==p["lots_selected"]==0
+          print("VT31_TTRADES_G3_SOURCE_BOUND_COG_CONTEXT_NOT_TRADER_CERTIFICATE")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 39d64d80c9090dd2d1dd97be6003084b75f1eb1f > evidence/prereg_sha.txt
+          printf '%s\n' 'RESEARCH_COG_TTRADES_AUTHOR_H1_DOL_G3_MIN10_CONFLICT_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ttrades-source-first-g3-min10-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
