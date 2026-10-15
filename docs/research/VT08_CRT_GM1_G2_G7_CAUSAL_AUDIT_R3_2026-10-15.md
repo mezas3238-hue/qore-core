@@ -28,14 +28,14 @@ Entradas: evento propuesto con `market`, `parent_id`, `source_event_id`, `hypoth
 - Primer evento causal: PROVISIONAL, sin permiso de entrada.
 - Cualquier segundo intento en el **mismo H4 padre**: ABSTAIN (`H4_PARENT_ALREADY_USED`), aunque cambie fuente/hipótesis/generación. Invalidez previa **no** habilita un segundo intento sobre el mismo padre.
 - Reutilizar fuente o hipótesis histórica en otro padre: ABSTAIN. Generación estancada o anterior: ABSTAIN. Nuevo source observado antes de decidir el evento anterior: ABSTAIN.
-- Sólo padre distinto, fuente e hipótesis distintas, generación mayor y reloj posterior pueden recibir PROVISIONAL (`NEW_PARENT_AND_SOURCE_CAUSALLY_OBSERVED`); el resultado nunca concede `grants_rearm_authority` ni ejecución o capital.
+- Sólo padre distinto, fuente e hipótesis distintas, generación mayor y reloj posterior **Y todas las hipótesis previas con terminación observada causalmente antes de la nueva fuente** pueden recibir PROVISIONAL (`NEW_PARENT_AND_SOURCE_CAUSALLY_OBSERVED`); sin testigo de terminal anterior se responde WAIT (`PRIOR_THESIS_NOT_TERMINAL_BEFORE_NEW_SOURCE`); un terminal del futuro provoca rechazo. El resultado nunca concede `grants_rearm_authority` ni ejecución o capital.
 - No usa resultados de la operación anterior, wick-hit posterior, OOS, costes o PnL.
 
 **Limitación fuerte:** el ledger es un *input*, no un estado con custodia independiente. Sin prueba de integridad/secuencialidad del histórico completo, cualquier evento ausente permitiría clasificar "primero" artificialmente. G7 requiere enlazar source H4 canónica con estado cognitivo/ledger persistido y verificación independiente; la auditoría actual no firma G-M4.
 
 ## Tests adversariales y criterios de revisión metodológica
 
-Casos obligatorios: bull/bear contradictorios y referencias con igual dirección; fuentes duplicadas, datos futuros, ausencia de referencia, inventario incompleto, digest inválido, referencias cruzadas por mercado o padre, "mejor ganador a posteriori"; rearm mismo padre con distinta ID, mismo source/hypothesis nuevo padre, generación atrasada, evidencia tardía/vieja, historiales duplicados/futuros, contaminación AUDUSD/USDJPY. Sin mock de aprobación Owner ni de revisor para declarar PASS.
+Casos obligatorios: bull/bear contradictorios y referencias con igual dirección; fuentes duplicadas, datos futuros, ausencia de referencia, inventario incompleto, digest inválido, referencias cruzadas por mercado o padre, "mejor ganador a posteriori"; rearm mismo padre con distinta ID, mismo source/hypothesis nuevo padre, generación atrasada, evidencia tardía/vieja, historiales duplicados/futuros, contaminación AUDUSD/USDJPY, terminal previo ausente, terminal conocido solo después de nueva fuente y terminal futuro. Sin mock de aprobación Owner ni de revisor para declarar PASS.
 
 ## No regresiones permitidas
 
@@ -50,3 +50,5 @@ V1=54 candidatos conceptuales, V2=745 y trayectoria desfavorable, V3=139 y traye
 5. Global económico separado: contrato de entrada ejecutable BID/ASK, OOS nuevo no visto, PF/Sharpe/Sortino, DD patrimonial exclusivamente CIBO/Risk, WFO/Monte Carlo y stress; no sizing dentro de VT08. Proteger Atlas antes del vencimiento #837.
 
 **Estados:** G-M1..G-M4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED, SIN MERGE, SIN DEMO/LIVE/ÓRDENES/VPS/SIZING.
+
+**Nota sobre autoridad de cierre:** `terminal_observed_at` de cada registro sigue siendo un claim del ledger, no una firma del proveedor ni comprobación independiente de G-M4. G7 permanece PARCIAL hasta enlazar esos campos con evidencia M5 temporal, fuente y custodia auditada. No aumentar contador PASS por este código.
