@@ -1,0 +1,83 @@
+name: VT31 TraderLab Native 32x Bidirectional G3 COG Qualitative
+on:
+  push:
+    branches:
+      - agent/vt31-traderlab-32x-bidirectional-cog-20261015
+    paths:
+      - 'scripts/vt31_original_cog_traderlab_32x_long_short_20261015.py'
+      - 'tests/infrastructure/test_vt31_original_cog_traderlab_32x_long_short_20261015.py'
+      - 'docs/research/VT31_TRADERLAB_32X_COG_LONG_SHORT_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-traderlab-32x-bidirectional-cog.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-original-g3-cognition-qualitative-long-short:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Before-code prereg and original G3 SHA locks
+        run: |
+          set -euo pipefail
+          git cat-file -t 38030ba2d8cabbf73fa1c2c2c5d3b7d7cf67961f
+          git merge-base --is-ancestor 38030ba2d8cabbf73fa1c2c2c5d3b7d7cf67961f HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Parallel fast runner: original COG 1x/32x bidirectional scenario court
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist
+          ruff check scripts/vt31_original_cog_traderlab_32x_long_short_20261015.py tests/infrastructure/test_vt31_original_cog_traderlab_32x_long_short_20261015.py
+          python -m py_compile scripts/vt31_original_cog_traderlab_32x_long_short_20261015.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_original_cog_traderlab_32x_long_short_20261015.py \
+            tests/infrastructure/test_vt31_original_cog_trader_lab_fast_forward_20261015.py \
+            tests/infrastructure/trader_lab/test_vt31_trader_lab_native_32x_qualification_synthetic_20261015.py \
+            tests/infrastructure/trader_lab/test_fast_forward.py \
+            tests/infrastructure/test_vt31_original_g3_cog_short_sessions_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_original_g3_nypm_cognition_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_m0_profile_shadow_attestation_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_original_cog_traderlab_32x_long_short_20261015.py \
+            --out evidence/VT31_TRADERLAB_NATIVE_32X_G3_COG_BIDIRECTIONAL_24_CASES.json \
+            | tee evidence/summary.json
+      - name: Verify 24 semantics and no false L3 or cert issuance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_TRADERLAB_NATIVE_32X_G3_COG_BIDIRECTIONAL_24_CASES.json"))
+          assert p["prereg_commit"]=="38030ba2d8cabbf73fa1c2c2c5d3b7d7cf67961f"
+          assert p["original_g3_code_sha"]["git_blob_sha1"]=="d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          assert len(p["cases"])==24 and p["all_24_parity"] is True
+          assert len([x for x in p["cases"] if x["side"]=="LONG"])==12
+          assert len([x for x in p["cases"] if x["side"]=="SHORT"])==12
+          assert len([x for x in p["cases"] if x["counterfactual_change_only_last_close"]])==12
+          assert all(x["ff_canonical_source_and_trace_identical"] and x["ff_all_m1_closed_at_preserved"] for x in p["cases"])
+          assert all(x["elapsed_normal_us"]==32*x["elapsed_simulated_ff_us"] for x in p["cases"])
+          assert not p["qualified_real_vt31_L3"] and not p["observed_CPU_speedup_32x"]
+          assert not p["methodology_certified"] and not p["cognition_certified"]
+          assert not p["dual_cog_ops_signatures_verified"]
+          assert p["economic_metrics"] is None and p["broker_orders"]==p["sizing"]==0
+          assert not p["live_authorized"]
+          print("VT31_G3_LONG_SHORT_NATIVE_TRADER_LAB_32X_24_CASES_MATCH_NO_PNL_NO_CERT")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 38030ba2d8cabbf73fa1c2c2c5d3b7d7cf67961f > evidence/prereg_sha.txt
+          printf '%s\n' 'ORIGINAL_G3_1X_32X_COG_METHODOLOGY_ONLY_NO_L3_NO_PNL' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-traderlab-32x-bidirectional-qualitative-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
