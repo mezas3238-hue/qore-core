@@ -51,8 +51,13 @@ def observe_price_only_path(
         raise ValueError("invalid CRT direction")
     if decision_at.tzinfo is None or c3_open.tzinfo is None:
         raise ValueError("all decision clocks must have an explicit timezone")
-    if decision_at <= c3_open or decision_at >= c3_open + H4:
-        raise ValueError("decision must be strictly inside live H4 C3")
+    if decision_at <= c3_open or decision_at > c3_open + H4:
+        raise ValueError("decision cannot precede or exceed H4 C3")
+    # V2's 16th M15 pair can be confirmed exactly at H4 C3 close.
+    # No post-decision C3 price path exists, so it is terminal without
+    # an executable or hypothetical price fill. Do NOT peek into next H4.
+    if decision_at == c3_open + H4:
+        return "EXPIRED_AT_C3_CLOSE_NO_POST_DECISION_WINDOW", None, 0
     if (decision_at - c3_open).total_seconds() % 300:
         raise ValueError("decision clock must align with source M5")
     if type(invalidation_relative) is not int or type(target_double_relative) is not int:
