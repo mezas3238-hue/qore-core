@@ -87,7 +87,7 @@ def test_tied_extremes_do_not_count_as_strict_structural_pivot():
     assert pivots == ()
 
 
-def test_gapped_M1_pair_may_not_form_causal_pivot():
+def test_gapped_m1_pair_may_not_form_causal_pivot():
     bars = list(source())
     bars[3] = m1(bars[3].opened_at, lo="90")
     # Remove exact adjacent right-neighbor M1, no pivot across missing M1.
