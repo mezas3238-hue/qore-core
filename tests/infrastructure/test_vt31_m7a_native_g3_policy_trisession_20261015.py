@@ -204,3 +204,19 @@ def test_native_midwindow_gap_preserves_two_prior_online_assessments():
     assert pm.actual_g3_invocations == 2
     assert pm.terminal_wait_reason == SOURCE_GAP
     assert pm.observed_m1 == 59
+
+def test_synchronized_cog_and_trader_framework_mutation_still_rejected():
+    """Identity is constructor-frozen, even if public attributes match."""
+    trader = VT31Trader(framework_policy=G3_MSS_FRAMEWORK_POLICY)
+    original = trader.cognition._observed_count
+    trader.framework_policy = LEGACY_FRAMEWORK_POLICY
+    trader.cognition.framework_policy = LEGACY_FRAMEWORK_POLICY
+    opened = datetime(2025, 7, 15, 3, tzinfo=NEW_YORK).astimezone(UTC)
+    with pytest.raises(ValueError, match="POLICY_CHANGED_AFTER_CONSTRUCTION"):
+        trader.on_closed_m1(bar(opened))
+    with pytest.raises(ValueError, match="POLICY_CHANGED_AFTER_CONSTRUCTION"):
+        trader.research_observe_incomplete_source_m1(bar(opened))
+    assert trader.cognition._observed_count == original
+    assert trader.total_source_windows_seen == 0
+    assert trader.snapshot()["explicit_framework_policy"] == G3_MSS_FRAMEWORK_POLICY
+    assert not trader.snapshot()["certified"]
