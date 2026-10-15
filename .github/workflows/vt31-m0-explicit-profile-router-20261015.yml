@@ -1,0 +1,76 @@
+name: VT31 M0 Explicit Profile Binding Real G3 Research Without Trading
+on:
+  push:
+    branches:
+      - agent/vt31-m0-method-source-profile-router-20261015
+    paths:
+      - 'docs/research/VT31_M0_EXPLICIT_SOURCE_PROFILE_ROUTER_PREREG_2026-10-15.md'
+      - 'scripts/vt31_m0_explicit_source_profile_router_20261015.py'
+      - 'tests/infrastructure/test_vt31_m0_explicit_source_profile_router_20261015.py'
+      - '.github/workflows/vt31-m0-explicit-profile-router-20261015.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  m0-frozen-research-method-cog-source-profile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prove prereg before code and unchanged G3/OPS/document
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor e5aa05d533a46a6ecf88f3a20bbbd8b0a746fb98 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+          test "$(git hash-object scripts/vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py)" = 9e3a143cfb27db61b3eec99d84a804e6cec55fcc
+      - name: Test true G3 COG routed under an immutable source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          mkdir -p evidence
+          ruff check scripts/vt31_m0_explicit_source_profile_router_20261015.py tests/infrastructure/test_vt31_m0_explicit_source_profile_router_20261015.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_m0_explicit_source_profile_router_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_original_g3_cog_short_sessions_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_m0_profile_shadow_attestation_20261015.py \
+            tests/infrastructure/test_vt31_original_cog_nyam_ttrades_source_conflict_20261014.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_m0_explicit_source_profile_router_20261015.py \
+            --out evidence/VT31_M0_ORIGINAL_G3_SOURCE_PROFILE_ROUTING.json | tee evidence/summary.json
+      - name: No certificate or order can arise from M0 routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_M0_ORIGINAL_G3_SOURCE_PROFILE_ROUTING.json"))
+          assert p["prereg_sha"]=="e5aa05d533a46a6ecf88f3a20bbbd8b0a746fb98"
+          assert p["real_g3_cognition_source_first_evaluations"]==8
+          assert sum(x["source_bound_research_dto_available"] for x in p["cases"])==4
+          assert sum(x["status"]=="WAIT_TTRADES_AUTHOR_DOL_QORE_MIN10_CONFLICT" for x in p["cases"])==4
+          assert all(not x["ops_authorized"] and not x["author_method_complete_certified"] for x in p["cases"])
+          assert all(not x["trader_certified"] and x["broker_orders_ack_fills"]==0 for x in p["cases"])
+          assert p["methodology_certified"] is False and p["cognition_certified"] is False
+          assert p["broker_orders_fills"]==0 and p["vt31_sizing"] is False
+          assert p["live_authorized"] is False
+          print("M0_SOURCE_ROUTER_G3_REAL_COG_WITNESS_PASS_NOT_A_CERTIFICATE")
+          PY
+          git rev-parse HEAD > evidence/commit-sha.txt
+          printf '%s\n' 'M0_SOURCE_POLICY_BOUND_COG_NO_PNL_NO_SIZING_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-m0-source-profile-router-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
