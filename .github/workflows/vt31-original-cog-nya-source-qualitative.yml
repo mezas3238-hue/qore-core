@@ -1,0 +1,82 @@
+name: VT31 ORIGINAL COG vs TTrades AM source doctrine (NO ECONOMICS)
+on:
+  push:
+    branches:
+      - agent/vt31-original-cog-nyam-source-conflict-20261014
+    paths:
+      - 'scripts/vt31_original_cog_nyam_ttrades_source_conflict_20261014.py'
+      - 'tests/infrastructure/test_vt31_original_cog_nyam_ttrades_source_conflict_20261014.py'
+      - 'docs/research/VT31_ORIGINAL_COG_TTRADES_NY_AM_DOL_SOURCE_CONFLICT_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-original-cog-nya-source-qualitative.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-nyam-source-doctrine-qualitative:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact pre-registration and immutable original G3 COG OPS
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 6ed6fb5e43d86b1457766a701a49f07b4f06ea88 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Audit actual NYAM COG against primary TTrades H1 source witness and regressions
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          ruff check scripts/vt31_original_cog_nyam_ttrades_source_conflict_20261014.py tests/infrastructure/test_vt31_original_cog_nyam_ttrades_source_conflict_20261014.py
+          python -m py_compile scripts/vt31_original_cog_nyam_ttrades_source_conflict_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_original_cog_nyam_ttrades_source_conflict_20261014.py \
+            tests/infrastructure/test_vt31_original_g3_cog_qualitative_court_20261014.py \
+            tests/infrastructure/test_vt31_method_cog_scenario_court_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_original_cog_nyam_ttrades_source_conflict_20261014.py \
+            --out evidence/VT31_G3_ORIGINAL_NYAM_TTRADES_SOURCE_MISMATCH.json \
+            | tee evidence/summary.json
+      - name: Ensure mismatch labelled profile-specific without false certification
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_G3_ORIGINAL_NYAM_TTRADES_SOURCE_MISMATCH.json"))
+          assert p["prereg_commit"]=="6ed6fb5e43d86b1457766a701a49f07b4f06ea88"
+          assert p["original_engine_called_not_a_proxy"] is True
+          assert p["original_g3_cog_code_sha"]["git_blob_sha1"]=="d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          assert p["observed_actual_original_cog_side"]=="LONG"
+          assert p["observed_actual_original_cog_dol"]=="150"
+          assert p["ttrades_source_required_opposite_h1_dol"]=="110"
+          assert p["independent_source_v2_state"]=="REJECTED"
+          assert "DOL_NOT_OPPOSITE_9AM_H1_EXTREME" in p["independent_source_v2_rejections"]
+          assert p["methodology_profile_qualitative_verdict"]=="TTRADES_NYAM_DOL_SOURCE_NONCONFORMANT"
+          assert p["ict_general_dol_logic_independently_falsified"] is False
+          assert p["cog_ttrades_author_fidelity_certified"] is False
+          assert p["cog_overall_certified"] is False and p["methodology_overall_certified"] is False
+          assert p["financial_evidence"] is None and p["market_replay_3y_used"] is False
+          assert p["operator_orders"]==p["lot_sizing"]==0 and not p["live_authorized"]
+          print("ORIGINAL_COG_SOURCE_CONFLICT_IS_METHODOLOGICAL_ONLY")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 6ed6fb5e43d86b1457766a701a49f07b4f06ea88 > evidence/prereg_sha.txt
+          printf '%s\n' 'DOCTRINAL_PROFILE_NYAM_NOT_PNL_NOT_CERTIFIED_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-original-nyam-cog-source-conflict-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
