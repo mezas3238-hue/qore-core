@@ -29,7 +29,9 @@ def _path(*candles: ReplayBar) -> dict[datetime, ReplayBar]:
     return {bar.opened_at: bar for bar in candles}
 
 
-def _result(bars: dict[datetime, ReplayBar], direction: str = "BULLISH") -> tuple[str, str | None, int]:
+def _result(
+    bars: dict[datetime, ReplayBar], direction: str = "BULLISH"
+) -> tuple[str, str | None, int]:
     return observe_price_only_path(
         direction=direction,
         decision_at=DECISION,
@@ -62,7 +64,7 @@ def test_simultaneous_touch_is_conservative_not_target_first() -> None:
     assert outcome == "INVALIDATION_FIRST_AMBIGUOUS_SAME_M5"
 
 
-def test_missing_M5_before_terminal_never_interpolates_future() -> None:
+def test_missing_m5_before_terminal_never_interpolates_future() -> None:
     outcome, when, count = _result(
         _path(candle(30, 95, 98, 92, 96))
     )
