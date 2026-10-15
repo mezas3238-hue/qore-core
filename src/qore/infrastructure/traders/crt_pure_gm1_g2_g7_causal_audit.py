@@ -161,7 +161,7 @@ def audit_g7_rearm(
     if any(
         a.decision_at >= b.decision_at
         or a.event_generation >= b.event_generation
-        for a, b in zip(observed_history, observed_history[1:])
+        for a, b in zip(observed_history, observed_history[1:], strict=False)
     ):
         raise ValueError("G7 history is not chronologically monotonic")
     if not observed_history:
