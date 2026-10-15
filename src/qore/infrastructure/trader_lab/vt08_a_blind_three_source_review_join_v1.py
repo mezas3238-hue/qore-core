@@ -11,6 +11,7 @@ import hashlib
 import json
 from collections import Counter
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Final
 
 SCHEMA: Final = "qore.vt08.a.blind_three_source_review_join.v1"
@@ -114,7 +115,7 @@ def join_blind_source_reviews(
         low = sr.get("basic_swing_bullish_low") is True
         high_count = tr.get("witness_count")
         levels = tr.get("untouched_h1_high_candidates")
-        if not isinstance(high_count, int) or not isinstance(levels, list):
+        if type(high_count) is not int or not isinstance(levels, list):
             raise ValueError("H1 physical target list missing")
         if high_count != len(levels) or high_count < 0:
             raise ValueError("H1 target cardinality mismatch")
@@ -122,12 +123,72 @@ def join_blind_source_reviews(
             raise ValueError("A cannot auto-select EQ without relevant swing")
         if eqr.get("eq_swing_identity_author_adjudicated") is not False:
             raise ValueError("A pretends source swing adjudicated")
-        if sr.get("author_relevant_swing_verified") is True:
+        if sr.get("source_author_relevant_swing_verified") is True:
             raise ValueError("basic pivot mistakenly promoted to relevant swing")
         if tr.get("author_target_selected") is not False:
             raise ValueError("H1 level incorrectly called author-selected target")
         if available != (eqr.get("prior_h1_context_available") is True):
             raise ValueError("H1 completeness differs between source producers")
+        h1_ids = sr.get("h1_source_bar_id_groups", [])
+        if available:
+            if (
+                not isinstance(h1_ids, list) or len(h1_ids) != 3
+                or any(not isinstance(x, list) or len(x) != 4 for x in h1_ids)
+            ):
+                raise ValueError("H1 source groups not complete")
+            if _key(eqr, market) != key:
+                raise ValueError("C2 EQ physical clock mismatch")
+            source_available_at = sr.get("h1_candle_available_at_utc")
+            if not isinstance(source_available_at, str):
+                raise ValueError("H1 source availability missing")
+            if datetime.fromisoformat(source_available_at).astimezone(UTC) > datetime.fromisoformat(key[0]):
+                raise ValueError("H1 pivot uses future closed candle")
+        if not isinstance(eqr.get("c2_low"), str):
+            raise ValueError("C2 price lineage missing")
+        try:
+            high = Decimal(str(eqr.get("c2_high")))
+            lower = Decimal(str(eqr.get("c2_low")))
+            close = Decimal(str(eqr.get("c2_close")))
+            eq_full = Decimal(str(eqr.get(
+                "eq_if_prior_bullish_swing_source_valid_with_close"
+            )))
+            eq_against = Decimal(str(eqr.get(
+                "eq_if_prior_bullish_swing_valid_but_close_against"
+            )))
+            c2_reference = Decimal(str(tr.get("c2_close_price_source_proxy")))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValueError("non-numeric source EQ evidence") from exc
+        if (
+            any(not x.is_finite() for x in (
+                high, lower, close, eq_full, eq_against, c2_reference,
+            ))
+            or high < lower or c2_reference != close
+            or eq_full != (high + lower) / 2
+            or eq_against != (close + lower) / 2
+        ):
+            raise ValueError("C2 EQ source math/proxy mismatch")
+        for level in levels:
+            if not isinstance(level, dict):
+                raise ValueError("invalid H1 physical target source")
+            ids = level.get("origin_source_m15_bar_ids")
+            if not isinstance(ids, list) or len(ids) != 4:
+                raise ValueError("target high needs four original M15 bar IDs")
+            if level.get("author_target_relevance_verified") is not False:
+                raise ValueError("false semantic TTrades target authority")
+            if level.get("continuity_since_origin") != "OBSERVED_GAP_FREE_M15_ONLY":
+                raise ValueError("target unobserved historical-gap source")
+            at = level.get("origin_h1_available_at_utc")
+            if not isinstance(at, str) or _key(
+                {"market": market, "c2_opened_at_utc": key[0], "decision_at_utc": key[1]},
+                market,
+            ) != key:
+                raise ValueError("invalid high-origin C3 clock")
+            if datetime.fromisoformat(at).astimezone(UTC) > datetime.fromisoformat(key[1]):
+                raise ValueError("future H1 target high used")
+            if (Decimal(str(level.get("high"))) > close) != (
+                level.get("higher_than_c2_close_proxy") is True
+            ):
+                raise ValueError("physical target/C2 close relation mismatch")
         if not available:
             code = CATEGORIES[0]
         elif not low:
