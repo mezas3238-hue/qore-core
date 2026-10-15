@@ -68,6 +68,9 @@ def test_three_including_current_are_observed_separately(monkeypatch):
     assert row["pivot_three_including_current_asof_c2"] is True
     assert row["pivot_three_including_current_asof_c3"] is True
     assert result["counts"]["basic_low_pivot_at_c3_current_h1_complete"] == 1
+    assert result["counts"]["c3_pivot_not_in_r7_closed_three"] == 1
+    assert result["counts"]["r7_old_basic_pivot"] == 0
+    assert result["counts"]["basic_pivot_persisted_from_c2_to_c3"] == 1
     assert result["author_relevant_swing_certified"] is False
     assert result["broker_fills"] == 0
 
