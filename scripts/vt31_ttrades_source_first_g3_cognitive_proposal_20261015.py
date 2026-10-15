@@ -326,7 +326,10 @@ def cognitive_profile_court() -> dict[str, Any]:
                         f"{result.record()}"
                     )
                 cases.append({
-                    "case": f"{side.value}_{month}_{'MIN10_VALID' if eligible else 'MIN10_CONFLICT'}",
+                    "case": (
+                        f"{side.value}_{month}_"
+                        f"{'MIN10_VALID' if eligible else 'MIN10_CONFLICT'}"
+                    ),
                     "scenario_is_synthetic_no_market_PNL": True,
                     **result.record(),
                 })
