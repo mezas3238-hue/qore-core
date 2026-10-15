@@ -44,7 +44,7 @@ jobs:
           path: m3/${{ matrix.market }}
           github-token: ${{ github.token }}
           run-id: 35941643396
-      - name: Attest earliest frozen native M3 M15 anchor source bars, NEVER signal
+      - name: Attest every native M3 M15 NY anchor and preserve gap bar IDs, NEVER signal
         env:
           MARKET: ${{ matrix.market }}
         run: |
@@ -67,6 +67,7 @@ jobs:
               "schema","market","scope","m3_raw_sha256","m15_raw_sha256",
               "attested_windows","source_anchor_windows_observed",
               "source_anchor_windows_complete","skipped_incomplete","skipped_mismatched",
+              "incomplete_source_windows","sample_selection",
               "author_fidelity_certified","cognitive_certified",
               "economic_gates_evaluated","sealed_holdout_accessed",
           )}
