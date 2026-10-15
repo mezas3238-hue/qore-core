@@ -132,6 +132,8 @@ def audit_v3_g2_g7_ledgers(
     history: list[CrtGm1SourceEvent] = []
     records: list[dict[str, Any]] = []
     summaries = Counter[str]()
+    ex_post_g7 = Counter[str]()
+    first_gm4_unknown_id: str | None = None
     if len({x["c3_H4_opened_at_utc"] for x in ordered}) != len(ordered):
         raise ValueError("more than one V3 source per H4 parent")
 
@@ -239,6 +241,28 @@ def audit_v3_g2_g7_ledgers(
             CrtGm1CausalVerdict.ABSTAIN,
         ):
             raise ValueError("unexpected G7 status")
+        # Causal observer knows which prior events currently lack a terminal;
+        # never inspect their eventual terminal here to decide G7.
+        missing = tuple(h for h in prior if h.terminal_observed_at is None)
+        if (g7.verdict is CrtGm1CausalVerdict.WAIT) != bool(missing):
+            raise ValueError("G7 WAIT/terminal-censoring causal invariant")
+        # EX-POST only, strictly segregated into manifest postmortem. Frozen
+        # G-M4 final truth below must never enter G2/G7 decisions or blind pack.
+        if g7.verdict is CrtGm1CausalVerdict.WAIT:
+            definitive_unknown = sum(
+                gm4[h.source_event_id]["terminal_observation_proven"] is False
+                for h in missing
+            )
+            eventual_late = len(missing) - definitive_unknown
+            if definitive_unknown:
+                ex_post_g7["WAIT_WITH_AT_LEAST_ONE_GM4_UNKNOWN"] += 1
+            elif eventual_late:
+                ex_post_g7["WAIT_ONLY_EVENTUALLY_KNOWN_TERMINAL_LATE"] += 1
+            ex_post_g7["TOTAL_MISSING_PRIOR_AT_DECISION"] += len(missing)
+            ex_post_g7["MISSING_PRIOR_EXPOST_GM4_UNKNOWN"] += definitive_unknown
+            ex_post_g7["MISSING_PRIOR_EXPOST_TERMINAL_LATE"] += eventual_late
+        if not proven and first_gm4_unknown_id is None:
+            first_gm4_unknown_id = event_id
         # Append source for FUTURE diagnoses only; never look ahead in record.
         history.append(CrtGm1SourceEvent(
             market=proposal.market, parent_id=proposal.parent_id,
@@ -249,6 +273,43 @@ def audit_v3_g2_g7_ledgers(
             decision_at=proposal.decision_at,
             terminal_observed_at=actual_terminal,
         ))
+        # Blind G2 reviewer sees only candles closed before the V3 decision.
+        # Never add current C3 bars, G-M4 outcomes or PnL to this payload.
+        blind_pack = None
+        if rival_direction is not None:
+            if c0 is None:
+                raise ValueError("rival reference requires closed C0")
+            c2_closed_at = c3_start.isoformat()
+            digest = hashlib.sha256(
+                (market.value + "|" + event_id + "|" + c2_closed_at)
+                .encode("utf-8")
+            ).hexdigest()[:24]
+            blind_pack = {
+                "blind_case_id": digest,
+                "market": market.value,
+                "parent_id": parent,
+                "source_event_id": event_id,
+                "decision_clock_utc": decision.isoformat(),
+                "c2_closed_at_utc": c2_closed_at,
+                "c0_closed_h4": c0,
+                "c1_closed_h4": c1,
+                "c2_closed_h4": c2,
+                "c0_direction": rival_direction,
+                "c1_direction": direction,
+                "conflict_kind": (
+                    "OPPOSITE" if rival_direction != direction else "SAME"
+                ),
+                "selected_reference": None,
+                "owner_approval": False,
+                "independent_reviewer_adjudicated": False,
+                "not_a_trade": True,
+                "not_fresh_holdout": True,
+            }
+            if any(
+                _utc(h4["opened_at_utc"]) + H4 > decision
+                for h4 in (c0, c1, c2)
+            ):
+                raise ValueError("future H4 inside blind G2 source pack")
         row = {
             "schema": SCHEMA,
             "market": market.value,
@@ -272,9 +333,14 @@ def audit_v3_g2_g7_ledgers(
             "G7_prior_terminals_causally_known": sum(
                 h.terminal_observed_at is not None for h in prior
             ),
-            "G7_prior_terminals_censored": sum(
-                h.terminal_observed_at is None for h in prior
+            "G7_prior_terminals_censored": len(missing),
+            "G7_first_causally_unresolved_source_event_id": (
+                missing[0].source_event_id if missing else None
             ),
+            "G7_first_causally_unresolved_decision_utc": (
+                missing[0].decision_at.isoformat() if missing else None
+            ),
+            "G2_blind_predecision_case": blind_pack,
             "G7_generation_research_ordinal": proposal.event_generation,
             "source_authorized": False,
             "not_a_trade": True,
@@ -305,6 +371,11 @@ def audit_v3_g2_g7_ledgers(
         "V3_cases": len(source_rows),
         "GM4_cases_reconciled": len(gm4_rows),
         "counts": dict(sorted(summaries.items())),
+        "G7_EX_POST_DIAGNOSTIC_NEVER_INITIAL_DECISION": {
+            **dict(sorted(ex_post_g7.items())),
+            "first_GM4_unknown_source_event_id": first_gm4_unknown_id,
+            "may_not_authorize_rearm": True,
+        },
         "G2_full_reference_inventory_proven": False,
         "G7_runtime_ledger_authenticated": False,
         "OOS_new": False,
@@ -353,7 +424,23 @@ def main() -> None:
     )
     with (args.output / "g2-g7-real-atlas-pit-ledger.jsonl").open("w") as out:
         for row in ledger:
-            out.write(json.dumps(row, sort_keys=True) + "\n")
+            # Keep the reviewers' source-only pack separate from decision rows.
+            decision_only = {
+                k: v for k, v in row.items()
+                if k != "G2_blind_predecision_case"
+            }
+            out.write(json.dumps(decision_only, sort_keys=True) + "\n")
+    blind_cases = tuple(
+        row["G2_blind_predecision_case"] for row in ledger
+        if row["G2_blind_predecision_case"] is not None
+    )
+    if len({r["blind_case_id"] for r in blind_cases}) != len(blind_cases):
+        raise ValueError("duplicate G2 blind case identity")
+    if len(blind_cases) != summary["counts"].get("C0_COMPETING", 0):
+        raise ValueError("G2 blind challenge coverage mismatch")
+    with (args.output / "g2-c0-c1-blind-predecision-cases.jsonl").open("w") as out:
+        for review_case in blind_cases:
+            out.write(json.dumps(review_case, sort_keys=True) + "\n")
     print(json.dumps({
         k: v for k, v in summary.items() if k != "original_atlas_provenance"
     }, sort_keys=True))
