@@ -11,7 +11,7 @@ import hashlib
 import json
 from collections import Counter
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -23,7 +23,7 @@ from qore.infrastructure.trader_lab.vt08_5m_b_independent_raw_receipts_v1 import
 
 SCHEMA = "qore.vt08.b.r10.three_h1_including_current_causal_source.v1"
 JOIN_SCHEMA = "qore.vt08.a.blind_three_source_review_join.v1"
-SOURCE = "https://ttrades.com/relevant-swings-which-swing-highs-and-lows-matter-in-trading/"
+SOURCE = ("https://ttrades.com/relevant-swings-which-swing-highs-"\n          "and-lows-matter-in-trading/")
 M15 = timedelta(minutes=15)
 HOUR = timedelta(hours=1)
 PINNED_M15 = {
