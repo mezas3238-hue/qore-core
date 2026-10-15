@@ -1,0 +1,90 @@
+name: VT31 M0 Methodology Cognitive Profile Shadow No PnL
+on:
+  push:
+    branches:
+      - agent/vt31-method-profile-shadow-attestation-20261015
+    paths:
+      - 'scripts/vt31_m0_profile_shadow_attestation_20261015.py'
+      - 'tests/infrastructure/test_vt31_m0_profile_shadow_attestation_20261015.py'
+      - 'docs/research/VT31_OWNER_M0_PROFILE_SHADOW_ADJUDICATOR_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-m0-method-cog-profile-shadow.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  separate-author-claim-from-ict-context-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preregistered before code, untouched original G3 source SHA
+        run: |
+          set -euo pipefail
+          git cat-file -t 9ca7c4a4dd1aa3180788a682b174aee605a2eda4
+          git merge-base --is-ancestor 9ca7c4a4dd1aa3180788a682b174aee605a2eda4 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Qualitative original COG source attribution and adverse tests (no 3Y/PNL)
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          ruff check scripts/vt31_m0_profile_shadow_attestation_20261015.py tests/infrastructure/test_vt31_m0_profile_shadow_attestation_20261015.py
+          python -m py_compile scripts/vt31_m0_profile_shadow_attestation_20261015.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_m0_profile_shadow_attestation_20261015.py \
+            tests/infrastructure/test_vt31_original_cog_nyam_ttrades_source_conflict_20261014.py \
+            tests/infrastructure/test_vt31_original_g3_cog_qualitative_court_20261014.py \
+            tests/infrastructure/test_vt31_method_cog_scenario_court_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_m0_profile_shadow_attestation_20261015.py \
+            --out evidence/VT31_M0_ORIGINAL_COG_PROFILE_METHOD_SHADOW.json \
+            | tee evidence/profile_summary.json
+      - name: Confirm profile separation, WAIT/UNKNOWN semantics and zero authorization
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_M0_ORIGINAL_COG_PROFILE_METHOD_SHADOW.json"))
+          assert p["prereg_commit"]=="9ca7c4a4dd1aa3180788a682b174aee605a2eda4"
+          assert p["original_g3_cog_directly_invoked"] is True
+          assert p["original_g3_cog_source_hash"]["git_blob_sha1"]=="d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          assert [x["state"] for x in p["cases"]]==[
+              "TTRADES_PROFILE_SOURCE_REJECTED",
+              "ICT_CONTEXT_WITNESS_UNDERDETERMINED",
+              "ICT_CONTEXT_WITNESS_UNDERDETERMINED",
+              "PROFILE_SESSION_REJECTED"]
+          assert p["cases"][0]["observed_dol"]=="150"
+          assert p["cases"][0]["ttrades_opposite_h1_dol"]=="110"
+          assert "DOL_NOT_OPPOSITE_9AM_H1_EXTREME" in p["cases"][0]["reasons"]
+          assert not p["methodology_certified"] and not p["cognition_certified"]
+          assert not p["g3_independent_2_signatures_validated"]
+          assert not p["human_source_review_completed"]
+          assert p["economic_gate_run"] is False and p["profit_factor_drawdown_sharpe_sortino"] is None
+          assert p["market_3y_replay_used"] is False
+          assert p["broker_orders"]==p["trader_lot_sizing"]==0 and p["live_authorized"] is False
+          assert all(not x["method_certified"] and not x["cognition_certified"]
+                     and x["orders_or_sizing"]==0 and not x["live_authorized"]
+                     for x in p["cases"])
+          print("ORIGINAL_COG_PROFILE_BOUNDARY_PROVEN_NO_SOURCE_MISATTRIBUTION_NO_CERTIFICATION")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 9ca7c4a4dd1aa3180788a682b174aee605a2eda4 > evidence/prereg_sha.txt
+          printf '%s\n' 'M0_METHOD_PROFILE_SHADOW_ONLY_NO_ORDERS_NO_QUANT_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-m0-method-cog-profile-shadow-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
