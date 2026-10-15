@@ -1,7 +1,7 @@
 """Source-inspired QORE V3: a third closed M15 candle confirms micro CRT.
 
 The rule's complete semantics are QORE engineering, NOT any author's verbatim
-model. The detailed version-specific protocol was frozen in docs/research/\nVT08_CRT_THREE_SOURCE_QORE_V3_CSD_THIRD_CANDLE_PREREG_2026-10-15.md.
+model. The V3 protocol was preregistered under docs/research before replay.
 No trades, PnL, sizing, broker connections, or economic certification.
 """
 from __future__ import annotations
