@@ -1,0 +1,80 @@
+name: VT31 cognitive M0 to M4 source-bound context memory no sizing
+on:
+  push:
+    branches:
+      - agent/vt31-m0m4-context-memory-source-cog-20261015
+    paths:
+      - 'docs/research/VT31_M0_M4_COG_CONTEXT_MEMORY_SOURCE_PREREG_2026-10-15.md'
+      - 'scripts/vt31_m0_m4_context_memory_cog_candidate_20261015.py'
+      - 'tests/infrastructure/test_vt31_m0_m4_context_memory_cog_candidate_20261015.py'
+      - '.github/workflows/vt31-m0m4-cog-context-memory.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  vt31-stateful-source-bound-cognition-research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 80
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate prereg ancestor and protected G3 COG/OPS/acta blobs
+        run: |
+          set -euo pipefail
+          git cat-file -t d23ff760e3d8e66adec35f99d4743e4c232a0d0f
+          git merge-base --is-ancestor d23ff760e3d8e66adec35f99d4743e4c232a0d0f HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Ruff and parallel cognitive causal suite plus M0/M4 regressions
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist
+          ruff check scripts/vt31_m0_m4_context_memory_cog_candidate_20261015.py tests/infrastructure/test_vt31_m0_m4_context_memory_cog_candidate_20261015.py
+          python -m py_compile scripts/vt31_m0_m4_context_memory_cog_candidate_20261015.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m0_m4_context_memory_cog_candidate_20261015.py \
+            tests/infrastructure/test_vt31_m4_closed_m1_author_gate_20261015.py \
+            tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_m0_m4_context_memory_cog_candidate_20261015.py \
+            --out evidence/VT31_M0_M4_COG_V2_CONTEXT_8_CASES.json \
+            | tee evidence/summary.json
+      - name: Validate context verdict and prohibit certification/operations
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          j=json.load(open('evidence/VT31_M0_M4_COG_V2_CONTEXT_8_CASES.json'))
+          assert j['prereg_commit']=='d23ff760e3d8e66adec35f99d4743e4c232a0d0f'
+          assert len(j['cases'])==8
+          assert sum(c['source_context_remembered'] for c in j['cases'])==4
+          assert all(c['action']=='WAIT' for c in j['cases'])
+          assert all(not c['operations_authorized'] and c['broker_orders']==c['trader_sizing']==0 for c in j['cases'])
+          assert not j['owner_method_policy_signed'] and not j['human_cog_ops_review']
+          assert not j['native_cog_production_integrated']
+          assert not j['author_m3_m4_m5_complete']
+          assert not j['methodology_certified'] and not j['cognition_certified']
+          assert not j['operations_authorized'] and j['broker_orders']==j['sizing']==0
+          print('VT31_M0M4_CONTEXT_SOURCE_RESEARCH_WAIT_NO_CERT_OR_PNL')
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' d23ff760e3d8e66adec35f99d4743e4c232a0d0f > evidence/prereg_sha.txt
+          printf '%s\n' 'RESEARCH_M0_TO_M4_CONTEXT_NOT_PRODUCTION_NO_SIZING' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-m0-m4-context-memory-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
