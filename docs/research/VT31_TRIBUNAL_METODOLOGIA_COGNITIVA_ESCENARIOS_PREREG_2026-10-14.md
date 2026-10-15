@@ -1,0 +1,11 @@
+# VT31 — Preregistro del tribunal cognitivo y metodológico, SIN PnL
+
+Documento preregistrado ANTES del script de escenarios y cualquier CI de esta rama, 2026-10-14. Scope Owner corregido en VT31_DIRECTIVA_OWNER_CERTIFICACION_METODOLOGICA_COGNITIVA_SIN_PNL_2026-10-14.md. No replay 3Y, no target de densidad, PF, DD, win rate, retuning, lotaje, BID/ASK o LIVE.
+
+Evaluar el productor existente scripts/vt31_ttrades_am_native_cog_v1_20261014.py SIN MODIFICARLO (es perfil QORE-TTrades de investigación, **NO** equivale al COG G3 operativo original) y su verificador independiente M2+V2. Construir un tribunal reproducible con casos LONG, SHORT, NO_SWEEP, DOUBLE_SWEEP, BAD_MSS, MISSING_H1, FUTURE_M1, WRONG_SESSION, LATE_RETURN, WRONG_DOL_DTO. No se hace selección por beneficio: hora 09h NY completa + prefijo 10h de julio o enero con espejo LONG/SHORT, UTC/NY DST.
+
+Cada caso debe contener: perfil y COG_VERSION; expected_decision=LONG/SHORT/WAIT/REJECT; actual state/reasons y decision.side/DOL o null; as_of real; evidencia source H1; pass_scenario_procedure sólo si acción coincide con expectativa y `execution_authorized`, `method_certified`, `cognition_certified` son false. Para WRONG_DOL_DTO el oráculo independiente debe rechazar destino falsificado y no promoverlo.
+
+Resultados esperados: positivos LONG y SHORT CONTEXT_ATTESTED_NOT_CERTIFIED (no CERTIFIED); NO_SWEEP UNKNOWN; DOUBLE_SWEEP UNKNOWN; BAD_MSS UNKNOWN; MISSING_H1 UNKNOWN; FUTURE_M1 REJECTED; WRONG_SESSION REJECTED; LATE_RETURN UNKNOWN; WRONG_DOL_DTO REJECTED por verificador independiente. En todos `source_author_fidelity_complete=false` y `independent_human_signoff=false` incluso si procedimiento coincide. El juicio externo de fidelidad nunca se deriva automáticamente del porcentaje de pasos verdes.
+
+CI: Ruff, py_compile, pytest dedicado y regresión del productor+testigo, SHA congelados de COG/OPS/G3. El informe no establece número de trades ni futuros beneficios. Las evidencias semánticas son un **expediente para juicio de metodología y cognitiva**, NO acta de certificación completa. Formalizar análisis crítico del COG original heredado como fase posterior, con identidad ICT_GENERAL vs TTRADES_NY_AM separada.
