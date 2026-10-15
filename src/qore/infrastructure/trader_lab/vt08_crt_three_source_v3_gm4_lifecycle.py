@@ -168,7 +168,7 @@ def reconcile_v3_gm4_case(
 
     outcome = post_decision["price_path_outcome"]
     hit_clock = post_decision["first_hit_opened_at_utc"]
-    current_stage = stages[-1]
+    current_stage: CrtPureHypothesisStage = stages[-1]
     observed_at: str | None = None
     terminal = False
     if outcome in INVALIDATION_PATHS or outcome == "DESTINATION_FIRST":
