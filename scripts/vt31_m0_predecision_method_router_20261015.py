@@ -170,6 +170,7 @@ def route_preselected_method(
         author_dol: str | None = None,
         v2: str | None = None,
         proposed: bool = False,
+        cog_invoked: bool = True,
     ) -> ResearchProfileRouteVerdict:
         return ResearchProfileRouteVerdict(
             session=session.value,
@@ -178,7 +179,7 @@ def route_preselected_method(
             policy_id=policy.policy_id,
             policy_effective_at=utc(policy.effective_at).isoformat(),
             state=state, reasons=reasons,
-            original_cog_invoked=True,
+            original_cog_invoked=cog_invoked,
             original_cog_side=side,
             original_cog_dol=original_dol,
             ttrades_9h_author_dol=author_dol,
@@ -204,6 +205,7 @@ def route_preselected_method(
             ),
             v2=source.independent_v2_state,
             proposed=source.proposed is not None,
+            cog_invoked=source.original_cog_invoked,
         )
     if selected != ICT_GENERAL:
         raise ValueError("UNKNOWN_METHOD_SOURCE_DOCTRINE")
