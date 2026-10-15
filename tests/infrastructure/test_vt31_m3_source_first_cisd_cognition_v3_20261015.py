@@ -1,7 +1,6 @@
 """VT31 M3 COG V3: FIRST_OPEN source component, WAIT/revocation, no trade."""
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
@@ -57,7 +56,7 @@ def build(mode="LONG"):
     c._source=f
     t=datetime(2025,7,1,9,tzinfo=NY).astimezone(UTC)
     for i in range(60):
-        c.observe_closed_m1(m1(t+timedelta(minutes=i)))
+        c.observe_closed_m1(m1(t+timedelta(minutes=i),h="130",lo="70"))
     at=datetime(2025,7,1,10,tzinfo=NY).astimezone(UTC)
     return c,f,at
 
@@ -103,7 +102,7 @@ def test_target_consumed_revokes_previous_cisd_component():
     cog.observe_closed_m1(m1(t+timedelta(minutes=1),o="108",h="110",lo="104",c="106"))
     cog.observe_closed_m1(m1(t+timedelta(minutes=2),o="106",h="115",lo="103",c="112"))
     target=cog.observe_closed_m1(
-        m1(t+timedelta(minutes=3),o="112",h="121",lo="109",c="118")
+        m1(t+timedelta(minutes=3),o="112",h="131",lo="109",c="128")
     )
     assert target.state=="TARGET_CONSUMED_NO_FRESH_INTENT"
     assert target.was_target_consumed
