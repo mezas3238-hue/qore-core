@@ -10,9 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
-    model1_source_ready,
-    unresolved_model1_source_concepts,
+from qore.infrastructure.traders.crt_pure_three_source_methodology import (
+    current_three_source_methodology,
 )
 
 
@@ -70,10 +69,10 @@ class CrtPureMethodCertificate:
 def evaluate_methodological_gm5(
     gates: tuple[CrtPureMethodGateEvidence, ...],
 ) -> CrtPureMethodCertificate:
-    """Issue only with complete G-M1..G-M4 AND independently checked source.
+    """Complete G-M1..G-M4, with Owner-approved THREE-SOURCE CRT policy.
 
-    The historical CRT baseline `strategy_identity_ready()` is deliberately
-    insufficient: Model #1 old-reference selection is unresolved separately.
+    This is not a Romeo-exclusive certificate. The current frozen composite
+    still has seven open operational rules and cannot certify from fake flags.
     """
     expected = ("G-M1", "G-M2", "G-M3", "G-M4")
     if tuple(g.gate_id for g in gates) != expected:
@@ -82,20 +81,14 @@ def evaluate_methodological_gm5(
         f"{g.gate_id}_NOT_PASS:{g.state.value}"
         for g in gates if g.state is not CrtPureMethodGateState.PASS
     ]
-    open_concepts = unresolved_model1_source_concepts()
-    if open_concepts or not model1_source_ready():
-        blockers.extend(
-            "SOURCE_NOT_ADJUDICATED:" + concept.value for concept in open_concepts
-        )
-        if not open_concepts:
-            blockers.append("MODEL1_PRIMARY_SOURCE_NOT_READY")
+    source = current_three_source_methodology()
+    blockers.extend(source.blockers)
     return CrtPureMethodCertificate(
         certificate_issued=not blockers,
         blockers=tuple(blockers),
-        source_closed=model1_source_ready(),
+        source_closed=source.methodology_closed,
         gate_states=tuple((g.gate_id, g.state) for g in gates),
     )
-
 
 def present_vt08_gm5_status() -> CrtPureMethodCertificate:
     """A factual baseline; not a retrospective PASS by automated test suite."""
