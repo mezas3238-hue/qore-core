@@ -1,6 +1,8 @@
 """Qualitative original source-Cognition scenarios: NOT a return backtest."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 import pytest
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import VERSION
@@ -100,3 +102,18 @@ def test_faulty_g3_blob_claim_never_passes():
             module.source_fingerprint()
         finally:
             module.FROZEN_G3_COG_GIT_BLOB = original
+
+
+def test_scenario_asof_is_own_authentic_closed_bar_not_baseline_time():
+    rows = original_cog_scenario_dossier()["cases"]
+    baseline = datetime.fromisoformat(rows[0]["as_of"])
+    early = next(x for x in rows if x["name"] == "MSS_NOT_YET_CONFIRMED")
+    swept = next(x for x in rows if x["name"] == "AFTER_DOL_CONSUMED")
+    revoked = next(x for x in rows if x["name"] == "AFTER_PIVOT_REVERSAL")
+    assert datetime.fromisoformat(early["as_of"]) == baseline - timedelta(minutes=1)
+    assert datetime.fromisoformat(swept["as_of"]) == baseline + timedelta(minutes=1)
+    assert datetime.fromisoformat(revoked["as_of"]) == baseline + timedelta(minutes=1)
+    assert all(
+        x["as_of"] == x["observed"]["evaluated_as_of"]
+        for x in rows if x["name"] != "FUTURE_RETRO_ASOF"
+    )
