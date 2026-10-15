@@ -89,7 +89,8 @@ jobs:
           python - <<'PY'
           import json
           p=json.load(open("evidence/VT31_CERTIFICACION_METODOLOGIA_COGNITIVA_DECISION_REAL.json"))
-          assert p["prereg_commit"]=="8b3e0e17ce4011ae6bfff5ef46fb3242834cd617"
+          assert p["prereg_commit"]=="1ef9f86ccecc4e9606855a8d1d706a08a45eb428"
+          assert p["prereg_added_lab_10_archive_commit"]=="8b3e0e17ce4011ae6bfff5ef46fb3242834cd617"
           assert p["all_verified_artifact_count"]==10
           assert len(p["evidence_schemas"])==8
           assert p["cognitive_acceleration_evidence"]["all_closed_M1_asof_and_trace_hashes_equal"]
