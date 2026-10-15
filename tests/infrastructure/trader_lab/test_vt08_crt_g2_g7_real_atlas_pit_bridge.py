@@ -25,13 +25,13 @@ def make_bars(
     # Test H4 C0/C1/C2 deliberately exhibit opposite eligible references.
     # Case 1: C2 sweeps below C1 but above C0; C0 is bearish, C1 bullish.
     profiles = {
-        0: (100, 85, 100),
+        0: (102, 85, 100),
         1: (110, 95, 100),
         2: (105, 90, 100),
     }
     if second_parent:
         profiles.update({
-            6: (100, 85, 100), 7: (110, 95, 100),
+            6: (102, 85, 100), 7: (110, 95, 100),
             8: (105, 90, 100),
         })
     result = []
