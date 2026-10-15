@@ -1,3 +1,11 @@
+# HANDOFF INTEGRAL ACTUAL PARA NUEVO ARQUITECTO — LEER PRIMERO
+
+**Nuevo documento rector de continuidad:** [VT08 CRT PURE — HANDOFF MAESTRO INTEGRAL DOBLE CERTIFICACION](VT08_CRT_PURE_HANDOFF_MAESTRO_INTEGRAL_DOBLE_CERTIFICACION_2026-10-14.md), publicado el 14-OCT-2026 en PR #626 DRAFT. Abarca la totalidad de la transferencia: método original CRT, cognitiva, auditoría de 48 casos reales y 131 geometrías, 50 cierres mecánicos y 28 dobles referencias; código, Actions, artifacts, SHA, problemas P0/P1/P2, alcance y prohibiciones. **Incluye AMBOS caminos obligatorios:** G-M1..G-M5 de metodología/cognitiva y Gates globales PF/DD/Sharpe/Sortino/OOS/WFO/stress/MC/Risk/CIBO. **Ninguno está certificado.** Prohibido sizing; no merge, DEMO/LIVE, VPS.
+
+Este archivo permanece como **volumen técnico acumulativo anterior** y registro histórico de todas las rondas, NO lo sustituye. El sucesor debe leer el documento nuevo primero y luego este archivo.
+
+---
+
 # QORE CORE — VT08 CRT PURE
 # HANDOFF MAESTRO DE CONTINUIDAD Y CERTIFICACIÓN — 14 OCT 2026
 
