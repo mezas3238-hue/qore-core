@@ -11,20 +11,19 @@ blinded examples retain native M3/M15 bar lineage for independent B adjudication
 from __future__ import annotations
 
 import hashlib
-import json
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from qore.infrastructure.trader_lab.vt08_a_m30m3_raw_bar_custody_v1 import (
-    MARKETS,
-    _bar_receipt,
-)
 from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import (
     aggregate,
     closed_source_window,
     same_ohlc,
+)
+from qore.infrastructure.trader_lab.vt08_a_m30m3_raw_bar_custody_v1 import (
+    MARKETS,
+    _bar_receipt,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import (
     load_market_evidence,
