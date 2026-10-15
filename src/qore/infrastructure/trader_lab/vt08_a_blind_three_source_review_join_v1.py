@@ -75,7 +75,11 @@ def join_blind_source_reviews(
     ):
         raise ValueError("unfrozen physical source schema")
     market = eq.get("market")
-    if not isinstance(market, str) or target.get("market") != market or swing.get("market") != market:
+    if (
+        not isinstance(market, str)
+        or target.get("market") != market
+        or swing.get("market") != market
+    ):
         raise ValueError("cross-market reports never merge")
     eq_raw = eq.get("source_raw_market_map")
     if (
@@ -141,7 +145,10 @@ def join_blind_source_reviews(
             source_available_at = sr.get("h1_candle_available_at_utc")
             if not isinstance(source_available_at, str):
                 raise ValueError("H1 source availability missing")
-            if datetime.fromisoformat(source_available_at).astimezone(UTC) > datetime.fromisoformat(key[0]):
+            if (
+                datetime.fromisoformat(source_available_at).astimezone(UTC)
+                > datetime.fromisoformat(key[0])
+            ):
                 raise ValueError("H1 pivot uses future closed candle")
         if not isinstance(eqr.get("c2_low"), str):
             raise ValueError("C2 price lineage missing")
