@@ -125,7 +125,6 @@ def audit_blind_cognitive_admission(
         if key in seen:
             raise ValueError("VT08 R10 duplicate C2 source identity")
         seen.add(key)
-        identity = _sha(f"{expected_market}|{key[0]}|{key[1]}")
         # A R7 hashes the bytes of the text itself, not a JSON string.
         identity = hashlib.sha256(
             f"{expected_market}|{key[0]}|{key[1]}".encode()
