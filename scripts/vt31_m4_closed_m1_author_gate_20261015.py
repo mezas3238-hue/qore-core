@@ -192,7 +192,9 @@ def fixture_case(
     displacement = at - timedelta(minutes=11)
     rest = Candle(
         at - timedelta(minutes=1),
-        Decimal("105"), Decimal("107"), Decimal("100"), Decimal("105"),
+        Decimal("105") if side == "LONG" else Decimal("102"),
+        Decimal("107"), Decimal("100"),
+        Decimal("105") if side == "LONG" else Decimal("101"),
     )
     base: dict[str, Any] = {
         "family": family, "profile": PROFILE, "side": side,
