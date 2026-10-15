@@ -65,7 +65,7 @@ class Vt08WalReceipt:
 
 def _record(row: tuple[object, ...], *, inserted: bool) -> Vt08WalReceipt:
     return Vt08WalReceipt(
-        seq=int(row[0]),
+        seq=int(str(row[0])),
         source_event_id=str(row[1]),
         market=str(row[2]),
         kind=str(row[3]),
