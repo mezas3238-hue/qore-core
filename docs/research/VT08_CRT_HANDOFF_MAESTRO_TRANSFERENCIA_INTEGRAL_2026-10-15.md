@@ -291,3 +291,28 @@ Los tres modelos son **síntesis de ingeniería QORE predefinidas**, no implemen
 **Bloqueo externo verificado:** PR #626 tenía **0 GitHub reviews** al inspeccionarlo esta ronda. No existe revisor independiente autenticado ni trust roots protegidos provisonados/verificados; [issue P0 #976](https://github.com/mezas3238-hue/qore-core/issues/976) debe permanecer OPEN. El mismo login del Owner no puede ser simultáneamente auditor independiente. No ejecutar código aún editable del PR con secretos elevados; primero proceso de review y runner protegido y control de permisos.
 
 **Pendientes sin recortar:** G-M1 siete contratos individualmente adjudicados (G2 multirreferencia/G7 rearm incompletos), G-M2 blind 48+, G-M3 verdad externa, G-M4 5 UNKNOWN, G-M5, protección vault #837, BTCUSD congelado, nuevos BID/ASK PIT + OOS realmente virgen, Gates PF/DD/Sharpe/Sortino/MC/stress bajo soberanía CIBO/Risk, sin sizing en VT08. Estado G-M1..G-M4 PARTIAL; G-M5 NOT ISSUED; GLOBAL NOT CERTIFIED; **NO MERGE/NO demo/live/órdenes/VPS**.
+
+
+---
+
+## Addendum R3 — corregida cobertura de CI y G2/G7 causal (15-OCT-2026)
+
+**Takeover de esta nueva ronda** sobre `agent/vt08-crt-pure-source-identity-001`, PR #626 abierto DRAFT, sin merge. HEAD inicial `7e6e4adc590b03d878fd475df1cba55340df44a4`.
+
+### Hallazgo de auditoría del CI histórico
+
+Aunque [CI #38789606238](https://github.com/mezas3238-hue/qore-core/actions/runs/38789606238) informaba 107 PASS, el workflow solo incluía `crt_pure_gm1_external_review.py` en Ruff; **no incluía la fuente en la invocación explícita de mypy ni el test adversarial en pytest**. El reporte anterior de 107 tests NO implica que los casos de verificador externo se hubiesen ejecutado. Se arregló el workflow (commit `c287f28a`), se halló además un error de tipado concreto `datetime | None` en `owner_comment`, corregido en `45df0c41`. Se preserva la prueba y el bug para auditoría, sin maquillar ejecuciones intermedias que fallaron.
+
+### Nuevos G2/G7 — semántica de investigación, no aprobación
+
+- **Módulo:** `src/qore/infrastructure/traders/crt_pure_gm1_g2_g7_causal_audit.py` ; suite adversarial `tests/infrastructure/traders/test_crt_pure_gm1_g2_g7_causal_audit.py`. Documento completo [G2/G7 R3](VT08_CRT_GM1_G2_G7_CAUSAL_AUDIT_R3_2026-10-15.md).
+- **G2 `multiple_reference_priority`:** exige market/parent/clock/identidad/digest de la fuente y una cobertura declarada. Inventario no completo = WAIT; dos o más referencias concurrentes incluso con igual dirección = ABSTAIN; no aprendizaje de prioridad por PnL ni selección retrospectiva. Una única candidata produce `PROVISIONAL`, jamás ejecución. Referencias después de decisión o de mercado equivocado: error fail-closed. **No autentica exhaustividad real del inventario; fuente sigue OPEN.**
+- **G7 `conflict_and_rearm`:** fuente, hypothesis y parent únicos por mercado; generación y tiempos estrictos; nuevo intento en mismo padre H4, source/hypothesis reutilizada o nueva fuente no posterior a la decisión previa = ABSTAIN. Historial mezclado, duplicado o futuro = error. Tras una generación distinta en parent distinto, exige además **terminación de TODAS las tesis anteriores observada ANTES de la nueva fuente**, o WAIT/invalidación de evidencia futura. Solo concede `PROVISIONAL`, con `grants_rearm_authority=False` y `grants_execution_authority=False`.
+- Ambos auditores son QORE ENGINEERING PROPUESTA, **no** han recibido una firma auténtica ni reemplazan los generadores congelados V1/V2/V3 (resultados adversos intactos). Las pruebas sintéticas no son G-M1, G-M3 ni G-M4 PASS; G2 no inventaría old CRTH y G7 no tiene ledger real con custodia autenticada.
+
+### Evidencia CI y pendientes
+
+- [CI #38799381145](https://github.com/mezas3238-hue/qore-core/actions/runs/38799381145) **SUCCESS, 151 tests**, después de incluir G2/G7 y las pruebas externas (Ruff + mypy + pytest).
+- [CI #38799639178](https://github.com/mezas3238-hue/qore-core/actions/runs/38799639178) **SUCCESS, 156 tests**, incluyendo nuevas protecciones de aislamiento de mercados e integridad de historial. Esta ronda añadió después tres pruebas de terminación previa; verificar último CI y actualizar resultado en comentario PR antes de considerarlo GREEN.
+- Sigue **P0:** llevar propuesta G2 a una detección PIT completa de *todas* las referencias legítimas, inventariar casos reales sin PnL; enlazar G7 a reloj terminal de M5 y ledger persistente verificable, con 5 UNKNOWN censurados; auditor metodológico independiente/Owner distinto firmado por SHA; 48 G-M2 blind adjudicados; G-M3 error real; G-M4 witness completo. La issue [#976](https://github.com/mezas3238-hue/qore-core/issues/976) sigue OPEN. BTCUSD frozen y política alcance pendiente. [Data Vault #837](https://github.com/mezas3238-hue/qore-core/issues/837) urgente por vencimiento temporal de Atlas.
+- **Gate truth:** G-M1…G-M4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED; PF/DD/Sharpe/Sortino/OOS no demostrados; capital patrimonial sólo CIBO/Risk. **VT08 jamás sizing** (ni lote ni R ficticia); no broker, órdenes, demo/live, VPS, merge o despliegue.
