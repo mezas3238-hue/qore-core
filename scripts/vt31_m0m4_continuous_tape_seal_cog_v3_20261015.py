@@ -174,7 +174,7 @@ class VT31ContinuousSealCandidate:
         except (TypeError, ValueError, AttributeError):
             self._inner._last_assessed = previous_time
             if self._inner.context is not previous_source:
-                raise RuntimeError("V2_SOURCE_CHANGED_DURING_REJECT")
+                raise RuntimeError("V2_SOURCE_CHANGED_DURING_REJECT") from None
             return self._out(
                 REJECT, "V2_M4_UNTRUSTED_INPUT_REJECTED", session,
                 delegated=True,
