@@ -76,6 +76,21 @@ jobs:
           p=Path("g2-g7-real")/os.environ["QORE_MARKET"]
           m=json.loads((p/"g2-g7-real-atlas-pit-summary.json").read_text())
           rows=[json.loads(line) for line in (p/"g2-g7-real-atlas-pit-ledger.jsonl").read_text().splitlines() if line]
+          blind=[json.loads(line) for line in (p/"g2-c0-c1-blind-predecision-cases.jsonl").read_text().splitlines() if line]
+          assert len(blind)==m["counts"].get("C0_COMPETING",0)
+          assert len({case["blind_case_id"] for case in blind})==len(blind)
+          assert all(case["c2_closed_at_utc"]<case["decision_clock_utc"] for case in blind)
+          assert all(case["selected_reference"] is None and case["independent_reviewer_adjudicated"] is False for case in blind)
+          assert all(all(k in case for k in ("c0_closed_h4","c1_closed_h4","c2_closed_h4")) for case in blind)
+          forbidden=("outcome","terminal","pnl","sizing","future","profit","fill")
+          assert all(not any(t in k.lower() for t in forbidden) for case in blind for k in case)
+          assert all("G2_blind_predecision_case" not in row for row in rows)
+          assert all("EX_POST" not in json.dumps(row) for row in rows)
+          posthoc=m["G7_EX_POST_DIAGNOSTIC_NEVER_INITIAL_DECISION"]
+          assert posthoc["may_not_authorize_rearm"] is True
+          waits=m["counts"].get("G7_WAIT",0)
+          assert posthoc.get("WAIT_WITH_AT_LEAST_ONE_GM4_UNKNOWN",0)+posthoc.get("WAIT_ONLY_EVENTUALLY_KNOWN_TERMINAL_LATE",0)==waits
+          assert posthoc.get("MISSING_PRIOR_EXPOST_GM4_UNKNOWN",0)+posthoc.get("MISSING_PRIOR_EXPOST_TERMINAL_LATE",0)==posthoc.get("TOTAL_MISSING_PRIOR_AT_DECISION",0)
           assert len(rows)==m["V3_cases"]==m["GM4_cases_reconciled"]
           assert len(rows)>0
           assert m["counts"].get("G2_WAIT",0)==len(rows)
@@ -90,7 +105,7 @@ jobs:
           print("VT08_G2_G7_ATLAS_RESEARCH_COUNTS",json.dumps(m["counts"],sort_keys=True))
           PY
           printf '%s\n' "$GITHUB_SHA" > "g2-g7-real/$QORE_MARKET/git-sha.txt"
-          (cd "g2-g7-real/$QORE_MARKET"; sha256sum g2-g7-real-atlas-pit-summary.json g2-g7-real-atlas-pit-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+          (cd "g2-g7-real/$QORE_MARKET"; sha256sum g2-g7-real-atlas-pit-summary.json g2-g7-real-atlas-pit-ledger.jsonl g2-c0-c1-blind-predecision-cases.jsonl git-sha.txt > SHA256SUMS.txt)
       - name: Retain censored G2-G7 research artifact (no fills no sizing)
         uses: actions/upload-artifact@v4
         with:
