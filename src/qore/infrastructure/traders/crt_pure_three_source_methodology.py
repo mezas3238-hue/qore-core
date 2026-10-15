@@ -133,6 +133,7 @@ class CrtThreeSourceMethodologyAssessment:
     source_names: tuple[str, ...]
     methodology_closed: bool
     blockers: tuple[str, ...]
+    proposal_complete: bool = False
     allows_research_only: bool = True
     grants_trading_authority: bool = False
     grants_volume_authority: bool = False
@@ -145,7 +146,7 @@ def evaluate_three_source_methodology(
 
     Every rule has its own source or explicitly Owner-approved engineering
     authority. Source-supported never means 'three authors agreed'.
-    A proposal does not replace real independent reviewer authentication.
+    A proposal does not replace real independent reviewer authentication.\n\n    This offline assessor cannot authenticate a GitHub approval; it never\n    issues methodology_closed=True merely because string fields are populated.
     """
     required = tuple(CrtThreeSourceRule)
     if tuple(c.rule for c in contracts) != required:
@@ -171,11 +172,21 @@ def evaluate_three_source_methodology(
         for c in contracts
         if c.decision is CrtThreeSourceDecision.OPEN
     )
+    proposal_complete = not blockers
+    # IMPORTANT: IDs supplied in a proposal are untrusted user-controlled strings.
+    # Neither source citations nor self-declared reviewer/Owner IDs authenticate
+    # an independent decision. This evaluator has no trusted approval verifier.
+    # Fail closed even when all seven machine-readable *proposals* are filled.
+    # A separate independently authenticated, SHA-bound approval workflow must
+    # be implemented and audited before methodology_closed may ever become True.
+    if proposal_complete:
+        blockers.append("METHODOLOGY_INDEPENDENT_APPROVAL_UNVERIFIED")
     return CrtThreeSourceMethodologyAssessment(
         policy_id=POLICY_ID,
         source_names=AUTHORIZED_SOURCE_NAMES,
-        methodology_closed=not blockers,
+        methodology_closed=False,
         blockers=tuple(blockers),
+        proposal_complete=proposal_complete,
     )
 
 
