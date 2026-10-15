@@ -15,12 +15,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab.vt08_crt_gm4_unknown_root_forensics import (
+    diagnose_gm4_unknowns_expost,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import ReplayBar
 from qore.infrastructure.trader_lab.vt08_crt_pure_original_atlas_reader import (
     load_atlas_vt08_m5,
-)
-from qore.infrastructure.trader_lab.vt08_crt_gm4_unknown_root_forensics import (
-    diagnose_gm4_unknowns_expost,
 )
 from qore.infrastructure.trader_lab.vt08_crt_three_source_candidate_v1 import (
     _direction,
