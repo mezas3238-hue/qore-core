@@ -15,24 +15,34 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    M1Bar, NEW_YORK, SessionId, Side, utc,
+    M1Bar,
+    NEW_YORK,
+    SessionId,
+    Side,
+    utc,
 )
 from scripts.vt31_m0_predecision_method_router_20261015 import PREDECLARED
 from scripts.vt31_m0_temporal_admission_20261015 import (
-    ADMITTED, H1_WAIT, guarded_method_route,
+    ADMITTED,
+    H1_WAIT,
+    guarded_method_route,
 )
 from scripts.vt31_m4_closed_m1_author_gate_20261015 import (
-    OBSERVED, REJECTED as M4_REJECTED,
+    OBSERVED,
     adjudicate_closed_m1_retest,
 )
+from scripts.vt31_m4_closed_m1_author_gate_20261015 import REJECTED as M4_REJECTED
 from scripts.vt31_m4_ob_breaker_author_evidence_gate_20261015 import (
-    PROFILE, Candle, Swing,
+    PROFILE,
+    Candle,
+    Swing,
 )
 from scripts.vt31_mc_p2_ttrades_native_h1_evidence_20261014 import (
     native_ttrades_am_context,
 )
 from scripts.vt31_ttrades_source_first_g3_cognitive_proposal_20261015 import (
-    SUCCESS, ttrades_fixture,
+    SUCCESS,
+    ttrades_fixture,
 )
 
 PREREG = "d23ff760e3d8e66adec35f99d4743e4c232a0d0f"
