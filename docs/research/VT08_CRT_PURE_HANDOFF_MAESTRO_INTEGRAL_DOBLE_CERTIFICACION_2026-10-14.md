@@ -1,3 +1,11 @@
+# ATENCIÓN — HANDOFF MAESTRO ACTUAL DE TRANSFERENCIA (15-OCT-2026)
+
+**La versión operativa AUTÓNOMA y VIGENTE para el próximo arquitecto está en:**
+**[VT08_CRT_HANDOFF_MAESTRO_TRANSFERENCIA_INTEGRAL_2026-10-15.md](VT08_CRT_HANDOFF_MAESTRO_TRANSFERENCIA_INTEGRAL_2026-10-15.md)**.
+Contiene directiva actual de CRT con **RomeoTPT + SpeculatorFL + TraderFlameseN**, 12 secciones, resultados V1–V3 y G-M3/G-M4, matriz G-M1…G-M5 y económica E0…E11, 19 problemas, orden de takeover y evidencia Actions/artefactos. **Leer ese documento primero**; este archivo de 14-OCT permanece como **histórico exhaustivo**, no como regla que imponga fidelidad Romeo-only. PR #626 DRAFT/unmerged, BTCUSD frozen, G-M5 y GLOBAL no emitidos, **prohibido sizing de VT08**.
+
+---
+
 # NUEVA ORDEN DEL OWNER — 15-OCT-2026 — LEER ANTES DEL HANDOFF HISTÓRICO
 
 **El método CRT ya NO requiere fidelidad exclusiva a RomeoTPT.** El Owner autoriza construir y certificar una **síntesis QORE de TRES fuentes: RomeoTPT + SpeculatorFL + TraderFlameseN**. La anterior espera de una prioridad old-CRTH formulada SOLO por Romeo **queda sustituida** por obligación de disponer de una regla QORE explícita, causal, revisada, congelada y testeable. No reescribir la historia del corpus; catalogar lo propio como `QORE_ENGINEERING` y conservar incertidumbres auténticas. [Orden rectora tri-source y reparaciones del certificador](VT08_CRT_OWNER_TRES_FUENTES_CAMBIO_MANDATO_2026-10-15.md).
