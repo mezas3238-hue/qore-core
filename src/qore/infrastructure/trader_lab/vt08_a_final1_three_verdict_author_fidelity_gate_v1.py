@@ -38,6 +38,32 @@ REQUIRED_VALIDATION_FIELDS = frozenset((
 ))
 
 
+# Primary-page authority per claim, NOT merely any ttrades.com URL.
+# A matching page proves a written *category*, never the identity of a market
+# selector. Source snapshot/author judgment requires independent B verification.
+_ALIGN = "https://ttrades.com/timeframe-alignment-how-to-align-higher-and-lower-time-frames-for-precision-entries/"
+_SWING = "https://ttrades.com/relevant-swings-which-swing-highs-and-lows-matter-in-trading/"
+_POI = "https://ttrades.com/the-only-points-of-interest-that-actually-matter-for-trading/"
+_EQ = "https://ttrades.com/how-to-use-equilibrium-eq-ttrades-fractal-model/"
+_BREAKER = "https://ttrades.com/breaker-blocks-simplified/"
+_BREAKER_CONT = "https://ttrades.com/trading-breaker-blocks-for-continuations/"
+_TARGET = "https://ttrades.com/how-to-set-price-targets-using-the-fractal-model/"
+_POSITIONAL = "https://ttrades.com/positional-entries-enter-before-the-expansion/"
+_IDEAL = "https://ttrades.com/ttrades-ideal-formation-high-probability-swing-points/"
+SOURCE_PAGES_BY_RULE: dict[str, frozenset[str]] = {
+    "HTF_BIAS_KNOWN_PRE_C2": frozenset((_ALIGN,)),
+    "RELEVANT_SWING_REFERENCE_PRE_C2": frozenset((_SWING,)),
+    "RELEVANT_POI_PRE_C2": frozenset((_POI,)),
+    "C2_CLOSURE_AND_M3_CISD_PS_ASOF": frozenset((_ALIGN, _IDEAL)),
+    "C2_EQ_REGIME_CONFIRMED": frozenset((_EQ,)),
+    "BREAKER_LOW_AUTHENTICATED": frozenset((_BREAKER, _BREAKER_CONT)),
+    "STOP_BELOW_BOTH_EQ_AND_BREAKER": frozenset((_ALIGN,)),
+    "EXTERNAL_TARGET_UNTOUCHED_ASOF": frozenset((_TARGET,)),
+    "C3_POSITIONAL_OPEN_AND_ORDER_CLOCK": frozenset((_POSITIONAL, _ALIGN)),
+}
+if set(SOURCE_PAGES_BY_RULE) != REQUIRED_SOURCE_FIELDS:
+    raise RuntimeError("VT08 source registry must cover exactly the frozen family")
+
 class FinalVerdict(StrEnum):
     GO = "GO"
     NO_GO = "NO_GO"
@@ -85,7 +111,7 @@ class RuleReceipt:
             return False
         if self.source_class != "A_WRITTEN":
             return False
-        if not self.source_uri.startswith("https://ttrades.com/"):
+        if self.source_uri not in SOURCE_PAGES_BY_RULE[self.key]:
             return False
         if not all((
             self.known_at,
@@ -189,8 +215,19 @@ class VerifiedEconomicEvidence:
             and self.markets == MARKETS
             and self.fills >= 0
             and self.total_entry_decisions >= self.fills
+            and type(self.fills) is int
+            and type(self.total_entry_decisions) is int
+            and all(x.is_finite() for x in (
+                self.gross_profit_net_of_costs_r,
+                self.gross_loss_net_of_costs_r,
+                self.net_expectancy_per_fill_r,
+            ))
             and self.gross_profit_net_of_costs_r >= 0
             and self.gross_loss_net_of_costs_r >= 0
+            # A contradictory PF / expectancy ledger cannot pass the gate.
+            and self.gross_profit_net_of_costs_r
+            - self.gross_loss_net_of_costs_r
+            == self.net_expectancy_per_fill_r * Decimal(self.fills)
             and _sha256(self.event_history_sha256)
             and _sha256(self.independent_broker_executions_sha256)
         )
@@ -270,6 +307,6 @@ def long_stop_below_two_verified_levels(
 
     This predicate does NOT verify provenance or author selection of levels.
     """
-    if min(eq, breaker_low, stop, broker_tick) <= 0:
-        raise ValueError("source prices and broker tick must be positive")
+    if not all(x.is_finite() and x > 0 for x in (eq, breaker_low, stop, broker_tick)):
+        raise ValueError("source prices and broker tick must be finite positive")
     return stop <= min(eq, breaker_low) - broker_tick
