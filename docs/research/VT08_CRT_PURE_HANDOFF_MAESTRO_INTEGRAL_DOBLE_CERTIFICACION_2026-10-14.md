@@ -1,3 +1,15 @@
+# NUEVA ORDEN DEL OWNER — 15-OCT-2026 — LEER ANTES DEL HANDOFF HISTÓRICO
+
+**El método CRT ya NO requiere fidelidad exclusiva a RomeoTPT.** El Owner autoriza construir y certificar una **síntesis QORE de TRES fuentes: RomeoTPT + SpeculatorFL + TraderFlameseN**. La anterior espera de una prioridad old-CRTH formulada SOLO por Romeo **queda sustituida** por obligación de disponer de una regla QORE explícita, causal, revisada, congelada y testeable. No reescribir la historia del corpus; catalogar lo propio como `QORE_ENGINEERING` y conservar incertidumbres auténticas. [Orden rectora tri-source y reparaciones del certificador](VT08_CRT_OWNER_TRES_FUENTES_CAMBIO_MANDATO_2026-10-15.md).
+
+**Avance V1 y V2 real:** [V1 pre-registro](VT08_CRT_3_FUENTES_QORE_V1_PREREG_2026-10-15.md) y [V2 pre-registro](VT08_CRT_3_FUENTES_QORE_V2_PREREG_2026-10-15.md), [GitHub Actions V1 #38710923324](https://github.com/mezas3238-hue/qore-core/actions/runs/38710923324) y [V2 #38711787794](https://github.com/mezas3238-hue/qore-core/actions/runs/38711787794) ambos quality + 2 mercados SUCCESS: **5.524 contextos H4 (2.738 AUDUSD/2.786 USDJPY), V1 54 candidatos conceptuales y V2 745 (353 AUDUSD/392 USDJPY)** sobre **296.372 velas M5 originales**. 2025 V2: 173 AUDUSD y 206 USDJPY; **NO TRADES, NO SIZING, NO RENTABILIDAD**. Artifacts V2 AUDUSD **11960992041**, USDJPY **11961650358** SHA256 verificados. **V2 identidad y metodología pre-registradas** ANTES de mirar su resultado. Se pre-registró además [lifecycle estructural PRICE-ONLY de V2](VT08_CRT_THREE_SOURCE_V2_LIFECYCLE_PREREG_2026-10-15.md), que no es simulación PnL/fill y no puede promover un certificado por hit rate.
+
+**Reparación de código:** `crt_pure_three_source_methodology.py` y tests + `crt_pure_methodological_certification.py`, `crt_pure_certification_readiness.py`, `crt_pure_r2_entry_router.py`, seguridad G-M3 y CI. **Siete contratos QORE de reglas compuestas aún OPEN**, por lo que el nuevo modelo elimina la dependencia Romeo-only pero no emite G-M5 de manera artificial. Gates PF/DD/Sharpe/Sortino/OOS/WFO/stress/Monte Carlo y revisión Risk/CIBO global siguen pendientes. DD patrimonial sólo CIBO/Risk y jamás sizing del Trader.
+
+**Precedencia:** cualquier texto posterior de este documento que diga «es obligatorio esperar nivel Romeo old-CRTH» o «sólo fidelidad exclusiva al autor» está **SUPERADO**. Sí siguen vigentes la auditoría de causalidad, el veto a sizing, independencia real del holdout y ausencia de órdenes/merge. **PR #626 DRAFT, VT08 NO CERTIFICADO GLOBALMENTE, SIN DEMO/LIVE/VPS.**
+
+---
+
 # QORE CORE — HANDOFF MAESTRO INTEGRAL DEL ARQUITECTO ENTRANTE
 ## VT08 CRT PURE · DOBLE CERTIFICACIÓN: METODOLOGÍA/COGNICIÓN Y ECONOMÍA GLOBAL
 
