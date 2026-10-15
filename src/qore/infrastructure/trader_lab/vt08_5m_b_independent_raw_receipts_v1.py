@@ -12,6 +12,7 @@ import re
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -62,8 +63,20 @@ def _prices(raw: object) -> tuple[Decimal, Decimal, Decimal, Decimal]:
 def _raw_bars(
     path: Path, profile: str, market: str
 ) -> tuple[str, dict[datetime, Mapping[str, object]]]:
-    source = path.read_bytes()
+    # Recompute file SHA on EACH access; cache expensive JSON/Decimal decoding
+    # only by the actual content digest, never by path or timestamp alone.
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    return _raw_bars_for_digest(str(path.resolve()), profile, market, digest)
+
+
+@lru_cache(maxsize=8)
+def _raw_bars_for_digest(
+    path: str, profile: str, market: str, digest: str
+) -> tuple[str, dict[datetime, Mapping[str, object]]]:
+    source = Path(path).read_bytes()
     sha = hashlib.sha256(source).hexdigest()
+    if sha != digest:
+        raise ValueError("VT08 B raw file mutated during independent attestation")
     try:
         document = _record(json.loads(source))
     except (UnicodeError, json.JSONDecodeError) as error:
