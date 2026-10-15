@@ -12,7 +12,6 @@ import json
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
