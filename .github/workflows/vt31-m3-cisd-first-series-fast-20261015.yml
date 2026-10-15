@@ -1,0 +1,111 @@
+name: VT31 TTrades CISD First Opposing Series Source Ultra Fast Parity
+on:
+  push:
+    branches:
+      - agent/vt31-m3-author-cisd-first-series-20261015
+    paths:
+      - 'docs/research/VT31_M3_CISD_FIRST_OPPOSING_SERIES_PREREG_2026-10-15.md'
+      - 'scripts/vt31_m3_cisd_first_series_source_witness_20261015.py'
+      - 'tests/infrastructure/test_vt31_m3_cisd_first_series_source_witness_20261015.py'
+      - '.github/workflows/vt31-m3-cisd-first-series-fast-20261015.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+  NATIVE_SHA: '1556766c1831190b5459bf93404081412200ba7d'
+  CENSUS_SHA: '35bd317ddfed60e09523287de51347683d98e613'
+jobs:
+  vt31-ttrades-first-series-source-cognitive-fast-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 40
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prereg before code, original G3 and pinned V2
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor a7395df49187aa67a29a98982b72b122fda8ceee HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object scripts/vt31_m3_ttrades_cog_wait_v2_20261015.py)" = 2ab6a7b0fdbe31de6bef17fb2d8eb8cc4055d751
+          test "$(git hash-object scripts/vt31_m4_m5_author_semantics_bridge_20261015.py)" = ab35ef4d2446e53bf1513e019776961efc046d80
+          git fetch --no-tags --depth=1 origin "$NATIVE_SHA"
+          git show "$NATIVE_SHA:scripts/vt31_ttrades_am_native_cog_v1_20261014.py" > scripts/vt31_ttrades_am_native_cog_v1_20261014.py
+          test "$(git hash-object scripts/vt31_ttrades_am_native_cog_v1_20261014.py)" = 407c5959c8cf2268ff210fbbe8bb07b91d2f4510
+          git fetch --no-tags --depth=1 origin "$CENSUS_SHA"
+          git show "$CENSUS_SHA:scripts/vt31_ttrades_am_method_m1_census_20261014.py" > scripts/vt31_ttrades_am_method_m1_census_20261014.py
+          test "$(git hash-object scripts/vt31_ttrades_am_method_m1_census_20261014.py)" = 43a219e21237acfddc773a7c78ab6103d3839168
+          git show "$CENSUS_SHA:tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py" > tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py
+      - name: Test author FIRST-series OPEN rule and genuine source cognition
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check scripts/vt31_m3_cisd_first_series_source_witness_20261015.py tests/infrastructure/test_vt31_m3_cisd_first_series_source_witness_20261015.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_m3_cisd_first_series_source_witness_20261015.py \
+            tests/infrastructure/test_vt31_m3_ttrades_cog_wait_v2_20261015.py \
+            tests/infrastructure/test_vt31_m4_m5_author_semantics_bridge_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Load authentic NAS100 M1 source and pin SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+      - name: CISD FIRST vs last OPEN full 483 days scalar and Ultra Fast byte parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m3_cisd_first_series_source_witness_20261015.py \
+            --market source/NAS100/market-evidence.json \
+            --parity --out evidence/VT31_TTRADES_CISD_FIRST_SERIES_VS_LAST_483_REAL_M1.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_TTRADES_CISD_FIRST_SERIES_VS_LAST_483_REAL_M1.json"))
+          assert p["prereg_commit"]=="a7395df49187aa67a29a98982b72b122fda8ceee"
+          assert p["original_m1_count"]==1059784
+          assert p["frozen_source_days"]==775
+          assert p["frozen_first_returns"]==483
+          assert p["scalar_ultrafast_full_casebook_identical"] is True
+          assert sum(p["author_first_open_vs_legacy_last_open_counts"].values())==483
+          assert len(p["all_483_cognitive_m1_records"])==483
+          assert p["author_full_MSS_displacement_certified"] is False
+          assert p["author_full_OB_entry_certified"] is False
+          assert p["causative_stop_swing_certified"] is False
+          assert p["method_cognition_certified"] is False
+          assert p["M6_dual_signers_verified"] is False
+          assert p["trader_certified"] is False
+          assert p["orders_sizing_economics"] is False
+          assert p["live_authorized"] is False
+          print("VT31_TTRADES_SOURCE_FIRST_CISD_SCALAR_ULTRAFAST_PARITY_PASS_NO_PNL")
+          PY
+      - name: Receipt only, never upload licensed raw source
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/code_sha.txt
+          printf '%s\n' 'TTRADES_FIRST_OPEN_CISD_M3_SOURCE_ONLY_NO_TRADE_PNL_OR_SIZING' > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-m3-ttrades-cisd-first-open-ultrafast-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
