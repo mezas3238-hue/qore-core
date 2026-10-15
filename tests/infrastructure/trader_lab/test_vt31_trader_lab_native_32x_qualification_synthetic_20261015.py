@@ -6,7 +6,7 @@ identity, not actual broker bid/ask, not a Trader Lab L3 certification.
 """
 from __future__ import annotations
 
-from datetime import UTC, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from uuid import UUID
 
