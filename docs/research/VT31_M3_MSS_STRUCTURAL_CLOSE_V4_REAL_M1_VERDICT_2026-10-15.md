@@ -1,0 +1,38 @@
+# VT31 M3 — Dictamen V4: swing confirmado, ruptura estructural y abstención causal
+**Corte 15-OCT-2026 · Owner: certificación METODOLOGÍA + COGNITIVA**, no PF/DD/Sharpe/Sortino, frecuencia de operaciones ni sizing. PR #972 DRAFT, acumulativo después de #970, no merge, LIVE, DEMO/VPS/FundedNext ni operaciones.
+
+## 1. Fuentes PRIMARIAS autorales
+- [TTrades MSS vs CISD 1-JUL-2025](https://ttrades.com/market-structure-shifts-vs-change-in-the-state-of-delivery-a-clear-comparison/): el MSS exige **desplazamiento + cierre más allá de un swing HIGH/LOW**; CISD considera el OPEN de la secuencia de velas contrarias y puede aparecer antes del MSS. No certificar MSS por un cierre de vela sin desplazamiento.
+- [TTrades Advanced Market Structure 11-JUL-2025](https://ttrades.com/advanced-market-structure-simplified-from-short-term-to-long-term-trends/): SHORT TERM pivot alta/baja M1 debe exceder/no alcanzar extremos de sus vecinos en ambas direcciones; INTERMEDIATE TERM requiere pivote short-term entre otros short-term; higher-timeframe protegido no siempre coincide con cualquier pivote local. Por eso seleccionar arbitrariamente uno de varios pivotes es **incertidumbre cognitiva genuina**, no rechazo de trades ni motivo para retocar umbrales.
+- [PR #968](https://github.com/mezas3238-hue/qore-core/pull/968) prueba FIRST_OPEN CISD de la secuencia opuesta en M1, y [PR #970](https://github.com/mezas3238-hue/qore-core/pull/970) ya integra espera/invalidez/expiración. V4 combina la máquina COG V3 REAL con `short_term_swings()` autoral geométrico del [PR #960](https://github.com/mezas3238-hue/qore-core/pull/960); todos scripts previos **sin editar**. Solo un COMPONENTE del MSS está atestado.
+
+## 2. Implementación de investigación V4 causal y fail-closed
+- [Preregistro PRE-CODE SHA](https://github.com/mezas3238-hue/qore-core/blob/24a5226eb52d96f612db2e524a2a6ed4a9baa212/docs/research/VT31_M3_MSS_STRUCTURAL_CLOSE_PREREG_2026-10-15.md). Código `scripts/vt31_m3_mss_structural_close_v4_20261015.py` separado del G3 original.
+- Recibe **solo M1 10h ya cerradas**, contexto primer H1 09 source de V3, primer raid, retorno y FIRST_OPEN CISD confirmado. Selecciona solo swing SHORT TERM geométrico compatible con LONG high / SHORT low, vela pivot con vecinos, M1 derecha confirmada **estrictamente antes de cierre actual**, y pivot creado **después del primer retorno** (recorte QORE reconocido). Testigo exige que cierre previo todavía no haya superado swing y cierre actual lo supere **estrictamente**, para evitar doble conteo/promotion por wick o repetición de cierre.
+- Cuando exactamente UNA referencia estructural está disponible y rota: `SOURCE_SWING_CLOSE_COMPONENT_DISPLACEMENT_UNVERIFIED` sin marcar MSS autoral. Si varias referencias plausibles: `MULTIPLE_SWINGS_MSS_REFERENCE_UNKNOWN`; no elegir último, más cercano, máximo precio ni el ganador de performance. Si ninguna ruptura: `WAIT_FOR_CONFIRMED_STRUCTURAL_CLOSE`.
+- Revocación dominante incluso después del primer componente por `INVALIDATED_OPPOSITE_RAID` o `TARGET_CONSUMED_NO_FRESH_INTENT`. Cierra 11 NY a `EXPIRED_11_NY`. Si M1 no contigua, no inferir OHLC puente. No produce `CognitiveDecision`, Stop, TP, precio de fill, operaciones, tamaño ni PnL.
+- **Límite fuente esencial:** un cierre estructural aislado no prueba *displacement* como lo requiere el autor; escoger nivel short-term en lugar de intermediate/long-term es QORE research policy, NO doctrina universal TTrades. No subir el indicador a `MSS_CERTIFIED` ni `TRADER_CERTIFIED`.
+
+## 3. Experimento inalterado: 483 contextos reales / SHA y Ultra Fast
+**[GitHub Actions #38762765226 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38762765226)** con código probado commit `4f54e51cfc653657b466612e75ab76ecc7bed56f`, **Ruff PASS + 37/37 tests PASS**, verificación G3 COG/OPS originales y testigos V2/V3/autor, NAS100 **1.059.784 M1** SHA256 `0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa`, 775 días y 483 contextos FIRST_RETURN_NO_QORE_MSS congelados; mercado DESARROLLO ya visto, NO fresh OOS.
+
+**[Artifact de decisiones por caso #11985579621](https://github.com/mezas3238-hue/qore-core/actions/runs/38762765226/artifacts/11985579621)**, ZIP SHA256 `43c20bb9010dd379e228efe00613ef74aaa111eab97fd183b8e209416c5da6e7`; registro por cada caso con fecha, first-CISD timestamp, primer pivot confirmado, primer evento de swing-close/ambigüedad, estado final, NO precio stop ni fills. Full casebook SHA256 `6ad621087da3a97c7ad95e85bbcbda88658db9bea049915411706c6cbf002c8e`: **scalar == 2 procesos Ultra Fast** bit a bit por normalización JSON, no solo counts.
+
+| Componente de método/COG en 483 contextos congelados | Casos | Semántica |
+| --- | ---: | --- |
+| `SINGLE_CONFIRMED_SWING_CLOSE_COMPONENT_ONLY` | **96** | Cierre nuevo sobre un único swing SHORT TERM previo confirmado, después de CISD. **NO acredita desplazamiento ni MSS completo** |
+| `MULTIPLE_MSS_SWING_REFERENCE_UNKNOWN` | **318** | Varios swings candidatos confirmados; **abstención** ante referencia protegida no única |
+| `NO_ATTESTED_STRUCTURAL_CLOSE_COMPONENT` | **69** | No hay ruptura estructural única reconocida en la secuencia/ventana bajo recorte QORE conservador |
+| **Total** | **483** | NI operaciones, NI edge, NI score de aprobación |
+
+**Estados cognitivos finales de esos 483 casos:** **48** `INVALIDATED_OPPOSITE_RAID`, **435** `EXPIRED_11_NY`, idénticos al COG V3 padre; nadie mantiene autorización después de la ventana. Fuente+censo compartidos 15,708918s, scalar 24,043141s, Ultra Fast 2 forks 12,227207s; ~1,97× fase de comparación sin la carga. No hacer promesa de que velocidad resuelve el juicio metodológico.
+
+## 4. Cómo realmente avanzar a M3 y certificación
+1. **P0 jerarquía fuente TTrades:** identificar short-term frente a intermediate-term/protected swing en M1/HTF, con cierres **causales antes de ruptura** y desempates doctrinales; los 318 contextos ambiguos no se deben promover por proximidad, precio o PnL. Registrar UNKNOWN cuando la fuente no distingue. Fuente artículo Advanced Structure describe pivote intermedio como short-term con pivotes short-term a ambos lados; otra fuente podría especificar priorización sin heurística inventada.
+2. **P0 displacement:** obtener evidencia autora de vela(s) de displacement/close concreto en casos positivos, negativos y “wick only”; FVG 3 velas relacionado con displacement puede ser testigo auxiliar, pero sin autoría de un filtro universal body1.25. Separar `CISD_FIRST_OPEN`, `STRUCTURAL_CLOSE`, `DISPLACEMENT_EVIDENCED` y solo después evaluación MSS.
+3. M4 cuatro familias completas FVG en estructura, OB, Breaker zona/retest y precedencia; usar PR #960/#961, evitar read-only witness → TRADE_PROMOTION.
+4. M5 swing **causante** del desplazamiento con timestamp y antecedente causal, no C2 QORE o primer barrido por defecto.
+5. M0 selector pre-sesión [PR #963](https://github.com/mezas3238-hue/qore-core/pull/963) debe integrarse a trader único genuino sin cambiar G3 r1.3, y M6 [issue #897](https://github.com/mezas3238-hue/qore-core/issues/897) exige firmas COG/OPS INDEPENDIENTES verificables. Si faltan, autoridad externa no se puede simular por dos agentes/un login.
+6. Ultra Fast #966 sirve para iteración, pero código nuevo cambia baseline: congelar nuevos hashes sólo después de ejecución scalar vs fast y no readaptar jamás por PnL.
+
+**Estado: COG V4 RESEARCH STRUCTURAL_CLOSE_COMPONENT_ENGINEERING_PASS; VT31 METHOD_CERTIFIED = FALSE; COGNITION_RUNTIME_CERTIFIED = FALSE; TRADER_CERTIFIED = FALSE.** No merge/LIVE/sizing. CI PASS prueba fidelidad de comportamiento reproducible, no fidelidad MSS/desplazamiento global.
