@@ -60,6 +60,7 @@ class SourceFirstCogProposal:
     original_mss_at: datetime | None
     proposed: CognitiveDecision | None
     independent_v2_state: str | None
+    original_cog_invoked: bool = False
     actual_original_cog_unchanged: bool = True
     author_complete_method_certified: bool = False
     method_certified: bool = False
@@ -106,6 +107,7 @@ class SourceFirstCogProposal:
                 "mss_at": dto.structure_break_confirmed_at.isoformat(),
             } if dto is not None else None,
             "independent_v2_state": self.independent_v2_state,
+            "original_cog_invoked": self.original_cog_invoked,
             "actual_original_cog_unchanged": self.actual_original_cog_unchanged,
             "author_complete_method_certified": self.author_complete_method_certified,
             "method_certified": self.method_certified,
@@ -129,6 +131,7 @@ def ttrades_source_first_g3_cognitive_proposal(
     if profile != TTRADES_AM:
         raise ValueError("TTRADES_EXPLICIT_METHOD_PROFILE_REQUIRED")
     at = utc(as_of)
+    cog_assessed = False  # True only after the actual original assess() call.
 
     def emit(
         status: str, *reasons: str,
@@ -144,6 +147,7 @@ def ttrades_source_first_g3_cognitive_proposal(
             original_cog_dol=original.draw_target if original else None,
             source_opposite_h1_dol=opposite,
             projected_index_points=distance,
+            original_cog_invoked=cog_assessed,
             original_mss_side=original.side.value if original else None,
             original_mss_at=(
                 original.structure_break_confirmed_at if original else None
@@ -202,6 +206,7 @@ def ttrades_source_first_g3_cognitive_proposal(
     for bar in closed_m1:
         engine.observe_closed_m1(bar)
     assessment = engine.assess(session=session, as_of=at)
+    cog_assessed = True
     original = assessment.decision
     if original is None:
         return emit(
