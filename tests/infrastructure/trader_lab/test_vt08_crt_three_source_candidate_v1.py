@@ -116,3 +116,20 @@ def test_future_sizing_and_unclosed_m15_rejected() -> None:
     m15[1]["opened_at_utc"] = "2025-03-03T10:30:00+00:00"
     with pytest.raises(ValueError, match="future/partial"):
         evaluate_three_source_case(data)
+
+
+def test_later_blind_case_clock_cannot_change_v1_first_two_bar_reading() -> None:
+    baseline = evaluate_three_source_case(fixture())
+    extended = deepcopy(fixture())
+    extended["decision_clock_utc"] = "2025-03-03T10:45:00+00:00"
+    extended["M15_observed_prefix_through_C2"].append({  # type: ignore[attr-defined]
+        "opened_at_utc": "2025-03-03T10:30:00+00:00",
+        "open_relative": 96,
+        "high_relative": 100,
+        "low_relative": 90,
+        "close_relative": 91,
+    })
+    result = evaluate_three_source_case(extended)
+    assert result["conceptual_state"] == baseline["conceptual_state"]
+    assert result["decision_clock_utc"] == "2025-03-03T10:30:00+00:00"
+    assert result["sampling_biased_at_review_clock"] is True
