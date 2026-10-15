@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/workflows/vt08-crt-pure-gm2-blind-casebook.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py'
@@ -39,9 +41,9 @@ jobs:
         run: python -m pip install -e '.[dev]'
       - name: Enforce code hygiene and contract tests
         run: |
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
 
   generate_real_casebook:
     needs: quality
@@ -156,6 +158,24 @@ jobs:
           assert all(row['reference_selector_source_approved'] is False for row in rows)
           assert all(not obs['entry_authorized'] for row in rows for obs in row['observations'])
           PY
+      - name: Run PRE-REGISTERED three-source QORE V1 (development ONLY; never FIRST-LOOK)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_candidate_v1 \
+            "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/three-source-qore-v1-stdout.json"
+          python - <<'PY'
+          import os, json
+          from pathlib import Path
+          root=Path("artifacts")/os.environ["QORE_MARKET"]
+          m=json.loads((root/"three-source-qore-v1-summary.json").read_text())
+          assert m["cases"]==24 and m["GM1_PASS"] is False and m["GLOBAL_CERTIFIED"] is False
+          assert m["no_sizing_or_broker_order"] is True
+          rows=[json.loads(s) for s in (root/"three-source-qore-v1-dev-ledger.jsonl").read_text().splitlines() if s]
+          assert len(rows)==24
+          assert all(r["not_trading_signal"] and r["no_capital_or_volume_authority"] for r in rows)
+          PY
       - name: Run existing VT08 cognition on real case prefixes (G-M3 safety only)
         shell: bash
         run: |
@@ -199,12 +219,14 @@ jobs:
           set -euo pipefail
           printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_MARKET/git-sha.txt"
           cd "artifacts/$QORE_MARKET"
-          sha256sum gm1-model1-raw-reference-summary.json gm1-model1-raw-reference-observations.jsonl gm1-model1-geometry-stdout.json gm1-reference-dispute-summary.json gm1-reference-dispute-reviewer-only.jsonl gm1-reference-dispute-stdout.json gm2-real-casebook-manifest.json gm2-blind-cases.jsonl gm2-sealed-c3-witness.jsonl gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl gm3-safety-stdout.json stdout-manifest.json git-sha.txt > SHA256SUMS.txt
+          sha256sum three-source-qore-v1-summary.json three-source-qore-v1-dev-ledger.jsonl three-source-qore-v1-stdout.json gm1-model1-raw-reference-summary.json gm1-model1-raw-reference-observations.jsonl gm1-model1-geometry-stdout.json gm1-reference-dispute-summary.json gm1-reference-dispute-reviewer-only.jsonl gm1-reference-dispute-stdout.json gm2-real-casebook-manifest.json gm2-blind-cases.jsonl gm2-sealed-c3-witness.jsonl gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl gm3-safety-stdout.json stdout-manifest.json git-sha.txt > SHA256SUMS.txt
       - name: Separate blinded reviewer packet from sealed C3 (no access control implied)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "reviewer-blind/$QORE_MARKET" "sealed-future/$QORE_MARKET"
+          cp "artifacts/$QORE_MARKET/three-source-qore-v1-summary.json" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/three-source-qore-v1-dev-ledger.jsonl" "reviewer-blind/$QORE_MARKET/"
           cp "artifacts/$QORE_MARKET/gm1-model1-raw-reference-summary.json" "reviewer-blind/$QORE_MARKET/"
           cp "artifacts/$QORE_MARKET/gm1-model1-raw-reference-observations.jsonl" "reviewer-blind/$QORE_MARKET/"
           cp "artifacts/$QORE_MARKET/gm1-reference-dispute-summary.json" "reviewer-blind/$QORE_MARKET/"
@@ -216,7 +238,7 @@ jobs:
           cp "artifacts/$QORE_MARKET/git-sha.txt" "reviewer-blind/$QORE_MARKET/"
           cp "artifacts/$QORE_MARKET/gm2-sealed-c3-witness.jsonl" "sealed-future/$QORE_MARKET/"
           cp "artifacts/$QORE_MARKET/git-sha.txt" "sealed-future/$QORE_MARKET/"
-          (cd "reviewer-blind/$QORE_MARKET"; sha256sum gm1-model1-raw-reference-summary.json gm1-model1-raw-reference-observations.jsonl gm1-reference-dispute-summary.json gm1-reference-dispute-reviewer-only.jsonl gm2-blind-cases.jsonl gm2-real-casebook-manifest.json gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+          (cd "reviewer-blind/$QORE_MARKET"; sha256sum three-source-qore-v1-summary.json three-source-qore-v1-dev-ledger.jsonl gm1-model1-raw-reference-summary.json gm1-model1-raw-reference-observations.jsonl gm1-reference-dispute-summary.json gm1-reference-dispute-reviewer-only.jsonl gm2-blind-cases.jsonl gm2-real-casebook-manifest.json gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
           (cd "sealed-future/$QORE_MARKET"; sha256sum gm2-sealed-c3-witness.jsonl git-sha.txt > SHA256SUMS.txt)
           if grep -R -l 'C3_M5_reveal_after_independent_review' "reviewer-blind/$QORE_MARKET"; then
             echo "::error::Sealed future C3 leaked into blinded reviewer packet"
