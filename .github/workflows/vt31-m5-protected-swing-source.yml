@@ -1,0 +1,82 @@
+name: VT31 M5 TTrades Protected Swing Method Cognition Source NO PNL
+on:
+  push:
+    branches:
+      - agent/vt31-m5-protected-swing-source-cognition-20261015
+    paths:
+      - 'scripts/vt31_m5_ttrades_protected_swing_source_20261015.py'
+      - 'tests/infrastructure/test_vt31_m5_ttrades_protected_swing_source_20261015.py'
+      - 'docs/research/VT31_M5_PROTECTED_SWING_TTRADES_CAUSAL_SOURCE_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-m5-protected-swing-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qualitative-swing-protection-no-economics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preregistered method before code and original G3 code immutable
+        run: |
+          set -euo pipefail
+          git cat-file -t de181b82f5e72ddb824798d642eec8fa94d9ca06
+          git merge-base --is-ancestor de181b82f5e72ddb824798d642eec8fa94d9ca06 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Test M5 source causal protected swing and inherited M4 M0 cognition
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          ruff check scripts/vt31_m5_ttrades_protected_swing_source_20261015.py tests/infrastructure/test_vt31_m5_ttrades_protected_swing_source_20261015.py
+          python -m py_compile scripts/vt31_m5_ttrades_protected_swing_source_20261015.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_m5_ttrades_protected_swing_source_20261015.py \
+            tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_original_g3_cog_short_sessions_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_m0_profile_shadow_attestation_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_m5_ttrades_protected_swing_source_20261015.py \
+            --out evidence/VT31_M5_TTRADES_PROTECTED_SWING_CAUSAL_NO_BROKER_SL.json \
+            | tee evidence/summary.json
+      - name: Context witness cannot certify G3 C2 or author-defined causing swing
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_M5_TTRADES_PROTECTED_SWING_CAUSAL_NO_BROKER_SL.json"))
+          assert p["prereg_commit"]=="de181b82f5e72ddb824798d642eec8fa94d9ca06"
+          assert len(p["cases"])==8
+          assert sum(c["status"]=="RESEARCH_PROTECTED_SWING_SOURCE_CONTEXT_WITNESSED" for c in p["cases"])==4
+          assert sum(c["status"]=="PROTECTED_SWING_NOT_CONFIRMED_WAIT" for c in p["cases"])==4
+          assert all(not c["displacement_causing_swing_author_final_identified"]
+                     and not c["broker_stop_tick_price_certified"]
+                     and not c["method_certified"] and not c["cognition_certified"]
+                     and c["orders"]==c["sizing"]==0 for c in p["cases"])
+          assert not p["author_full_displacement_causing_swing_identified"]
+          assert not p["g3_c2_stop_equivalence_claimed"]
+          assert not p["human_method_review_completed"]
+          assert not p["methodology_certified"] and not p["cognition_certified"]
+          assert p["pnl_or_return_evidence"] is None
+          assert p["broker_orders"]==p["lot_sizing"]==0 and not p["live_authorized"]
+          print("PROTECTED_SWING_M5_CONTEXT_WITNESS_NOT_AUTHOR_STOP_CERTIFICATION")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' de181b82f5e72ddb824798d642eec8fa94d9ca06 > evidence/prereg_sha.txt
+          printf '%s\n' 'NO_REAL_SL_NO_FILLS_NO_PROFIT_NO_CERTIFICATION_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-protected-swing-author-context-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
