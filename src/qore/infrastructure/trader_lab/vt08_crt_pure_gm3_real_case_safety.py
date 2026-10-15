@@ -29,6 +29,12 @@ from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection,
 )
+from qore.infrastructure.traders.crt_pure_methodological_certification import (
+    CrtPureMethodGateEvidence,
+    CrtPureMethodGateState,
+    evaluate_methodological_gm5,
+    present_vt08_gm5_status,
+)
 from qore.infrastructure.traders.crt_pure_r2_entry_router import (
     CrtPureR2EntryState,
     assess_model1_certification_entry_family,
@@ -182,6 +188,38 @@ def audit_blind_case(case: dict[str, Any]) -> dict[str, Any]:
         or router.grants_execution_authority
     ):
         raise ValueError("G-M4 router bypassed unresolved Model #1 source")
+    # Adversarial certification-forgery test across the SAME real causal case.
+    # Even if someone injects four fabricated external PASS attestations,
+    # immutable primary-source readiness must defeat certificate issuance.
+    apparent_pass = tuple(
+        CrtPureMethodGateEvidence(
+            gate_id=gate_id,
+            state=CrtPureMethodGateState.PASS,
+            audited_source_refs=("urn:qore:adversarial-unverified-fixture",),
+            independent_adjudicator="UNVERIFIED_TEST_IDENTITY",
+            no_future_leak_attested=True,
+        )
+        for gate_id in ("G-M1", "G-M2", "G-M3", "G-M4")
+    )
+    forged_certificate = evaluate_methodological_gm5(apparent_pass)
+    real_certificate = present_vt08_gm5_status()
+    if forged_certificate.certificate_issued or real_certificate.certificate_issued:
+        raise ValueError("G-M5 certified without approved Romeo source")
+    if real_certificate.source_closed or forged_certificate.source_closed:
+        raise ValueError("G-M5 source closed without Model #1 reference proof")
+    if any(
+        (
+            real_certificate.demo_authorized,
+            real_certificate.live_authorized,
+            real_certificate.volume_authorized,
+            real_certificate.broker_order_authorized,
+            forged_certificate.demo_authorized,
+            forged_certificate.live_authorized,
+            forged_certificate.volume_authorized,
+            forged_certificate.broker_order_authorized,
+        )
+    ):
+        raise ValueError("G-M5 must not issue order or volume authority")
     return {
         "schema": SCHEMA,
         "case_id": case["case_id"],
@@ -195,6 +233,12 @@ def audit_blind_case(case: dict[str, Any]) -> dict[str, Any]:
         "certification_router_state": router.state.value,
         "certification_router_why": router.why,
         "G_M4_missing_source_router_safety_checked": True,
+        "G_M5_real_evidence_certificate_issued": real_certificate.certificate_issued,
+        "G_M5_forged_all_pass_certificate_issued": (
+            forged_certificate.certificate_issued
+        ),
+        "G_M5_source_primary_blockers": forged_certificate.blockers,
+        "G_M5_anti_forgery_safety_checked": True,
         "G_M3_source_fidelity_certified": False,
         "G_M3_safety_fail_closed_checked": True,
         "no_profit_loss_or_sizing_used": True,
@@ -225,6 +269,10 @@ def main() -> None:
             sorted(Counter(row["certification_router_action"] for row in rows).items())
         ),
         "G_M4_missing_source_router_safety_checked": True,
+        "G_M5_fake_all_pass_certificates": sum(
+            int(row["G_M5_forged_all_pass_certificate_issued"]) for row in rows
+        ),
+        "G_M5_primary_source_guard_checked": True,
         "full_cognitive_reconciliation_completed": False,
         "GM4_end_to_end_certified": False,
         "GM5_certified": False,
