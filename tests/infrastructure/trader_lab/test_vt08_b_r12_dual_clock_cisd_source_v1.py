@@ -56,6 +56,7 @@ def source(tmp_path: Path) -> tuple[dict[str, object], Path]:
             receipts.append({
                 **receipt, "source_bar_id": digest,
                 "available_at_utc": c["closed_at"],
+                "semantics": "OBSERVED_OHLC_ONLY_NOT_TTRADES_RULE",
             })
         records.append({
             "market": M, "stage": STAGE,
