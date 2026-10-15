@@ -23,6 +23,7 @@ from urllib.request import Request, urlopen
 REPOSITORY = "mezas3238-hue/qore-core"
 PR_NUMBER = 626
 EXPECTED_HEAD = "agent/vt08-crt-pure-source-identity-001"
+EXPECTED_BASE = "agent/vt08-crt-cognitive-architecture-freeze-001"
 DOSSIER_PATH = (
     "docs/research/VT08_CRT_GM1_SEVEN_RULES_REVIEW_DOSSIER_2026-10-15.md"
 )
@@ -79,6 +80,7 @@ def validate_gm1_review_evidence(
     head_ref = pull.get("head", {}).get("ref")
     base_repo = pull.get("base", {}).get("repo", {})
     repo_name = base_repo.get("full_name")
+    head_repo = pull.get("head", {}).get("repo", {})
     if not isinstance(sha, str) or not _SHA.fullmatch(sha):
         sha = ""
         blockers.append("INVALID_HEAD_SHA")
@@ -86,6 +88,8 @@ def validate_gm1_review_evidence(
         pull.get("number") != PR_NUMBER
         or repo_name != REPOSITORY
         or head_ref != EXPECTED_HEAD
+        or pull.get("base", {}).get("ref") != EXPECTED_BASE
+        or head_repo.get("full_name") != REPOSITORY
         or pull.get("state") != "open"
         or pull.get("merged_at") is not None
     ):
@@ -105,6 +109,8 @@ def validate_gm1_review_evidence(
         blockers.append("REVIEWER_IS_PR_AUTHOR")
     if not commits:
         blockers.append("COMMIT_PROVENANCE_MISSING")
+    if commits and commits[-1].get("sha") != sha:
+        blockers.append("COMMIT_HISTORY_HEAD_MISMATCH")
     if any(_identity(commit.get("author")) == 0 for commit in commits):
         blockers.append("UNLINKED_COMMIT_AUTHOR")
     if any(_identity(commit.get("author")) == reviewer_id for commit in commits):
