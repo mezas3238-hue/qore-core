@@ -21,16 +21,18 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import M1Bar, Side
 from scripts.vt31_m3_intermediate_swing_hierarchy_v5_20261015 import (
     SOURCE_STATES,
     V4_STATES,
-    audit_day as audit_v5_day,
     intermediate_swing_source_geometry,
+)
+from scripts.vt31_m3_intermediate_swing_hierarchy_v5_20261015 import (
+    audit_day as audit_v5_day,
 )
 from scripts.vt31_m3_source_first_cisd_cognition_v3_20261015 import (
     TTradesAmSourceFirstCognitionV3,
 )
 from scripts.vt31_m4_m5_author_semantics_bridge_20261015 import short_term_swings
 from scripts.vt31_ttrades_am_method_m1_census_20261014 import (
-    MARKET_SHA,
     M1_TOTAL,
+    MARKET_SHA,
     collect_hours,
     hash_file,
     market_rows,
