@@ -122,7 +122,10 @@ def _verify_bar(
         and closed == available == expected_open + timedelta(minutes=minutes)
     ):
         raise ValueError("VT08 B source candle available_at/clock contradiction")
-    values = _prices(item.get("ohlc"))
+    raw_ohlc = item.get("ohlc")
+    if not isinstance(raw_ohlc, (tuple, list)):
+        raise ValueError("VT08 B missing raw OHLC values")
+    values = _prices(raw_ohlc)
     exact_raw = _prices(tuple(str(source_row.get(k)) for k in ("open", "high", "low", "close")))
     if values != exact_raw:
         raise ValueError("VT08 B source receipt OHLC differs from raw")
@@ -131,7 +134,7 @@ def _verify_bar(
         "source_raw_sha256": source_sha,
         "opened_at_utc": opened.isoformat(),
         "closed_at_utc": closed.isoformat(),
-        "ohlc": tuple(str(v) for v in item.get("ohlc", ())),
+        "ohlc": tuple(str(v) for v in raw_ohlc),
     }
     digest = hashlib.sha256(
         json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
