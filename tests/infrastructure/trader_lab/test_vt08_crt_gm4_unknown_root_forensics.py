@@ -75,7 +75,7 @@ def test_entry_already_beyond_c1_destination_is_not_claimed_as_terminal() -> Non
     assert rows[0]["gm4_terminal_remains_UNKNOWN"]
     assert rows[0]["forensics_is_expost_only"]
     assert rows[0]["G_M4_PASS"] is False
-    assert not rows[0]["no_capital_authority"] is False
+    assert rows[0]["no_capital_authority"] is True
 
 
 def test_first_missing_m5_is_reported_without_fake_price_hit() -> None:
