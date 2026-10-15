@@ -93,8 +93,14 @@ def test_no_one_side_parent_or_two_sided_parent_abstains() -> None:
 def test_consumed_target_abstains_even_if_micro_confirmation_exists() -> None:
     data = fixture()
     m15 = data["M15_observed_prefix_through_C2"]  # type: ignore[assignment]
-    m15[0].update({"high_relative": 109, "low_relative": 100, "open_relative": 101, "close_relative": 104})
-    m15[1].update({"high_relative": 109, "low_relative": 98, "open_relative": 104, "close_relative": 105})
+    m15[0].update({
+        "high_relative": 109, "low_relative": 100,
+        "open_relative": 101, "close_relative": 104,
+    })
+    m15[1].update({
+        "high_relative": 109, "low_relative": 98,
+        "open_relative": 104, "close_relative": 105,
+    })
     assert evaluate_three_source_case(data)["why"] == "H4_MIDPOINT_DOL_ALREADY_CONSUMED"
 
 
