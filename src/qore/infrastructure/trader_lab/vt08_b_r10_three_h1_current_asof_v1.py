@@ -173,6 +173,12 @@ def reconstruct_current_h1_context(
         p3 = _pivot(older, previous, current_asof_c3)
         totals["basic_low_pivot_observable_at_c2"] += int(p2 is True)
         totals["basic_low_pivot_observable_at_c3"] += int(p3 is True)
+        old = case.get("basic_bullish_h1_pivot") is True
+        totals["r7_old_basic_pivot"] += int(old)
+        totals["c3_pivot_not_in_r7_closed_three"] += int(p3 is True and not old)
+        totals["r7_old_pivot_not_in_c3_current"] += int(old and p3 is not True)
+        totals["basic_pivot_persisted_from_c2_to_c3"] += int(p2 is True and p3 is True)
+        totals["basic_pivot_disappeared_during_c2"] += int(p2 is True and p3 is not True)
         totals["basic_low_pivot_at_c3_still_provisional"] += int(
             p3 is True and c3_count == 2
         )
