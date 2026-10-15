@@ -103,6 +103,7 @@ def _run(
     result = cog.assess(session=SessionId.LONDON, as_of=at)
     dto = result.decision
     snapshot = {
+        "evaluated_as_of": at.isoformat(),
         "observed_closed_m1_count": result.causal_closed_m1_count,
         "state": result.state,
         "action": dto.side.value if dto else "WAIT",
@@ -162,7 +163,7 @@ def original_cog_scenario_dossier() -> dict[str, Any]:
         cases.append({
             "name": name,
             "profile": "ICT_GENERAL_2023_LONDON_QORE_COG_PROXY",
-            "as_of": at.isoformat(),
+            "as_of": observation.get("evaluated_as_of", at.isoformat()),
             "expected_action": expected_action,
             "expected_source_reason": expected_reason,
             "observed": observation,
@@ -231,6 +232,7 @@ def original_cog_scenario_dossier() -> dict[str, Any]:
         add(
             case,
             {
+                "evaluated_as_of": bar.closed_at.isoformat(),
                 "observed_closed_m1_count": updated.causal_closed_m1_count,
                 "state": updated.state, "action": "WAIT",
                 "missing": list(updated.missing),
