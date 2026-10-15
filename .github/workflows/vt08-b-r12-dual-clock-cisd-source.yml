@@ -1,0 +1,85 @@
+name: VT08 B R12 Dual Clock M3 CISD Source Boundary
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r12_dual_clock_cisd_source_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r12_dual_clock_cisd_source_v1.py
+      - .github/workflows/vt08-b-r12-dual-clock-cisd-source.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  native-source-two-clocks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Source-only chronology and adversarial tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r12_dual_clock_cisd_source_v1.py tests/infrastructure/trader_lab/test_vt08_b_r12_dual_clock_cisd_source_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r12_dual_clock_cisd_source_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-frozen-m30m3-firstfail-${{ matrix.market }}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4
+          path: a-r3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38715560333
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.market }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: native-m3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Produce full candidate dual-clock source-only receipts
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r12_dual_clock_cisd_source_v1 import (
+              dual_clock_cisd_source_gate, canonical_digest,
+          )
+          m=os.environ["MARKET"]
+          a=list(Path("a-r3",m).rglob(m+"-frozen-source-firstfail.json"))
+          n=list(Path("native-m3",m).rglob("m3-evidence.json"))
+          if len(a)!=1 or len(n)!=1:
+              raise SystemExit("B R12 requires pinned full R3 and original native M3")
+          src=json.loads(a[0].read_text(encoding="utf-8"))
+          result=dual_clock_cisd_source_gate(src,market=m,original_m3=n[0])
+          sizes={"EURJPY":538,"USDCHF":518,"NZDUSD":550,"CADJPY":516,"USDCAD":535}
+          if result["full_r3_unique_source_cases"]!=sizes[m]:
+              raise SystemExit("B R12 original source universe incomplete")
+          if (result["author_complete_events"] or result["cognitive_admissions"] or
+              result["broker_fills"] or result["a_b_signed_manifest"] is not None):
+              raise SystemExit("B R12 false author/COG/broker promotion")
+          report=Path("evidence",m+"-B-R12-dual-clock-CISD.json")
+          report.write_text(
+              json.dumps(result,sort_keys=True,separators=(",",":"),allow_nan=False),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "market":m,"cases":result["full_r3_unique_source_cases"],
+              "counts":result["counts"],"report_sha256":canonical_digest(result),
+              "author_status":result["author_temporal_interpretation"],
+              "fills":result["broker_fills"],
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r12-dual-clock-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
