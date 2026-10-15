@@ -123,7 +123,7 @@ def verify_all_situation_field_receipts(
                 raise ValueError(f"VT08 B source bar outside pinned raw feed: {field}")
             if record.get("market") != situation.market:
                 raise ValueError(f"VT08 B cross-market source bar: {field}")
-            if source_raw_market_map.get(record["source_raw_sha256"]) != situation.market:
+            if source_raw_market_map.get(str(record["source_raw_sha256"])) != situation.market:
                 raise ValueError(f"VT08 B cross-market raw SHA custody: {field}")
             profile = record.get("profile")
             if profile not in ("M3", "M15"):
