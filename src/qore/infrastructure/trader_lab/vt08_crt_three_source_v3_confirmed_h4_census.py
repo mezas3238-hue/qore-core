@@ -49,9 +49,9 @@ def _confirmed_micro(
     source_close = source["close_relative"]
     confirmed_close = confirmation["close_relative"]
     if parent_direction == "BULLISH":
-        return source_close < source_open and confirmed_close > source_open
+        return bool(source_close < source_open and confirmed_close > source_open)
     if parent_direction == "BEARISH":
-        return source_close > source_open and confirmed_close < source_open
+        return bool(source_close > source_open and confirmed_close < source_open)
     raise ValueError("unexpected parent direction")
 
 
