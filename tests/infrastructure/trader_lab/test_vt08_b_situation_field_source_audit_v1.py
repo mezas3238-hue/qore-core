@@ -33,6 +33,7 @@ def _bundle():
     bar: dict[str, object] = {
         **body,
         "source_bar_id": bar_id,
+        "market": situation.market,
         "available_at_utc": clock,
         "semantics": "OBSERVED_OHLC_ONLY_NOT_TTRADES_RULE",
     }
@@ -55,7 +56,8 @@ def _bundle():
 
 def _check(situation, proofs, catalog):
     return verify_all_situation_field_receipts(
-        situation, proofs, catalog, pinned_raw_shas=frozenset((RAW,))
+        situation, proofs, catalog, pinned_raw_shas=frozenset((RAW,)),
+        source_raw_market_map={RAW: situation.market},
     )
 
 

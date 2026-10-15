@@ -444,6 +444,7 @@ class Vt08FiveMarketCognitiveGate:
         field_proofs: Mapping[str, Mapping[str, object]] | None = None,
         bar_catalog: Mapping[str, Mapping[str, object]] | None = None,
         pinned_raw_shas: frozenset[str] | None = None,
+        source_raw_market_map: Mapping[str, str] | None = None,
     ) -> Vt08CognitiveDecisionTrace:
         """Mandatory A→B entry point for REAL source snapshots.
 
@@ -471,11 +472,15 @@ class Vt08FiveMarketCognitiveGate:
                 "VT08 fixture gate cannot be used for provenance-certified ingestion"
             )
         _require_source_situation_binding(envelope, situation)
-        if field_proofs is None or bar_catalog is None or pinned_raw_shas is None:
+        if (
+            field_proofs is None or bar_catalog is None
+            or pinned_raw_shas is None or source_raw_market_map is None
+        ):
             raise ValueError("VT08 A/B FIELD_PROVENANCE_MISSING")
         audited = verify_all_situation_field_receipts(
             situation, field_proofs, bar_catalog,
             pinned_raw_shas=pinned_raw_shas,
+            source_raw_market_map=source_raw_market_map,
         )
         if not audited.source_semantics_certified:
             raise ValueError("VT08 A/B FIELD_SEMANTICS_NOT_INDEPENDENTLY_VERIFIED")
