@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -258,7 +258,7 @@ def audit_483_real_first_returns(
             "case_is_evidence_not_profit": True,
         }
         records.append(record)
-        first_by_class.setdefault(end.state, record)
+        first_by_class.setdefault(first_terminal.state, record)
     if len(records) != 483 or sum(states.values()) != 483:
         raise AssertionError("FROZEN_REAL_483_NOT_EXHAUSTED")
     if states != {
