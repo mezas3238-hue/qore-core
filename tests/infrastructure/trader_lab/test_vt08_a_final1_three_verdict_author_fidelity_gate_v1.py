@@ -7,6 +7,7 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.trader_lab.vt08_a_final1_three_verdict_author_fidelity_gate_v1 import (
+    C2_CLOSE_OBSERVABLE_FIELDS,
     FAMILY,
     MARKETS,
     REQUIRED_SOURCE_FIELDS,
@@ -36,9 +37,13 @@ def rule(key, *, method=SelectorMethod.DETERMINISTIC_ASOF, **kwargs):
         source_uri=sorted(SOURCE_PAGES_BY_RULE[key])[0],
         source_class="A_WRITTEN",
         selector_method=method,
-        known_at=T, decision_at=T+timedelta(minutes=30),
+        known_at=(
+            T + timedelta(minutes=30) if key in C2_CLOSE_OBSERVABLE_FIELDS else T
+        ),
+        decision_at=T+timedelta(minutes=30),
         c2_opened_at=T, c3_opened_at=T+timedelta(minutes=30),
         source_snapshot_sha256=HASH_A, verifier_sha256=HASH_B,
+        market="EURJPY", scenario_id="EURJPY-EXAMPLE-FROZEN",
         **kwargs,
     )
 
@@ -363,3 +368,62 @@ def test_all_frozen_source_fields_have_explicit_primary_pages():
         uris and all(uri.startswith("https://ttrades.com/") for uri in uris)
         for uris in SOURCE_PAGES_BY_RULE.values()
     )
+
+def test_false_c2_eq_known_at_open_is_not_admitted():
+    r = rule("C2_EQ_REGIME_CONFIRMED")
+    assert r.validated()
+    assert not replace(r, known_at=T).validated()
+
+
+def test_target_not_verified_at_entry_cannot_be_declared_untouched():
+    r = rule("EXTERNAL_TARGET_UNTOUCHED_ASOF")
+    assert r.validated()
+    assert not replace(r, known_at=T + timedelta(minutes=12)).validated()
+
+
+def test_early_cisd_receipt_cannot_claim_final_c2_close_in_advance():
+    r = rule("C2_CLOSURE_AND_M3_CISD_PS_ASOF")
+    assert not replace(r, known_at=T + timedelta(minutes=27)).validated()
+
+
+def test_cross_market_receipt_join_must_not_be_ready():
+    rules = list(source().receipts)
+    rules[0] = replace(rules[0], market="USDCHF")
+    d = final1_decision(
+        source=source(receipts=rules), source_adjudication_closed=True,
+        economic=econ(profit="160"),
+    )
+    assert d.status is FinalVerdict.NO_EVALUABLE
+    assert "CROSS_RECEIPT_SCENARIO_OR_CLOCK_MISMATCH" in d.reasons
+
+
+def test_cross_event_or_clock_receipt_join_must_not_be_ready():
+    rules = list(source().receipts)
+    rules[0] = replace(rules[0], scenario_id="EURJPY-OTHER")
+    d = final1_decision(
+        source=source(receipts=rules), source_adjudication_closed=True,
+        economic=None,
+    )
+    assert d.status is FinalVerdict.NO_EVALUABLE
+    assert "CROSS_RECEIPT_SCENARIO_OR_CLOCK_MISMATCH" in d.reasons
+    rules[0] = replace(
+        rules[0], scenario_id="EURJPY-EXAMPLE-FROZEN",
+        c2_opened_at=T + timedelta(minutes=30),
+        c3_opened_at=T + timedelta(minutes=60),
+        decision_at=T + timedelta(minutes=60),
+        known_at=T + timedelta(minutes=60),
+    )
+    d2 = final1_decision(
+        source=source(receipts=rules), source_adjudication_closed=True,
+        economic=None,
+    )
+    assert d2.status is FinalVerdict.NO_EVALUABLE
+    assert "CROSS_RECEIPT_SCENARIO_OR_CLOCK_MISMATCH" in d2.reasons
+
+
+def test_missing_market_or_scenario_cannot_create_fidelity_receipt():
+    r = rule("RELEVANT_SWING_REFERENCE_PRE_C2")
+    assert r.validated()
+    assert not replace(r, market="").validated()
+    assert not replace(r, scenario_id="").validated()
+    assert not replace(r, market="NAS100").validated()
