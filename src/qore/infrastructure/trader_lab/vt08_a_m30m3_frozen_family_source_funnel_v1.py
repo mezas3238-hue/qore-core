@@ -157,34 +157,42 @@ def run(market: str, m3_path: Path, m15_path: Path) -> dict[str, object]:
         )
         counts[stage]+=1
         years[str(c2_open.astimezone(NY).year)][stage]+=1
-        # Everything is a source snapshot as of C3 OPEN, not a market order.
-        case={
-            "market":market,
-            "family":"BULLISH_M30_C2_REVERSAL_M3_CISD_C3_POSITIONAL",
-            "c1_opened_at_utc":_iso(c1_open),
-            "c2_opened_at_utc":_iso(c2_open),
-            "decision_at_utc":_iso(c3_open),
-            "ny_date":c2_open.astimezone(NY).date().isoformat(),
-            "stage":stage,
-            "details":detail,
-            "source_m3_file_sha256":m3_sha,
-            "source_m15_file_sha256":m15_sha,
-            "c2_m3_raw_bar_receipts":[
-                _bar_receipt(x,m3_sha,"M3") for x in c2
-            ] if c2 is not None else [],
-            "c2_m15_raw_bar_receipts":[
-                _bar_receipt(x,m15_sha,"M15") for x in c2_15
-            ] if c2_15 is not None else [],
-            "A_rule_complete":False,
-            "B_signoff":False,
-            "cognitive_ready":False,
-            "broker_fill":False,
-            "pnl_read":False,
-        }
-        rows[stage].append(case)
-    examples={
-        stage:_sample_records(rows[stage]) for stage in STAGES
-    }
+        # Keep only compact pre-entry classification for complete census.
+        # Materialize full source receipts for 8 time-stratified cases/stage.
+        rows[stage].append({"c2_open":c2_open,"details":detail})
+    examples:dict[str,list[dict[str,object]]]={}
+    for stage in STAGES:
+        selected=_sample_records(rows[stage])
+        examples[stage]=[]
+        for item in selected:
+            c2_open=item["c2_open"]
+            assert isinstance(c2_open,datetime)
+            c2=closed_source_window(i3,begin=c2_open,count=10,minutes=3)
+            c2_15=closed_source_window(i15,begin=c2_open,count=2,minutes=15)
+            c3_open=c2_open+timedelta(minutes=30)
+            examples[stage].append({
+                "market":market,
+                "family":"BULLISH_M30_C2_REVERSAL_M3_CISD_C3_POSITIONAL",
+                "c1_opened_at_utc":_iso(c2_open-timedelta(minutes=30)),
+                "c2_opened_at_utc":_iso(c2_open),
+                "decision_at_utc":_iso(c3_open),
+                "ny_date":c2_open.astimezone(NY).date().isoformat(),
+                "stage":stage,
+                "details":item["details"],
+                "source_m3_file_sha256":m3_sha,
+                "source_m15_file_sha256":m15_sha,
+                "c2_m3_raw_bar_receipts":[
+                    _bar_receipt(x,m3_sha,"M3") for x in c2
+                ] if c2 is not None else [],
+                "c2_m15_raw_bar_receipts":[
+                    _bar_receipt(x,m15_sha,"M15") for x in c2_15
+                ] if c2_15 is not None else [],
+                "A_rule_complete":False,
+                "B_signoff":False,
+                "cognitive_ready":False,
+                "broker_fill":False,
+                "pnl_read":False,
+            })
     return {
         "schema":SCHEMA,
         "market":market,
