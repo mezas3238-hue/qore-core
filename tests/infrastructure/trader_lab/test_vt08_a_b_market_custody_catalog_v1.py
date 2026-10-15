@@ -88,7 +88,7 @@ def test_market_catalog_pins_raw_shas_with_real_bar_ids_and_denies_trading():
     report, frozen = _fixture()
     payload = _run(report, frozen)
     assert payload["source_only_event_count"] == 1
-    assert payload["catalog_unique_bars"] == 32
+    assert payload["catalog_unique_bars"] == 34
     assert payload["pinned_raw_shas"] == [M3_SHA, M15_SHA]
     assert payload["source_raw_market_map"] == {
         M3_SHA: "EURJPY", M15_SHA: "EURJPY",
