@@ -16,7 +16,7 @@ def test_current_gate_status_remains_uncertified() -> None:
     assert status.source_closed is False
     assert len(status.gate_states) == 4
     assert all(state is CrtPureMethodGateState.PARTIAL for _, state in status.gate_states)
-    assert "SOURCE_NOT_ADJUDICATED:model_1_reference_selection" in status.blockers
+    assert "THREE_SOURCE_RULE_OPEN:multiple_reference_priority" in status.blockers
     assert status.volume_authorized is False
     assert status.demo_authorized is False
     assert status.live_authorized is False
@@ -35,9 +35,8 @@ def test_forged_four_pass_attestations_still_cannot_certify_source_open() -> Non
     )
     result = evaluate_methodological_gm5(gates)
     assert result.certificate_issued is False
-    assert result.blockers == (
-        "SOURCE_NOT_ADJUDICATED:model_1_reference_selection",
-    )
+    assert "THREE_SOURCE_RULE_OPEN:multiple_reference_priority" in result.blockers
+    assert all(not b.startswith("SOURCE_NOT_ADJUDICATED:") for b in result.blockers)
 
 
 def test_pass_requires_provenance_and_independent_review() -> None:
