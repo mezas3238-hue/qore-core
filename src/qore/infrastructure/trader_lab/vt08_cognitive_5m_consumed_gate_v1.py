@@ -23,6 +23,9 @@ from qore.infrastructure.trader_lab.vt08_5m_a_to_b_candidate_readiness_v1 import
 from qore.infrastructure.trader_lab.vt08_b_durable_cognitive_research_ledger_v1 import (
     Vt08DurableResearchLedger,
 )
+from qore.infrastructure.trader_lab.vt08_b_situation_field_source_audit_v1 import (
+    verify_all_situation_field_receipts,
+)
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     Vt08FiveMarketResearchSituation,
 )
@@ -438,6 +441,9 @@ class Vt08FiveMarketCognitiveGate:
         situation: Vt08FiveMarketResearchSituation,
         *,
         joint_contract_manifest_sha256: str | None = None,
+        field_proofs: Mapping[str, Mapping[str, object]] | None = None,
+        bar_catalog: Mapping[str, Mapping[str, object]] | None = None,
+        pinned_raw_shas: frozenset[str] | None = None,
     ) -> Vt08CognitiveDecisionTrace:
         """Mandatory A→B entry point for REAL source snapshots.
 
@@ -465,6 +471,14 @@ class Vt08FiveMarketCognitiveGate:
                 "VT08 fixture gate cannot be used for provenance-certified ingestion"
             )
         _require_source_situation_binding(envelope, situation)
+        if field_proofs is None or bar_catalog is None or pinned_raw_shas is None:
+            raise ValueError("VT08 A/B FIELD_PROVENANCE_MISSING")
+        audited = verify_all_situation_field_receipts(
+            situation, field_proofs, bar_catalog,
+            pinned_raw_shas=pinned_raw_shas,
+        )
+        if not audited.source_semantics_certified:
+            raise ValueError("VT08 A/B FIELD_SEMANTICS_NOT_INDEPENDENTLY_VERIFIED")
         return self._evaluate_snapshot(situation)
 
     def record_fill(self, evidence: Vt08ResearchFillEvidence) -> Vt08ResearchFillTrace:
