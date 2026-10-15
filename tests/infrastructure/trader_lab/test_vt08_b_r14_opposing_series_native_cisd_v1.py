@@ -160,7 +160,7 @@ def test_full_native_cisd_independent_rebuild(tmp_path: Path):
     assert len(b.result_sha256(result)) == 64
 
 
-def test_contradictory_A_proxy_level_rejected(tmp_path: Path):
+def test_contradictory_a_proxy_level_rejected(tmp_path: Path):
     report, p = fixture(tmp_path)
     report["examples_by_stage"][b.STAGE][0]["details"]["ps_proxy_price"] = "88"
     with pytest.raises(ValueError, match="differs from A"):
