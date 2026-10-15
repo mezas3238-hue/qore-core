@@ -16,7 +16,6 @@ from qore.infrastructure.trader_lab.vt08_b_r16_owner_scope_no_alpha_v1 import (
     FOREIGN_STRATEGY_FIELDS,
     no_excluded_alpha_lineage,
 )
-
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     CAUSAL_FIELDS,
     RESEARCH_MARKETS,
