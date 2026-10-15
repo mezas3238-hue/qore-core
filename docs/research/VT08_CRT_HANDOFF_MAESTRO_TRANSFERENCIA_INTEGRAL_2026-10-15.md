@@ -103,9 +103,9 @@ Los tres modelos son **síntesis de ingeniería QORE predefinidas**, no implemen
 
 ## 6. Estado G-M3: reconocimiento cognitivo sobre hechos positivos
 
-**Módulos:** src/qore/infrastructure/traders/crt_pure_cognitive_state.py (Situation Model, ATTENTION, knowledge, metacognición, adversarial, \`reason()\`, transiciones), crt_pure_cognitive_contract.py, identidad de mercado. Fuente real V3 mediante src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_gm3_cognitive_replay.py y tests de anti-leak/revisor falso.
+**Módulos:** src/qore/infrastructure/traders/crt_pure_cognitive_state.py (Situation Model, ATTENTION, knowledge, metacognición, adversarial, `reason()`, transiciones), crt_pure_cognitive_contract.py, identidad de mercado. Fuente real V3 mediante src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_gm3_cognitive_replay.py y tests de anti-leak/revisor falso.
 
-**Prueba [G-M3 #38750815066](https://github.com/mezas3238-hue/qore-core/actions/runs/38750815066):** quality + AUDUSD + USDJPY **3/3 SUCCESS**. 61/61 eventos source confirmados AUDUSD + 78/78 USDJPY = **139/139 RECONOCIDOS causalmente**; \`supporting_evidence\` incluye confirmación y DOL disponible a reloj; \`reason()\` produce **139/139 ABSTAIN** con \`CRT_SOURCE_STRATEGY_NOT_CLOSED\`, **0 EXECUTE**, por método triad QORE sin siete contratos aprobados. [Informe G-M3](VT08_CRT_THREE_SOURCE_V3_GM3_REAL_POSITIVES_139_2026-10-15.md). Artifacts AUDUSD **11980952529**, USDJPY **11981706027**, SHA internos verificados en la ronda.
+**Prueba [G-M3 #38750815066](https://github.com/mezas3238-hue/qore-core/actions/runs/38750815066):** quality + AUDUSD + USDJPY **3/3 SUCCESS**. 61/61 eventos source confirmados AUDUSD + 78/78 USDJPY = **139/139 RECONOCIDOS causalmente**; `supporting_evidence` incluye confirmación y DOL disponible a reloj; `reason()` produce **139/139 ABSTAIN** con `CRT_SOURCE_STRATEGY_NOT_CLOSED`, **0 EXECUTE**, por método triad QORE sin siete contratos aprobados. [Informe G-M3](VT08_CRT_THREE_SOURCE_V3_GM3_REAL_POSITIVES_139_2026-10-15.md). Artifacts AUDUSD **11980952529**, USDJPY **11981706027**, SHA internos verificados en la ronda.
 
 **Lectura correcta:** reconoce lo que el generador V3 etiquetó como confirmación geométrica, pero eso **no es precisión frente a expertos independientes**, ni verifica meta-cognición «perfecta» ni edge; la respuesta ABSTAIN es legal. Falta contraposición con tesis/contratesis, source-ground truth de autor/QORE, conflictos, memoria/expiración con nuevos eventos y firma externa.
 
@@ -120,7 +120,7 @@ Los tres modelos son **síntesis de ingeniería QORE predefinidas**, no implemen
 | Corte G-M4 original | AUDUSD | USDJPY | Total |
 |---|---:|---:|---:|
 | V3 source→cognition→router reconciliado | 61 | 78 | **139** |
-| Reconocidos, \`ABSTAIN\`, routing bloqueado | 61 | 78 | **139** |
+| Reconocidos, `ABSTAIN`, routing bloqueado | 61 | 78 | **139** |
 | TERMINAL observado post-decisión (ya cerrado causalmente) | 59 | 75 | **134** |
 | UNKNOWN por evidencia incompleta (sin terminal inventado) | 2 | 3 | **5** |
 | DOL primero | 11 | 12 | **23** |
@@ -139,15 +139,15 @@ Los tres modelos son **síntesis de ingeniería QORE predefinidas**, no implemen
 |---|---|---|
 | **G-M1 Fuente y método compuesto** | PARTIAL | Cerrar SIETE reglas CRT tri-source con fuente individual y/o ingeniería QORE marcada, operacional, sin futuro, firmada por Owner/revisor independiente; resolver jerarquía, DOL, timeframes, invalidación, timing, PD array y conflictos. No Romeo-only. |
 | **G-M2 Percepción y dictamen externo** | PARTIAL | Revisor independiente realiza 48 FIRST-LOOK visuales sin scores, antes de abrir C3 sellado; labels de tesis, contra-tesis, nivel válido y motivo, disagreement, timestamp/fuente; cubrir también escenarios auténticos V3 positivos y rechazos no seleccionados. |
-| **G-M3 Cognitiva y metacognitiva** | PARTIAL | Contrastar razón, incertidumbre y transición de \`reason()\` contra dictámenes externos y contraejemplos; corregir errores reales sin usar outcomes; memoria/event_generation/contradicciones/rearm y cancelación de fuente. 139 reconocidos ≠ 139 aciertos. |
+| **G-M3 Cognitiva y metacognitiva** | PARTIAL | Contrastar razón, incertidumbre y transición de `reason()` contra dictámenes externos y contraejemplos; corregir errores reales sin usar outcomes; memoria/event_generation/contradicciones/rearm y cancelación de fuente. 139 reconocidos ≠ 139 aciertos. |
 | **G-M4 Recorrido causal completo** | PARTIAL | 139 eventos source→cognition→router→post-M5 probados; **5 UNKNOWN**. Falta cierre fuente-adjudicado y traspaso conceptual a soberanía CIBO/Risk, con pruebas sin broker/sizing; firmas independientes y fallas fail-safe. |
 | **G-M5 Certificado método** | NOT ISSUED | Solo emitir cuando G-M1..G-M4 tengan prueba, Owner/reviewers autenticados y cuatro PASS genuinos. El certificado no autoriza operar ni volumen. |
 | **GLOBAL económico** | NOT CERTIFIED | Candidato nuevo o válido método congelado; datos BID/ASK PIT + costs/fills, PF net, DD Risk/CIBO externo, Sharpe/Sortino, fresh OOS real, WFO, stress, MC, validación intermercado y revisión independiente. |
 | **EXECUTION** | NOT AUTHORIZED | No broker/demo/live/production/VPS, PR no merged, CIBO sigue dueño soberano de capital. |
 
-**FALLO ARQUITECTÓNICO ABIERTO P0:** \`CrtPureMethodGateEvidence\` actualmente acepta un string \`independent_adjudicator\`, booleano \`no_future_leak_attested\` y refs declaradas, pero **NO autentica por sí mismo la identidad o firma criptográfica del revisor**. \`CrtThreeSourceRuleContract\` acepta un \`owner_approval_id\` con cadena: **esa cadena por sí sola no prueba una aprobación**. Aunque source OPEN impida hoy falsa certificación, un cierre futuro basado solo en strings podría provocar AUTO-PASS sin evidencia. **Requerir un gate de evidencia verificada externa con blob SHA, principal autorizado, firma/acta y cadena de custodia antes de permitir cualquier certificación real.** No llenar el campo con "test review".
+**FALLO ARQUITECTÓNICO ABIERTO P0:** `CrtPureMethodGateEvidence` actualmente acepta un string `independent_adjudicator`, booleano `no_future_leak_attested` y refs declaradas, pero **NO autentica por sí mismo la identidad o firma criptográfica del revisor**. `CrtThreeSourceRuleContract` acepta un `owner_approval_id` con cadena: **esa cadena por sí sola no prueba una aprobación**. Aunque source OPEN impida hoy falsa certificación, un cierre futuro basado solo en strings podría provocar AUTO-PASS sin evidencia. **Requerir un gate de evidencia verificada externa con blob SHA, principal autorizado, firma/acta y cadena de custodia antes de permitir cualquier certificación real.** No llenar el campo con "test review".
 
-**FALLO DE ALCANCE ABIERTO P0:** \`crt_pure_certification_readiness.py\` todavía requiere \`btcusd_history_verified\` y \`combined_three_market_validation_green\`, mientras BTCUSD está **congelado** para VT08 actual. Esto no se resuelve poniendo flags falsos ni descongelando producción: **solicitar decisión del Owner del alcance GLOBAL AUDUSD/USDJPY o tres mercados**, versionar contrato y revisión Risk/CIBO. La semántica de certificación metodológica y global debe permanecer separada.
+**FALLO DE ALCANCE ABIERTO P0:** `crt_pure_certification_readiness.py` todavía requiere `btcusd_history_verified` y `combined_three_market_validation_green`, mientras BTCUSD está **congelado** para VT08 actual. Esto no se resuelve poniendo flags falsos ni descongelando producción: **solicitar decisión del Owner del alcance GLOBAL AUDUSD/USDJPY o tres mercados**, versionar contrato y revisión Risk/CIBO. La semántica de certificación metodológica y global debe permanecer separada.
 
 ---
 
@@ -204,9 +204,9 @@ Los tres modelos son **síntesis de ingeniería QORE predefinidas**, no implemen
 
 ## 11. Procedimiento de takeover ejecutable — 12 pasos SIN perder contexto
 
-1. **Verificar GitHub primero:** branch \`agent/vt08-crt-pure-source-identity-001\`, PR #626 DRAFT/unmerged, su base; consultar HEAD y registrar el nuevo HEAD antes de modificar. **No hacer merge**.
+1. **Verificar GitHub primero:** branch `agent/vt08-crt-pure-source-identity-001`, PR #626 DRAFT/unmerged, su base; consultar HEAD y registrar el nuevo HEAD antes de modificar. **No hacer merge**.
 2. **Leer este handoff completo y sus fuentes enlazadas**: [maestro histórico integral 14-OCT](VT08_CRT_PURE_HANDOFF_MAESTRO_INTEGRAL_DOBLE_CERTIFICACION_2026-10-14.md), [directiva owner 15-OCT](VT08_CRT_OWNER_TRES_FUENTES_CAMBIO_MANDATO_2026-10-15.md), informes V2/V3/G-M3/G-M4 y preregistros. **Directiva nueva prevalece** sobre cualquier Romeo-only histórico.
-3. **Custodia antes de perder M5:** atender [Issue #837](https://github.com/mezas3238-hue/qore-core/issues/837); mirar API \`expires_at\` Atlas12, inventario todos symbols+hashes, backup **privado licenciado aprobado**, restore independiente, sin VPS ni fugas de datos.
+3. **Custodia antes de perder M5:** atender [Issue #837](https://github.com/mezas3238-hue/qore-core/issues/837); mirar API `expires_at` Atlas12, inventario todos symbols+hashes, backup **privado licenciado aprobado**, restore independiente, sin VPS ni fugas de datos.
 4. **Congelar línea falsada:** conservar V1/V2/V3 y sus hashes/outcomes como observaciones DEV, no candidates para retune. Respetar primero-no-mismo-M5 y último M15 C3 expirado.
 5. **Cerrar fuente/ingeniería G-M1:** inventariar siete contratos y sus source locators; jerarquía de old key levels; clases **reaction/journey/confirmation**; política H4, M15, PD-array, expiración y tratamiento de conflictos. Pre-registrar especificaciones concretas QORE diferenciadas de autor, obtener Owner y revisor REAL verificable.
 6. **Cerrar revisión ciega G-M2:** distribuir SOLO first-look sin etiquetas/resultados, documentar market UTC+NY DST y nivel/tesis/contra-tesis por case ID; doble revisión independiente y adjudicación de desacuerdos ANTES de revelar SEALED C3. Documentar accesos, no asumir ACL por ZIP.
