@@ -154,7 +154,7 @@ class PreSessionMethodRouter:
             original_g3_cognitive_decision_available=has,
             source_bound_research_dto_available=False,
             source_dol_provenance=(
-                "QORE_CASH_CONTEXT_NOT_TTRADES_09H"
+                "QORE_CASH_CONTEXT_NO_AUTHORIAL_H1_09_CLAIM"
                 if b.profile == ICT else
                 "QORE_G3_POLICY_NO_LECTURE_CLAIM"
             ),
