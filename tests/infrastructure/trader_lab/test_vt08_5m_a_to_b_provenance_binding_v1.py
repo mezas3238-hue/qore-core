@@ -19,7 +19,6 @@ from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     CAUSAL_FIELDS,
     Vt08FiveMarketResearchSituation,
 )
-from qore.infrastructure.traders.vt08_cognitive_v1_contracts import Vt08CognitiveAction
 
 T0 = datetime(2026, 9, 23, 13, 15, tzinfo=UTC)
 SOURCE = "vt08-5m-source:" + "a" * 64
@@ -75,17 +74,18 @@ def test_unsigned_complete_synthetic_fixture_is_refused_without_mutation() -> No
     assert not gate.fills
 
 
-def test_consistent_synthetic_fixture_only_passes_with_test_only_manifest(
+def test_fake_signed_fixture_without_field_source_proofs_still_cannot_execute(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Test-only injection is never a joint signature; no author/broker proof.
+    # Even a fixture-injected approved manifest cannot bypass field sources.
     monkeypatch.setattr(readiness, "APPROVED_A_B_MANIFEST_SHA256", TEST_MANIFEST)
     envelope, situation = _matching_pair()
-    trace = Vt08FiveMarketCognitiveGate().evaluate_provenanced(
-        envelope, situation, joint_contract_manifest_sha256=TEST_MANIFEST
-    )
-    assert trace.action is Vt08CognitiveAction.EXECUTE
-    assert trace.research_only and not trace.broker_order_authorized
+    gate = Vt08FiveMarketCognitiveGate()
+    with pytest.raises(ValueError, match="FIELD_PROVENANCE_MISSING"):
+        gate.evaluate_provenanced(
+            envelope, situation, joint_contract_manifest_sha256=TEST_MANIFEST
+        )
+    assert gate.decisions == ()
 
 
 @pytest.mark.parametrize(
