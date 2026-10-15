@@ -56,7 +56,7 @@ def test_single_real_producer_across_all_three_dst_windows(month):
     assert engine["source_bars_consumed"] == len(rows)
     assert engine["one_trader"] == "VT31"
     assert engine["framework_policy"] == G3_MSS_FRAMEWORK_POLICY
-    assert engine["one_cognition"] and engine["no_execution_or_sizing"]
+    assert engine["one_cognition"] and engine["no_execution_or_sizing"]\n    assert engine["original_ops_G3_research_windows"] == 3\n    assert not engine["native_VT31Trader_G3_integration_complete"]\n    assert engine["M7_blocker_native_coordinator_still_defaults_OPS_to_LEGACY"]
 
 
 @pytest.mark.parametrize("month", [1, 7])
@@ -198,3 +198,30 @@ def test_untrusted_posthoc_ledger_rejected_by_digest():
 def test_source_day_timezone_aware_constant():
     assert datetime(2025, 1, 15, 3, tzinfo=NEW_YORK).utcoffset() == timedelta(hours=-5)
     assert datetime(2025, 7, 15, 3, tzinfo=NEW_YORK).utcoffset() == timedelta(hours=-4)
+
+def test_native_vt31_trader_still_initializes_legacy_ops_under_g3_cog():
+    """Discoverable integration blocker, never relabel it as native G3 PASS."""
+    from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
+        VT31CleanroomCognition,
+    )
+    from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
+        LEGACY_FRAMEWORK_POLICY,
+        M1Bar,
+    )
+    from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
+
+    original = VT31Trader(cognition=VT31CleanroomCognition(
+        framework_policy=G3_MSS_FRAMEWORK_POLICY,
+    ))
+    opened = datetime(2025, 7, 15, 3, tzinfo=NEW_YORK).astimezone(UTC)
+    bar = M1Bar(
+        opened, opened + timedelta(minutes=1),
+        __import__("decimal").Decimal("100"),
+        __import__("decimal").Decimal("102"),
+        __import__("decimal").Decimal("98"),
+        __import__("decimal").Decimal("101"),
+    )
+    original.on_closed_m1(bar)
+    ops = original._windows[("2025-07-15", SessionId.LONDON)]
+    assert original.cognition.framework_policy == G3_MSS_FRAMEWORK_POLICY
+    assert ops.framework_policy == LEGACY_FRAMEWORK_POLICY
