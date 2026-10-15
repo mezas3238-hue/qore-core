@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    M1Bar,
     NEW_YORK,
+    M1Bar,
 )
 
 PREREG = "de181b82f5e72ddb824798d642eec8fa94d9ca06"
