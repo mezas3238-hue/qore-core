@@ -1,5 +1,4 @@
 """Adversarial A/B source catalog tests; no TTrades semantics or execution."""
-from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
