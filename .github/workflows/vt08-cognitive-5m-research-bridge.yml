@@ -38,7 +38,7 @@ jobs:
       # moving branch head when certifying compatibility.
       - uses: actions/checkout@v4
         with:
-          ref: 6e537cd8a8a01d9817802383c736baf5688f2a0f
+          ref: a60fee1b810b45d6067cd867ae557382135c8604
           path: architect_a_frozen
       - uses: actions/setup-python@v5
         with:
