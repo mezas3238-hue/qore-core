@@ -19,6 +19,9 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import ReplayBar
 from qore.infrastructure.trader_lab.vt08_crt_pure_original_atlas_reader import (
     load_atlas_vt08_m5,
 )
+from qore.infrastructure.trader_lab.vt08_crt_gm4_unknown_root_forensics import (
+    diagnose_gm4_unknowns_expost,
+)
 from qore.infrastructure.trader_lab.vt08_crt_three_source_candidate_v1 import (
     _direction,
 )
@@ -405,6 +408,14 @@ def real_atlas_g2_g7_bridge(
     summary, rows = audit_v3_g2_g7_ledgers(market, bars, selected, gm4)
     summary["frozen_V3_policy_id"] = source_manifest["policy_id"]
     summary["frozen_GM4_schema"] = gm4_manifest["schema"]
+    unknown, unknown_rows = diagnose_gm4_unknowns_expost(
+        market, bars, selected, gm4
+    )
+    if unknown["unknown_cases"] != gm4_manifest["terminal_unknown"]:
+        raise ValueError("GM4 retrospective UNKNOWN count changed")
+    summary["GM4_EX_POST_UNKNOWN_FORENSICS_NEVER_INITIAL_DECISION"] = unknown
+    # The five case-level diagnoses are rederived in main from the same
+    # frozen inputs and written only as a distinct retrospective artifact.
     return summary, rows
 
 
@@ -417,6 +428,19 @@ def main() -> None:
     market = CrtPureMarket(args.market)
     bars, provenance = load_atlas_vt08_m5(market, args.atlas_root)
     summary, ledger = real_atlas_g2_g7_bridge(market, bars)
+    # Separate R6 EX_POST record, strictly excluded from decision ledger.
+    _, v3_raw = full_utc_h4_v3_census(market, bars)
+    _, gm4_raw = replay_v3_gm4(market, bars)
+    source_cases = tuple(
+        x for x in v3_raw if x["conceptual_state"] == "CONCEPTUAL_CANDIDATE_V3"
+    )
+    _, unknown_rows = diagnose_gm4_unknowns_expost(
+        market, bars, source_cases, gm4_raw
+    )
+    if len(unknown_rows) != summary[
+        "GM4_EX_POST_UNKNOWN_FORENSICS_NEVER_INITIAL_DECISION"
+    ]["unknown_cases"]:
+        raise ValueError("GM4 unknown triage case count differs across replays")
     summary["original_atlas_provenance"] = provenance
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "g2-g7-real-atlas-pit-summary.json").write_text(
@@ -441,6 +465,9 @@ def main() -> None:
     with (args.output / "g2-c0-c1-blind-predecision-cases.jsonl").open("w") as out:
         for review_case in blind_cases:
             out.write(json.dumps(review_case, sort_keys=True) + "\n")
+    with (args.output / "gm4-unknown-expost-forensics.jsonl").open("w") as out:
+        for item in unknown_rows:
+            out.write(json.dumps(item, sort_keys=True) + "\\n")
     print(json.dumps({
         k: v for k, v in summary.items() if k != "original_atlas_provenance"
     }, sort_keys=True))
