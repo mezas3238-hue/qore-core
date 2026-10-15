@@ -53,7 +53,9 @@ def _identity(row: dict[str, object], market: str) -> tuple[datetime, datetime]:
     return c2, c3
 
 
-def _index(\n    rows: object, market: str, label: str,\n) -> dict[tuple[datetime, datetime], dict[str, object]]:
+def _index(
+    rows: object, market: str, label: str,
+) -> dict[tuple[datetime, datetime], dict[str, object]]:
     found: dict[tuple[datetime, datetime], dict[str, object]] = {}
     for row in _items(rows, label):
         k = _identity(row, market)
@@ -123,7 +125,8 @@ def audit_native_r9(
     for record in (target, joined):
         if (record.get("source_complete_entries") != 0 or record.get("broker_fills") != 0
                 or record.get("profit_factor") is not None or record.get("certified") is not False
-                or record.get("sizing_used") is not False\n                or record.get("holdout_7y_accessed") is not False):
+                or record.get("sizing_used") is not False
+                or record.get("holdout_7y_accessed") is not False):
             raise ValueError("R9 economic/author claim in physical source-only audit")
     if joined.get("signed_A_B_manifest") is not None or joined.get(
         "B_independent_semantic_review_complete"
