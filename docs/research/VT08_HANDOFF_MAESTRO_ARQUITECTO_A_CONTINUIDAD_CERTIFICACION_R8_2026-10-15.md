@@ -309,3 +309,18 @@ Este documento es un corte verificable de continuidad: identifica los dos arquit
 - **Corte real:** 0 señales TTrades source-complete, 0 admisiones cognitivas auténticas, 0 fills; PF/DD/Sortino/Sharpe no evaluables y VT08 aún NO CERTIFICADO.
 
 **Este apéndice prevalece sobre cualquier recomendación contradictoria histórica de investigación o DeepSeek y debe transmitirse textualmente al siguiente arquitecto.**
+
+
+---
+
+## APÉNDICE R17 — ÚLTIMO DICTAMEN DEEPSEEK (15-oct-2026)
+
+**Fuente independiente B R17:** [Ocho ambigüedades, análisis textual y acciones A+B](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-cognition-replay-20261010/docs/research/VT08_B_R17_DEEPSEEK_V4_OCHO_AMBIGUEDADES_DICTAMEN_FINAL_SOURCE_FIRST_2026-10-15.md); commit `2146c5748ade4ce1f42d4f1b8d88fcb6f533112e`. El texto completo contrasta páginas primarias del autor (Relevant Swings, EQ del 10-oct-2026, Protected Swing/CISD, Timeframe Alignment Example1 M30→M3, Breaker, POI para Continuations, Target).
+
+**Correcciones innegociables:** una ventana de 3 HTF con vela actual NO equivale a pivote ya confirmado de tres cierres; POI que existe != POI con reacción CISD != POI elegido; FVG→swing→CISD documentado para continuaciones posteriores al Protected Swing NO es jerarquía universal para reversión previa; EQ C2 es condicional al swing de referencia real; breaker tiene swings y up-close source, NO 4 velas M3 consecutivas automáticamente; en Example1 el stop se ubica bajo EQ M30 Y breaker low, aunque PS sea la referencia estructural general de positional. Target untouched/jerarquía HTF, buffer y CISD cualitativo siguen sin regla decisora universal.
+
+**P0 A:** producir fichas causales source para swing, POI pre-CISD, PS/serie opuesta, breaker high/low y objetivo HTF, con bar_ids, TF, hora de disponibilidad y ambigüedad D. **P0 B:** doble revisión independiente ciega pre-PnL sobre muestras realmente ambiguas, sellar el denominador 2.657, auditar toda futura señal positiva vs raw nativo; jamás convertir el 2.657 geométrico en 2.657 TTrades válidos por decreto.
+
+**Owner R16:** QORE-alpha EXCLUIDO enteramente del programa VT08; no segundo track ni importaciones de esa estrategia. No sizing ni 7Y holdout ni operaciones ni merge.
+
+`R17_DOCUMENTARY_SOURCE_ADJUDICATION_ONLY` · `AUTHOR_COMPLETE=0` · `COGNITIVE_REAL_ADMISSIONS=0` · `BROKER_FILLS=0` · `ECONOMIC_GATES=NOT_EVALUABLE` · VT08 **NO CERTIFICADO**.
