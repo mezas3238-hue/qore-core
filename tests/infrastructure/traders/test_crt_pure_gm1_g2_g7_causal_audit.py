@@ -11,6 +11,7 @@ from qore.infrastructure.traders.crt_pure_gm1_g2_g7_causal_audit import (
     audit_g2_reference_conflicts,
     audit_g7_rearm,
 )
+from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection,
 )
@@ -26,15 +27,16 @@ def ref(
     direction: CrtPureCandidateDirection = CrtPureCandidateDirection.BULLISH,
     close_at: datetime = T0,
     known_at: datetime = T0 + timedelta(minutes=1),
+    market: CrtPureMarket = CrtPureMarket.AUDUSD,
 ) -> CrtGm1Reference:
     return CrtGm1Reference(
-        id, parent, direction, close_at, known_at, SHA
+        market, id, parent, direction, close_at, known_at, SHA
     )
 
 
 def decide(references: tuple[CrtGm1Reference, ...], complete: bool = True):
     return audit_g2_reference_conflicts(
-        parent_id="h4-1", decision_at=T0 + timedelta(minutes=5),
+        market=CrtPureMarket.AUDUSD, parent_id="h4-1", decision_at=T0 + timedelta(minutes=5),
         references=references, inventory_complete=complete,
     )
 
@@ -47,8 +49,9 @@ def evt(
     *,
     observed: datetime = T0,
     decision: datetime = T0 + timedelta(minutes=5),
+    market: CrtPureMarket = CrtPureMarket.AUDUSD,
 ) -> CrtGm1SourceEvent:
-    return CrtGm1SourceEvent(parent, source, hyp, generation, observed, decision)
+    return CrtGm1SourceEvent(market, parent, source, hyp, generation, observed, decision)
 
 
 def test_unique_causal_reference_is_only_provisional() -> None:
@@ -100,7 +103,8 @@ def test_g2_reference_must_close_before_discovery() -> None:
 def test_g2_missing_evidence_digest_is_not_accepted() -> None:
     with pytest.raises(ValueError, match="SHA256"):
         CrtGm1Reference(
-            "a", "h4-1", CrtPureCandidateDirection.BULLISH, T0, T0, "NOT_SHA"
+            CrtPureMarket.AUDUSD, "a", "h4-1",
+            CrtPureCandidateDirection.BULLISH, T0, T0, "NOT_SHA",
         )
 
 
@@ -200,3 +204,43 @@ def test_g7_invalid_source_timestamp_rejected() -> None:
             observed=T0 + timedelta(minutes=11),
             decision=T0 + timedelta(minutes=10),
         )
+
+
+
+def test_g2_cross_market_contamination_denied() -> None:
+    with pytest.raises(ValueError, match="cross-market reference"):
+        decide((ref(market=CrtPureMarket.USDJPY),))
+
+
+def test_g7_cross_market_contamination_denied() -> None:
+    prior = evt("p1", "e1", "h1", 1, market=CrtPureMarket.USDJPY)
+    proposed = evt(
+        "p2", "e2", "h2", 2,
+        observed=T0 + timedelta(minutes=6),
+        decision=T0 + timedelta(minutes=10),
+    )
+    with pytest.raises(ValueError, match="cross-market G7"):
+        audit_g7_rearm(proposal=proposed, observed_history=(prior,))
+
+
+@pytest.mark.parametrize("prior2,expected", [
+    (("p2", "e1", "h2"), "duplicate G7 source"),
+    (("p2", "e2", "h1"), "duplicate G7 hypothesis"),
+    (("p1", "e2", "h2"), "duplicate G7 parent"),
+])
+def test_g7_corrupt_historical_ledger_fails_closed(
+    prior2: tuple[str, str, str], expected: str,
+) -> None:
+    prior = evt("p1", "e1", "h1", 1)
+    second = evt(
+        *prior2, 2,
+        observed=T0 + timedelta(minutes=6),
+        decision=T0 + timedelta(minutes=10),
+    )
+    proposal = evt(
+        "p3", "e3", "h3", 3,
+        observed=T0 + timedelta(minutes=11),
+        decision=T0 + timedelta(minutes=15),
+    )
+    with pytest.raises(ValueError, match=expected):
+        audit_g7_rearm(proposal=proposal, observed_history=(prior, second))
