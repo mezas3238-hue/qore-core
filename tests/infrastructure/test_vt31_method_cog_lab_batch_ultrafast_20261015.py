@@ -55,7 +55,8 @@ def test_gate_list_exact_and_nothing_related_to_economics():
 def test_override_original_census_only_inside_cognitive_witness(monkeypatch):
     group = {"fixed": object()}
     frozen = {"observed_days_total": 775}
-    original_census = lambda requested: {"original": requested}
+    def original_census(requested):
+        return {"original": requested}
     module = SimpleNamespace()
     module.run_census = original_census
     def audit_483(source):
