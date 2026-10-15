@@ -82,7 +82,10 @@ def resolve_continuation_poi_tier(
             raise ValueError("POI source bars must have unique nonempty lineage")
         if any(not x for x in poi.bar_ids):
             raise ValueError("POI empty source bar ID")
-        if any(t.tzinfo is None or t.utcoffset() is None for t in (poi.formed_at, poi.available_at)):
+        if any(
+            t.tzinfo is None or t.utcoffset() is None
+            for t in (poi.formed_at, poi.available_at)
+        ):
             raise ValueError("POI clocks must be timezone-aware")
         if poi.formed_at.astimezone(UTC) > poi.available_at.astimezone(UTC):
             raise ValueError("POI existence clock exceeds availability")
@@ -111,7 +114,10 @@ def resolve_continuation_poi_tier(
         return PoiPriorityResult(
             ReviewStatus.NO_POI, None, None, "ABSENCE_CONFIRMED_ASOF",
         )
-    best = next(category for category in CATEGORIES if any(p.category == category for p in eligible))
+    best = next(
+        category for category in CATEGORIES
+        if any(p.category == category for p in eligible)
+    )
     same_tier = [p for p in eligible if p.category == best]
     if len(same_tier) != 1:
         return PoiPriorityResult(
