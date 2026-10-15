@@ -1,0 +1,81 @@
+name: VT31 Genuine NY PM G3 Cog Method-Cognition No PnL
+on:
+  push:
+    branches:
+      - agent/vt31-original-cog-nypm-judgment-20261015
+    paths:
+      - 'scripts/vt31_original_g3_nypm_cognition_qualitative_20261015.py'
+      - 'tests/infrastructure/test_vt31_original_g3_nypm_cognition_qualitative_20261015.py'
+      - 'docs/research/VT31_ORIGINAL_COG_NYPM_QUALITATIVE_SOURCE_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-original-g3-nypm-cognition.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nypm-actual-cog-judgment-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Immutable prereg and original G3 blobs
+        run: |
+          set -euo pipefail
+          git cat-file -t d2cfef4ea238c34f479bd104a03853136f8c66e0
+          git merge-base --is-ancestor d2cfef4ea238c34f479bd104a03853136f8c66e0 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Run real original G3 COG in NY PM with qualitative adversarial scenarios
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          ruff check scripts/vt31_original_g3_nypm_cognition_qualitative_20261015.py tests/infrastructure/test_vt31_original_g3_nypm_cognition_qualitative_20261015.py
+          python -m py_compile scripts/vt31_original_g3_nypm_cognition_qualitative_20261015.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_original_g3_nypm_cognition_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_m0_profile_shadow_attestation_20261015.py \
+            tests/infrastructure/test_vt31_original_cog_nyam_ttrades_source_conflict_20261014.py \
+            tests/infrastructure/test_vt31_original_g3_cog_qualitative_court_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_original_g3_nypm_cognition_qualitative_20261015.py \
+            --out evidence/VT31_ORIGINAL_G3_COG_NYPM_QUALITATIVE_DECISION_DOSSIER.json \
+            | tee evidence/summary.json
+      - name: Assert NO certification by automated script, NO metrics, no orders
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_ORIGINAL_G3_COG_NYPM_QUALITATIVE_DECISION_DOSSIER.json"))
+          assert p["prereg_commit"]=="d2cfef4ea238c34f479bd104a03853136f8c66e0"
+          assert p["real_original_cog_invoked"] is True
+          assert p["original_g3_source_hash"]["git_blob_sha1"]=="d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          assert p["source_profile_ict_general_state"]=="ICT_CONTEXT_WITNESS_UNDERDETERMINED"
+          assert p["source_profile_ttrades_state"]=="PROFILE_SESSION_REJECTED"
+          assert [x["decision"] for x in p["cases"]]==["LONG","WAIT","WAIT","WAIT","WAIT","REJECT"]
+          assert all(not x["trade_authorized"] for x in p["cases"])
+          assert p["source_claim_author_certified"] is False
+          assert p["methodology_certified"] is False and p["cognitive_certified"] is False
+          assert p["reviewer_signatures"] is False
+          assert p["trade_count_or_pnl"] is None
+          assert p["orders_executed"]==0 and p["trader_sizing"]==0
+          assert p["live_authorized"] is False
+          print("NYPM_ACTUAL_COG_JUDGMENT_WORKS_NO_TTRADES_SCOPE_TRANSFER")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' d2cfef4ea238c34f479bd104a03853136f8c66e0 > evidence/prereg_sha.txt
+          printf '%s\n' 'COG_METODOLOGIA_QUALITATIVE_ONLY_NO_PNL_LIVE_SIZING' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-original-g3-cog-nypm-qualitative-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
