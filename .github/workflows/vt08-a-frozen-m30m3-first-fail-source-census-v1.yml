@@ -79,6 +79,16 @@ jobs:
                   == report["stage_counts"][
                       "UNIQUE_M3_CISD_PS_SHAPE_REQUIRES_AUTHOR_ADJUDICATION"
                   ])
+          for actual_key, frozen_key in (
+              ("earliest_unique_proxy_per_market_ny_day_upper_bound",
+               "geometric_upper_bound_earliest_per_ny_day"),
+              ("unique_ps_proxy_cases_with_three_closed_pre_c2_h1",
+               "unique_ps_proxy_with_pre_c2_three_closed_h1"),
+              ("distinct_ny_days_with_h1_and_unique_ps_proxy",
+               "earliest_per_ny_day_with_pre_c2_h1_upper_bound"),
+          ):
+              if report[actual_key] != expected[frozen_key]:
+                  raise SystemExit(f"FROZEN_M30M3_CONTEXT_DRIFT: {market} {actual_key}")
           print(json.dumps({
               "market":report["market"],
               "c2_windows_total":report["c2_windows_total"],
