@@ -17,7 +17,8 @@ def test_bullish_c2_full_eq_not_close_to_low() -> None:
         opened=D("100"), high=D("112"), low=D("95"), closed=D("104"),
     )
     assert result["source_EQ_if_swing_is_bullish"] == "103.5"
-    assert result["source_EQ_if_swing_is_bearish"] == "99.5"
+    assert result["source_EQ_if_swing_is_bearish"] == "108"
+    assert result["incorrect_v2_bullish_c2_close_plus_low"] == "99.5"
     assert result["counterfactual_wrong_close_to_low_for_bullish_swing"]
     assert result["chosen_trade_EQ"] is None
     assert result["chosen_author_swing_identity"] is None
