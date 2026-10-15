@@ -62,7 +62,7 @@ jobs:
           import json
           import os
           from pathlib import Path
-          from qore.infrastructure.trader_lab.vt08_5m_b_independent_raw_receipts_v1 import verify_raw_window
+          from qore.infrastructure.trader_lab.vt08_5m_b_independent_raw_receipts_v1 import verify_raw_window, verify_full_native_census
 
           market = os.environ["MARKET"]
           a_file = Path("a-receipts", market, market + "-raw-custody-receipts.json")
@@ -84,6 +84,11 @@ jobs:
                   raise SystemExit("A inventory raw SHA mismatch")
           if len(receipts) != record.get("attested_windows"):
               raise SystemExit("A count mismatch for source sample")
+          full = verify_full_native_census(
+              record, m3_file=m3_candidates[0], m15_file=m15
+          )
+          if not full["independent_census_verified"]:
+              raise SystemExit("B independent census not verified")
           output = {
               "schema": "qore.vt08.b.independent.raw_verification.v1",
               "market": market, "source_A_pinned_run": 38709570234,
@@ -93,6 +98,7 @@ jobs:
               "b_verified_m15_bars": len(receipts) * 2,
               "source_anchor_windows_observed_claim": record.get("source_anchor_windows_observed"),
               "source_anchor_windows_complete_claim": record.get("source_anchor_windows_complete"),
+              "b_full_census": full,
               "raw_shas_cross_checked": True,
               "source_author_fidelity_certified": False,
               "cognitive_certified": False,
