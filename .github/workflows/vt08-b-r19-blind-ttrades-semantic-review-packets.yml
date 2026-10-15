@@ -1,0 +1,97 @@
+name: VT08 B R19 Blind TTrades Semantic Review Packets
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r19_blind_author_semantics_reviewer_pack_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r19_blind_author_semantics_reviewer_pack_v1.py
+      - .github/workflows/vt08-b-r19-blind-ttrades-semantic-review-packets.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  b-r19-reviewer-packet-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r19_blind_author_semantics_reviewer_pack_v1.py tests/infrastructure/trader_lab/test_vt08_b_r19_blind_author_semantics_reviewer_pack_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r19_blind_author_semantics_reviewer_pack_v1.py
+
+  b-r19-native-physical-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    needs: b-r19-reviewer-packet-contract
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-frozen-m30m3-firstfail-${{ matrix.market }}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4
+          path: frozen-r3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38715560333
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-blind-three-source-${{ matrix.market }}-385e89cb769eef36f85ddca56f3f3dcaf1e0f863
+          path: frozen-r7/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38765076497
+      - name: Reconcile full R3/R7 universe, export blind qualitative review packets
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r19_blind_author_semantics_reviewer_pack_v1 import (
+              build_blind_semantic_review_packets,
+          )
+          market=os.environ["MARKET"]
+          r3_files=list(Path("frozen-r3",market).rglob(market+"-frozen-source-firstfail.json"))
+          r7_files=list(Path("frozen-r7",market).rglob(market+"-three-source-blind-review.json"))
+          if len(r3_files)!=1 or len(r7_files)!=1:
+              raise SystemExit("R19 missing unique pinned R3+R7 original artifacts")
+          r3=json.loads(r3_files[0].read_text(encoding="utf-8"))
+          r7=json.loads(r7_files[0].read_text(encoding="utf-8"))
+          pack=build_blind_semantic_review_packets(r3,r7,expected_market=market)
+          expected={"EURJPY":538,"USDCHF":518,"NZDUSD":550,"CADJPY":516,"USDCAD":535}
+          if pack["all_cases_census"]!=expected[market]:
+              raise SystemExit("R19 hidden denominator drop")
+          if pack["review_packets_selected"] not in (9,10):
+              raise SystemExit("R19 wrong blind category sampling")
+          if any(p["eligible_for_pnl"] or
+                 p["independent_reviewer_a_answers"] is not None or
+                 p["independent_reviewer_b_answers"] is not None
+                 for p in pack["review_packets"]):
+              raise SystemExit("R19 false author signoff/review")
+          out=Path("evidence",market+"-r19-blind-author-review-packets.json")
+          out.write_text(json.dumps(pack,sort_keys=True,separators=(",",":"),allow_nan=False))
+          print(json.dumps({k:v for k,v in pack.items() if k not in (
+              "case_index","review_packets"
+          )},sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r19-blind-ttrades-review-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          retention-days: 30
+          if-no-files-found: error
