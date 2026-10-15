@@ -14,14 +14,14 @@ from qore.infrastructure.trader_lab.vt08_b_durable_cognitive_research_ledger_v1 
 
 T = datetime(2026, 1, 5, 6, tzinfo=UTC)
 E = "synthetic:eurjpy:cycle-01"
-I = "a" * 64
+IDENTITY_SHA = "a" * 64
 H = "b" * 64
 
 
 def _add(
     db: Vt08DurableResearchLedger, kind: str, when: datetime = T,
     *, source: str = E, market: str = "EURJPY", evidence: str = H,
-    fill_id: str | None = None, identity: str = I,
+    fill_id: str | None = None, identity: str = IDENTITY_SHA,
 ):
     return db.append(
         source_event_id=source, market=market, kind=kind,
