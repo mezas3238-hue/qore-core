@@ -102,7 +102,7 @@ def test_contiguous_three_closed_m1_are_required_for_qore_fvg():
         )
 
 
-def test_no_future_M1_can_justify_earlier_FVG_or_cognitive_state():
+def test_no_future_m1_can_justify_earlier_fvg_or_cognitive_state():
     day, nine, ten = source_day()
     baseline = audit_family_one_day(
         day=day, nine=nine, ten=ten, return_at=ten[2].closed_at,
@@ -120,7 +120,7 @@ def test_no_future_M1_can_justify_earlier_FVG_or_cognitive_state():
     )
 
 
-def test_missing_H1_M1_never_promoted_to_source_family():
+def test_missing_h1_m1_never_promoted_to_source_family():
     day, nine, ten = source_day()
     with pytest.raises(ValueError, match="INCOMPLETE_H1"):
         audit_family_one_day(
@@ -140,7 +140,7 @@ def test_no_author_verified_swing_does_not_generate_numeric_stop_or_sizing():
     assert r["trader_certified"] is False
 
 
-def test_FVG_confirmed_at_last_M1_cannot_authorize_after_11NY():
+def test_fvg_confirmed_at_last_m1_cannot_authorize_after_11ny():
     at10 = datetime(2025, 7, 1, 10, 57, tzinfo=NY).astimezone(UTC)
     a = bar(at10, o="100", h="103", lo="98", c="101")
     b = bar(at10+timedelta(minutes=1), o="102", h="107", lo="101", c="106")
