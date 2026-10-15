@@ -1,7 +1,7 @@
 """A genuinely neutral visual first look cannot expose model/cognitive output."""
 
-from copy import deepcopy
 import hashlib
+from copy import deepcopy
 
 import pytest
 
