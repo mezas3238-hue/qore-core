@@ -105,7 +105,7 @@ def test_missing_minute_and_overlap_both_fail_closed():
     c=candle(t+timedelta(minutes=2),o="101",c="105")
     with pytest.raises(ValueError,match="MISSING_M1"):
         witness((a,c))
-    overlap=candle(t+timedelta(seconds=30),o="101",c="105")
+    overlap=candle(t,o="101",c="105")
     with pytest.raises(ValueError,match="MISSING_M1"):
         witness((a,overlap))
 
