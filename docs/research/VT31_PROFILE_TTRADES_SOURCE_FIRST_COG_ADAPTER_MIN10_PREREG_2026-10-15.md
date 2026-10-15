@@ -1,0 +1,21 @@
+# VT31 — PREREG: COG único de investigación, perfil TTrades fuente primero + G3 conflicto 10 pts
+
+Fecha 2026-10-15. **ANTES del código y resultados.** Orden Owner: CERTIFICAR METODOLOGÍA Y COGNITIVA, sin PF/DD/Sharpe, PnL ni recuentos históricos. Proponer una versión **SÓLO INVESTIGACIÓN**, separada del COG G3 ORIGINAL protegido y sin OMS, que fije identidad doctrinal ANTES de emitir un DTO metodológico.
+
+## Fuente primaria y reglas distintas
+- TTrades [AM Silver Bullet on NQ](https://ttrades.com/the-am-silver-bullet-strategy-on-nq/), 19-JUN-2025: NY 10–11, primero barrer un lado del H1 09–10 y confirmar desplazamiento de regreso, target siempre lado opuesto del H1 09–10. No dice que el target del autor esté sujeto al MIN10 QORE.
+- G3 QORE fuente `contracts.py::MIN_INDEX_POINTS=Decimal(10)`, en `CognitiveDecision` `G3_MSS_FRAMEWORK_POLICY` solo con ancla MSS close; `VT31CleanroomCognition` selecciona DOL contextual cash/Asia/London, no H1 09 necesariamente. Original COG/OPS/acta SHAs inmutables d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9, 0ce9707314aecb71155de8b57044b6ec028847b2, e99c70b4e018d626fb620d9a21b9314a51abc36d.
+- El método TTrades y el framework G3 10pts pueden ser **simultáneamente incompatibles para ciertos estados**; no convertir esa incompatibilidad en incapacidad cognitiva ni relajar regla viendo PnL.
+
+## Propuesta versionada causal, NO cambiar al trader
+Una única función research `profile_source_bound_cognitive_proposal(profile=TTRADES_NY_AM_2025, session=NY_AM, history=actual M1, as_of=last close)` ejecuta (i) `native_ttrades_am_context()` SOURCE FIRST, (ii) COG **auténtico** `VT31CleanroomCognition(framework_policy=G3_MSS_FRAMEWORK_POLICY)` en esas M1 y prueba su MSS original con temporalidad, (iii) si ambas fuentes confirman dirección, reinterpreta ÚNICAMENTE el DOL y linaje del DTO a HIGH/LOW H1 09 opuesto; distingue que es **nueva propuesta QORE de investigación**, no la salida del COG original, (iv) exige `MIN_INDEX_POINTS=10` como contrato de compatibilidad con G3; si menos, `G3_MIN10_AND_TTRADES_SOURCE_TARGET_CONFLICT_WAIT` y **NO emite DTO**, (v) valida nuevo DTO contra `inspect_cog_evidence(TTRADES_AM)` independiente, sin crear trade, sizing ni certificado. Rechazo cerrado si MMS no original, fuente doble, H1 faltante, sesión distinta, timestamps futuros, side opuesto o testigo independiente no conforme.
+
+## Casos preregistrados y objetivos
+- LONG positivo fuente autoral 09h HIGH120/LOW90, first LOW raid89 10:01, MSS LONG 105 10:02, COG original DOL cash HIGH150; target TTrades HIGH120 =15 pts desde close105 >=10 => propuesta perfil TTrades SOURCE BOUND candidata validable, `method_certified=false`.
+- SHORT positivo 09h HIGH110/LOW80, first HIGH raid111 10:01, MSS SHORT94 10:02, COG original DOL cash anterior LOW60; target TTrades LOW80 =14 pts desde close94 >=10 => propuesta SOURCE BOUND candidata validable.
+- LONG conflicto G3 en caso #950 09h HIGH110, MSS LONG105 → 5 pts <10: `G3_MIN10_AND_TTRADES_SOURCE_TARGET_CONFLICT_WAIT`, sin DTO; COG original puede ser funcional pero G3 no permite la propuesta TTrades.
+- SHORT conflicto G3 caso #955 09h LOW90, MSS SHORT94 → 4 pts <10: mismo `G3_MIN10_AND_TTRADES_SOURCE_TARGET_CONFLICT_WAIT`.
+- Fail closed en ambas orientaciones: no barrido, dos lados barridos misma M1, 09h incompleto, MSS COG ausente, futuro en history, sesión Londres, DTO fuera de reloj. Casos WINTER EST y SUMMER EDT sin selección por resultados financieros.
+- Salida por caso: `source_identity`, `original_cog_dol`, `author_opposite_h1_dol`, `g3_minimum_points`, `distance_points`, `decision_or_none`, `reasons`, `author_method_complete_certified=false`, `actual_original_g3_unchanged=true`, `human_cog_review_signed=false`, `methodology_certified=false`, `cognitive_certified=false`, `orders=0`, `sizing=0`, `LIVE=false`.
+
+**Criterio:** un FAIL de CI o código se investiga, sin retocar prereg por conveniencia; no se certifica una metodología entera por conformidad de DOL: OB/Breaker/swing-stop/fidelidad ICT y firmas humanas #897 continúan PENDING. No MERGE, producción, FundedNext LIVE, VPS, OMS o trades. Se mantiene ONE VT31 con perfiles declarados diferentes en investigación; la función propuesta no es un segundo trader ni motor de lotaje.
