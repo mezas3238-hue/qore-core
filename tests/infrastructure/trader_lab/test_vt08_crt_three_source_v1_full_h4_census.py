@@ -10,7 +10,6 @@ from qore.infrastructure.trader_lab.vt08_crt_three_source_v1_full_h4_census impo
 )
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 
-
 BASE = datetime(2025, 3, 3, 0, 0, tzinfo=UTC)
 
 
