@@ -53,7 +53,9 @@ def test_real_case_adapter_abstains_if_model1_source_not_closed() -> None:
     assert "THREE_SOURCE_RULE_OPEN:multiple_reference_priority" in (
         result["G_M5_source_primary_blockers"]
     )
-    assert "THREE_SOURCE_RULE_OPEN:multiple_reference_priority" in result["unresolved_source_concepts"]
+    assert "THREE_SOURCE_RULE_OPEN:multiple_reference_priority" in (
+        result["unresolved_source_concepts"]
+    )
     assert result["G_M3_source_fidelity_certified"] is False
     assert result["no_profit_loss_or_sizing_used"] is True
     assert result["no_trade"] is True
