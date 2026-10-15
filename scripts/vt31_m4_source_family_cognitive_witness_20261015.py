@@ -12,6 +12,7 @@ import json
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
@@ -26,8 +27,8 @@ from scripts.vt31_m3_ttrades_cog_wait_v2_20261015 import (
     TTradesAmWaitCognitionV2,
 )
 from scripts.vt31_ttrades_am_method_m1_census_20261014 import (
-    MARKET_SHA,
     M1_TOTAL,
+    MARKET_SHA,
     collect_hours,
     complete_hour,
     hash_file,
