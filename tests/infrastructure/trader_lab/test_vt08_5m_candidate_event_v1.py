@@ -145,7 +145,9 @@ def test_new_source_origin_has_new_identity_and_b_uses_stable_key() -> None:
     )
     assert event.source_event_id() != second.source_event_id()
     payload = event.envelope()
-    assert payload["methodology_status"] == "SOURCE_COMPLETE_EXECUTABLE"
+    assert payload["methodology_status"] == "SOURCE_INCOMPLETE_QORE_CONTAINMENT"
+    assert payload["author_fidelity_verified"] is False
+    assert payload["cognitive_source_admission_authorized"] is False
     assert payload["latest_available_bar_close"] == payload["decision_at"]
     assert payload["bias_feature_cutoff"] == "UNATTESTED_IN_LEGACY_B01_CANDIDATE"
     assert payload["feature_close_cutoffs"]["protected_swing"] <= payload["decision_at"]
