@@ -10,6 +10,7 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     Side,
     window_bounds,
 )
+from scripts.vt31_cog_evidence_v2_20261014 import TTRADES_AM
 from scripts.vt31_m0_explicit_source_profile_router_20261015 import (
     ICT,
     QORE,
@@ -20,7 +21,6 @@ from scripts.vt31_m0_explicit_source_profile_router_20261015 import (
 from scripts.vt31_ttrades_source_first_g3_cognitive_proposal_20261015 import (
     ttrades_fixture,
 )
-from scripts.vt31_cog_evidence_v2_20261014 import TTRADES_AM
 
 
 def binding(*, profile=TTRADES_AM, month=7, side=Side.LONG,
