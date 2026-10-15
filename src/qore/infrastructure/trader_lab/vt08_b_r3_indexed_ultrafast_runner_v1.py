@@ -76,7 +76,8 @@ def run_indexed_native_geometry(
                     "open", "high", "low", "close"
                 )))
             )
-        return _aggregate(rows)
+        aggregate = _aggregate(rows)
+        return aggregate[0], aggregate[1], aggregate[2], aggregate[3]
 
     # The four independent source calls are cached across adjacent windows:
     # C1 of next C2 = previously computed C2, without future lookahead.
