@@ -52,7 +52,8 @@ def _timestamp(text: Any) -> datetime | None:
     if not isinstance(text, str) or not text:
         return None
     try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+        result = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        return result if result.tzinfo is not None else None
     except ValueError:
         return None
 
@@ -135,13 +136,14 @@ def validate_gm1_review_evidence(
         _timestamp(latest_review.get("submitted_at"))
         if latest_review is not None else None
     )
-    if approved_time is not None and any(
-        r.get("state") == "CHANGES_REQUESTED"
-        and (_timestamp(r.get("submitted_at")) is None
-             or _timestamp(r.get("submitted_at")) > approved_time)
-        for r in reviews
-    ):
-        blockers.append("SUBSEQUENT_CHANGES_REQUESTED")
+    if approved_time is not None:
+        for review in reviews:
+            if review.get("state") != "CHANGES_REQUESTED":
+                continue
+            submitted = _timestamp(review.get("submitted_at"))
+            if submitted is None or submitted > approved_time:
+                blockers.append("SUBSEQUENT_CHANGES_REQUESTED")
+                break
 
     owner_comments = [
         c for c in comments
@@ -156,6 +158,7 @@ def validate_gm1_review_evidence(
         or _timestamp(owner_comment.get("created_at")) is None
         or approved_time is None
         or _timestamp(owner_comment.get("created_at")) <= approved_time
+        or owner_comment.get("updated_at") != owner_comment.get("created_at")
     ):
         blockers.append("OWNER_ACCEPTANCE_NOT_VERIFIED")
 
