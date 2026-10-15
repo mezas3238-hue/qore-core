@@ -1,7 +1,7 @@
 """R15 source-first EQ branch and POI order, adversarial test coverage."""
 from __future__ import annotations
 
-from decimal import Decimal as D
+from decimal import Decimal
 
 import pytest
 
@@ -14,7 +14,7 @@ from qore.infrastructure.trader_lab.vt08_b_r15_v2_eq_poi_source_v1 import (
 
 def test_bullish_c2_full_eq_not_close_to_low() -> None:
     result = bullish_c2_eq_conditional(
-        opened=D("100"), high=D("112"), low=D("95"), closed=D("104"),
+        opened=Decimal("100"), high=Decimal("112"), low=Decimal("95"), closed=Decimal("104"),
     )
     assert result["source_EQ_if_swing_is_bullish"] == "103.5"
     assert result["source_EQ_if_swing_is_bearish"] == "108"
@@ -26,15 +26,15 @@ def test_bullish_c2_full_eq_not_close_to_low() -> None:
 
 def test_full_vs_close_to_low_equal_when_close_at_high() -> None:
     result = bullish_c2_eq_conditional(
-        opened=D("100"), high=D("110"), low=D("95"), closed=D("110"),
+        opened=Decimal("100"), high=Decimal("110"), low=Decimal("95"), closed=Decimal("110"),
     )
     assert not result["counterfactual_wrong_close_to_low_for_bullish_swing"]
 
 
 @pytest.mark.parametrize("case", [
-    dict(opened=D("100"), high=D("103"), low=D("99"), closed=D("98")),
-    dict(opened=D("100"), high=D("103"), low=D("99"), closed=D("100")),
-    dict(opened=D("100"), high=D("103"), low=D("99"), closed=D("99.5")),
+    dict(opened=Decimal("100"), high=Decimal("103"), low=Decimal("99"), closed=Decimal("98")),
+    dict(opened=Decimal("100"), high=Decimal("103"), low=Decimal("99"), closed=Decimal("100")),
+    dict(opened=Decimal("100"), high=Decimal("103"), low=Decimal("99"), closed=Decimal("99.5")),
 ])
 def test_nonbullish_or_impossible_candle_fails(case: dict) -> None:
     with pytest.raises(ValueError, match="bullish body|physically impossible"):
