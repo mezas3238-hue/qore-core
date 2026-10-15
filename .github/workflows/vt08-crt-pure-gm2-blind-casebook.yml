@@ -10,6 +10,8 @@ on:
       - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_full_h4_census.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_price_lifecycle.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_price_lifecycle.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_full_h4_census.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py'
@@ -45,9 +47,9 @@ jobs:
         run: python -m pip install -e '.[dev]'
       - name: Enforce code hygiene and contract tests
         run: |
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_price_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_price_lifecycle.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_price_lifecycle.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_price_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
 
   generate_real_casebook:
     needs: quality
@@ -134,6 +136,28 @@ jobs:
           PY
           printf '%s\n' "$GITHUB_SHA" > "full-h4-v2/$QORE_MARKET/git-sha.txt"
           (cd "full-h4-v2/$QORE_MARKET"; sha256sum three-source-v2-h4-census-summary.json three-source-v2-h4-census-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Evaluate frozen V2 first-hit DOL/invalidation price-only lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "lifecycle-v2/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_v2_price_lifecycle \
+            "$QORE_MARKET" original-native-m5 "lifecycle-v2/$QORE_MARKET" \
+            | tee "lifecycle-v2/$QORE_MARKET/v2-price-lifecycle-stdout.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path("lifecycle-v2")/os.environ["QORE_MARKET"]
+          m=json.loads((root/"v2-price-lifecycle-summary.json").read_text())
+          assert m["v2_candidates_original"]==m["price_path_events_reconciled"]
+          assert m["no_sizing"] and m["no_PnL"] and m["not_fresh_OOS"]
+          assert m["GLOBAL_CERTIFIED"] is False
+          rows=[json.loads(x) for x in (root/"v2-price-lifecycle-ledger.jsonl").read_text().splitlines() if x]
+          assert len(rows)==m["v2_candidates_original"]
+          assert all(r["not_a_trade"] and r["no_sizing"] for r in rows)
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "lifecycle-v2/$QORE_MARKET/git-sha.txt"
+          (cd "lifecycle-v2/$QORE_MARKET"; sha256sum v2-price-lifecycle-summary.json v2-price-lifecycle-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
       - name: Produce independent FIRST-LOOK H4/M15 visual reviews with no cognitive/geometric priming
         shell: bash
         run: |
@@ -292,6 +316,13 @@ jobs:
             echo "::error::Sealed future C3 leaked into blinded reviewer packet"
             exit 1
           fi
+      - name: Publish frozen V2 price-only lifecycle observation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-three-source-v2-price-lifecycle-dev-only-${{ matrix.market }}-${{ github.sha }}
+          path: lifecycle-v2/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
       - name: Publish V2 full H4 plus rolling M15 first-admission DEV artifact
         uses: actions/upload-artifact@v4
         with:
