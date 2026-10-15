@@ -23,20 +23,23 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     G3_MSS_FRAMEWORK_POLICY,
-    M1Bar,
     NEW_YORK,
+    M1Bar,
     SessionId,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
 from scripts.vt31_ict_cleanroom_cog_real_3y_fast_v1 import (
-    _bar, _stream,
-)
-from scripts.vt31_ttrades_am_method_m1_census_20261014 import (
-    MARKET_SHA, M1_TOTAL, hash_file,
+    _bar,
+    _stream,
 )
 from scripts.vt31_trisession_real_m1_causal_coverage_20261015 import (
-    _digest,
     _complete_hour,
+    _digest,
+)
+from scripts.vt31_ttrades_am_method_m1_census_20261014 import (
+    M1_TOTAL,
+    MARKET_SHA,
+    hash_file,
 )
 
 PREREG = "71770492abec4d4429ba69097c35570854b0beaf"
