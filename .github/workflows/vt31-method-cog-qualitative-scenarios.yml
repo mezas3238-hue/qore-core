@@ -1,0 +1,86 @@
+name: VT31 METHOD and COGNITION scenario review ONLY (NO QUANT)
+on:
+  push:
+    branches:
+      - agent/vt31-method-cognitive-scenario-certification-20261014
+    paths:
+      - 'scripts/vt31_method_cog_scenario_court_20261014.py'
+      - 'tests/infrastructure/test_vt31_method_cog_scenario_court_20261014.py'
+      - 'docs/research/VT31_DIRECTIVA_OWNER_CERTIFICACION_METODOLOGICA_COGNITIVA_SIN_PNL_2026-10-14.md'
+      - 'docs/research/VT31_TRIBUNAL_METODOLOGIA_COGNITIVA_ESCENARIOS_PREREG_2026-10-14.md'
+      - '.github/workflows/vt31-method-cog-qualitative-scenarios.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qualitative-method-cognitive-judgment-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 40
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prereg human-scored methods before code + immutable G3
+        run: |
+          set -euo pipefail
+          git cat-file -t d8d1aa4354b4f63602dc5706c0eed3a735ecafe6
+          git merge-base --is-ancestor d8d1aa4354b4f63602dc5706c0eed3a735ecafe6 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Semantic cognitive review, no PnL, no 3Y, no order
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          ruff check scripts/vt31_method_cog_scenario_court_20261014.py tests/infrastructure/test_vt31_method_cog_scenario_court_20261014.py
+          python -m py_compile scripts/vt31_method_cog_scenario_court_20261014.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_method_cog_scenario_court_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_cog_evidence_v2_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_method_cog_scenario_court_20261014.py \
+            --out evidence/VT31_METHOD_COG_JUDGMENT_SCENARIOS_NO_PNL.json \
+            | tee evidence/semantic_summary.json
+      - name: Verify per-scenario method and cognition never auto-certifies
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_METHOD_COG_JUDGMENT_SCENARIOS_NO_PNL.json"))
+          assert p["prereg_commit"]=="d8d1aa4354b4f63602dc5706c0eed3a735ecafe6"
+          assert p["case_check_mode"]=="INDIVIDUAL_SEMANTIC_PROCEDURE_NOT_STATISTICAL_SCORE"
+          assert len(p["cases"])==10
+          assert all(x["case_procedurally_consistent"] and
+                     not x["human_independent_review_completed"] and
+                     not x["execution_authorized"] for x in p["cases"])
+          assert p["original_g3_cog_directly_examined"] is False
+          assert p["methodology_author_certified"] is False
+          assert p["cognitive_method_certified"] is False
+          assert p["human_cog_ops_signatures"] is False
+          assert p["certification_decision"].startswith("PENDING_")
+          assert p["trader_lab_economic_gate_decision"]=="OUT_OF_SCOPE"
+          assert p["financial_results"] is None
+          assert p["orders_or_sizing"]==0
+          assert p["fresh_oos_consumed"] is False and p["live_authorized"] is False
+          print("METHOD_COG_SCENARIO_DOSSIER_READY_FOR_HUMAN_REVIEW_NO_AUTO_CERT")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' d8d1aa4354b4f63602dc5706c0eed3a735ecafe6 > evidence/prereg.txt
+          printf '%s\n' 'SCOPE_METHODOLOGY_COGNITION_ONLY_NO_HISTORICAL_PNL_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-method-cognition-scenarios-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
