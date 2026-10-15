@@ -13,7 +13,7 @@ import multiprocessing as mp
 import time
 from collections import Counter
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -86,7 +86,7 @@ def first_series_cisd(
         or bar.opened_at.utcoffset() is None
         or bar.closed_at.utcoffset() is None
         or bar.closed_at-bar.opened_at != current.closed_at-current.opened_at
-        or bar.closed_at-bar.opened_at != __import__("datetime").timedelta(minutes=1)
+        or bar.closed_at-bar.opened_at != timedelta(minutes=1)
         for bar in closed_m1
     ):
         raise ValueError("CLOSED_ONE_MINUTE_AWARE_SOURCE_REQUIRED")
@@ -104,11 +104,8 @@ def first_series_cisd(
     if side is Side.SHORT and not current.close < current.open:
         return None
     prior = closed_m1[-2]
-    is_opposite = (
-        (lambda x: x.close < x.open)
-        if side is Side.LONG else
-        (lambda x: x.close > x.open)
-    )
+    def is_opposite(x: M1Bar) -> bool:
+        return x.close < x.open if side is Side.LONG else x.close > x.open
     if not is_opposite(prior) or prior.closed_at < first_sweep_at:
         return None
     j = len(closed_m1)-2
