@@ -68,6 +68,7 @@ def verify_all_situation_field_receipts(
     bar_catalog: Mapping[str, Mapping[str, object]],
     *,
     pinned_raw_shas: frozenset[str],
+    source_raw_market_map: Mapping[str, str],
 ) -> FieldSourceAuditResult:
     """Do not confuse caller field hash with physical bar or semantic proof."""
     if set(proofs) != set(CAUSAL_FIELDS):
@@ -76,6 +77,16 @@ def verify_all_situation_field_receipts(
         raise ValueError("VT08 B missing immutable raw feed SHA custody")
     if not bar_catalog:
         raise ValueError("VT08 B no independently constructed bar catalog")
+    if not source_raw_market_map or any(
+        not _sha(raw_sha) or not isinstance(market, str) or not market
+        for raw_sha, market in source_raw_market_map.items()
+    ):
+        raise ValueError("VT08 B missing raw SHA to market custody map")
+    if any(
+        source_raw_market_map.get(raw_sha) != situation.market
+        for raw_sha in pinned_raw_shas
+    ):
+        raise ValueError("VT08 B pinned raw feed outside Situation market")
     values = situation.payload()
     cutoffs = dict(situation.feature_cutoffs)
     observed = 0
@@ -110,6 +121,10 @@ def verify_all_situation_field_receipts(
                 raise ValueError(f"VT08 B altered source bar ID: {field}")
             if record.get("source_raw_sha256") not in pinned_raw_shas:
                 raise ValueError(f"VT08 B source bar outside pinned raw feed: {field}")
+            if record.get("market") != situation.market:
+                raise ValueError(f"VT08 B cross-market source bar: {field}")
+            if source_raw_market_map.get(record["source_raw_sha256"]) != situation.market:
+                raise ValueError(f"VT08 B cross-market raw SHA custody: {field}")
             profile = record.get("profile")
             if profile not in ("M3", "M15"):
                 raise ValueError(f"VT08 B raw bar profile invalid: {field}")
