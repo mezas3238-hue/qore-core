@@ -13,16 +13,16 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
     VT31CleanroomCognition,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     G3_MSS_FRAMEWORK_POLICY,
-    NEW_YORK,
     M1Bar,
+    NEW_YORK,
     SessionId,
+    Side,
     utc,
     window_bounds,
 )
@@ -33,7 +33,6 @@ from scripts.vt31_ttrades_source_first_g3_cognitive_proposal_20261015 import (
     ttrades_fixture,
     ttrades_source_first_g3_cognitive_proposal,
 )
-from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import Side
 
 PREREG = "e5aa05d533a46a6ecf88f3a20bbbd8b0a746fb98"
 ICT = "ICT_GENERAL_2023"
