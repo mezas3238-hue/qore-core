@@ -12,9 +12,11 @@ on:
       - src/qore/infrastructure/traders/vt08_cognitive_journey_intelligence.py
       - src/qore/infrastructure/trader_lab/vt08_cognitive_5m_consumed_gate_v1.py
       - src/qore/infrastructure/trader_lab/vt08_5m_a_to_b_candidate_readiness_v1.py
+      - src/qore/infrastructure/trader_lab/vt08_5m_b_independent_raw_receipts_v1.py
       - tests/infrastructure/trader_lab/test_vt08_cognitive_5m_consumed_gate_v1.py
       - tests/infrastructure/trader_lab/test_vt08_5m_a_to_b_candidate_readiness_v1.py
       - tests/infrastructure/trader_lab/test_vt08_5m_a_to_b_provenance_binding_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_5m_b_independent_raw_receipts_v1.py
       - tests/infrastructure/trader_lab/test_vt08_5m_a_to_b_live_contract_bridge.py
       - tests/infrastructure/traders/test_vt08_cognitive_v1_*.py
       - .github/workflows/vt08-cognitive-5m-research-bridge.yml
@@ -39,13 +41,13 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: Ruff cognitive research
         run: |
-          ruff check src/qore/infrastructure/traders/vt08_cognitive_*.py src/qore/infrastructure/trader_lab/vt08_cognitive_5m_consumed_gate_v1.py src/qore/infrastructure/trader_lab/vt08_5m_a_to_b_candidate_readiness_v1.py tests/infrastructure/traders/test_vt08_cognitive_v1_*.py tests/infrastructure/trader_lab/test_vt08_cognitive_5m_consumed_gate_v1.py tests/infrastructure/trader_lab/test_vt08_5m_a_to_b_*.py
+          ruff check src/qore/infrastructure/traders/vt08_cognitive_*.py src/qore/infrastructure/trader_lab/vt08_cognitive_5m_consumed_gate_v1.py src/qore/infrastructure/trader_lab/vt08_5m_a_to_b_candidate_readiness_v1.py src/qore/infrastructure/trader_lab/vt08_5m_b_independent_raw_receipts_v1.py tests/infrastructure/traders/test_vt08_cognitive_v1_*.py tests/infrastructure/trader_lab/test_vt08_cognitive_5m_consumed_gate_v1.py tests/infrastructure/trader_lab/test_vt08_5m_a_to_b_*.py tests/infrastructure/trader_lab/test_vt08_5m_b_independent_raw_receipts_v1.py
       - name: Mypy cognitive research
         run: |
           mypy src/qore/infrastructure/traders/vt08_cognitive_*.py src/qore/infrastructure/trader_lab/vt08_cognitive_5m_consumed_gate_v1.py src/qore/infrastructure/trader_lab/vt08_5m_a_to_b_candidate_readiness_v1.py
       - name: Pytest cognitive research regression
         run: |
-          pytest -q tests/infrastructure/traders/test_vt08_cognitive_v1_*.py tests/infrastructure/trader_lab/test_vt08_cognitive_5m_consumed_gate_v1.py tests/infrastructure/trader_lab/test_vt08_5m_a_to_b_*.py
+          pytest -q tests/infrastructure/traders/test_vt08_cognitive_v1_*.py tests/infrastructure/trader_lab/test_vt08_cognitive_5m_consumed_gate_v1.py tests/infrastructure/trader_lab/test_vt08_5m_a_to_b_*.py tests/infrastructure/trader_lab/test_vt08_5m_b_independent_raw_receipts_v1.py
       - name: Frozen Architect A source-contract integration (real module)
         env:
           VT08_ARCHITECT_A_FROZEN_MODULE: architect_a_frozen/src/qore/infrastructure/trader_lab/vt08_5m_candidate_event_v1.py
