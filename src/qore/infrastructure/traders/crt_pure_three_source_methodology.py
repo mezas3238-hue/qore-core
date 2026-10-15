@@ -146,7 +146,10 @@ def evaluate_three_source_methodology(
 
     Every rule has its own source or explicitly Owner-approved engineering
     authority. Source-supported never means 'three authors agreed'.
-    A proposal does not replace real independent reviewer authentication.\n\n    This offline assessor cannot authenticate a GitHub approval; it never\n    issues methodology_closed=True merely because string fields are populated.
+    A proposal does not replace real independent reviewer authentication.
+
+    This offline assessor cannot authenticate a GitHub approval; it never
+    issues methodology_closed=True merely because string fields are populated.
     """
     required = tuple(CrtThreeSourceRule)
     if tuple(c.rule for c in contracts) != required:
