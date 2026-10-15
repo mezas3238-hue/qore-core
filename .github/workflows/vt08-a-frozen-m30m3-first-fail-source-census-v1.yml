@@ -84,6 +84,9 @@ jobs:
               "c2_windows_total":report["c2_windows_total"],
               "stage_counts":report["stage_counts"],
               "full_unique_proxy_cases":report["all_unique_proxy_cases_with_raw_receipts"],
+              "earliest_per_ny_day_upper_bound":report[
+                  "earliest_unique_proxy_per_market_ny_day_upper_bound"
+              ],
               "frozen_source_sha_verified":True,
               "source_complete_entries":report["source_complete_entries"],
               "pnl_evaluated":report["pnl_evaluated"],
