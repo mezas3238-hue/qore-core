@@ -1,5 +1,6 @@
 """VT08 FINAL #1 tri-state decision: never market-test incomplete TTrades."""
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -10,6 +11,7 @@ from qore.infrastructure.trader_lab.vt08_a_final1_three_verdict_author_fidelity_
     MARKETS,
     REQUIRED_SOURCE_FIELDS,
     REQUIRED_VALIDATION_FIELDS,
+    SOURCE_PAGES_BY_RULE,
     Final1Preflight,
     FinalVerdict,
     InterimState,
@@ -31,7 +33,7 @@ HASH_E = "e" * 64
 def rule(key, *, method=SelectorMethod.DETERMINISTIC_ASOF, **kwargs):
     return RuleReceipt(
         key=key,
-        source_uri="https://ttrades.com/timeframe-alignment-how-to-align-higher-and-lower-time-frames-for-precision-entries/",
+        source_uri=sorted(SOURCE_PAGES_BY_RULE[key])[0],
         source_class="A_WRITTEN",
         selector_method=method,
         known_at=T, decision_at=T+timedelta(minutes=30),
@@ -57,14 +59,17 @@ def source(*, remove=frozenset(), receipts=None, validation=None):
 
 
 def econ(
-    *, fills=100, profit="115", loss="100", expectancy="0.15",
+    *, fills=100, profit="115", loss="100", expectancy=None,
     family=FAMILY, markets=MARKETS,
 ):
     return VerifiedEconomicEvidence(
         family=family,markets=markets,fills=fills,
         gross_profit_net_of_costs_r=Decimal(profit),
         gross_loss_net_of_costs_r=Decimal(loss),
-        net_expectancy_per_fill_r=Decimal(expectancy),
+        net_expectancy_per_fill_r=(
+            Decimal(expectancy) if expectancy is not None
+            else (Decimal(profit) - Decimal(loss)) / Decimal(fills)
+        ),
         total_entry_decisions=100,
         event_history_sha256=HASH_C,
         independent_broker_executions_sha256=HASH_E,
@@ -118,10 +123,19 @@ def test_pf_above_1_15_and_positive_expectancy_go_research_only():
     assert not d.live_orders_authorized
 
 
-def test_negative_expectancy_overrides_pf_success():
+def test_contradictory_negative_expectancy_and_positive_pf_are_not_accepted():
     d=final1_decision(
         source=source(),source_adjudication_closed=True,
         economic=econ(profit="130",expectancy="-0.03"),
+    )
+    assert d.status is FinalVerdict.NO_EVALUABLE
+    assert "ECONOMIC_PROVENANCE_INVALID" in d.reasons
+
+
+def test_real_negative_expectancy_and_pf_below_one_are_no_go():
+    d=final1_decision(
+        source=source(),source_adjudication_closed=True,
+        economic=econ(profit="60",loss="100"),
     )
     assert d.status is FinalVerdict.NO_GO
 
@@ -290,3 +304,62 @@ def test_wrong_c3_open_anchor_cannot_fool_source_contract():
         source=source(receipts=rules),source_adjudication_closed=True,economic=None,
     )
     assert d.status is FinalVerdict.NO_EVALUABLE
+
+def test_generic_ttrades_page_is_not_valid_for_unrelated_eq_receipt():
+    receipt = rule("C2_EQ_REGIME_CONFIRMED")
+    spoofed = replace(
+        receipt, source_uri="https://ttrades.com/relevant-swings-which-swing-highs-and-lows-matter-in-trading/",
+    )
+    assert not spoofed.validated()
+    assert receipt.validated()
+
+
+def test_source_page_with_trailing_query_or_fragment_is_not_canonical():
+    receipt = rule("C2_EQ_REGIME_CONFIRMED")
+    assert not replace(receipt, source_uri=receipt.source_uri + "?test=yes").validated()
+    assert not replace(receipt, source_uri=receipt.source_uri + "#different").validated()
+
+
+@pytest.mark.parametrize("profit,loss,expectancy", [
+    ("NaN", "100", "0"),
+    ("Infinity", "100", "0"),
+    ("200", "NaN", "0"),
+    ("200", "100", "NaN"),
+    ("200", "100", "Infinity"),
+])
+def test_nonfinite_economic_numbers_cannot_be_certified(profit, loss, expectancy):
+    d = final1_decision(
+        source=source(), source_adjudication_closed=True,
+        economic=econ(profit=profit, loss=loss, expectancy=expectancy),
+    )
+    assert d.status is FinalVerdict.NO_EVALUABLE
+    assert "ECONOMIC_PROVENANCE_INVALID" in d.reasons
+
+
+def test_bool_fill_count_cannot_pass_as_integer():
+    evidence = replace(econ(profit="116"), fills=True)
+    d = final1_decision(
+        source=source(), source_adjudication_closed=True, economic=evidence,
+    )
+    assert d.status is FinalVerdict.NO_EVALUABLE
+
+
+def test_stop_rejects_nan_and_infinity_levels():
+    with pytest.raises(ValueError, match="finite positive"):
+        long_stop_below_two_verified_levels(
+            eq=Decimal("NaN"), breaker_low=Decimal("100"),
+            stop=Decimal("99"), broker_tick=Decimal("0.01"),
+        )
+    with pytest.raises(ValueError, match="finite positive"):
+        long_stop_below_two_verified_levels(
+            eq=Decimal("101"), breaker_low=Decimal("100"),
+            stop=Decimal("99"), broker_tick=Decimal("Infinity"),
+        )
+
+
+def test_all_frozen_source_fields_have_explicit_primary_pages():
+    assert set(SOURCE_PAGES_BY_RULE) == REQUIRED_SOURCE_FIELDS
+    assert all(
+        uris and all(uri.startswith("https://ttrades.com/") for uri in uris)
+        for uris in SOURCE_PAGES_BY_RULE.values()
+    )
