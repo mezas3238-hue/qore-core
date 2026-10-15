@@ -32,7 +32,7 @@ from scripts.vt31_mc_p2_ttrades_native_h1_evidence_20261014 import (
     native_ttrades_am_context,
 )
 from scripts.vt31_ttrades_source_first_g3_cognitive_proposal_20261015 import (
-    SUCCESS, MIN10_CONFLICT, ttrades_fixture,
+    SUCCESS, ttrades_fixture,
 )
 
 PREREG = "d23ff760e3d8e66adec35f99d4743e4c232a0d0f"
