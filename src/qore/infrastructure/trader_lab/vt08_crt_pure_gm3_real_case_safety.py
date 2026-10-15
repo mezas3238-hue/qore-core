@@ -39,9 +39,8 @@ from qore.infrastructure.traders.crt_pure_r2_entry_router import (
     CrtPureR2EntryState,
     assess_model1_certification_entry_family,
 )
-from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
-    model1_source_ready,
-    unresolved_model1_source_concepts,
+from qore.infrastructure.traders.crt_pure_three_source_methodology import (
+    current_three_source_methodology,
 )
 
 SCHEMA = "qore.vt08.crt_pure.gm3_real_case_source_safety.v1"
@@ -141,9 +140,10 @@ def audit_blind_case(case: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("case unexpectedly claims closed reference")
     if case["author_model1_equivalence"] != "NOT_ADJUDICATED":
         raise ValueError("case unexpectedly promoted source")
-    blockers = tuple(x.value for x in unresolved_model1_source_concepts())
-    if not blockers or model1_source_ready():
-        raise ValueError("safety audit designed for genuine open-source gate only")
+    composite = current_three_source_methodology()
+    blockers = composite.blockers
+    if not blockers or composite.methodology_closed:
+        raise ValueError("safety audit only when three-source QORE method is open")
     situation = CrtPureSituationModel(
         market=market,
         observed_at=clock,
@@ -161,9 +161,9 @@ def audit_blind_case(case: dict[str, Any]) -> dict[str, Any]:
         execution_data_fresh=True,
         knowledge_state=CrtPureKnowledgeState.PARTIAL,
         uncertainties=(
-            "MODEL1_REFERENCE_SELECTION_SOURCE_OPEN",
+            "CRT_THREE_SOURCE_REFERENCE_POLICY_OPEN",
             "C2_OBSERVATION_IS_NOT_MODEL1_CONFIRMATION",
-            "DOL_SOURCE_NOT_ADJUDICATED",
+            "DOL_COMPOSITE_POLICY_NOT_ADJUDICATED",
         ),
         observations=tuple(observations),
     )
