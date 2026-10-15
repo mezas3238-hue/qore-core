@@ -7,6 +7,8 @@ Situation snapshots and retains testable per-event cognitive decision lineage.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -17,6 +19,9 @@ from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab.vt08_5m_a_to_b_candidate_readiness_v1 import (
     inspect_architect_a_candidate,
+)
+from qore.infrastructure.trader_lab.vt08_b_durable_cognitive_research_ledger_v1 import (
+    Vt08DurableResearchLedger,
 )
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     Vt08FiveMarketResearchSituation,
@@ -263,12 +268,22 @@ class Vt08ResearchTerminalTrace:
 class Vt08FiveMarketCognitiveGate:
     """Stateful causal source-event cognition, no economic/broker authority."""
 
-    def __init__(self, *, fixture_mode: bool = False) -> None:
+    def __init__(
+        self, *, fixture_mode: bool = False,
+        durable_ledger: Vt08DurableResearchLedger | None = None,
+    ) -> None:
         # Explicit opt-in allows synthetic research fixtures only. Real-source
         # admission must exclusively use evaluate_provenanced().
         if type(fixture_mode) is not bool:
             raise TypeError("VT08 fixture_mode must be exact bool")
         self._fixture_mode = fixture_mode
+        if durable_ledger is not None and not fixture_mode:
+            raise PermissionError("VT08 cannot bind synthetic WAL to real-source authority")
+        self._durable_ledger = durable_ledger
+        # Recovery is deliberately fail-closed until full signed hypothesis
+        # rehydration exists; never silently rearm an old WAIT/EXECUTE.
+        persisted = () if durable_ledger is None else durable_ledger.events()
+        self._previous_source_ids = frozenset(x.source_event_id for x in persisted)
         self._hypotheses: dict[str, Vt08Hypothesis] = {}
         self._event_identity: dict[str, tuple[str, ...]] = {}
         self._last_decision_at: dict[str, datetime] = {}
@@ -281,9 +296,30 @@ class Vt08FiveMarketCognitiveGate:
         self._fill_ids: set[str] = set()
         self._filled: dict[str, Vt08ResearchFillTrace] = {}
         self._fills: list[Vt08ResearchFillTrace] = []
-        self._last_global_as_of: datetime | None = None
+        self._last_global_as_of: datetime | None = (
+            None if not persisted else datetime.fromisoformat(persisted[-1].as_of_utc)
+        )
         self._decisions: list[Vt08CognitiveDecisionTrace] = []
         self._positions: list[Vt08CognitivePositionTrace] = []
+
+    def _append_durable(
+        self, *, source_event_id: str, market: str,
+        identity: tuple[str, ...], kind: str,
+        at: datetime, evidence_sha: str, fill_id: str | None = None,
+    ) -> None:
+        """Persist validated fixture intent BEFORE in-memory state changes."""
+        if self._durable_ledger is None:
+            return
+        identity_sha = hashlib.sha256(
+            json.dumps(
+                identity, separators=(",", ":"), ensure_ascii=True
+            ).encode("utf-8")
+        ).hexdigest()
+        self._durable_ledger.append(
+            source_event_id=source_event_id, market=market, kind=kind,
+            as_of=at, identity_sha256=identity_sha,
+            evidence_sha256=evidence_sha, fill_id=fill_id,
+        )
 
     @property
     def decisions(self) -> tuple[Vt08CognitiveDecisionTrace, ...]:
@@ -306,6 +342,11 @@ class Vt08FiveMarketCognitiveGate:
     ) -> tuple[str, tuple[str, ...]]:
         """Freeze structural identity across WAIT snapshots; no source-side drift."""
         event_id = situation.source_evidence_id
+        if event_id in self._previous_source_ids:
+            raise ValueError(
+                "VT08 previously journaled source cannot rearm after restart "
+                "without full verified cognitive state rehydration"
+            )
         expiry = situation.cycle_expires_at
         if expiry is None:
             raise ValueError("VT08 event requires bounded H4 source cycle")
@@ -359,12 +400,6 @@ class Vt08FiveMarketCognitiveGate:
             source_fingerprint=event_id,
             hypothesis=self._hypotheses.get(event_id),
         )
-        self._hypotheses[event_id] = assessed.hypothesis
-        self._last_decision_at[event_id] = _instant(situation.as_of)
-        self._event_identity[event_id] = source_identity
-        self._last_global_as_of = _instant(situation.as_of)
-        if assessed.decision.action is Vt08CognitiveAction.EXECUTE:
-            self._executed.add(event_id)
         d = assessed.decision
         trace = Vt08CognitiveDecisionTrace(
             market=situation.market,
@@ -383,6 +418,17 @@ class Vt08FiveMarketCognitiveGate:
             adversarial_unknowns=d.adversarial.unresolved_material_challenges,
             supporting_evidence=d.supporting_evidence,
         )
+        self._append_durable(
+            source_event_id=event_id, market=situation.market,
+            identity=source_identity, kind=d.action.value,
+            at=situation.as_of, evidence_sha=trace.decision_fingerprint,
+        )
+        self._hypotheses[event_id] = assessed.hypothesis
+        self._last_decision_at[event_id] = _instant(situation.as_of)
+        self._event_identity[event_id] = source_identity
+        self._last_global_as_of = _instant(situation.as_of)
+        if d.action is Vt08CognitiveAction.EXECUTE:
+            self._executed.add(event_id)
         self._decisions.append(trace)
         return trace
 
@@ -466,6 +512,11 @@ class Vt08FiveMarketCognitiveGate:
             evidence_sha256=evidence.evidence_sha256,
             related_decision_fingerprint=source_decision.decision_fingerprint,
         )
+        self._append_durable(
+            source_event_id=event_id, market=evidence.market,
+            identity=identity, kind="FILL", at=evidence.filled_at,
+            evidence_sha=evidence.evidence_sha256, fill_id=evidence.fill_id,
+        )
         self._filled[event_id] = trace
         self._fill_ids.add(evidence.fill_id)
         self._fills.append(trace)
@@ -519,6 +570,12 @@ class Vt08FiveMarketCognitiveGate:
             last_position_fingerprint=(
                 latest.position_fingerprint if latest is not None else None
             ),
+        )
+        self._append_durable(
+            source_event_id=event_id, market=evidence.market,
+            identity=self._event_identity[event_id],
+            kind="TERMINAL", at=evidence.closed_at,
+            evidence_sha=evidence.evidence_sha256, fill_id=evidence.fill_id,
         )
         self._terminal[event_id] = trace
         self._terminals.append(trace)
@@ -584,10 +641,6 @@ class Vt08FiveMarketCognitiveGate:
             position=position,
             policy=RESEARCH_UNCALIBRATED_POSITION_POLICY,
         )
-        self._last_position_at[event_id] = _instant(situation.as_of)
-        self._position_terms.setdefault(event_id, terms)
-        self._last_observed_stops[event_id] = position.current_stop
-        self._last_global_as_of = _instant(situation.as_of)
         trace = Vt08CognitivePositionTrace(
             market=situation.market,
             source_event_id=event_id,
@@ -606,5 +659,15 @@ class Vt08FiveMarketCognitiveGate:
             original_bound_destination=terms[1],
             observed_current_stop=position.current_stop,
         )
+        self._append_durable(
+            source_event_id=event_id, market=situation.market,
+            identity=self._event_identity[event_id],
+            kind="POSITION", at=situation.as_of,
+            evidence_sha=trace.position_fingerprint,
+        )
+        self._last_position_at[event_id] = _instant(situation.as_of)
+        self._position_terms.setdefault(event_id, terms)
+        self._last_observed_stops[event_id] = position.current_stop
+        self._last_global_as_of = _instant(situation.as_of)
         self._positions.append(trace)
         return trace
