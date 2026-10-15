@@ -36,7 +36,7 @@ jobs:
           test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
           test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
           test "$(git hash-object scripts/vt31_m3_ttrades_cog_wait_v2_20261015.py)" = 2ab6a7b0fdbe31de6bef17fb2d8eb8cc4055d751
-          test "$(git hash-object scripts/vt31_m3_cisd_first_series_source_witness_20261015.py)" = 492c5bbc563a37d174b1d549ffdb7d869c777e2e
+          test "$(git hash-object scripts/vt31_m3_cisd_first_series_source_witness_20261015.py)" = f4799d2cbefc980d82e327c7a41e36f29aaacdf9
           git fetch --no-tags --depth=1 origin "$NATIVE_SHA"
           git show "$NATIVE_SHA:scripts/vt31_ttrades_am_native_cog_v1_20261014.py" > scripts/vt31_ttrades_am_native_cog_v1_20261014.py
           test "$(git hash-object scripts/vt31_ttrades_am_native_cog_v1_20261014.py)" = 407c5959c8cf2268ff210fbbe8bb07b91d2f4510
