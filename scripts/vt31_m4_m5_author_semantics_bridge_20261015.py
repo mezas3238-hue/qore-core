@@ -93,7 +93,7 @@ class OrderBlockCisdEvidence:
 def short_term_swings(bars: tuple[M1Bar, ...]) -> tuple[AuthorShortTermSwing, ...]:
     """Exactly closed 3 adjacent M1 per TTrades short-term swing geometry."""
     events: list[AuthorShortTermSwing] = []
-    for left, pivot, right in zip(bars, bars[1:], bars[2:]):
+    for left, pivot, right in zip(bars, bars[1:], bars[2:], strict=False):
         if (
             left.closed_at != pivot.opened_at
             or pivot.closed_at != right.opened_at
@@ -119,7 +119,7 @@ def source_breaker_four_leg(
     as_of: datetime,
 ) -> SourceFourLegSequence | None:
     """Four consecutive confirmed swing events; NOT zone/retest.
-    
+
     The author specifies the pattern, but does not define a unique
     tie-break for multiple swing hierarchies. Adjacent event policy is
     QORE formalization and must be labeled, not sold as author perfect.
@@ -242,7 +242,7 @@ def audit_day(
 
     pivot_events = short_term_swings(nine+ten)
     breaker: SourceFourLegSequence | None = None
-    for i,snap in valid:
+    for _i,snap in valid:
         if snap.as_of is None or snap.as_of <= return_at or snap.bias not in ("LONG","SHORT"):
             continue
         candidate = source_breaker_four_leg(
@@ -312,7 +312,10 @@ def audit_frozen_cases(
         raise AssertionError("CISD_PARTITION_DRIFT")
     if partitions["BREAKER_FOUR_LEG_STRUCTURE_OBSERVED"]+partitions["NO_BREAKER_FOUR_LEG"] != 483:
         raise AssertionError("BREAKER_PARTITION_DRIFT")
-    if any(x["methodology_certified"] or x["cognition_certified"] or x["orders_ack_fills"] for x in records):
+    if any(
+        x["methodology_certified"] or x["cognition_certified"]
+        or x["orders_ack_fills"] for x in records
+    ):
         raise AssertionError("AUTHOR_SOURCE_COMPONENT_CANNOT_CREATE_TRADES")
     return {
         "schema":VERSION,
@@ -354,7 +357,10 @@ def main() -> None:
     print(json.dumps({
         "real_source_cases":record["frozen_real_M1_cases"],
         "semantic_components":record["component_evidence_by_case_not_PnL"],
-        "first_real_dates":{k:v["ny_day"] for k,v in record["first_real_example_by_component"].items()},
+        "first_real_dates": {
+            k: v["ny_day"]
+            for k,v in record["first_real_example_by_component"].items()
+        },
         "M4_certified":False,"M5_certified":False,
     },sort_keys=True))
 
