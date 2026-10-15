@@ -1,0 +1,121 @@
+name: QORE Alpha 2022 DEMO M3 Historical Feasibility Probe
+
+on:
+  push:
+    branches: [research/qore-alpha-96-frozen-20261011]
+    paths:
+      - .github/workflows/qore-alpha-2022-demo-m3-feasibility-probe-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-jan2022-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DEMO read-only cTrader API runtime
+        run: pip install -e ".[ctrader,dev]"
+      - name: Discover DEMO account, never production
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+          if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+            echo "NO DEMO ACCOUNT DISCOVERED" >&2
+            exit 3
+          fi
+          echo "::add-mask::$account_id"
+          printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+      - name: Probe exactly one JAN 2022 M3 calendar week no PnL
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json,os
+          from datetime import UTC,datetime
+          from pathlib import Path
+          from qore.infrastructure.ctrader_demo_lab_long_horizon_probe import (
+              _connect_and_resolve_symbol,
+          )
+          from qore.infrastructure.ctrader_open_api_client import (
+              CTraderOpenApiCredentials,
+              SpotwareCTraderOpenApiClient,
+          )
+          from qore.infrastructure.trader_lab.vt08_cognitive_m3_evidence_probe_v1 import (
+              _collect_m3_window,
+          )
+          symbol_name=os.environ["QORE_DEMO_LAB_SYMBOL"]
+          # Separate unconfigured DEMO is a hard CI failure, NEVER LIVE fallback.
+          credentials=CTraderOpenApiCredentials(
+              client_id=os.environ["QORE_CTRADER_CLIENT_ID"],
+              client_secret=os.environ["QORE_CTRADER_CLIENT_SECRET"],
+              access_token=os.environ["QORE_CTRADER_ACCESS_TOKEN"],
+              refresh_token=os.environ["QORE_CTRADER_REFRESH_TOKEN"],
+              ctid_trader_account_id=int(os.environ["QORE_CTRADER_DEMO_ACCOUNT_ID"]),
+          )
+          client=SpotwareCTraderOpenApiClient(credentials=credentials)
+          start=datetime(2022,1,3,0,0,tzinfo=UTC)
+          end=datetime(2022,1,10,0,0,tzinfo=UTC)
+          try:
+              account_id,_,symbol=_connect_and_resolve_symbol(
+                  client,symbol_name=symbol_name,timeout_seconds=15.0,
+              )
+              bars=_collect_m3_window(
+                  client,account_id=account_id,symbol=symbol,
+                  opened_at=start,checked_at=end,window_index=0,
+                  timeout_seconds=15.0,
+              )
+          finally:
+              client.close()
+          obj={
+              "schema":"qore.alpha.2022_m3_demo_readonly_feasibility_v1",
+              "market":symbol_name,
+              "requested_start":start.isoformat(),
+              "requested_end":end.isoformat(),
+              "native_m3_bars_returned":len(bars),
+              "first_closed_bar":bars[0].opened_at.isoformat() if bars else None,
+              "last_closed_bar":bars[-1].closed_at.isoformat() if bars else None,
+              "status":(
+                  "JAN2022_M3_SAMPLE_AVAILABLE_NOT_FULL_TRAIN"
+                  if bars else "JAN2022_M3_SAMPLE_UNAVAILABLE"
+              ),
+              "historical_train_coverage_verified":False,
+              "m15_cross_verified":False,
+              "bid_ask_fees_verified":False,
+              "trading_signals_tested":0,
+              "PnL_accessed":False,
+              "live_orders":0,
+              "vps_accessed":False,
+              "holdout_7y_accessed":False,
+          }
+          Path(f"artifacts/{symbol_name}-2022-probe.json").write_text(
+              json.dumps(obj,sort_keys=True,indent=2),encoding="utf-8"
+          )
+          print(json.dumps(obj,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-alpha-jan2022-demo-m3-probe-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 90
