@@ -30,7 +30,7 @@ jobs:
           test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
           test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
           test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
-      - name: Parallel fast runner: original COG 1x/32x bidirectional scenario court
+      - name: Parallel fast runner original COG 1x/32x bidirectional scenario court
         run: |
           set -euo pipefail
           python -m pip install -e '.[dev]' pytest-xdist
