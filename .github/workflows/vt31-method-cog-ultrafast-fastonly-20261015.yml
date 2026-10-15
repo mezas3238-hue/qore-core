@@ -1,0 +1,131 @@
+name: VT31 Method Cognitive Ultra Fast Verified Replay No Scalar No PnL
+on:
+  push:
+    branches:
+      - agent/vt31-method-cog-ultrafast-20261015
+    paths:
+      - 'docs/research/VT31_METHOD_COG_ULTRAFAST_LAB_PREREG_2026-10-15.md'
+      - 'scripts/vt31_method_cog_lab_batch_ultrafast_20261015.py'
+      - 'tests/infrastructure/test_vt31_method_cog_lab_batch_ultrafast_20261015.py'
+      - '.github/workflows/vt31-method-cog-ultrafast-fastonly-20261015.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  NATIVE_SHA: '1556766c1831190b5459bf93404081412200ba7d'
+  CENSUS_SHA: '35bd317ddfed60e09523287de51347683d98e613'
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  vt31-research-gates-shared-source-fork-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 40
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Freeze original G3 and existing four cognitive source witnesses
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor c2473687ccdf0989cd721818bd2e61073ee3e583 HEAD
+          test "$(git hash-object scripts/vt31_method_cog_lab_batch_ultrafast_20261015.py)" = 835ef4fa7c0114c12b8ecf6adcda095cf6121980
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+          test "$(git hash-object scripts/vt31_m3_ttrades_cog_wait_v2_20261015.py)" = 2ab6a7b0fdbe31de6bef17fb2d8eb8cc4055d751
+          test "$(git hash-object scripts/vt31_m4_source_family_cognitive_witness_20261015.py)" = de753146abd49c2d6aba2fd318dc2badc0b7adfe
+          test "$(git hash-object scripts/vt31_m5_swing_causation_witness_20261015.py)" = ee55d166247e255ca6e2405ad4c0ad825a9edd96
+          test "$(git hash-object scripts/vt31_m4_m5_author_semantics_bridge_20261015.py)" = ab35ef4d2446e53bf1513e019776961efc046d80
+          test "$(git hash-object scripts/vt31_mc_p2_ttrades_native_h1_evidence_20261014.py)" = 3cf076810b1e6dcec0ba2f1571609577ceac6d50
+          git fetch --no-tags --depth=1 origin "$NATIVE_SHA"
+          git show "$NATIVE_SHA:scripts/vt31_ttrades_am_native_cog_v1_20261014.py" > scripts/vt31_ttrades_am_native_cog_v1_20261014.py
+          test "$(git hash-object scripts/vt31_ttrades_am_native_cog_v1_20261014.py)" = 407c5959c8cf2268ff210fbbe8bb07b91d2f4510
+          git show "$NATIVE_SHA:tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py" > tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py
+          git fetch --no-tags --depth=1 origin "$CENSUS_SHA"
+          git show "$CENSUS_SHA:scripts/vt31_ttrades_am_method_m1_census_20261014.py" > scripts/vt31_ttrades_am_method_m1_census_20261014.py
+          test "$(git hash-object scripts/vt31_ttrades_am_method_m1_census_20261014.py)" = 43a219e21237acfddc773a7c78ab6103d3839168
+          git show "$CENSUS_SHA:tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py" > tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py
+      - name: Ultra Fast source and cognitive adversarial regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check scripts/vt31_method_cog_lab_batch_ultrafast_20261015.py tests/infrastructure/test_vt31_method_cog_lab_batch_ultrafast_20261015.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_method_cog_lab_batch_ultrafast_20261015.py \
+            tests/infrastructure/test_vt31_m3_ttrades_cog_wait_v2_20261015.py \
+            tests/infrastructure/test_vt31_m4_source_family_cognitive_witness_20261015.py \
+            tests/infrastructure/test_vt31_m5_swing_causation_witness_20261015.py \
+            tests/infrastructure/test_vt31_m4_m5_author_semantics_bridge_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
+            tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
+            --junitxml=evidence/junit.xml | tee evidence/pytest.txt
+      - name: Original NAS100 M1 checksum source not BID ASK and no OOS
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Trader Lab Ultra Fast four cognitive gates vs previously certified full JSON digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_method_cog_lab_batch_ultrafast_20261015.py \
+            --market source/NAS100/market-evidence.json \
+            --workers 2 \
+            --out evidence/VT31_METHOD_COG_ULTRAFAST_VERIFIED_FAST_ONLY.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_METHOD_COG_ULTRAFAST_VERIFIED_FAST_ONLY.json"))
+          assert p["original_market_M1_total"] == 1059784
+          assert p["original_days"] == 775
+          assert p["frozen_first_return_contexts"] == 483
+          assert p["all_full_casebook_sha256_scalar_match"] is False
+          assert p["scalar_reference"] is None
+          assert len(p["ultrafast_gate_records"]) == 4
+          assert p["m3_m4_m5_author_method_certified"] is False
+          assert p["m3_m4_m5_cognition_certified"] is False
+          assert p["external_m6_dual_signatures_verified"] is False
+          assert p["trader_certified"] is False
+          assert p["economic_metrics_calculated"] is False
+          assert p["vt31_sizing_calculated"] is False
+          assert p["orders_ack_fills"] == 0 and p["live_authorized"] is False
+          # These hashes were independently proven equal scalar vs fork
+          # for EVERY day/state/timestamp in successful run #38741884264.
+          frozen={
+            "M3_WAIT_V2":"96e33a8dd144a106c06f0367afad0253ab5d0737fcf44e26a86880119f93c5a6",
+            "M4_FAMILY":"d0feeef4d4968ee756116f73e8ec2cbbb7b9924c3bb31d273dcec9bb3628ecf1",
+            "M5_CAUSATIVE_SWING":"16cd5bf5f61ad382632aa980f2ed25d50397216e7bf21021dc8aec60654d6c02",
+            "M4_M5_AUTHOR_COMPONENTS":"113d7ac78531ce7acce8cff600477cc1a633a075ea26d1ed3843fa82f4ba0100",
+          }
+          actual={x["gate"]:x["full_cognitive_casebook_sha256"] for x in p["ultrafast_gate_records"]}
+          assert actual==frozen, "COGNITIVE_FULL_JSON_NO_LONGER_MATCHES_SCALAR_BASELINE"
+          assert all(x["cognitive_case_count"]==483 for x in p["ultrafast_gate_records"])
+          print("VT31_ULTRAFAST_VERIFIED_FULL_COG_CASEBOOK_HASHES_PASS_NOT_CERTIFIED")
+          PY
+      - name: Immutable evidence receipts only no raw source uploaded
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/commit.txt
+          printf '%s\n' 'c2473687ccdf0989cd721818bd2e61073ee3e583' > evidence/prereg.txt
+          printf '%s\n' 'TRADER_LAB_ULTRAFAST_SOURCE_ONLY_M3_M4_M5_BASELINE_38741884264_NO_PNL_NO_LIVE' > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-method-cog-ultrafast-fastonly-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
