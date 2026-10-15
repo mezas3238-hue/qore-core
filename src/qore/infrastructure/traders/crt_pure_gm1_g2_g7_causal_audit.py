@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection,
 )
@@ -29,6 +30,7 @@ class CrtGm1CausalVerdict(StrEnum):
 class CrtGm1Reference:
     """Immutable point-in-time source identity; no price-outcome or PnL fields."""
 
+    market: CrtPureMarket
     reference_id: str
     parent_id: str
     direction: CrtPureCandidateDirection
@@ -64,6 +66,7 @@ def _require_aware(t: datetime) -> None:
 
 def audit_g2_reference_conflicts(
     *,
+    market: CrtPureMarket,
     parent_id: str,
     decision_at: datetime,
     references: tuple[CrtGm1Reference, ...],
@@ -78,6 +81,8 @@ def audit_g2_reference_conflicts(
     _require_aware(decision_at)
     if not parent_id:
         raise ValueError("G2 parent identity missing")
+    if any(r.market != market for r in references):
+        raise ValueError("cross-market reference not admissible")
     if any(r.parent_id != parent_id for r in references):
         raise ValueError("cross-parent reference not admissible")
     if len({r.reference_id for r in references}) != len(references):
@@ -113,6 +118,7 @@ def audit_g2_reference_conflicts(
 class CrtGm1SourceEvent:
     """One source event and hypothesis, with explicitly recorded generation."""
 
+    market: CrtPureMarket
     parent_id: str
     source_event_id: str
     hypothesis_id: str
@@ -152,10 +158,14 @@ def audit_g7_rearm(
     cannot prove external custody. A fresh event can be PROVISIONAL only,
     never authorized re-entry, execution or capital.
     """
-    if len({(x.parent_id, x.source_event_id) for x in observed_history}) != len(
-        observed_history
-    ):
+    if any(x.market != proposal.market for x in observed_history):
+        raise ValueError("cross-market G7 history must be isolated")
+    if len({x.source_event_id for x in observed_history}) != len(observed_history):
         raise ValueError("duplicate G7 source identity in history")
+    if len({x.hypothesis_id for x in observed_history}) != len(observed_history):
+        raise ValueError("duplicate G7 hypothesis identity in history")
+    if len({x.parent_id for x in observed_history}) != len(observed_history):
+        raise ValueError("duplicate G7 parent event in history")
     if any(x.decision_at >= proposal.decision_at for x in observed_history):
         raise ValueError("noncausal G7 history includes decision or future")
     if any(
