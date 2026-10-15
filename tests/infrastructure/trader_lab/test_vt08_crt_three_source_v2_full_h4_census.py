@@ -50,7 +50,7 @@ def test_later_micro_can_emit_one_conceptual_candidate_per_parent() -> None:
     assert m["global_certified"] is False
 
 
-def test_later_unknown_C3_cannot_rewrite_earliest_causal_admission() -> None:
+def test_later_unknown_c3_cannot_rewrite_earliest_causal_admission() -> None:
     data = _bars()
     before, all_rows = full_utc_h4_v2_census(CrtPureMarket.AUDUSD, data)
     no_later = tuple(
