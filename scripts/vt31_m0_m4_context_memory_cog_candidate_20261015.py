@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    M1Bar,
     NEW_YORK,
+    M1Bar,
     SessionId,
     Side,
     utc,
