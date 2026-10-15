@@ -202,7 +202,7 @@ def test_source_day_timezone_aware_constant():
     assert datetime(2025, 1, 15, 3, tzinfo=NEW_YORK).utcoffset() == timedelta(hours=-5)
     assert datetime(2025, 7, 15, 3, tzinfo=NEW_YORK).utcoffset() == timedelta(hours=-4)
 
-def test_original_G3_without_explicit_optin_rejected_at_constructor():
+def test_original_g3_without_explicit_optin_rejected_at_constructor():
     """G3 COG must never silently bootstrap original LEGACY OPS."""
     from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
         VT31CleanroomCognition,
