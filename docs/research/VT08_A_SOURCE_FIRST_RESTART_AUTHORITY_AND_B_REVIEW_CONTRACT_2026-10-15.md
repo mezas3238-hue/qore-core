@@ -69,3 +69,17 @@ B debe revisar **por escrito**: 1) matriz `SOURCE_PAGES_BY_RULE` contra seccione
 
 ---
 **No se han leído outcomes ni liberado holdout; ningún CI de esta ronda representa rentabilidad.**
+
+
+## 7. Addendum P0: coherencia de múltiples RuleReceipts (15-Oct, ronda 2)
+
+**Hallazgo adicional:** la primera versión de `Final1Preflight` podía concatenar nueve recibos técnicamente válidos de **distintos mercados, escenarios o relojes** y producir una cobertura aparente de las nueve reglas; no representaban necesariamente la misma entrada. También se podía declarar un EQ calculado con C2 completa como conocido antes del cierre de C2. Son brechas de **integridad contractual**, no prueba de entradas ocurridas.
+
+**Corrección código** `d040e4fbccaa63e3f4e5c99cc0dd62b67c300e55`, **pruebas** `17bf2459162853726332bb745bc249462f8f8bcb`:
+- `RuleReceipt.market` y `scenario_id` obligatorios; mercado debe pertenecer a los cinco del universo.
+- Los nueve recibos requieren coincidencia de mercado, `scenario_id`, `c2_opened_at`, `c3_opened_at` y `decision_at`. Discrepancia => `CROSS_RECEIPT_SCENARIO_OR_CLOCK_MISMATCH`.
+- Campos de estado que dependen del cierre completo C2 (C2 closure+CISD/PS, EQ de C2, stop derivado de EQ, target aún no tocado en entrada, entrada C3) se exigen observables en el instante de C3.open. No aceptar `known_at=C2.open` como prueba de EQ C2.
+- Nuevos ataques unitarios: mezcla EURJPY/USDCHF, mezcla de escenarios, relojes distintos, estado EQ prematuro, target marcado untouched antes de entrada, ausencia de market/scenario.
+
+**Limitación restante:** aunque estos metadatos sean coherentes, ningún `RuleReceipt` prueba por sí solo que el bar/mercado exista ni valida **todos** los fills del historial agregado. Esa autenticación completa sigue siendo responsabilidad de B y del ledger económico independiente; `APPROVED_A_B_MANIFEST_SHA256=None`.
+
