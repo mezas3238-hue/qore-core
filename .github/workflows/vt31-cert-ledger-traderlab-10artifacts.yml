@@ -1,0 +1,123 @@
+name: VT31 Ten Qualitative Artifacts Method and Cognition with Native TraderLab
+on:
+  push:
+    branches:
+      - agent/vt31-cert-ledger-traderlab-10artifacts-20261015
+    paths:
+      - 'scripts/vt31_cert_ledger_10_artifacts_traderlab_20261015.py'
+      - 'tests/infrastructure/test_vt31_cert_ledger_10_artifacts_traderlab_20261015.py'
+      - 'docs/research/VT31_CERT_LEDGER_TEN_IMMUTABLE_TRADERLAB_FAST_ARTIFACTS_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-cert-ledger-traderlab-10artifacts.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  genuine-method-and-cognition-certification-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pre-registered decision logic and immutable protected original G3
+        run: |
+          set -euo pipefail
+          git cat-file -t 8b3e0e17ce4011ae6bfff5ef46fb3242834cd617
+          git merge-base --is-ancestor 8b3e0e17ce4011ae6bfff5ef46fb3242834cd617 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Download TEN real prior qualitative artifacts and verify exact archive hashes
+        run: |
+          set -euo pipefail
+          mkdir -p input evidence
+          cat > evidence/frozen_qualitative_archives.tsv <<'IDS'
+          11944328096 05710d9ab11c598fbfc57718f6e5a7fe18ebcc02564443cd4831c0eef925a272
+          11943793928 bb5aef53f1db40f89683da9cb982ac51f4689abbd3a23ce044f958ff2527833f
+          11958388150 78ad2ba7c53790a6c9119f4e831c6683f3f502aee10aa729dc800dd16784ca0e
+          11959135942 f9ccfa7a62e467db595992819024d8b02f8b4d44b7e1dc4c41dd874020e47bfe
+          11960185549 0b32d306a86e50e924ab3a29d2f6b5dffe1242d383aff3970728b45552acafde
+          11959393863 05b834475801822e339d21665736f3f78a4e4dbf4c266f50be7ece3f8662dcbf
+          11961174983 115047d9f83fcc56f725fe8e47659148a5d69a7d160c8f399c2f0d9b94643ce4
+          11962555846 a01bcd191e8f379f4cbc39a3621ab40b58f0635316f0669473b18cd88cd7ee95
+          11976412423 e52de6f442238be555eb739d8d46082cb83a2132f49e6bcf3d748de462d3fd4e
+          11979797382 a77be5d7c66a767a4f0724f2b981571f3972fc0eee992a2b9b2ea70c7ccad25b
+          IDS
+          while read -r artifact expected; do
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact}/zip" > "input/${artifact}.zip"
+            echo "${expected}  input/${artifact}.zip" | sha256sum -c -
+            mkdir -p "input/${artifact}"
+            unzip -q "input/${artifact}.zip" -d "input/${artifact}"
+            (cd "input/${artifact}" && sha256sum -c SHA256SUMS)
+          done < evidence/frozen_qualitative_archives.tsv
+      - name: Fetch AUTHENTIC live G3 governance Issue and PR reviewers
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/pulls/896/reviews?per_page=100" > input/github_reviews_896.json
+          gh api "/repos/${GITHUB_REPOSITORY}/pulls/896/requested_reviewers" > input/github_review_requests_896.json
+          gh api "/repos/${GITHUB_REPOSITORY}/issues/897" > input/github_issue_897.json
+      - name: Judge methodology vs cognition independently, with no financial criteria
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist
+          ruff check scripts/vt31_cert_ledger_10_artifacts_traderlab_20261015.py tests/infrastructure/test_vt31_cert_ledger_10_artifacts_traderlab_20261015.py
+          python -m py_compile scripts/vt31_cert_ledger_10_artifacts_traderlab_20261015.py
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_cert_ledger_10_artifacts_traderlab_20261015.py \
+            tests/infrastructure/test_vt31_qualitative_method_cog_certificate_decision_20261015.py \
+            tests/infrastructure/test_vt31_original_cog_traderlab_32x_long_short_20261015.py \
+            tests/infrastructure/test_vt31_m5_ttrades_protected_swing_source_20261015.py \
+            tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_original_g3_cog_short_sessions_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_original_g3_nypm_cognition_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_cert_ledger_10_artifacts_traderlab_20261015.py \
+            --evidence-root input \
+            --out evidence/VT31_CERTIFICACION_METODOLOGIA_COGNITIVA_DECISION_REAL.json \
+            | tee evidence/certification_summary.json
+      - name: Prove no false authorization, retain auditable hashes
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_CERTIFICACION_METODOLOGIA_COGNITIVA_DECISION_REAL.json"))
+          assert p["prereg_commit"]=="8b3e0e17ce4011ae6bfff5ef46fb3242834cd617"
+          assert p["all_verified_artifact_count"]==10
+          assert len(p["evidence_schemas"])==8
+          assert p["cognitive_acceleration_evidence"]["all_closed_M1_asof_and_trace_hashes_equal"]
+          assert p["cognitive_acceleration_evidence"]["original_G3_bidirectional_cases"]==24
+          assert not p["cognitive_acceleration_evidence"]["real_traderlab_L3_certified"]
+          assert p["source_g3_unchanged_blob"]=="d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          assert p["methodology"]["decision"]=="PENDIENTE"
+          assert p["cognition"]["decision"]=="PENDIENTE"
+          assert p["methodology"]["conditions"]["M1_original_cog_causal_behavior_source_cases"]
+          assert p["cognition"]["conditions"]["COG_original_LONDON_NYAM_NYPM_LONG_SHORT_WAIT_REJECT_evidenced"]
+          assert p["methodology"]["conditions"]["M2_ttrades_source_first_research_context"]
+          assert not p["methodology"]["conditions"]["M5_exact_displacement_causing_swing_and_stop"]
+          assert not p["methodology"]["conditions"]["M6_G3_dual_distinct_cog_ops_signatures"]
+          assert not p["overall_method_cognitive_certified"]
+          assert p["economic_trader_lab_gates"]=="SEPARATE_NOT_EVALUATED"
+          assert p["economic_profit_pf_dd_sortino_sharpe"] is None
+          assert p["broker_orders"]==p["trader_lot_sizing"]==0
+          assert not p["oms_enabled"] and not p["live_authorized"]
+          assert not p["independent_human_cert_signature_fabricated"]
+          print("VT31_GENUINE_METHOD_COG_CERTIFICATION_AUDIT_PENDING_NO_FALSE_CERTIFICATE")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 8b3e0e17ce4011ae6bfff5ef46fb3242834cd617 > evidence/prereg_sha.txt
+          printf '%s\n' 'TEN_ARTIFACTS_COGNITIVE_METHOD_QUALITATIVE_NO_PNL_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt *.tsv > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-qualitative-cert-ledger-10-artifacts-native-32x-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
