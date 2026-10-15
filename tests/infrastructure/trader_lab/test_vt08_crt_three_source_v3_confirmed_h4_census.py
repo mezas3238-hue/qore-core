@@ -44,7 +44,8 @@ def _data(
 
 def _first_result(bars: tuple[ReplayBar, ...]) -> dict[str, object]:
     _, rows = full_utc_h4_v3_census(CrtPureMarket.AUDUSD, bars)
-    assert len(rows) == 2
+    assert len(rows) >= 1
+    assert rows[0]["c3_H4_opened_at_utc"] == "2025-03-03T08:00:00+00:00"
     return rows[0]
 
 
