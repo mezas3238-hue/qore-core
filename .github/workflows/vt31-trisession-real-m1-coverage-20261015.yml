@@ -1,0 +1,124 @@
+name: VT31 tri-session REAL NAS100 M1 source coverage M0 M1 no PnL
+on:
+  push:
+    branches:
+      - agent/vt31-trisession-real-m1-m0-census-20261015
+    paths:
+      - 'docs/research/VT31_TRISESION_M0_M1_REAL_SOURCE_PREREG_2026-10-15.md'
+      - 'scripts/vt31_trisession_real_m1_causal_coverage_20261015.py'
+      - 'tests/infrastructure/test_vt31_trisession_real_m1_causal_coverage_20261015.py'
+      - '.github/workflows/vt31-trisession-real-m1-coverage-20261015.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  real-m1-london-nyam-nypm-source-gaps-not-certification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prereg before code and original frozen COG OPS M0
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor a4352c9ad787111604d618f3fb10660de015230d HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object scripts/vt31_m0_predecision_method_router_20261015.py)" = 73e628e37795b746b5d339585e27b307df2e2e1c
+          test "$(git hash-object scripts/vt31_m0_temporal_admission_20261015.py)" = 4ea44f320208c771830b35b219389826dc158fea
+      - name: Run tri-session adversarial and original M0 G3 producer tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4' pytest-xdist
+          mkdir -p evidence
+          ruff check scripts/vt31_trisession_real_m1_causal_coverage_20261015.py tests/infrastructure/test_vt31_trisession_real_m1_causal_coverage_20261015.py
+          python -m py_compile scripts/vt31_trisession_real_m1_causal_coverage_20261015.py
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_trisession_real_m1_causal_coverage_20261015.py \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Retrieve authentic frozen NAS100 1,059,784 M1
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Audit 775 dates times 3 Silver Bullet sessions scalar versus fork
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_trisession_real_m1_causal_coverage_20261015.py \
+            --market source/NAS100/market-evidence.json --parity \
+            --out evidence/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json'))
+          assert p['total_canonical_m1']==1059784
+          assert p['anchor_ny_am_days']==775 and p['evaluations']==2325
+          assert p['scalar_fork_full_JSON_parity'] is True
+          assert len(p['all_2325_day_session_records'])==2325
+          assert p['NY_AM_original_states_frozen']=={
+            'MSS_ATTESTED_CONTEXT_ONLY':128,
+            'FIRST_RETURN_NO_QORE_MSS':483,
+            'SWEEP_NO_RETURN':92,
+            'NO_SWEEP':65,
+            'INCOMPLETE_M1_HOURS':6,
+            'REJECTED_SOURCE':1,
+          }
+          expected_sessions={'VT31_LONDON','VT31_NY_AM','VT31_NY_PM'}
+          assert set(p['three_session_source_coverage_states'])==expected_sessions
+          assert all(sum(states.values())==775 for states in
+                     p['three_session_source_coverage_states'].values())
+          assert len(set((x['ny_day'],x['session']) for x in p['all_2325_day_session_records']))==2325
+          assert all(not (x['methodology_certified'] or x['cognition_certified']
+                     or x['trader_certified'] or x['trading_or_sizing'])
+                     for x in p['all_2325_day_session_records'])
+          assert p['original_g3_synthetic_research_cases']==16
+          assert p['original_g3_synthetic_states']=={
+            'ICT_CONTEXT_WITNESS_UNDERDETERMINED':8,
+            'RESEARCH_TTRADES_CONTEXT_CONFORMANT_NOT_CERTIFIED':4,
+            'G3_MIN10_AND_TTRADES_SOURCE_TARGET_CONFLICT_WAIT':4,
+          }
+          for key in ['london_certified','ny_am_certified','ny_pm_certified',
+                     'm0_profile_owner_signed','m2_ict_liquidity_doctrine_certified',
+                     'm3_displacement_author_certified','m4_four_entry_families_certified',
+                     'm5_causative_swing_certified','m6_two_human_signatures_verified',
+                     'm7_integrated_certification','methodology_certified',
+                     'cognition_certified','trader_certified']:
+            assert p[key] is False, key
+          assert p['live_demo_vps_broker_orders_fills_sizing']==0
+          print('VT31_THREE_SESSIONS_REAL_M1_AUDITED_NO_AUTHOR_CERTIFICATION')
+          PY
+      - name: Store reproducible non-raw coverage casebook
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/code_commit.txt
+          printf '%s\n' 'VT31_THREE_SESSION_M0_M1_COVERAGE_ONLY_NO_PNL_NO_SIZING_NO_ORDERS' > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-trisession-real-m1-coverage-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
