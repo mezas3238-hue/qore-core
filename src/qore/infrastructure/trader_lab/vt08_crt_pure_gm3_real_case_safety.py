@@ -26,14 +26,14 @@ from qore.infrastructure.traders.crt_pure_cognitive_state import (
     reason,
 )
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
-from qore.infrastructure.traders.crt_pure_methodology_candidate import (
-    CrtPureCandidateDirection,
-)
 from qore.infrastructure.traders.crt_pure_methodological_certification import (
     CrtPureMethodGateEvidence,
     CrtPureMethodGateState,
     evaluate_methodological_gm5,
     present_vt08_gm5_status,
+)
+from qore.infrastructure.traders.crt_pure_methodology_candidate import (
+    CrtPureCandidateDirection,
 )
 from qore.infrastructure.traders.crt_pure_r2_entry_router import (
     CrtPureR2EntryState,
