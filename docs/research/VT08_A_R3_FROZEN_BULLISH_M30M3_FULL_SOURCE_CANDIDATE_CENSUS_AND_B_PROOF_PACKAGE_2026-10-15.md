@@ -67,3 +67,12 @@ Los Gates heredados VT08 `PF>=1.80`, `DD<=6R`, `MonteCarlo p95 DD<=15R`, `P(term
 | USDCAD | [11962906707](https://github.com/mezas3238-hue/qore-core/actions/runs/38715560333/artifacts/11962906707) | 2026-11-14 09:48 |
 
 **Custodia P0:** copiar estos paquetes a almacenamiento seguro permitido ANTES del vencimiento, con SHA256 ZIP calculado y permisos/licencia verificados. El manifiesto de estadísticas está comiteado, pero el código reproducible aún necesita los raws originales de Actions: el informe por sí solo NO sustituye el respaldo del archivo bruto. No comitear datos de precio cTrader con licencia a repositorio público.
+
+
+## 7. P0 A→B corregido: falso `SOURCE_COMPLETE_EXECUTABLE` del productor B01 antiguo
+
+**Hallazgo material independiente del censo R3:** `src/qore/infrastructure/trader_lab/vt08_5m_candidate_event_v1.py` emitía `methodology_status=SOURCE_COMPLETE_EXECUTABLE` cuando la propia fuente declaraba `entry_basis=H4_OPEN_EXACT_FILL_QORE_CONTAINMENT`, `stop_basis=PROTECTED_SWING_NO_OFFSET_QORE_CONTAINMENT`, `target_basis=FIXED_2R_QORE_CONTAINMENT` y `filled_lifecycle=CLOSE_NEXT_H4_QORE_CONTAINMENT`. Es un término equivocado: máquina B01 geométrica completa **no significa author TTrades complete**. Arquitecto B ya introdujo barrera `A_B:NON_SOURCE_CONTAINMENT_BUNDLE`, pero A debía corregir la semántica de su productor.
+
+**Arreglo A:** commit código `d0adf6d58f208083d8d64a2be5ded829f2ef7170` y pruebas `7c5948adbb8bdbcc8100af311eeb92028b196d25`. El envelope ahora declara `methodology_status=SOURCE_INCOMPLETE_QORE_CONTAINMENT`, `author_fidelity_verified=False`, `cognitive_source_admission_authorized=False`; no convierte métodos QORE en fuente del autor. [GitHub CI #38715943541](https://github.com/mezas3238-hue/qore-core/actions/runs/38715943541): **SUCCESS, 17/17 tests y Ruff PASS**. No hay cambios en señales ni resultados de mercado; no autoriza ningún fill.
+
+**Compatibilidad esperada:** el verificador B preexistente exige `SOURCE_COMPLETE_EXECUTABLE` para el antiguo schema v1; por ello debe rechazar este envelope B01 correctamente. B debe auditar la nueva identidad M30/M3 en un **schema versionado separado**, con fuente física y A+B manifest firmado, en lugar de quitar el guardado anti-bypass.
