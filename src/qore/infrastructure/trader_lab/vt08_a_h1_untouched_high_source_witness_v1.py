@@ -12,6 +12,7 @@ An observational M15 stream interrupted by any gap invalidates previous
 from __future__ import annotations
 
 import hashlib
+import json
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -156,6 +157,9 @@ def witness_events(
         raise ValueError("frozen source event count mismatch")
     if not native_m15:
         raise ValueError("no native historical M15")
+    by_open = {_utc(x.opened_at): x for x in native_m15}
+    if len(by_open) != len(native_m15):
+        raise ValueError("native M15 bar clocks duplicated")
     st = H1HighState(market=market, m15_raw_sha=raw_m15_sha256)
     by_time = sorted(cases, key=lambda e: str(e["decision_at_utc"]))
     next_bar = 0
@@ -201,10 +205,19 @@ def witness_events(
                 or _read_iso(raw.get("closed_at_utc")) != c2 + (i + 1) * M15
             ):
                 raise ValueError("C2 M15 bar/market/time mismatch")
-            receipt = raw.get("ohlc")
-            if not isinstance(receipt, list) or len(receipt) != 4:
-                raise ValueError("C2 source OHLC missing")
-            candles.append(Decimal(str(receipt[3])))
+            native = by_open.get(c2 + i * M15)
+            if native is None or _utc(native.closed_at) != c2 + (i + 1) * M15:
+                raise ValueError("C2 M15 native original missing")
+            attested = _bar_receipt(native, raw_m15_sha256, "M15")
+            if (
+                raw.get("source_bar_id") != attested["source_bar_id"]
+                or tuple(raw.get("ohlc", ())) != tuple(attested["ohlc"])
+                or _read_iso(raw.get("available_at_utc")) != _utc(native.closed_at)
+            ):
+                raise ValueError("C2 M15 source catalog differs from native original")
+            if not native.close.is_finite() or native.close <= 0:
+                raise ValueError("invalid native C2 close")
+            candles.append(native.close)
         c2_close = candles[-1]
         targets = [
             {
@@ -264,7 +277,7 @@ def run_from_files(market: str, catalog_path: Path, m15_path: Path) -> dict[str,
     _, source_market, _, _, m15 = load_market_evidence(m15_path)
     if source_market != market:
         raise ValueError("physical M15 market does not match requested market")
-    catalog = __import__("json").loads(catalog_path.read_text(encoding="utf-8"))
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     return witness_events(
         market=market, source_catalog=catalog,
         native_m15=tuple(m15), raw_m15_sha256=m15_sha,
