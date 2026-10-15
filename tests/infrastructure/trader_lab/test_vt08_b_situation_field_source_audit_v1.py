@@ -14,17 +14,27 @@ from qore.infrastructure.trader_lab.vt08_b_situation_field_source_audit_v1 impor
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import CAUSAL_FIELDS
 
 RAW = "f" * 64
-BAR = "a" * 64
 
 
 def _bundle():
     situation = _snapshot()
     clock = T0.isoformat()
-    bar: dict[str, object] = {
-        "source_bar_id": BAR,
+    started = (T0 - timedelta(minutes=3)).isoformat()
+    body: dict[str, object] = {
+        "profile": "M3",
         "source_raw_sha256": RAW,
+        "opened_at_utc": started,
         "closed_at_utc": clock,
+        "ohlc": ("100", "101", "99", "100"),
+    }
+    bar_id = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    bar: dict[str, object] = {
+        **body,
+        "source_bar_id": bar_id,
         "available_at_utc": clock,
+        "semantics": "OBSERVED_OHLC_ONLY_NOT_TTRADES_RULE",
     }
     values = situation.payload()
     proofs: dict[str, dict[str, object]] = {
@@ -36,11 +46,11 @@ def _bundle():
             ).hexdigest(),
             "semantic_class": "D_UNSPECIFIED",
             "source_rule_ref": "UNRESOLVED_SOURCE_AUTHOR",
-            "source_bar_ids": [BAR],
+            "source_bar_ids": [bar_id],
         }
         for name in CAUSAL_FIELDS
     }
-    return situation, proofs, {BAR: bar}
+    return situation, proofs, {bar_id: bar}
 
 
 def _check(situation, proofs, catalog):
@@ -75,6 +85,8 @@ def test_complete_temporal_binding_never_auto_certifies_semantics() -> None:
         ("unclassified", "semantic classification"),
         ("no_ref", "rule reference"),
         ("missing_bars", "bar IDs absent"),
+        ("bar_ohlc_tamper", "source bar digest invalid"),
+        ("bar_profile_tamper", "bar interval invalid"),
     ],
 )
 def test_field_provenance_fails_closed_on_single_bad_attribute(
@@ -90,20 +102,27 @@ def test_field_provenance_fails_closed_on_single_bad_attribute(
     elif mutation == "unknown_id":
         proofs["bias_state"]["source_bar_ids"] = ["b" * 64]
     elif mutation == "wrong_feed":
-        catalog[BAR]["source_raw_sha256"] = "b" * 64
+        next(iter(catalog.values()))["source_raw_sha256"] = "b" * 64
     elif mutation == "future":
-        catalog[BAR]["closed_at_utc"] = (T0 + timedelta(minutes=3)).isoformat()
-        catalog[BAR]["available_at_utc"] = (T0 + timedelta(minutes=3)).isoformat()
+        bar = next(iter(catalog.values()))
+        bar["closed_at_utc"] = (T0 + timedelta(minutes=3)).isoformat()
+        bar["available_at_utc"] = (T0 + timedelta(minutes=3)).isoformat()
     elif mutation == "stale_cutoff":
-        catalog[BAR]["closed_at_utc"] = (T0 - timedelta(minutes=3)).isoformat()
-        catalog[BAR]["available_at_utc"] = (T0 - timedelta(minutes=3)).isoformat()
+        bar = next(iter(catalog.values()))
+        bar["closed_at_utc"] = (T0 - timedelta(minutes=3)).isoformat()
+        bar["available_at_utc"] = (T0 - timedelta(minutes=3)).isoformat()
     elif mutation == "duplicate":
-        proofs["bias_state"]["source_bar_ids"] = [BAR, BAR]
+        bar_id = next(iter(catalog))
+        proofs["bias_state"]["source_bar_ids"] = [bar_id, bar_id]
     elif mutation == "unclassified":
         proofs["bias_state"]["semantic_class"] = "CERTIFIED"
     elif mutation == "no_ref":
         proofs["bias_state"]["source_rule_ref"] = ""
     elif mutation == "missing_bars":
         proofs["bias_state"]["source_bar_ids"] = []
+    elif mutation == "bar_ohlc_tamper":
+        next(iter(catalog.values()))["ohlc"] = ("100", "103", "99", "100")
+    elif mutation == "bar_profile_tamper":
+        next(iter(catalog.values()))["profile"] = "M15"
     with pytest.raises(ValueError, match=message):
         _check(situation, proofs, catalog)
