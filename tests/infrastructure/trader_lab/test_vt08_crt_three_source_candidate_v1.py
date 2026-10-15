@@ -14,6 +14,7 @@ def fixture() -> dict[str, object]:
         "schema": "qore.vt08.crt_pure.gm2_real_blinded_casebook.v1",
         "case_id": "triad-dev-only",
         "market": "AUDUSD",
+        "decision_clock_utc": "2025-03-03T10:30:00+00:00",
         "parent_H4_direction_context": "BULLISH",
         "parent_H4_c3_opened_at_utc": "2025-03-03T10:00:00+00:00",
         "parent_H4_C1_ohlc": {
