@@ -150,7 +150,7 @@ def test_certification_route_fails_closed_on_unresolved_old_reference_even_if_co
     )
     assert audited.action is CrtPureReasoningAction.WAIT
     assert audited.state is CrtPureR2EntryState.UNRESOLVED
-    assert "UNRESOLVED:model_1_reference_selection" in audited.why
+    assert "THREE_SOURCE_RULE_OPEN:multiple_reference_priority" in audited.why
     assert audited.grants_execution_authority is False
     assert audited.grants_capital_authority is False
 
