@@ -57,18 +57,19 @@ def _real_a_golden() -> object:
     )
 
 
-def test_actual_a_methodology_contract_is_parsed_but_not_mislabelled_ready() -> None:
+def test_latest_a_methodology_contract_is_unambiguously_source_incomplete() -> None:
     actual = _real_a_golden()
-    # The exact source method belongs to Architect A's implementation.
     envelope = actual.envelope()
-    result = inspect_architect_a_candidate(envelope)
-    assert result.market == "EURJPY"
-    assert result.source_event_id == actual.source_event_id()
-    assert result.snapshot_event_id == envelope["event_id"]
-    assert result.cognitive_ready is False
-    assert "A_B:DAILY_BIAS_SOURCE_TIME_UNATTESTED" in result.blockers
-    assert "A_B:COGNITIVE_FEATURE_PROVENANCE_INCOMPLETE" in result.blockers
-    assert "A_B:CONTRACT_NOT_JOINTLY_FROZEN" in result.blockers
+    assert envelope["market"] == "EURJPY"
+    assert envelope["source_event_id"] == actual.source_event_id()
+    assert envelope["event_id"] == "vt08-5m:" + actual.fingerprint()
+    # Latest A corrected false SOURCE_COMPLETE from the B01 legacy producer.
+    # An actual A envelope must be REJECTED, not silently counted as ready.
+    assert envelope["methodology_status"] == "SOURCE_INCOMPLETE_QORE_CONTAINMENT"
+    assert envelope["author_fidelity_verified"] is False
+    assert envelope["cognitive_source_admission_authorized"] is False
+    with pytest.raises(Vt08CandidateBoundaryError, match="source bundle not executable"):
+        inspect_architect_a_candidate(envelope)
 
 
 def test_a_source_event_identity_survives_snapshot_evidence_changes() -> None:
@@ -76,9 +77,11 @@ def test_a_source_event_identity_survives_snapshot_evidence_changes() -> None:
     alternative = replace(actual, evidence_sha256="c" * 64)
     assert actual.source_event_id() == alternative.source_event_id()
     assert actual.fingerprint() != alternative.fingerprint()
-    assert inspect_architect_a_candidate(actual.envelope()).source_event_id == (
-        inspect_architect_a_candidate(alternative.envelope()).source_event_id
-    )
+    # Both real A snapshots stay blocked by B; stable ID is computed by A,
+    # not endorsed by the nonexistent joint source-semantic manifest.
+    for source in (actual, alternative):
+        with pytest.raises(Vt08CandidateBoundaryError, match="source bundle not executable"):
+            inspect_architect_a_candidate(source.envelope())
 
 
 def test_b_rejects_a_envelope_if_a_source_confirmation_goes_into_future() -> None:
@@ -89,5 +92,8 @@ def test_b_rejects_a_envelope_if_a_source_confirmation_goes_into_future() -> Non
         actual.decision_at + timedelta(minutes=1)
     ).isoformat()
     contents["feature_close_cutoffs"] = feature_times
+    # Mimic a malicious stale A writer attempting to override the corrected
+    # fail-closed status; B must then independently reject future clocks.
+    contents["methodology_status"] = "SOURCE_COMPLETE_EXECUTABLE"
     with pytest.raises(Vt08CandidateBoundaryError, match="future source confirmation"):
         inspect_architect_a_candidate(contents)
