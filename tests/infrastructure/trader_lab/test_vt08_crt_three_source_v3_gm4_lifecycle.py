@@ -195,3 +195,22 @@ def test_terminal_cannot_relabel_unexpected_source_or_early_exec() -> None:
     src["conceptual_state"] = "WAIT_M15"
     with pytest.raises(ValueError, match="non-confirmed"):
         reconcile_v3_gm4_case(src, cog, _post("DESTINATION_FIRST"))
+
+
+def test_forged_price_invalidation_cannot_detach_from_v3_source() -> None:
+    s = _source()
+    cog = audit_v3_positive_cognition(s)
+    path = _post("DESTINATION_FIRST")
+    path["source_m15_invalidating_extreme_relative"] = 89
+    with pytest.raises(ValueError, match="structural invalidation mismatch"):
+        reconcile_v3_gm4_case(s, cog, path)
+
+
+def test_non_aligned_future_m5_price_hit_cannot_be_reframed_as_causal() -> None:
+    s = _source()
+    with pytest.raises(ValueError, match="not causally observable"):
+        reconcile_v3_gm4_case(
+            s,
+            audit_v3_positive_cognition(s),
+            _post("INVALIDATION_FIRST", "2025-03-03T08:51:00+00:00"),
+        )
