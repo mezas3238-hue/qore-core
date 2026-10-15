@@ -34,6 +34,10 @@ def _a_envelope(**overrides: object) -> dict[str, object]:
             "cisd": (T - timedelta(minutes=15)).isoformat(),
             "protected_swing": (T - timedelta(minutes=15)).isoformat(),
         },
+        "entry_basis": "TTRADES_AUTHOR_SOURCE_REVIEWED_TEST_FIXTURE",
+        "stop_basis": "TTRADES_AUTHOR_SOURCE_REVIEWED_TEST_FIXTURE",
+        "target_basis": "TTRADES_AUTHOR_SOURCE_REVIEWED_TEST_FIXTURE",
+        "filled_lifecycle": "TTRADES_AUTHOR_SOURCE_REVIEWED_TEST_FIXTURE",
         "research_only": True,
         "execution_authorized": False,
         "live_authorized": False,
@@ -124,3 +128,29 @@ def test_invalid_source_window_and_unaware_timestamp_fail_closed() -> None:
         inspect_architect_a_candidate(
             _a_envelope(decision_at="2026-01-05T06:00:00")
         )
+
+
+@pytest.mark.parametrize(
+    "field",
+    ("entry_basis", "stop_basis", "target_basis", "filled_lifecycle"),
+)
+def test_qore_containment_is_not_author_complete_even_with_fake_manifest(
+    field: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import qore.infrastructure.trader_lab.vt08_5m_a_to_b_candidate_readiness_v1 as source_gate
+
+    synthetic_manifest = "f" * 64
+    monkeypatch.setattr(
+        source_gate, "APPROVED_A_B_MANIFEST_SHA256", synthetic_manifest
+    )
+    fields = {name: T.isoformat() for name in CAUSAL_FIELDS}
+    envelope = _a_envelope(
+        bias_feature_cutoff=T.isoformat(),
+        cognitive_feature_cutoffs=fields,
+        **{field: "FIXED_2R_QORE_CONTAINMENT"},
+    )
+    report = inspect_architect_a_candidate(
+        envelope, joint_contract_manifest_sha256=synthetic_manifest
+    )
+    assert not report.cognitive_ready
+    assert "A_B:NON_SOURCE_CONTAINMENT_BUNDLE" in report.blockers
