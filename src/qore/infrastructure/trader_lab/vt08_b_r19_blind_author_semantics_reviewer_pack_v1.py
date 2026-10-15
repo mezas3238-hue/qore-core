@@ -122,11 +122,22 @@ def build_blind_semantic_review_packets(
             )
             if any(
                 not isinstance(row, dict) or row.get("source_raw_sha256") != sha
-                or row.get("market") != expected_market
+                # Original A R3 bar receipts lack per-bar market; market
+                # remains bound by the case identity and pinned raw SHA.
+                or row.get("market") not in (None, expected_market)
                 or row.get("semantics") != "OBSERVED_OHLC_ONLY_NOT_TTRADES_RULE"
                 for row in case[list_name]
             ):
                 raise ValueError("R19 source receipt feed/market/authority mismatch")
+            for row in case[list_name]:
+                body = {
+                    k: row.get(k) for k in (
+                        "profile", "source_raw_sha256", "opened_at_utc",
+                        "closed_at_utc", "ohlc",
+                    )
+                }
+                if row.get("source_bar_id") != _digest(body):
+                    raise ValueError("R19 original source_bar_id digest mismatch")
         if (
             case.get("A_rule_complete") is not False
             or case.get("B_signoff") is not False
