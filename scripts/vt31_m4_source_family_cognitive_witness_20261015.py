@@ -13,6 +13,7 @@ from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     M1Bar,
@@ -35,6 +36,7 @@ from scripts.vt31_ttrades_am_method_m1_census_20261014 import (
     run_census,
 )
 
+NY = ZoneInfo("America/New_York")
 PREREG = "67c35f7bf9284cb1feeee9bd54261abec21a6c9f"
 FROZEN = {
     "MSS_ATTESTED_CONTEXT_ONLY": 128,
@@ -105,7 +107,7 @@ def audit_family_one_day(
         )
         # This close is at 11 NY, hence out of window for new intent.
         within_close = snap.as_of.astimezone(
-            __import__("zoneinfo").ZoneInfo("America/New_York")
+            NY
         ).hour == 10
         source_still_valid = snap.state in COGNITIVE_ELIGIBILITY
         fvg_matches = bool(
