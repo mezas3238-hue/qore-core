@@ -8,7 +8,6 @@ import pytest
 
 from scripts import vt31_m4_closed_m1_author_gate_20261015 as m4
 from scripts.vt31_m4_ob_breaker_author_evidence_gate_20261015 import (
-    Candle,
     adjudicate_breaker,
     adjudicate_ob,
 )
