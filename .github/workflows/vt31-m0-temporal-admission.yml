@@ -1,0 +1,76 @@
+name: VT31 M0-A pre-COG temporal source admission research no PNL
+on:
+  push:
+    branches:
+      - agent/vt31-m0-temporal-causal-admission-20261015
+    paths:
+      - 'scripts/vt31_m0_temporal_admission_20261015.py'
+      - 'tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py'
+      - 'docs/research/VT31_M0_TEMPORAL_ADMISSION_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-m0-temporal-admission.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preregistered-temporal-h1-fail-closed-cognition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check prereg and frozen original source SHA
+        run: |
+          set -euo pipefail
+          git cat-file -t 92dfdba4feda628c8ddb09521959601dfde20191
+          git merge-base --is-ancestor 92dfdba4feda628c8ddb09521959601dfde20191 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Run parallel temporal pre-COG and #971 source regression tests
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist
+          ruff check scripts/vt31_m0_temporal_admission_20261015.py tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py
+          python -m py_compile scripts/vt31_m0_temporal_admission_20261015.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_m0_temporal_admission_20261015.py \
+            --out evidence/VT31_M0A_TEMPORAL_ADMISSION_16_CASES.json \
+            | tee evidence/summary.json
+      - name: Enforce outcome counts and zero promotion
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M0A_TEMPORAL_ADMISSION_16_CASES.json'))
+          assert p['source_g3_original_sha']['git_blob_sha1']=='d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9'
+          rows=p['cases']
+          assert len(rows)==16
+          assert all(r['state']=='RESEARCH_CONTEXT_ADMITTED_NOT_CERTIFIED' for r in rows)
+          assert sum(r['research_source_state']=='RESEARCH_TTRADES_CONTEXT_CONFORMANT_NOT_CERTIFIED' for r in rows)==4
+          assert sum(r['research_source_state']=='G3_MIN10_AND_TTRADES_SOURCE_TARGET_CONFLICT_WAIT' for r in rows)==4
+          assert sum(r['research_source_state']=='ICT_CONTEXT_WITNESS_UNDERDETERMINED' for r in rows)==8
+          assert not p['methodology_certified'] and not p['cognition_certified']
+          assert not p['policy_owner_signed'] and not p['two_independent_human_reviews']
+          assert p['broker_orders']==p['sizing']==0 and not p['live']
+          print('M0A_16_SOURCE_CASES_NO_CERTIFICATE_ANTI_LOOKAHEAD')
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 92dfdba4feda628c8ddb09521959601dfde20191 > evidence/prereg_sha.txt
+          printf '%s\n' 'RESEARCH_ONLY_NO_PNL_NO_OMS_NO_SIGNED_METHOD' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-m0a-temporal-admission-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
