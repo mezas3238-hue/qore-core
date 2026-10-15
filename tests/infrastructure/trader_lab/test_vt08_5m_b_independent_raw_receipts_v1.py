@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from qore.infrastructure.trader_lab.vt08_5m_b_independent_raw_receipts_v1 import (
+    verify_full_native_census,
     verify_raw_window,
 )
 
@@ -164,3 +165,93 @@ def test_nan_raw_price_rejected(tmp_path: Path) -> None:
     m3.write_text(json.dumps(data))
     with pytest.raises(ValueError, match="non-finite"):
         _verify(r, m3, m15)
+
+
+def _claimed_inventory(
+    receipt: dict[str, object], m3: Path, m15: Path
+) -> dict[str, object]:
+    return {
+        "market": "EURJPY",
+        "m3_raw_sha256": hashlib.sha256(m3.read_bytes()).hexdigest(),
+        "m15_raw_sha256": hashlib.sha256(m15.read_bytes()).hexdigest(),
+        "source_anchor_windows_observed": 1,
+        "source_anchor_windows_complete": 1,
+        "skipped_incomplete": 0,
+        "skipped_mismatched": 0,
+        "attested_windows": 1,
+        "receipts": [receipt],
+    }
+
+
+def test_full_census_independent_reconciliation_of_all_raw_anchors(
+    tmp_path: Path,
+) -> None:
+    receipt, m3, m15 = _case(tmp_path)
+    inventory = _claimed_inventory(receipt, m3, m15)
+    summary = verify_full_native_census(inventory, m3_file=m3, m15_file=m15)
+    assert summary["source_anchor_windows_observed"] == 1
+    assert summary["source_anchor_windows_complete"] == 1
+    assert summary["independent_census_verified"] is True
+    assert summary["economic_gates_evaluated"] is False
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("fake_observed", "source_anchor_windows_observed"),
+        ("fake_completed", "source_anchor_windows_complete"),
+        ("fake_mismatch", "skipped_mismatched"),
+        ("fake_missing", "skipped_incomplete"),
+        ("wrong_sha", "inventory SHA"),
+    ],
+)
+def test_full_census_detects_incorrect_a_inventory_claim(
+    tmp_path: Path, name: str, expected: str
+) -> None:
+    receipt, m3, m15 = _case(tmp_path)
+    inventory = _claimed_inventory(receipt, m3, m15)
+    key = {
+        "fake_observed": "source_anchor_windows_observed",
+        "fake_completed": "source_anchor_windows_complete",
+        "fake_mismatch": "skipped_mismatched",
+        "fake_missing": "skipped_incomplete",
+        "wrong_sha": "m15_raw_sha256",
+    }[name]
+    inventory[key] = "0" * 64 if name == "wrong_sha" else 42
+    with pytest.raises(ValueError, match=expected):
+        verify_full_native_census(inventory, m3_file=m3, m15_file=m15)
+
+
+def test_full_census_reports_one_missing_m3_bar_without_inventing_fills(
+    tmp_path: Path,
+) -> None:
+    receipt, m3, m15 = _case(tmp_path)
+    data = json.loads(m3.read_text())
+    data["bars"].pop(5)
+    m3.write_text(json.dumps(data))
+    inventory = _claimed_inventory(receipt, m3, m15)
+    inventory.update({
+        "source_anchor_windows_observed": 1,
+        "source_anchor_windows_complete": 0,
+        "skipped_incomplete": 1,
+    })
+    summary = verify_full_native_census(inventory, m3_file=m3, m15_file=m15)
+    assert summary["skipped_incomplete"] == 1
+    assert summary["source_anchor_windows_complete"] == 0
+    assert summary["broker_fill_certified"] is False
+
+
+def test_full_census_reports_one_cross_feed_mismatch(tmp_path: Path) -> None:
+    receipt, m3, m15 = _case(tmp_path)
+    data = json.loads(m15.read_text())
+    data["periods"]["M15"][0]["high"] = "102"
+    m15.write_text(json.dumps(data))
+    inventory = _claimed_inventory(receipt, m3, m15)
+    inventory.update({
+        "source_anchor_windows_observed": 1,
+        "source_anchor_windows_complete": 0,
+        "skipped_mismatched": 1,
+    })
+    summary = verify_full_native_census(inventory, m3_file=m3, m15_file=m15)
+    assert summary["skipped_mismatched"] == 1
+    assert summary["source_anchor_windows_complete"] == 0
