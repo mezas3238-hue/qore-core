@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -31,8 +32,8 @@ SCHEMA = "qore.vt08.a.frozen_bullish_m30m3.source_funnel.v1"
 def _window(
     raw: Mapping[datetime, Mapping[str, object]],
     opened: datetime, duration: int, count: int,
-) -> list[tuple] | None:
-    values: list[tuple] = []
+) -> list[tuple[Decimal, Decimal, Decimal, Decimal]] | None:
+    values: list[tuple[Decimal, Decimal, Decimal, Decimal]] = []
     for n in range(count):
         t = opened + timedelta(minutes=n * duration)
         row = raw.get(t)
@@ -166,7 +167,7 @@ def verify_a_r3_raw_bundle(
             or not isinstance(h1rows, list) or len(h1rows) not in (0, 12)
         ):
             raise ValueError("VT08 B R3 missing positive bars")
-        c1 = [
+        c1_verified = [
             _verify_bar(
                 row, expected_open=c2 - timedelta(minutes=30-3*i),
                 minutes=3, profile="M3", source_sha=sha3, raw=raw3,
@@ -189,7 +190,7 @@ def verify_a_r3_raw_bundle(
         ]
         if _aggregate(c2m3) != _aggregate(c2m15):
             raise ValueError("VT08 B R3 M30 C2 crossfeed contradiction")
-        a, b = _aggregate(c1), _aggregate(c2m3)
+        a, b = _aggregate(c1_verified), _aggregate(c2m3)
         if not (
             b[2] < a[2] and b[1] <= a[1]
             and a[2] < b[3] < a[1] and b[3] > b[0]
