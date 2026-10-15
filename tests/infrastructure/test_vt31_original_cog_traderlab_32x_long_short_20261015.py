@@ -1,14 +1,10 @@
 """COG original LONG/SHORT parity with native Trader Lab simulated 32x clock."""
 from __future__ import annotations
 
-from datetime import timedelta
 from decimal import Decimal
 
 import pytest
 
-from qore.infrastructure.trader_lab.fast_forward import (
-    TraderLabFastForwardSchedule,
-)
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     M1Bar,
     SessionId,
