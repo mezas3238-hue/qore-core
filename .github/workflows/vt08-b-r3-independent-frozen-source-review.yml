@@ -8,6 +8,8 @@ on:
     paths:
       - src/qore/infrastructure/trader_lab/vt08_b_r3_frozen_source_independent_v1.py
       - tests/infrastructure/trader_lab/test_vt08_b_r3_frozen_source_independent_v1.py
+      - src/qore/infrastructure/trader_lab/vt08_b_r3_indexed_ultrafast_runner_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r3_indexed_ultrafast_runner_v1.py
       - .github/workflows/vt08-b-r3-independent-frozen-source-review.yml
 
 permissions:
@@ -31,8 +33,11 @@ jobs:
       - name: R3 independent verifier adversarial tests and static analysis
         run: |
           ruff check src/qore/infrastructure/trader_lab/vt08_b_r3_frozen_source_independent_v1.py tests/infrastructure/trader_lab/test_vt08_b_r3_frozen_source_independent_v1.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r3_indexed_ultrafast_runner_v1.py tests/infrastructure/trader_lab/test_vt08_b_r3_indexed_ultrafast_runner_v1.py
           mypy src/qore/infrastructure/trader_lab/vt08_b_r3_frozen_source_independent_v1.py
+          mypy src/qore/infrastructure/trader_lab/vt08_b_r3_indexed_ultrafast_runner_v1.py
           pytest -q tests/infrastructure/trader_lab/test_vt08_b_r3_frozen_source_independent_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r3_indexed_ultrafast_runner_v1.py
       - uses: actions/download-artifact@v4
         with:
           name: vt08-a-frozen-m30m3-firstfail-${{ matrix.market }}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4
@@ -62,6 +67,11 @@ jobs:
           from qore.infrastructure.trader_lab.vt08_b_r3_frozen_source_independent_v1 import (
               verify_a_r3_raw_bundle,
           )
+          from qore.infrastructure.trader_lab.vt08_b_r3_indexed_ultrafast_runner_v1 import (
+              compare_indexed_against_reference,
+              run_indexed_native_geometry,
+          )
+          from time import perf_counter
           market = os.environ["MARKET"]
           a = Path("a-r3", market, market + "-frozen-source-firstfail.json")
           m15 = Path("m15", market, "market-evidence-1095d.json")
@@ -69,7 +79,20 @@ jobs:
           if not a.is_file() or not m15.is_file() or len(choices) != 1:
               raise SystemExit("VT08 B requires pinned A R3 and native source files")
           data = json.loads(a.read_text(encoding="utf-8"))
+          ref_started = perf_counter()
           result = verify_a_r3_raw_bundle(data, choices[0], m15)
+          ref_seconds = perf_counter() - ref_started
+          fast_started = perf_counter()
+          fast = run_indexed_native_geometry(
+              market=market, m3_file=choices[0], m15_file=m15
+          )
+          fast_seconds = perf_counter() - fast_started
+          attested = compare_indexed_against_reference(fast, result)
+          result["indexed_fast_runner"] = attested
+          result["runner_wall_seconds_approx"] = {
+              "full_reference_source_receipts": round(ref_seconds, 3),
+              "indexed_geometry_only": round(fast_seconds, 3),
+          }
           result["pinned_A_run_id"] = 38715560333
           result["pinned_A_sha"] = "394116f13449fc310d7fbc5f0b5f60aa1bb247d4"
           Path("evidence",market+"-b-r3-independent.json").write_text(
