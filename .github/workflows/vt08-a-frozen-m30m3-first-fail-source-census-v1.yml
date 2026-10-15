@@ -87,6 +87,12 @@ jobs:
               "earliest_per_ny_day_upper_bound":report[
                   "earliest_unique_proxy_per_market_ny_day_upper_bound"
               ],
+              "unique_pre_c2_h1_source_available":report[
+                  "unique_ps_proxy_cases_with_three_closed_pre_c2_h1"
+              ],
+              "unique_h1_ny_day_upper_bound":report[
+                  "distinct_ny_days_with_h1_and_unique_ps_proxy"
+              ],
               "frozen_source_sha_verified":True,
               "source_complete_entries":report["source_complete_entries"],
               "pnl_evaluated":report["pnl_evaluated"],
