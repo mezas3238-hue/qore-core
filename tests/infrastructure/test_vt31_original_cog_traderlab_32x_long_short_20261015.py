@@ -55,14 +55,14 @@ def test_long_source_reflection_only_transforms_prices_and_preserves_all_m1():
     mirrored=mirror_long_history(original)
     assert len(original)==len(mirrored)
     assert all(
-        s.opened_at==l.opened_at and s.closed_at==l.closed_at
-        and s.open+l.open==Decimal("230")
-        and s.close+l.close==Decimal("230")
-        and s.low+l.high==Decimal("230")
-        and s.high+l.low==Decimal("230")
-        for s,l in zip(original,mirrored,strict=True)
+        short_bar.opened_at==long_bar.opened_at and short_bar.closed_at==long_bar.closed_at
+        and short_bar.open+long_bar.open==Decimal("230")
+        and short_bar.close+long_bar.close==Decimal("230")
+        and short_bar.low+long_bar.high==Decimal("230")
+        and short_bar.high+long_bar.low==Decimal("230")
+        for short_bar,long_bar in zip(original,mirrored,strict=True)
     )
-    assert all(isinstance(l,M1Bar) for l in mirrored)
+    assert all(isinstance(bar,M1Bar) for bar in mirrored)
 
 
 def test_original_ny_synthetic_case_never_becomes_lab_l3_real_bidask():
