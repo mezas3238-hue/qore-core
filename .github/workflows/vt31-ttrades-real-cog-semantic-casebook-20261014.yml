@@ -59,8 +59,8 @@ jobs:
             tests/infrastructure/test_vt31_ttrades_am_native_cog_v1_20261014.py \
             tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
             tests/infrastructure/test_vt31_method_cog_semantic_gate_20261014.py \
-            tests/infrastructure/test_vt31_ttrades_am_cognitive_fidelity_witness_20261014.py \
-            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_evidence_20261014.py \
+            tests/infrastructure/test_vt31_methodology_cognitive_source_fidelity_20261014.py \
+            tests/infrastructure/test_vt31_mc_p2_ttrades_native_h1_20261014.py \
             --junitxml=evidence/pytest-junit.xml | tee evidence/pytest-log.txt
       - name: Original NAS100 1,059,784 M1 source, no fresh holdout
         shell: bash
