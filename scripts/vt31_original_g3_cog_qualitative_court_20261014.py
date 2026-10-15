@@ -15,10 +15,14 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
-    VERSION, VT31CleanroomCognition,
+    VERSION,
+    VT31CleanroomCognition,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    G3_MSS_FRAMEWORK_POLICY, M1Bar, SessionId, Side,
+    G3_MSS_FRAMEWORK_POLICY,
+    M1Bar,
+    SessionId,
+    Side,
 )
 
 PREREG = "d5a783d7bf4b7ffe4c91b9feffabdf53146a962c"
