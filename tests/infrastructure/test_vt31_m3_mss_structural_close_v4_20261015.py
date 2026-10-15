@@ -23,7 +23,7 @@ def bar(t, *, high="106", low="90", close="99"):
 
 def bullish():
     t = datetime(2025, 7, 1, 14, tzinfo=UTC)
-    highs = ("103", "105", "110", "103", "114", "105")
+    highs = ("103", "105", "110", "103", "114", "113")
     closes = ("99", "98", "98", "100", "112", "111")
     return tuple(
         bar(t+timedelta(minutes=i), high=h, close=c)
