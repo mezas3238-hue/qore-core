@@ -124,20 +124,20 @@ def intermediate_swing_source_geometry(
             and center.extremum < right.extremum
         )
         if strict_extreme:
-            intermediates.append(center)
+            intermediates.append((center,right))
     newly_crossed=[
-        s for s in intermediates
+        pair for pair in intermediates
         if (
-            previous.close <= s.extremum < current.close
+            previous.close <= pair[0].extremum < current.close
             if side is Side.LONG else
-            previous.close >= s.extremum > current.close
+            previous.close >= pair[0].extremum > current.close
         )
     ]
     if len(newly_crossed)==1:
         return IntermediateSwingCognitiveEvidence(
             "SINGLE_SOURCE_INTERMEDIATE_GEOMETRY_COMPONENT_ONLY",
             as_of,len(shorts),len(intermediates),1,
-            newly_crossed[0].confirmed_at,
+            newly_crossed[0][1].confirmed_at,
         )
     if len(newly_crossed)>1:
         return IntermediateSwingCognitiveEvidence(
