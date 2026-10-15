@@ -74,6 +74,14 @@ jobs:
               "H1_touched":report["observed_h1_highs_touched"],
               "source_gaps_resets":report["source_gap_resets"],
               "events_multiple_observed_levels":report["cases_multiple_observed_h1_highs"],
+              "events_zero_prior_levels":report["cases_zero_observed_h1_highs"],
+              "events_single_prior_level":report["cases_exactly_one_observed_h1_high"],
+              "events_any_prior_high_above_C2_close":report[
+                  "cases_any_high_above_c2_close_proxy"
+              ],
+              "events_multiple_prior_highs_above_C2_close":report[
+                  "cases_multiple_highs_above_c2_close_proxy"
+              ],
               "events_no_native_close":report["cases_missing_m15_at_c3_cutoff"],
               "source_complete_entries":report["source_complete_entries"],
               "Pnl":report["profit_factor"],
