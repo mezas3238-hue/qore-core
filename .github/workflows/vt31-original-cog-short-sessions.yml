@@ -1,0 +1,91 @@
+name: VT31 G3 Original Cog SHORT Mirrored Sessions Method / Cognition
+on:
+  push:
+    branches:
+      - agent/vt31-original-cog-short-mirror-sessions-20261015
+    paths:
+      - 'scripts/vt31_original_g3_cog_short_sessions_qualitative_20261015.py'
+      - 'tests/infrastructure/test_vt31_original_g3_cog_short_sessions_qualitative_20261015.py'
+      - 'docs/research/VT31_ORIGINAL_COG_SHORT_SESSIONS_DST_METHOD_COG_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-original-cog-short-sessions.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-three-window-short-cognition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Precode prereg and unchanged G3 cognition ops acta SHAs
+        run: |
+          set -euo pipefail
+          git cat-file -t 93d1bf72403e49cf56b3f290e149038215420709
+          git merge-base --is-ancestor 93d1bf72403e49cf56b3f290e149038215420709 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Original SHORT M1 cognition, source conflict and independent counterfactuals
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          ruff check scripts/vt31_original_g3_cog_short_sessions_qualitative_20261015.py tests/infrastructure/test_vt31_original_g3_cog_short_sessions_qualitative_20261015.py
+          python -m py_compile scripts/vt31_original_g3_cog_short_sessions_qualitative_20261015.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_original_g3_cog_short_sessions_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_original_g3_nypm_cognition_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_m0_profile_shadow_attestation_20261015.py \
+            tests/infrastructure/test_vt31_original_cog_nyam_ttrades_source_conflict_20261014.py \
+            tests/infrastructure/test_vt31_original_g3_cog_qualitative_court_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_original_g3_cog_short_sessions_qualitative_20261015.py \
+            --out evidence/VT31_COG_ORIGINAL_SHORT_SESSIONS_EST_EDT_QUALITATIVE.json \
+            | tee evidence/summary.json
+      - name: Every scenario causal, all methodology and cognitive certifications pending
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_COG_ORIGINAL_SHORT_SESSIONS_EST_EDT_QUALITATIVE.json"))
+          assert p["prereg_commit"]=="93d1bf72403e49cf56b3f290e149038215420709"
+          assert p["original_cog_directly_invoked"] is True
+          assert p["original_source"]["git_blob_sha1"]=="d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          assert len(p["cases"])==6
+          assert all(x["original_cog_side"]=="SHORT" and x["original_cog_target"]=="80"
+                     and x["original_cog_mss_level"]=="96"
+                     and x["change_only_final_mss_close_to_97"]=="WAIT"
+                     and x["abstain_before_mss"]=="WAIT"
+                     and x["swept_dol_cannot_retain_original_short_80"]
+                     and x["pivot_close_reversal_cannot_retain_original_short_80"]
+                     and x["retroactive_asof_rejected"]
+                     and not x["trading_authorized"] for x in p["cases"])
+          nyam=[x for x in p["cases"] if x["session"]=="VT31_NY_AM"]
+          assert len(nyam)==2
+          for x in nyam:
+              z=x["ttrades_am_source_check"]
+              assert z["ttrades_h1_target"]=="90" and z["original_cog_target"]=="80"
+              assert z["source_v2"]=="REJECTED"
+              assert "DOL_NOT_OPPOSITE_9AM_H1_EXTREME" in z["source_rejected_reasons"]
+          assert p["economic_scores"] is None and not p["market_3y_replayed"]
+          assert not p["methodology_certified"] and not p["cognitive_certified"]
+          assert not p["owner_human_cog_ops_signatures_attested"]
+          assert p["broker_orders"]==p["trader_sizing"]==0 and not p["live_authorized"]
+          print("SHORT_3_WINDOWS_DST_GENUINE_COG_QUALITATIVE_EVIDENCE_NO_AUTO_CERT")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 93d1bf72403e49cf56b3f290e149038215420709 > evidence/prereg_sha.txt
+          printf '%s\n' 'SCOPE_METHOD_AND_COGNITION_NO_PNL_NO_OMS_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-original-cog-short-3-windows-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
