@@ -55,3 +55,9 @@ Fuente M1 anterior independiente [PR #980](https://github.com/mezas3238-hue/qore
 `COGNITIVA_FORMAL=NOT_CERTIFIED`,
 `VT31_TRADER_CERTIFICADO=FALSE`.
 El PR debe seguir **DRAFT**, sin merge a `main`, OMS, demo/live/VPS, broker fills, lotes/sizing ni PnL.
+
+## Anexo de defensa M7-A: identidad de framework inmutable después del constructor
+
+Una auditoría adversarial posterior mostró que comprobar solo igualdad de los atributos públicos `trader.framework_policy == cognition.framework_policy` no basta para fijar la política seleccionada: ambos atributos podrían ser cambiados simultáneamente a otro framework. Se añadió un testigo privado `_frozen_framework_policy` al coordinador, fijado en constructor una sola vez. Cada entrada normal o `research_observe_incomplete_source_m1` compara **tanto** el estado del trader como el de COG contra ese compromiso interno, ANTES de procesar M1. La telemetría `explicit_framework_policy` informa la versión congelada, no un atributo modificado tardíamente.
+
+Prueba nueva: `test_synchronized_cog_and_trader_framework_mutation_still_rejected`; intentar cambiar ambos a `LEGACY` cuando el constructor seleccionó G3 debe rechazar los dos caminos sin aumentar `_observed_count` ni crear ventanas OPS. Cambio de fuente código coordinador `962a005b79f9a1d064107856803afe149ee0ce80`, prueba `bc9cbb00ff290f2e6d23aade759cb417a775eaf6`. El resultado previo en CI #38820275105 continúa siendo evidencia verificada sobre el código anterior; **la versión reforzada necesita su propia CI completa** antes de reclamar su mismo dictamen.
