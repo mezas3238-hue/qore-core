@@ -408,7 +408,7 @@ def real_atlas_g2_g7_bridge(
     summary, rows = audit_v3_g2_g7_ledgers(market, bars, selected, gm4)
     summary["frozen_V3_policy_id"] = source_manifest["policy_id"]
     summary["frozen_GM4_schema"] = gm4_manifest["schema"]
-    unknown, unknown_rows = diagnose_gm4_unknowns_expost(
+    unknown, _ = diagnose_gm4_unknowns_expost(
         market, bars, selected, gm4
     )
     if unknown["unknown_cases"] != gm4_manifest["terminal_unknown"]:
@@ -467,7 +467,7 @@ def main() -> None:
             out.write(json.dumps(review_case, sort_keys=True) + "\n")
     with (args.output / "gm4-unknown-expost-forensics.jsonl").open("w") as out:
         for item in unknown_rows:
-            out.write(json.dumps(item, sort_keys=True) + "\\n")
+            out.write(json.dumps(item, sort_keys=True) + "\n")
     print(json.dumps({
         k: v for k, v in summary.items() if k != "original_atlas_provenance"
     }, sort_keys=True))
