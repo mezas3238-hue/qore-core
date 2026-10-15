@@ -82,6 +82,10 @@ def test_h1_high_prior_and_untouched_is_only_a_physical_witness():
     assert out["frozen_source_events"] == 1
     assert out["source_gap_resets"] == 0
     assert out["observed_h1_highs_formed"] == 1
+    assert out["cases_exactly_one_observed_h1_high"] == 1
+    assert out["cases_zero_observed_h1_highs"] == 0
+    assert out["cases_any_high_above_c2_close_proxy"] == 1
+    assert out["cases_multiple_highs_above_c2_close_proxy"] == 0
     row = out["witnesses"][0]
     assert row["witness_count"] == 1
     level = row["untouched_h1_high_candidates"][0]
@@ -97,6 +101,8 @@ def test_h1_high_prior_and_untouched_is_only_a_physical_witness():
 def test_taken_high_before_c3_is_no_longer_untouched():
     out = inspect(raw_data(c2_high="107"))
     assert out["witnesses"][0]["witness_count"] == 0
+    assert out["cases_zero_observed_h1_highs"] == 1
+    assert out["cases_any_high_above_c2_close_proxy"] == 0
     assert out["observed_h1_highs_touched"] >= 1
 
 
