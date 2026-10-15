@@ -8,6 +8,8 @@ on:
       - '.github/workflows/vt08-crt-three-source-v3-third-candle.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_price_lifecycle.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_price_lifecycle.py'
   workflow_dispatch:
 
 permissions:
@@ -32,9 +34,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_price_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_price_lifecycle.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_price_lifecycle.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_price_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py
 
   real-original-atlas:
     needs: contract-quality
@@ -90,6 +92,40 @@ jobs:
           PY
           printf '%s\n' "$GITHUB_SHA" > "v3-causal/$QORE_MARKET/git-sha.txt"
           (cd "v3-causal/$QORE_MARKET"; sha256sum three-source-v3-third-candle-summary.json three-source-v3-third-candle-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Price-only V3 preregistered lifecycle, frozen source IDs, no fills
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "v3-lifecycle/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_v3_price_lifecycle \
+            "$QORE_MARKET" original-native-m5 "v3-lifecycle/$QORE_MARKET" \
+            | tee "v3-lifecycle/$QORE_MARKET/stdout-summary.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          s=Path("v3-causal")/os.environ["QORE_MARKET"]
+          p=Path("v3-lifecycle")/os.environ["QORE_MARKET"]
+          census=json.loads((s/"three-source-v3-third-candle-summary.json").read_text())
+          m=json.loads((p/"v3-price-lifecycle-summary.json").read_text())
+          assert m["v3_source_candidates"]==census["state_counts"].get("CONCEPTUAL_CANDIDATE_V3",0)
+          assert m["v3_source_candidates"]==m["v3_price_path_reconciled"]
+          assert m["no_PnL_or_sizing"] and m["not_fresh_OOS"]
+          assert m["GLOBAL_CERTIFIED"] is False
+          src=[json.loads(x) for x in (s/"three-source-v3-third-candle-ledger.jsonl").read_text().splitlines() if x]
+          frozen={x["source_event_id"] for x in src if x["conceptual_state"]=="CONCEPTUAL_CANDIDATE_V3"}
+          path=[json.loads(x) for x in (p/"v3-price-lifecycle-ledger.jsonl").read_text().splitlines() if x]
+          assert frozen=={x["source_event_id"] for x in path}
+          assert all(x["not_a_trade"] and x["no_PnL_or_sizing"] for x in path)
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "v3-lifecycle/$QORE_MARKET/git-sha.txt"
+          (cd "v3-lifecycle/$QORE_MARKET"; sha256sum v3-price-lifecycle-summary.json v3-price-lifecycle-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Publish V3 source-separated causal price-only path checks
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-three-source-v3-price-path-dev-only-${{ matrix.market }}-${{ github.sha }}
+          path: v3-lifecycle/${{ matrix.market }}
+          retention-days: 90
+          if-no-files-found: error
       - name: Publish research-only V3 pre-outcome artifact (no future prices, no fills)
         uses: actions/upload-artifact@v4
         with:
