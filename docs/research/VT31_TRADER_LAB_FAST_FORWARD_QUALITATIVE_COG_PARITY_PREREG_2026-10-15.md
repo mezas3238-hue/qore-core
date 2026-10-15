@@ -1,0 +1,18 @@
+# VT31 — PRE-REGISTRO Trader Lab Fast Forward 1×/32× para COG original (NO ECONOMÍA)
+
+Fecha 2026-10-15, creado antes del script y CI. Directiva del Owner: para acelerar usar Trader Lab/QORE Research. Exigencia dominante: certificar metodología y cognitiva, NO PF/DD/Sharpe, no economic replay, no LIVE.
+
+## Infraestructura nativa VERIFICADA
+- `src/qore/infrastructure/trader_lab/fast_forward.py` blob `df89588307ad6bdfc236bafcdb78aa4b669f6394` contiene `TraderLabFastForwardSchedule`, `TraderLabFastForwardStep`, `qualify_trader_lab_fast_forward`, referencia y prueba anti-lookahead. **Esta API califica compresión de tiempo simulado y visibilidad de eventos existentes; NO es un segundo motor de replay ni ofrece por sí misma 32× mejora de CPU.**
+- `tests/infrastructure/trader_lab/conftest.py` ofrece fixture real de `TraderLabCandidateBinding` para contrato, pero su fixture base es EURUSD research genérico, NO vincula al VT31 productivo. Jamás afirmar L3 Trader Lab certificado por usar este fixture.
+- Nuevas pruebas crearán *carrier* de eventos de cotización sintética únicamente para verificar la API real de calificación 32× sobre 3 instantes visibles, no como evidencia NAS100 broker BID/ASK.
+
+## Prueba preregistrada, sin optimización
+- Usar las SEIS series M1 sintéticas ya congeladas en `short_fixture` PR #955: COG **original** `VT31CleanroomCognition`, SHORT en London, NY AM, NY PM, invierno EST y verano EDT, metodología de fuente `QORE G3 ICT_GENERAL` explícita. No modificar orígenes ni buscar trades del 3Y.
+- Ejecutar con un motor COG NUEVO por serie en `1x` convencional y otro motor COG NUEVO con pasos `TraderLabFastForwardSchedule(acceleration_factor=32)`. Cada M1 se entrega al COG exactamente una vez, en orden y solo al `closed_at`, nunca con timestamps futuros. Evaluar y registrar en ambos momentos: justo ANTES del cierre de desplazamiento → WAIT, y cierre confirmado → SHORT con DOL 80 y MSS 96. Registrar per-caso `state`, `missing`, `decision`, `mss_at`, `as_of`, `available_at`, `source_sha256` y digest canónico de traza; exigir igualdad byte a byte de traza 1×/32× y sin cambio de conducta. Mutar `close94→97` en último M1 ⇒ WAIT en AMBOS.
+- El calendario 32× visita CADA `closed_at` M1 cronológicamente, y `sum(wall_clock_advance)*32 == last.closed_at - first.closed_at`. No se usa sleep ni tiempo externo: compresión lógica, no benchmark de CPU. Si el fin de semana está entre eventos, la distancia completa debe representarse sin inventar barras.
+- Anti-falsificación: sin as-of extra, sin 'inventar' fills, sin framework G3 de 10pt modificado, sin firmantes falsos. Ejecutar `qualify_trader_lab_fast_forward` nativo con TRES eventos **sintéticos marcados** + fixture de candidate para verificar orden, visibilidad y factor. Ese resultado es contract check de laboratorio, **NO** qualificación L3 real del VT31 (carece de candidate VT31 binding y real event source).
+- Gate final `coherent_1x_32x_qualitative_replay=true` solo si seis réplicas originales y seis contrafactuales producen estados idénticos; `methodology_certified=false`,`cognition_certified=false`,`trader_lab_L3_certified=false`,`live_authorized=false` siempre que resten M0-M6/firmas.
+
+## Integridad y límite
+Fuente G3 intocable blobs: COG `d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9`, OPS `0ce9707314aecb71155de8b57044b6ec028847b2`, acta `e99c70b4e018d626fb620d9a21b9314a51abc36d`. Scripts instrumentan tests READ-ONLY, no ejecución real ni capital, no sizing y sin merge/LIVE. Anexar a handoff maestro R3 como nuevo test de aceleración, no alterar resultados ya archivados.
