@@ -17,16 +17,16 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import ReplayBar
 from qore.infrastructure.trader_lab.vt08_crt_pure_original_atlas_reader import (
     load_atlas_vt08_m5,
 )
+from qore.infrastructure.trader_lab.vt08_crt_three_source_v3_confirmed_h4_census import (
+    POLICY_ID,
+    full_utc_h4_v3_census,
+)
 from qore.infrastructure.trader_lab.vt08_crt_three_source_v3_gm3_cognitive_replay import (
     ALLOWED_SOURCE_FIELDS,
     audit_v3_positive_cognition,
 )
 from qore.infrastructure.trader_lab.vt08_crt_three_source_v3_price_lifecycle import (
     evaluate_frozen_v3_price_lifecycle,
-)
-from qore.infrastructure.trader_lab.vt08_crt_three_source_v3_confirmed_h4_census import (
-    POLICY_ID,
-    full_utc_h4_v3_census,
 )
 from qore.infrastructure.traders.crt_pure_cognitive_contract import (
     CrtPureHypothesisStage,
