@@ -1,7 +1,7 @@
 """Adversarial original native TTrades M1 COG method/cognition dossier."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
