@@ -161,7 +161,13 @@ def run(market: str, m3_path: Path, m15_path: Path) -> dict[str, object]:
         rows[stage].append({"c2_open":c2_open,"details":detail})
     examples:dict[str,list[dict[str,object]]]={}
     for stage in STAGES:
-        selected=_sample_records(rows[stage])
+        # Export ALL pre-outcome single-PS geometry for independent reviewer B;
+        # sample negatives chronologically with no PnL. Full positive precursor
+        # disclosure prevents choosing only favorable visual examples later.
+        selected=(
+            rows[stage] if stage == STAGES[5]
+            else _sample_records(rows[stage])
+        )
         examples[stage]=[]
         for item in selected:
             c2_open=item["c2_open"]
@@ -202,6 +208,7 @@ def run(market: str, m3_path: Path, m15_path: Path) -> dict[str, object]:
         "stage_counts":{s:counts[s] for s in STAGES},
         "stage_counts_by_year":{y:{s:c[s] for s in STAGES}
                                 for y,c in sorted(years.items())},
+        "all_unique_proxy_cases_with_raw_receipts":len(rows[STAGES[5]]),
         "examples_by_stage":examples,
         "M30_SOURCE_GEOMETRY_ONLY":True,
         "AUTHOR_RELEVANT_SWING_POI_BREAKER_TARGET_PENDING":True,
