@@ -18,6 +18,7 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_original_atlas_reader import (
     load_atlas_vt08_m5,
 )
 from qore.infrastructure.trader_lab.vt08_crt_three_source_v3_gm3_cognitive_replay import (
+    ALLOWED_SOURCE_FIELDS,
     audit_v3_positive_cognition,
 )
 from qore.infrastructure.trader_lab.vt08_crt_three_source_v3_price_lifecycle import (
@@ -65,6 +66,24 @@ UNKNOWN_PATHS = frozenset((
     "UNKNOWN_BARRIER_GEOMETRY_INVALID",
 ))
 
+COGNITION_FIELDS = frozenset((
+    "schema", "policy_id", "market", "source_event_id",
+    "decision_clock_utc", "causal_source_event_detected",
+    "causal_confirmation_recognized", "direction", "cognitive_action",
+    "metacognitive_readiness", "adversarial_verdict", "reason_why",
+    "methodology_GM1_pass", "cognition_GM3_pass",
+    "source_authority_claimed", "no_sizing", "no_broker_order",
+    "no_live_or_demo", "not_fresh_holdout",
+))
+POST_DECISION_FIELDS = frozenset((
+    "schema", "policy_id", "market", "source_event_id",
+    "c3_H4_opened_at_utc", "decision_clock_utc", "year_utc",
+    "source_direction", "source_m15_invalidating_extreme_relative",
+    "fixed_parent_h4_target_twice_relative", "price_path_outcome",
+    "first_hit_opened_at_utc", "observed_m5_after_decision",
+    "not_a_trade", "no_PnL_or_sizing", "not_fresh_OOS",
+))
+
 
 def reconcile_v3_gm4_case(
     source: dict[str, Any],
@@ -72,6 +91,12 @@ def reconcile_v3_gm4_case(
     post_decision: dict[str, Any],
 ) -> dict[str, Any]:
     """Match three separately rebuilt ledgers; do NOT peek for initial decision."""
+    if set(source) - ALLOWED_SOURCE_FIELDS:
+        raise ValueError("unexpected future/sizing fields in source")
+    if set(cognition) - COGNITION_FIELDS:
+        raise ValueError("unexpected future/sizing fields in cognition")
+    if set(post_decision) - POST_DECISION_FIELDS:
+        raise ValueError("unexpected future/sizing fields in post-decision path")
     if source["policy_id"] != POLICY_ID:
         raise ValueError("source policy identity mismatch")
     if cognition["policy_id"] != POLICY_ID or post_decision["policy_id"] != POLICY_ID:
@@ -91,6 +116,7 @@ def reconcile_v3_gm4_case(
         or cognition["no_sizing"] is not True
         or cognition["no_broker_order"] is not True
         or cognition["cognition_GM3_pass"] is not False
+        or cognition["methodology_GM1_pass"] is not False
         or cognition["causal_confirmation_recognized"] is not True
         or "CRT_SOURCE_STRATEGY_NOT_CLOSED" not in cognition["reason_why"]
     ):
@@ -103,6 +129,8 @@ def reconcile_v3_gm4_case(
         raise ValueError("post-decision evidence claims trades/sizing/OOS")
     event_id = source["source_event_id"]
     market = source["market"]
+    if CrtPureMarket(market) not in (CrtPureMarket.AUDUSD, CrtPureMarket.USDJPY):
+        raise ValueError("BTCUSD is frozen")
     clock = source["decision_clock_utc"]
     c3_start_s = source["c3_H4_opened_at_utc"]
     if not all((
