@@ -110,7 +110,7 @@ def test_two_intermediates_do_not_choose_best_price_or_pnl():
     assert a.single_candidate_confirmed_at is None
 
 
-def test_gap_missing_M1_naive_source_and_future_asof_all_rejected():
+def test_gap_missing_m1_naive_source_and_future_asof_all_rejected():
     rows=long_series()
     with pytest.raises(ValueError,match="SOURCE_GAP"):
         intermediate_swing_source_geometry(
