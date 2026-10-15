@@ -65,7 +65,8 @@ jobs:
           dest.write_text(json.dumps(report, sort_keys=True, separators=(",", ":")), encoding="utf-8")
           summary = {key: report[key] for key in (
               "schema","market","scope","m3_raw_sha256","m15_raw_sha256",
-              "attested_windows","skipped_incomplete","skipped_mismatched",
+              "attested_windows","source_anchor_windows_observed",
+              "source_anchor_windows_complete","skipped_incomplete","skipped_mismatched",
               "author_fidelity_certified","cognitive_certified",
               "economic_gates_evaluated","sealed_holdout_accessed",
           )}
