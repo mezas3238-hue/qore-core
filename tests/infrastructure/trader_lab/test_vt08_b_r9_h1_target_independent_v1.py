@@ -136,4 +136,4 @@ def test_source_gap_resets_untouched_proof():
     # First H1 no longer exists, second remains independently formed.
     result = b.independently_reconstruct(raw, SHA, [(c2, decision)])[0]
     assert len(result) == 1
-    assert result[0][0]["origin_h1_available_at_utc"] == decision.isoformat()
+    assert result[0]["origin_h1_available_at_utc"] == decision.isoformat()
