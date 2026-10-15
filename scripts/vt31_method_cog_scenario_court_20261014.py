@@ -17,13 +17,14 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    M1Bar, SessionId, Side,
+    M1Bar,
+    SessionId,
+    Side,
 )
-from scripts.vt31_cog_evidence_v2_20261014 import (
-    TTRADES_AM, inspect_cog_evidence,
-)
+from scripts.vt31_cog_evidence_v2_20261014 import TTRADES_AM, inspect_cog_evidence
 from scripts.vt31_ttrades_am_native_cog_v1_20261014 import (
-    COG_VERSION, propose_ttrades_am_cognition,
+    COG_VERSION,
+    propose_ttrades_am_cognition,
 )
 
 NY = ZoneInfo("America/New_York")
