@@ -295,3 +295,17 @@ Este documento es un corte verificable de continuidad: identifica los dos arquit
 **NO afirma certificación de VT08**. El siguiente arquitecto recibe suficiente contexto para seguir el trabajo desde la prioridad P0: adjudicar Relevant Swing pre-C2 / POI / PS-CISD / breaker / target y permitir que B valide la cognitiva de verdaderas señales. Solo posteriormente corresponde exigir los Gates económicos del Owner con datos BID/ASK reales y OOS gobernado. 
 
 **Fin del checkpoint R8.**
+
+---
+
+## APÉNDICE OWNER — EXCLUSIÓN ABSOLUTA QORE-ALPHA (15-oct-2026; prevalece sobre propuestas anteriores)
+
+**Instrucción explícita del Owner:** «Qore alpha quedó excluido del programa por ende no puede mezclarse con el vt08 actual».
+
+- **ÚNICO PROGRAMA PERMITIDO: VT08 actual**, metodología TTrades adjudicada + cognitiva VT08 propia; no hay dos tracks autorizados, ni `VT08-QORE-ALPHA`, ni metodologías derivadas/importadas de QORE-alpha. Queda retirada cualquier sugerencia anterior de segunda vía, incluso la contenida en una versión antigua del informe B R15. **NO mezclar reglas, señales, POI, features cognitivas, resultados o estadísticas alpha con VT08.**
+- **Contrato de alcance vigente en esta rama:** [VT08_OWNER_SCOPE_CURRENT_ONLY_NO_QORE_ALPHA_2026-10-15.md](VT08_OWNER_SCOPE_CURRENT_ONLY_NO_QORE_ALPHA_2026-10-15.md).
+- **B corrigió su informe R15** y añadió auditoría [R16](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-cognition-replay-20261010/docs/research/VT08_B_R16_OWNER_QORE_ALPHA_EXCLUSION_SOURCE_SCOPE_AUDIT_2026-10-15.md), [CI #38805194446](https://github.com/mezas3238-hue/qore-core/actions/runs/38805194446) **5/5 SUCCESS, 170 pruebas adversariales y los 2.657 candidatos originales VT08 source-only**. No equivale a certificar metodología, cognitiva, beneficios ni impedir automáticamente todas las importaciones futuras de software: integrar el guard R16 en los siguientes manifest/admissions antes de certificar sigue pendiente P0.
+- **Cuando falte regla original:** `D_PENDING_SOURCE_AUTHORITY` / `WAIT` y no entrada; no introducir una ruta excluida para «salvar» un Gate. No sizing, no PnL selection, holdout sellado 7Y intacto, no VPS/LIVE/DEMO y sin merge.
+- **Corte real:** 0 señales TTrades source-complete, 0 admisiones cognitivas auténticas, 0 fills; PF/DD/Sortino/Sharpe no evaluables y VT08 aún NO CERTIFICADO.
+
+**Este apéndice prevalece sobre cualquier recomendación contradictoria histórica de investigación o DeepSeek y debe transmitirse textualmente al siguiente arquitecto.**
