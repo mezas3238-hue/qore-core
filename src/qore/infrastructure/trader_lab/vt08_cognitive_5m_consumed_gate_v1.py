@@ -428,7 +428,9 @@ class Vt08FiveMarketCognitiveGate:
         The source/execution architect still owns full price-path verification.
         """
         if not self._fixture_mode:
-            raise PermissionError("VT08 fill requires independently verified external provenance API")
+            raise PermissionError(
+                "VT08 fill requires independently verified external provenance API"
+            )
         event_id = evidence.source_event_id
         if event_id not in self._executed:
             raise ValueError("VT08 cannot record fill without cognitive EXECUTE")
@@ -479,7 +481,9 @@ class Vt08FiveMarketCognitiveGate:
         broker orders, or an outcome from unverified OHLC/source price.
         """
         if not self._fixture_mode:
-            raise PermissionError("VT08 terminal requires independently verified external provenance API")
+            raise PermissionError(
+                "VT08 terminal requires independently verified external provenance API"
+            )
         event_id = evidence.source_event_id
         fill = self._filled.get(event_id)
         if fill is None:
@@ -528,7 +532,9 @@ class Vt08FiveMarketCognitiveGate:
     ) -> Vt08CognitivePositionTrace:
         """Read-only position advice. It never edits a trade or executes an exit."""
         if not self._fixture_mode:
-            raise PermissionError("VT08 position requires verified fill and causal bar provenance API")
+            raise PermissionError(
+                "VT08 position requires verified fill and causal bar provenance API"
+            )
         event_id, _ = self._check_source_identity(situation)
         if (
             self._last_global_as_of is not None
