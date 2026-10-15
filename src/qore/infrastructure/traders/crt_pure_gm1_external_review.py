@@ -158,12 +158,17 @@ def validate_gm1_review_evidence(
     ]
     owner_comments.sort(key=lambda c: str(c.get("created_at", "")))
     owner_comment = owner_comments[-1] if owner_comments else None
+    owner_time = (
+        _timestamp(owner_comment.get("created_at"))
+        if owner_comment is not None else None
+    )
     if (
         owner_comment is None
         or str(owner_comment.get("body", "")).strip() != expected_owner
-        or _timestamp(owner_comment.get("created_at")) is None
+        or owner_time is None
         or approved_time is None
-        or _timestamp(owner_comment.get("created_at")) <= approved_time
+        or (owner_time is not None and approved_time is not None
+            and owner_time <= approved_time)
         or owner_comment.get("updated_at") != owner_comment.get("created_at")
     ):
         blockers.append("OWNER_ACCEPTANCE_NOT_VERIFIED")
