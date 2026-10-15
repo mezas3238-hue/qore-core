@@ -22,7 +22,7 @@ def m3_sequence(*, low="98", bullish_close="101", confirming=True):
         if i == 0:
             vals = ("100", "100.5", low, "99.5")
         elif i == 1:
-            vals = ("99.5", "100", "98.5", "99")
+            vals = ("99.5", "100", low if Decimal(low) >= 99 else "98.5", "99")
         elif i == 2:
             vals = ("99", "101", "98.8", bullish_close)
         else:
