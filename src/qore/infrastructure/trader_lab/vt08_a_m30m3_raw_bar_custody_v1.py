@@ -119,7 +119,7 @@ def attest_anchor_window(
 def attest_market_files(
     market: str, m3_path: Path, m15_path: Path,
 ) -> dict[str, object]:
-    """Audit ALL chronological native anchor windows and publish 24 receipts.
+    """Audit ALL native anchors; publish 24 time-stratified source receipts.
 
     No selection by pattern, win/loss, signal, spread or any price level.
     Physical source gaps and disagreements are counted, never hidden.
@@ -137,35 +137,61 @@ def attest_market_files(
     idx15 = {bar.opened_at.astimezone(UTC): bar for bar in m15}
     if len(idx3) != len(m3) or len(idx15) != len(m15):
         raise ValueError("duplicate source timestamps detected")
-    selected: list[dict[str, object]] = []
-    complete = 0
+    valid_starts: list[datetime] = []
     observed_anchors = 0
     incomplete = 0
     mismatched = 0
-    # Audit ALL source-visible Owner 01/05/09 anchors; retain earliest
-    # 24 receipts as compact reviewer samples (never sample by PnL).
+    incomplete_sources: list[dict[str, object]] = []
+    # Audit ALL source-visible Owner 01/05/09 anchors, outcome-blind.
     for when in sorted(idx3):
         local = when.astimezone(NY)
         if local.hour not in ANCHORS or local.minute or local.second or local.microsecond:
             continue
         observed_anchors += 1
         try:
-            receipt = attest_anchor_window(
+            attest_anchor_window(
                 market=market, m3_bars=idx3, m15_bars=idx15,
                 opened_at=when, raw_m3_sha=m3_sha, raw_m15_sha=m15_sha,
             )
-            complete += 1
-            if len(selected) < LIMIT_PER_MARKET:
-                selected.append(receipt)
+            valid_starts.append(when)
         except ValueError as exc:
             if "incomplete" in str(exc):
                 incomplete += 1
+                incomplete_sources.append({
+                    "anchor_utc": _iso(when),
+                    "missing_or_unclosed_m3_utc": [
+                        _iso(when + timedelta(minutes=3*i)) for i in range(10)
+                        if (when + timedelta(minutes=3*i)) not in idx3
+                        or idx3[when + timedelta(minutes=3*i)].closed_at.astimezone(UTC)
+                           != when + timedelta(minutes=3*(i+1))
+                    ],
+                    "missing_or_unclosed_m15_utc": [
+                        _iso(when + timedelta(minutes=15*i)) for i in range(2)
+                        if (when + timedelta(minutes=15*i)) not in idx15
+                        or idx15[when + timedelta(minutes=15*i)].closed_at.astimezone(UTC)
+                           != when + timedelta(minutes=15*(i+1))
+                    ],
+                })
             elif "disagree" in str(exc):
                 mismatched += 1
             else:
                 raise
-    if not selected or observed_anchors != complete + incomplete + mismatched:
+    complete = len(valid_starts)
+    if not valid_starts or observed_anchors != complete + incomplete + mismatched:
         raise ValueError("source census empty or first-failure counts inconsistent")
+    # Deterministic chronological spread across whole already-consumed DEV
+    # history. Never select a receipt by structure, pattern, trade or PnL.
+    n = min(LIMIT_PER_MARKET, complete)
+    positions = [0] if n == 1 else [
+        i*(complete-1)//(n-1) for i in range(n)
+    ]
+    selected = [
+        attest_anchor_window(
+            market=market, m3_bars=idx3, m15_bars=idx15,
+            opened_at=valid_starts[i], raw_m3_sha=m3_sha, raw_m15_sha=m15_sha,
+        )
+        for i in positions
+    ]
     return {
         "schema": SCHEMA + ".inventory",
         "market": market,
@@ -181,6 +207,8 @@ def attest_market_files(
         "source_anchor_windows_complete": complete,
         "skipped_incomplete": incomplete,
         "skipped_mismatched": mismatched,
+        "incomplete_source_windows": incomplete_sources,
+        "sample_selection": "EQUALLY_SPACED_DEV_CHRONOLOGY_NO_OUTCOME",
         "receipts": selected,
         "author_fidelity_certified": False,
         "cognitive_certified": False,
