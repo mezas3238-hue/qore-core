@@ -229,7 +229,12 @@ class Vt08CandidateEventV1:
             "source_event_id": self.source_event_id(),
             "event_id": f"vt08-5m:{fingerprint}",
             "event_fingerprint": fingerprint,
-            "methodology_status": "SOURCE_COMPLETE_EXECUTABLE",
+            # This is a mechanically well-formed B01 replay containment,
+            # NOT an authenticated TTrades author-complete model. Architect B
+            # must reject it from any real cognitive/financial certification.
+            "methodology_status": "SOURCE_INCOMPLETE_QORE_CONTAINMENT",
+            "author_fidelity_verified": False,
+            "cognitive_source_admission_authorized": False,
             "latest_available_bar_close": _aware(
                 self.candle2_closed_at, "candle2_closed_at"
             ).isoformat(timespec="microseconds"),
