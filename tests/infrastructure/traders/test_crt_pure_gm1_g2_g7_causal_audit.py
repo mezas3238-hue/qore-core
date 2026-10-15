@@ -50,8 +50,11 @@ def evt(
     observed: datetime = T0,
     decision: datetime = T0 + timedelta(minutes=5),
     market: CrtPureMarket = CrtPureMarket.AUDUSD,
+    terminal: datetime | None = None,
 ) -> CrtGm1SourceEvent:
-    return CrtGm1SourceEvent(market, parent, source, hyp, generation, observed, decision)
+    return CrtGm1SourceEvent(
+        market, parent, source, hyp, generation, observed, decision, terminal
+    )
 
 
 def test_unique_causal_reference_is_only_provisional() -> None:
@@ -153,7 +156,10 @@ def test_g7_event_replay_and_generation_fails(source, hyp, gen, expected: str) -
 
 
 def test_g7_new_parent_is_provisional_but_not_authorized() -> None:
-    prior = evt("p1", "e1", "h1", 1)
+    prior = evt(
+        "p1", "e1", "h1", 1,
+        terminal=T0 + timedelta(minutes=5, seconds=1),
+    )
     later = evt(
         "p2", "e2", "h2", 2,
         observed=T0 + timedelta(minutes=6),
@@ -244,3 +250,47 @@ def test_g7_corrupt_historical_ledger_fails_closed(
     )
     with pytest.raises(ValueError, match=expected):
         audit_g7_rearm(proposal=proposal, observed_history=(prior, second))
+
+
+
+def test_g7_missing_prior_terminal_requires_wait_not_rearm() -> None:
+    prior = evt("p1", "e1", "h1", 1)
+    proposed = evt(
+        "p2", "e2", "h2", 2,
+        observed=T0 + timedelta(minutes=6),
+        decision=T0 + timedelta(minutes=10),
+    )
+    result = audit_g7_rearm(proposal=proposed, observed_history=(prior,))
+    assert result.verdict is CrtGm1CausalVerdict.WAIT
+    assert "PRIOR_THESIS_NOT_TERMINAL_BEFORE_NEW_SOURCE" in result.reasons
+    assert not result.grants_rearm_authority
+
+
+def test_g7_terminal_after_next_source_is_not_preexisting_evidence() -> None:
+    prior = evt(
+        "p1", "e1", "h1", 1,
+        terminal=T0 + timedelta(minutes=7),
+    )
+    proposed = evt(
+        "p2", "e2", "h2", 2,
+        observed=T0 + timedelta(minutes=6),
+        decision=T0 + timedelta(minutes=10),
+    )
+    result = audit_g7_rearm(proposal=proposed, observed_history=(prior,))
+    assert result.verdict is CrtGm1CausalVerdict.WAIT
+
+
+def test_g7_future_terminal_and_predecision_terminal_are_not_accepted() -> None:
+    with pytest.raises(ValueError, match="terminal observation predates decision"):
+        evt("p1", "e1", "h1", 1, terminal=T0 + timedelta(minutes=4))
+    prior = evt(
+        "p1", "e1", "h1", 1,
+        terminal=T0 + timedelta(minutes=12),
+    )
+    proposed = evt(
+        "p2", "e2", "h2", 2,
+        observed=T0 + timedelta(minutes=6),
+        decision=T0 + timedelta(minutes=10),
+    )
+    with pytest.raises(ValueError, match="future terminal evidence"):
+        audit_g7_rearm(proposal=proposed, observed_history=(prior,))
