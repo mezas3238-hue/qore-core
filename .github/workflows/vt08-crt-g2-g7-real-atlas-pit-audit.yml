@@ -96,6 +96,7 @@ jobs:
           assert unknown["unknown_frozen_reasons"].get("UNKNOWN_MISSING_M5_BEFORE_TERMINAL",0)==(1 if os.environ["QORE_MARKET"]=="AUDUSD" else 2)
           assert all(z["gm4_terminal_remains_UNKNOWN"] and z["G_M4_PASS"] is False for z in unknown_rows)
           assert all(z["not_a_trade"] and z["no_sizing"] for z in unknown_rows)
+          print("VT08_GM4_UNKNOWN_EXPOST_CASE_IDS_AND_CLOCKS",json.dumps(unknown_rows,sort_keys=True))
           assert posthoc["may_not_authorize_rearm"] is True
           waits=m["counts"].get("G7_WAIT",0)
           assert posthoc.get("WAIT_WITH_AT_LEAST_ONE_GM4_UNKNOWN",0)+posthoc.get("WAIT_ONLY_EVENTUALLY_KNOWN_TERMINAL_LATE",0)==waits
