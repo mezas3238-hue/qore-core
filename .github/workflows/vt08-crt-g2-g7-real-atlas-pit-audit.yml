@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/workflows/vt08-crt-g2-g7-real-atlas-pit-audit.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py'
   workflow_dispatch:
 
@@ -32,9 +34,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py
 
   verified_original_m5:
     needs: quality
@@ -87,6 +89,13 @@ jobs:
           assert all("G2_blind_predecision_case" not in row for row in rows)
           assert all("EX_POST" not in json.dumps(row) for row in rows)
           posthoc=m["G7_EX_POST_DIAGNOSTIC_NEVER_INITIAL_DECISION"]
+          unknown=m["GM4_EX_POST_UNKNOWN_FORENSICS_NEVER_INITIAL_DECISION"]
+          unknown_rows=[json.loads(line) for line in (p/"gm4-unknown-expost-forensics.jsonl").read_text().splitlines() if line]
+          assert len(unknown_rows)==unknown["unknown_cases"]==m["counts"].get("GM4_UNKNOWN",0)
+          assert unknown["unknown_frozen_reasons"].get("UNKNOWN_ENTRY_ALREADY_BEYOND_BARRIER",0)==1
+          assert unknown["unknown_frozen_reasons"].get("UNKNOWN_MISSING_M5_BEFORE_TERMINAL",0)==(1 if os.environ["QORE_MARKET"]=="AUDUSD" else 2)
+          assert all(z["gm4_terminal_remains_UNKNOWN"] and z["G_M4_PASS"] is False for z in unknown_rows)
+          assert all(z["not_a_trade"] and z["no_sizing"] for z in unknown_rows)
           assert posthoc["may_not_authorize_rearm"] is True
           waits=m["counts"].get("G7_WAIT",0)
           assert posthoc.get("WAIT_WITH_AT_LEAST_ONE_GM4_UNKNOWN",0)+posthoc.get("WAIT_ONLY_EVENTUALLY_KNOWN_TERMINAL_LATE",0)==waits
@@ -105,7 +114,7 @@ jobs:
           print("VT08_G2_G7_ATLAS_RESEARCH_COUNTS",json.dumps(m["counts"],sort_keys=True))
           PY
           printf '%s\n' "$GITHUB_SHA" > "g2-g7-real/$QORE_MARKET/git-sha.txt"
-          (cd "g2-g7-real/$QORE_MARKET"; sha256sum g2-g7-real-atlas-pit-summary.json g2-g7-real-atlas-pit-ledger.jsonl g2-c0-c1-blind-predecision-cases.jsonl git-sha.txt > SHA256SUMS.txt)
+          (cd "g2-g7-real/$QORE_MARKET"; sha256sum g2-g7-real-atlas-pit-summary.json g2-g7-real-atlas-pit-ledger.jsonl g2-c0-c1-blind-predecision-cases.jsonl gm4-unknown-expost-forensics.jsonl git-sha.txt > SHA256SUMS.txt)
       - name: Retain censored G2-G7 research artifact (no fills no sizing)
         uses: actions/upload-artifact@v4
         with:
