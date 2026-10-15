@@ -10,9 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
-    model1_source_ready,
-    strategy_identity_ready,
+from qore.infrastructure.traders.crt_pure_three_source_methodology import (
+    current_three_source_methodology,
 )
 
 
@@ -96,13 +95,13 @@ def evaluate_certification_readiness(
 
     blockers: list[str] = []
 
-    if not evidence.source_identity_closed or not strategy_identity_ready():
-        blockers.append("CRT_PRIMARY_SOURCE_AND_STRATEGY_IDENTITY_NOT_CLOSED")
-    # A caller cannot turn source-traceable Model #1 into a certified strategy
-    # simply by setting every supplied evidence boolean to True.
-    # The canonical registry, not economic flags, owns this readiness fact.
-    if not model1_source_ready():
-        blockers.append("MODEL_1_REFERENCE_AND_SOURCE_SELECTION_NOT_CLOSED")
+    if not evidence.source_identity_closed:
+        blockers.append("CRT_THREE_SOURCE_IDENTITY_NOT_FROZEN")
+    # Owner-authorized CRT composite supersedes Romeo-only Model #1 selector
+    # as certification authority. This does not certify any open QORE rule:
+    # all operational contracts must be independently adjudicated first.
+    composition = current_three_source_methodology()
+    blockers.extend(composition.blockers)
     if blockers:
         return CrtPureCertificationReadiness(
             stage=CrtPureCertificationStage.SOURCE_OPEN,
