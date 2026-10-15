@@ -1,0 +1,17 @@
+# VT31 — M0 preregistro: router de identidad metodológica ANTES de COG, con fuente y veto
+
+**2026-10-15 — antes de la implementación.** Mandato: certificar metodología y cognitiva, no por PF/DD/Sharpe ni sizing. Problema real: G3 original NY AM usa prior cash DOL; TTrades NY AM 2025 requiere el extremo opuesto del H1 09–10. No cambiar G3 original firmado/protegido ni reclamar que la identidad ICT_GENERAL esté homologada.
+
+## Referencia autoral y alcance
+- [TTrades AM Silver Bullet NQ](https://ttrades.com/the-am-silver-bullet-strategy-on-nq/): **NY AM exclusivamente 10–11**, primer raid de H1 09–10 y objetivo al extremo opuesto H1; displacement/FVG/OB/Breaker posibles; stop más allá del swing causante, no C2 obligatorio. ICT_GENERAL de London/NYPM NO hereda el 09h H1 del TTrades AM.
+- Un único VT31, con un RESEARCH `FrozenMethodProfilePolicy` PRE-REGISTRADO y NO firmado por Owner: mapa fijo `LONDON:ICT_GENERAL_2023`, `NY_AM:TTRADES_NY_AM_2025`, `NY_PM:ICT_GENERAL_2023`; fecha efectiva `2025-12-01T00:00Z`, estrictamente antes del primer M1 observado. La política se congela al inicializar el router, no cambia por DOL, señal ni PnL.
+- Router research ejecuta `VT31CleanroomCognition` ORIGINAL ante ICT con su selector cognitivo QORE, coteja `classify_source_profile` y regresa **ICT_CONTEXT_WITNESS_UNDERDETERMINED** (no certifica ICT fuente). Ante TTrades invoca `ttrades_source_first_g3_cognitive_proposal`, que a su vez ejecuta G3 ORIGINAL en `G3_MSS_FRAMEWORK_POLICY`, asegura DOL opuesto H1, verificador independiente y `WAIT` si DOL del autor es inferior a 10pts de contrato QORE. NO modificar el DTO original ni devolver decisiones comerciales.
+
+## Cuadro de escenarios congelado
+- NY AM: LONG/SHORT × EST enero / EDT julio × DOL autoral compatible ≥10 pt o incompatible 5/4 pts = **8** casos. Compatibles deben producir `RESEARCH_TTRADES_CONTEXT_CONFORMANT_NOT_CERTIFIED` (propuesta de investigación, no G3 productivo), incompatibles deben producir `G3_MIN10_AND_TTRADES_SOURCE_TARGET_CONFLICT_WAIT` sin propuesta; ninguno autorcertificado.
+- ICT_GENERAL Londres y NY PM: LONG/SHORT × EST/EDT = **8** casos. Original COG G3 produce tesis contextual LONG/SHORT, auditado **ICT_CONTEXT_WITNESS_UNDERDETERMINED** por no tener homologación fuente ICT detallada. LONG por espejo geométrico prereg de SHORT M1 (`230-p`) de #955; sin selección por beneficio.
+- Negativos: política no declarada, falta de sesión, perfil TTrades asociado a Londres/NYPM, modificación de perfil después de inicio (`effective_at` posterior al primer M1), M1 futuro/reordenado, as_of anterior a último cierre, método desconocido, intento de reemplazar `UNKNOWN` por un PASS de autor.
+- Toda salida incluye fuente seleccionada, fecha efectiva, tipo de COG original vs propuesta investigación, DOL y estado, razón abstención, `all_16_profile_decisions_causal`, `owner_method_policy_signed=false`, `method_certified=false`, `cognition_certified=false`, `native_g3_productive_integrated=false`, `source_ict_author_approved=false`, firmas COG/OPS=false; orders/fills/sizing 0, economic metrics null.
+
+## Ejecución y parada
+Pruebas en GitHub Actions usando `pytest-xdist -n 4` y original COG en paralelo, SHA protegidos. No usar Trader Lab reloj 32× aquí si no acelera el análisis real; ya quedó calificado en #965/#967. Éxito del router read-only NO cierra solo M0 oficial: falta aprobación Owner del perfil y `CognitiveAssessment`/OPS de versión gobernada. No merge, LIVE, VPS, FundedNext, lotaje trader; dual sign #897 pendiente.
