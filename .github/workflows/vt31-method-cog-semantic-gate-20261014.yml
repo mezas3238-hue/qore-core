@@ -1,0 +1,59 @@
+name: VT31 Methodology Cognitive Semantic Gate NO Economic Metrics
+on:
+  push:
+    branches:
+      - agent/vt31-method-cog-owner-primacy-20261014
+    paths:
+      - 'docs/research/VT31_DIRECTIVA_OWNER_PRIMACIA_METODOLOGIA_COGNITIVA_2026-10-14.md'
+      - 'scripts/vt31_method_cog_semantic_gate_20261014.py'
+      - 'tests/infrastructure/test_vt31_method_cog_semantic_gate_20261014.py'
+      - '.github/workflows/vt31-method-cog-semantic-gate-20261014.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  falsify-method-cog-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify unchanged G3 original COG/OPS and methodological document
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Lint and test doctrinal decision boundaries, WAIT, REJECT, UNKNOWN
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          mkdir -p evidence
+          ruff check --select E,F scripts/vt31_method_cog_semantic_gate_20261014.py tests/infrastructure/test_vt31_method_cog_semantic_gate_20261014.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_method_cog_semantic_gate_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_g3_mss_anchor_optin.py \
+            --junitxml=evidence/method-cog-junit.xml | tee evidence/log.txt
+      - name: Source and scope audit
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/code-sha.txt
+          printf '%s\n' 'OWNER_DIRECTIVE_METHOD_AND_COGNITION_NOT_PNL_OR_SIZING' > evidence/scope.txt
+          printf '%s\n' 'SEMANTIC_ADJUDICATOR_FIXTURES_NOT_REAL_COG_REPLAY_NOT_CERTIFICATE' > evidence/fixture-warning.txt
+          printf '%s\n' 'M6_PENDING_REAL_INDEPENDENT_SIGNATURES_NO_MERGE_NO_LIVE' > evidence/governance.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-method-cog-semantic-no-economic-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
