@@ -10,6 +10,7 @@ from qore.infrastructure.trader_lab.vt08_a_m30m3_frozen_family_source_funnel_v1 
     _within_frozen_owner_windows,
     bullish_c2_geometry,
     classify,
+    closed_pre_c2_h1_receipts,
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import Vt08B01Bar
 
@@ -94,3 +95,32 @@ def test_owner_windows_follow_new_york_dst_hour_not_utc_fixed_hour():
         assert _within_frozen_owner_windows(datetime(2025,month,15,12,30,tzinfo=ny))
         assert not _within_frozen_owner_windows(datetime(2025,month,15,13,tzinfo=ny))
         assert not _within_frozen_owner_windows(datetime(2025,month,15,0,30,tzinfo=ny))
+
+def test_full_pre_c2_h1_context_has_raw_ids_and_no_future_clock():
+    c2_open=T
+    source={
+        c2_open-timedelta(hours=3)+timedelta(minutes=15*i):
+        bar(c2_open-timedelta(hours=3)+timedelta(minutes=15*i),15)
+        for i in range(12)
+    }
+    result=closed_pre_c2_h1_receipts(
+        source,c2_open=c2_open,raw_m15_sha="f"*64,
+    )
+    assert len(result)==12
+    assert len({x["source_bar_id"] for x in result})==12
+    assert result[-1]["closed_at_utc"]==c2_open.isoformat()
+    assert all(x["available_at_utc"] <= c2_open.isoformat() for x in result)
+    assert all(x["semantics"]=="OBSERVED_OHLC_ONLY_NOT_TTRADES_RULE" for x in result)
+
+
+def test_h1_missing_candle_never_filled_by_after_c2_source():
+    source={
+        T-timedelta(hours=3)+timedelta(minutes=15*i):
+        bar(T-timedelta(hours=3)+timedelta(minutes=15*i),15)
+        for i in range(12)
+    }
+    del source[T-timedelta(minutes=15)]
+    source[T]=bar(T,15)
+    assert closed_pre_c2_h1_receipts(
+        source,c2_open=T,raw_m15_sha="a"*64,
+    )==[]
