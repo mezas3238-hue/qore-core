@@ -21,10 +21,8 @@ def test_current_lineage_is_source_open_and_not_certified() -> None:
     result = evaluate_certification_readiness(_current_evidence())
     assert result.stage is CrtPureCertificationStage.SOURCE_OPEN
     assert result.certified is False
-    assert result.blockers == (
-        "CRT_PRIMARY_SOURCE_AND_STRATEGY_IDENTITY_NOT_CLOSED",
-        "MODEL_1_REFERENCE_AND_SOURCE_SELECTION_NOT_CLOSED",
-    )
+    assert "CRT_THREE_SOURCE_IDENTITY_NOT_FROZEN" in result.blockers
+    assert "THREE_SOURCE_RULE_OPEN:multiple_reference_priority" in result.blockers
 
 
 def test_readiness_cannot_grant_deployment_authority() -> None:
@@ -66,7 +64,7 @@ def test_all_green_external_flags_cannot_fake_source_certification() -> None:
     result = evaluate_certification_readiness(evidence)
     assert result.stage is CrtPureCertificationStage.SOURCE_OPEN
     assert result.certified is False
-    assert result.blockers == ("MODEL_1_REFERENCE_AND_SOURCE_SELECTION_NOT_CLOSED",)
+    assert "THREE_SOURCE_RULE_OPEN:multiple_reference_priority" in result.blockers
     assert result.demo_authorized is False
     assert result.live_authorized is False
     assert result.real_capital_authorized is False
