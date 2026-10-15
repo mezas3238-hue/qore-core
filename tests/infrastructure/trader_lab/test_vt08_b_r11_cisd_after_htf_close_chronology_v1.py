@@ -132,7 +132,7 @@ def test_future_cisd_clock(tmp_path: Path) -> None:
         _check(report, path)
 
 
-def test_duplicated_C2(tmp_path: Path) -> None:
+def test_duplicated_c2(tmp_path: Path) -> None:
     report, path = _fixture(tmp_path)
     cases = report["examples_by_stage"][STAGE]
     cases[1] = dict(cases[0])
