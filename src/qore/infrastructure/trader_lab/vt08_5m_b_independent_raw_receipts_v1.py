@@ -234,3 +234,88 @@ def verify_raw_window(
         "economic_certified": False,
         "operational_authority": False,
     }
+
+
+def verify_full_native_census(
+    inventory: Mapping[str, object], *, m3_file: Path, m15_file: Path
+) -> dict[str, object]:
+    """Reconstruct ALL Owner anchor windows without calling Architect A.
+
+    Unlike the 24-receipt sample, this iterates every raw M3 anchor, independently
+    counts missing bars and cross-feed disagreements, then adjudicates A's totals.
+    It never generates trading patterns, candidate entries or price outcomes.
+    """
+    market = inventory.get("market")
+    if not isinstance(market, str) or market not in MARKETS:
+        raise ValueError("VT08 B full census market identity invalid")
+    sha3, raw3 = _raw_bars(m3_file, "M3", market)
+    sha15, raw15 = _raw_bars(m15_file, "M15", market)
+    if (
+        inventory.get("m3_raw_sha256") != sha3
+        or inventory.get("m15_raw_sha256") != sha15
+    ):
+        raise ValueError("VT08 B full census inventory SHA differs from raw")
+    observed = 0
+    complete = 0
+    missing = 0
+    mismatched = 0
+    for opened in sorted(raw3):
+        local = opened.astimezone(NY)
+        if (
+            local.hour not in (1, 5, 9)
+            or local.minute or local.second or local.microsecond
+        ):
+            continue
+        observed += 1
+        m3: list[tuple[Decimal, Decimal, Decimal, Decimal]] = []
+        m15: list[tuple[Decimal, Decimal, Decimal, Decimal]] = []
+        for minutes, count, raw, dest in (
+            (3, 10, raw3, m3),
+            (15, 2, raw15, m15),
+        ):
+            for idx in range(count):
+                at = opened + timedelta(minutes=minutes * idx)
+                row = raw.get(at)
+                if row is None:
+                    break
+                if _instant(row.get("closed_at")) != at + timedelta(minutes=minutes):
+                    break
+                dest.append(
+                    _prices(tuple(
+                        str(row.get(field))
+                        for field in ("open", "high", "low", "close")
+                    ))
+                )
+        if len(m3) != 10 or len(m15) != 2:
+            missing += 1
+        elif _aggregate(m3) != _aggregate(m15):
+            mismatched += 1
+        else:
+            complete += 1
+    if observed == 0 or observed != complete + missing + mismatched:
+        raise ValueError("VT08 B full raw census conservation failure")
+    for name, independently_counted in (
+        ("source_anchor_windows_observed", observed),
+        ("source_anchor_windows_complete", complete),
+        ("skipped_incomplete", missing),
+        ("skipped_mismatched", mismatched),
+    ):
+        claimed = inventory.get(name)
+        if type(claimed) is not int or claimed != independently_counted:
+            raise ValueError(f"VT08 B independent census disagrees: {name}")
+    return {
+        "schema": "qore.vt08.b.independent.full_native_census.v1",
+        "market": market,
+        "m3_raw_sha256": sha3,
+        "m15_raw_sha256": sha15,
+        "source_anchor_windows_observed": observed,
+        "source_anchor_windows_complete": complete,
+        "skipped_incomplete": missing,
+        "skipped_mismatched": mismatched,
+        "independent_census_verified": True,
+        "source_author_fidelity_verified": False,
+        "cognitive_certified": False,
+        "economic_gates_evaluated": False,
+        "broker_fill_certified": False,
+        "operational_authority": False,
+    }
