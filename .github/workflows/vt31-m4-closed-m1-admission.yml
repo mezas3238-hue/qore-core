@@ -1,0 +1,79 @@
+name: VT31 M4 V2 closed M1 author-source guard no PNL
+on:
+  push:
+    branches:
+      - agent/vt31-m4-closed-m1-source-admission-20261015
+    paths:
+      - 'docs/research/VT31_M4_CLOSED_M1_AUTHOR_SOURCE_ADMISSION_PREREG_2026-10-15.md'
+      - 'scripts/vt31_m4_closed_m1_author_gate_20261015.py'
+      - 'tests/infrastructure/test_vt31_m4_closed_m1_author_gate_20261015.py'
+      - '.github/workflows/vt31-m4-closed-m1-admission.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  m4-closed-m1-causal-retest-v2-source-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify precode prereg and protected original G3 SHA
+        run: |
+          set -euo pipefail
+          git cat-file -t ce4047201ec27ac4a3e98d854c07606e6e2f30d2
+          git merge-base --is-ancestor ce4047201ec27ac4a3e98d854c07606e6e2f30d2 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Run M4 source V1 vs closed-M1 V2 and parent M0 regression
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist
+          ruff check scripts/vt31_m4_closed_m1_author_gate_20261015.py tests/infrastructure/test_vt31_m4_closed_m1_author_gate_20261015.py
+          python -m py_compile scripts/vt31_m4_closed_m1_author_gate_20261015.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m4_closed_m1_author_gate_20261015.py \
+            tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py \
+            tests/infrastructure/test_vt31_m5_ttrades_protected_swing_source_20261015.py \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_m4_closed_m1_author_gate_20261015.py \
+            --out evidence/VT31_M4_V2_CLOSED_M1_16_SOURCE_CASES.json \
+            | tee evidence/summary.json
+      - name: Ensure causal outcomes and zero false certification
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M4_V2_CLOSED_M1_16_SOURCE_CASES.json'))
+          rows=p['cases']
+          assert p['prereg_commit']=='ce4047201ec27ac4a3e98d854c07606e6e2f30d2'
+          assert len(rows)==16
+          assert sum(r['state']=='M4_CLOSED_M1_SOURCE_STRUCTURE_RESEARCH_ONLY' for r in rows)==8
+          assert sum(r['state']=='M4_CAUSAL_PRE_ADMISSION_REJECTED' for r in rows)==8
+          assert all(r['cognitive_action']=='WAIT' for r in rows)
+          assert all(not r['author_method_certified'] and not r['cognition_certified'] and not r['broker_order_authorized'] for r in rows)
+          assert not p['methodology_certified'] and not p['cognition_certified']
+          assert not p['dual_cog_ops_signatures'] and not p['owner_signed_m0']
+          assert not p['stop_causing_displacement_identified']
+          assert p['broker_orders']==p['sizing']==0 and not p['live']
+          print('M4_V2_CLOSED_M1_PREREG_16_CASES_NO_PREMATURE_COG')
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' ce4047201ec27ac4a3e98d854c07606e6e2f30d2 > evidence/prereg_sha.txt
+          printf '%s\n' 'M4 V2 RESEARCH ONLY NO CERTIFICATION NO ORDERS NO SIZING' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-m4-v2-closed-m1-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
