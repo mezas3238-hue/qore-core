@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Literal
 
 PROFILE_ICT = "ICT_GENERAL_2023"
 PROFILE_TTRADES = "TTRADES_NY_AM_2025"
