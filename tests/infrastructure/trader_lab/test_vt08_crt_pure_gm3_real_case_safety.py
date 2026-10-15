@@ -47,6 +47,12 @@ def test_real_case_adapter_abstains_if_model1_source_not_closed() -> None:
     assert result["certification_router_action"] == "WAIT"
     assert result["certification_router_state"] == "UNRESOLVED"
     assert result["G_M4_missing_source_router_safety_checked"] is True
+    assert result["G_M5_real_evidence_certificate_issued"] is False
+    assert result["G_M5_forged_all_pass_certificate_issued"] is False
+    assert result["G_M5_anti_forgery_safety_checked"] is True
+    assert "SOURCE_NOT_ADJUDICATED:model_1_reference_selection" in (
+        result["G_M5_source_primary_blockers"]
+    )
     assert "model_1_reference_selection" in result["unresolved_source_concepts"]
     assert result["G_M3_source_fidelity_certified"] is False
     assert result["no_profit_loss_or_sizing_used"] is True
