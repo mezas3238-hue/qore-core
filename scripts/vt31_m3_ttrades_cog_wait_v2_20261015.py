@@ -222,9 +222,15 @@ def audit_483_real_first_returns(
         end = engine.snapshot()
         if first_terminal is None:
             raise AssertionError("V2_NO_FIRST_TERMINAL_SOURCE_CONTEXT")
+        # A first return that closes exactly at 11:00 NY has no future
+        # Silver Bullet M1; the correct cognitive state is EXPIRED, not WAIT.
+        first_return_state = (
+            "EXPIRED" if return_time.astimezone(NY).hour == 11
+            else "WAIT_FOR_CONFIRMATION"
+        )
         if (
             status_at_return is None
-            or status_at_return.state != "WAIT_FOR_CONFIRMATION"
+            or status_at_return.state != first_return_state
             or status_at_return.first_return_at != return_time
             or status_at_return.cognitive_decision_emitted
         ):
