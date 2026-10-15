@@ -25,8 +25,8 @@ from scripts.vt31_ttrades_am_cognitive_fidelity_witness_20261014 import (
     assess_ttrades_am_context,
 )
 from scripts.vt31_ttrades_am_method_m1_census_20261014 import (
-    MARKET_SHA,
     M1_TOTAL,
+    MARKET_SHA,
     collect_hours,
     complete_hour,
     hash_file,
