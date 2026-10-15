@@ -29,7 +29,10 @@
         "UNIQUE_M3_CISD_PS_SHAPE_REQUIRES_AUTHOR_ADJUDICATION": 538
       },
       "m3_raw_sha256": "5d04a7606c3a91067b43425c215ae8df68aa4f3e59c2f7c54061d021a213d355",
-      "m15_raw_sha256": "565c1f93f31ee100f07ec4aa5b058c4a2b6f1600bc7980989720589c198d5047"
+      "m15_raw_sha256": "565c1f93f31ee100f07ec4aa5b058c4a2b6f1600bc7980989720589c198d5047",
+      "geometric_upper_bound_earliest_per_ny_day": 399,
+      "unique_ps_proxy_with_pre_c2_three_closed_h1": 538,
+      "earliest_per_ny_day_with_pre_c2_h1_upper_bound": 399
     },
     "USDCHF": {
       "c2_windows_total": 18646,
@@ -42,7 +45,10 @@
         "UNIQUE_M3_CISD_PS_SHAPE_REQUIRES_AUTHOR_ADJUDICATION": 518
       },
       "m3_raw_sha256": "b10a2393a0d4ac6cd8abc456d207e9a9e14bf4d218c83a08fe800c8d608ce7f9",
-      "m15_raw_sha256": "1b8541c1dc8358200a1a0d77d6a6f3df97c86b9a2b3400e7425a59c6bb12f464"
+      "m15_raw_sha256": "1b8541c1dc8358200a1a0d77d6a6f3df97c86b9a2b3400e7425a59c6bb12f464",
+      "geometric_upper_bound_earliest_per_ny_day": 390,
+      "unique_ps_proxy_with_pre_c2_three_closed_h1": 518,
+      "earliest_per_ny_day_with_pre_c2_h1_upper_bound": 390
     },
     "NZDUSD": {
       "c2_windows_total": 18646,
@@ -55,7 +61,10 @@
         "UNIQUE_M3_CISD_PS_SHAPE_REQUIRES_AUTHOR_ADJUDICATION": 550
       },
       "m3_raw_sha256": "9692d8aa690d413b91a7603d7521261e6217c6b92c55647d25993e14f21e99c0",
-      "m15_raw_sha256": "77a9c599f6f22c7353ded3a76ce18ced2bd2e3e5c8badfac6dfa4c3b228a99cb"
+      "m15_raw_sha256": "77a9c599f6f22c7353ded3a76ce18ced2bd2e3e5c8badfac6dfa4c3b228a99cb",
+      "geometric_upper_bound_earliest_per_ny_day": 412,
+      "unique_ps_proxy_with_pre_c2_three_closed_h1": 550,
+      "earliest_per_ny_day_with_pre_c2_h1_upper_bound": 412
     },
     "CADJPY": {
       "c2_windows_total": 18646,
@@ -68,7 +77,10 @@
         "UNIQUE_M3_CISD_PS_SHAPE_REQUIRES_AUTHOR_ADJUDICATION": 516
       },
       "m3_raw_sha256": "9ae504602cf342667e5e64be58365e4aa0b22c47b6ffba553e90d0167a7ac8cf",
-      "m15_raw_sha256": "e598cab241aa183cd9661d6939978322b1f8a9959a82c6bb409d5e2c374d44f4"
+      "m15_raw_sha256": "e598cab241aa183cd9661d6939978322b1f8a9959a82c6bb409d5e2c374d44f4",
+      "geometric_upper_bound_earliest_per_ny_day": 395,
+      "unique_ps_proxy_with_pre_c2_three_closed_h1": 515,
+      "earliest_per_ny_day_with_pre_c2_h1_upper_bound": 394
     },
     "USDCAD": {
       "c2_windows_total": 18646,
@@ -81,7 +93,14 @@
         "UNIQUE_M3_CISD_PS_SHAPE_REQUIRES_AUTHOR_ADJUDICATION": 535
       },
       "m3_raw_sha256": "7e934a106a4788e87ee05a1f04128ec1d9c8d34c308cb9c3e60758ec55e348e8",
-      "m15_raw_sha256": "6a47a292f4eb3c7b35c5510602d37763edbf90b122e276a298379b2b4e53ea93"
+      "m15_raw_sha256": "6a47a292f4eb3c7b35c5510602d37763edbf90b122e276a298379b2b4e53ea93",
+      "geometric_upper_bound_earliest_per_ny_day": 391,
+      "unique_ps_proxy_with_pre_c2_three_closed_h1": 535,
+      "earliest_per_ny_day_with_pre_c2_h1_upper_bound": 391
     }
-  }
+  },
+  "sum_geometric_upper_bound_earliest_per_ny_day": 1987,
+  "sum_unique_proxy_with_pre_c2_h1": 2656,
+  "sum_earliest_per_ny_day_with_h1_upper_bound": 1986,
+  "pre_c2_h1_source_run_url": "https://github.com/mezas3238-hue/qore-core/actions/runs/38715342991"
 }
