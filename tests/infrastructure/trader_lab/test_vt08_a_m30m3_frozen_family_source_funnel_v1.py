@@ -55,7 +55,7 @@ def test_cross_source_ohlc_mismatch_is_not_silently_repaired():
     ("100","101.5","100","101.2"),
     ("99","103","100","101.2"),
     ("99","101.5","101.4","101.2"),
-    ("99","101.5","100","102"),
+    ("99","101.5","100","99.5"),
 ])
 def test_non_bullish_or_dual_sweep_c2_is_negative(low,high,op,close):
     a,b,c,d=case(low,high,op,close)
