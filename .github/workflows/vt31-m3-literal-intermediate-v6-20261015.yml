@@ -1,0 +1,128 @@
+name: VT31 M3 V6 Literal Basic Intermediate vs QORE Strict
+on:
+  push:
+    branches:
+      - agent/vt31-m3-intermediate-literal-v6-20261015
+    paths:
+      - 'docs/research/VT31_M3_V6_LITERAL_INTERMEDIATE_VS_QORE_STRICT_PREREG_2026-10-15.md'
+      - 'scripts/vt31_m3_intermediate_literal_source_v6_20261015.py'
+      - 'tests/infrastructure/test_vt31_m3_intermediate_literal_source_v6_20261015.py'
+      - '.github/workflows/vt31-m3-intermediate-swing-v5-20261015.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+  NATIVE_SHA: '1556766c1831190b5459bf93404081412200ba7d'
+  CENSUS_SHA: '35bd317ddfed60e09523287de51347683d98e613'
+jobs:
+  vt31-m3-v6-literal-source-no-false-mss:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 40
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin original COG OPS V2 V3 V4 V5 and V6 prereg
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 03db7f1ff0377bdfabaa058165e866bd7b55f267 HEAD
+          test "$(git hash-object scripts/vt31_m3_intermediate_swing_hierarchy_v5_20261015.py)" = e6fd7de4997534426a024eb9689974c916b189a4
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object scripts/vt31_m3_ttrades_cog_wait_v2_20261015.py)" = 2ab6a7b0fdbe31de6bef17fb2d8eb8cc4055d751
+          test "$(git hash-object scripts/vt31_m3_cisd_first_series_source_witness_20261015.py)" = f4799d2cbefc980d82e327c7a41e36f29aaacdf9
+          test "$(git hash-object scripts/vt31_m3_source_first_cisd_cognition_v3_20261015.py)" = cc0a8bf80709eaf9a65ec8fcef631b6d1d3f9c17
+          test "$(git hash-object scripts/vt31_m4_m5_author_semantics_bridge_20261015.py)" = ab35ef4d2446e53bf1513e019776961efc046d80
+          test "$(git hash-object scripts/vt31_m3_mss_structural_close_v4_20261015.py)" = eacf4053be244a7c7e02b00f7fd9bf030df608fd
+          git fetch --no-tags --depth=1 origin "$NATIVE_SHA"
+          git show "$NATIVE_SHA:scripts/vt31_ttrades_am_native_cog_v1_20261014.py" > scripts/vt31_ttrades_am_native_cog_v1_20261014.py
+          test "$(git hash-object scripts/vt31_ttrades_am_native_cog_v1_20261014.py)" = 407c5959c8cf2268ff210fbbe8bb07b91d2f4510
+          git fetch --no-tags --depth=1 origin "$CENSUS_SHA"
+          git show "$CENSUS_SHA:scripts/vt31_ttrades_am_method_m1_census_20261014.py" > scripts/vt31_ttrades_am_method_m1_census_20261014.py
+          test "$(git hash-object scripts/vt31_ttrades_am_method_m1_census_20261014.py)" = 43a219e21237acfddc773a7c78ab6103d3839168
+          git show "$CENSUS_SHA:tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py" > tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py
+      - name: Adversarial V6 literal vs strict, ambiguity, causal time, no false MSS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check scripts/vt31_m3_intermediate_literal_source_v6_20261015.py tests/infrastructure/test_vt31_m3_intermediate_literal_source_v6_20261015.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_m3_intermediate_literal_source_v6_20261015.py \
+            tests/infrastructure/test_vt31_m3_intermediate_swing_hierarchy_v5_20261015.py \
+            tests/infrastructure/test_vt31_m3_cisd_first_series_source_witness_20261015.py \
+            tests/infrastructure/test_vt31_m3_ttrades_cog_wait_v2_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Retrieve canonical authentic NAS100 market M1 and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Compare frozen V4/V5 vs literal V6 on real M1 with scalar/fork parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m3_intermediate_literal_source_v6_20261015.py \
+            --market source/NAS100/market-evidence.json --parity \
+            --out evidence/VT31_M3_LITERAL_INTERMEDIATE_V6_483_REAL_M1.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_M3_LITERAL_INTERMEDIATE_V6_483_REAL_M1.json"))
+          assert p["frozen_NAS100_M1_total"]==1059784
+          assert p["frozen_483_contexts"]==483 and p["frozen_775_days"]==775
+          assert p["scalar_fork_full_JSON_parity"] is True
+          assert p["V4_classes_unchanged"]=={
+            "SINGLE_CONFIRMED_SWING_CLOSE_COMPONENT_ONLY":96,
+            "MULTIPLE_MSS_SWING_REFERENCE_UNKNOWN":318,
+            "NO_ATTESTED_STRUCTURAL_CLOSE_COMPONENT":69,
+          }
+          assert p["V5_strict_geometry_classes_unchanged"]=={
+            "NOT_IN_318_AMBIGUOUS_SCOPE":165,
+            "SINGLE_SOURCE_INTERMEDIATE_GEOMETRY_COMPONENT_ONLY":24,
+            "NO_INTERMEDIATE_CONFIRMED_AT_CAUSAL_ASOF":294,
+          }
+          classes=p["V6_literal_geometry_classes_not_MSS"]
+          assert sum(classes.values())==483 and classes["NOT_IN_318_AMBIGUOUS_SCOPE"]==165
+          assert sum(x["contexts"] for x in p["V5_vs_V6_318_cross_tab"])==318
+          assert len(p["all_483_source_cases"])==483
+          assert all(not (x["methodology_certified"] or x["cognition_certified"]
+             or x["trader_certified"] or x["broker_orders_fills_sizing"])
+             for x in p["all_483_source_cases"])
+          assert p["QORE_V5_strict_extremum_not_author_rule"] is True
+          assert p["rebalanced_intermediates_not_evaluated"] is True
+          assert p["author_displacement_not_evaluated"] is True
+          assert p["protected_swing_causation_not_evaluated"] is True
+          assert not (p["methodology_certified"] or p["cognition_certified"]
+             or p["trader_certified"] or p["orders_fills_sizing"]
+             or p["economic_metrics_calculated"] or p["live_demo_VPS_authorized"])
+          print("VT31_V6_LITERAL_DIAGNOSTIC_ENGINEERING_ONLY_NO_MSS_CERTIFICATE")
+          PY
+      - name: Store only nonraw research cognitive receipts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/code_sha.txt
+          printf '%s\n' 'M3_V6_LITERAL_INTERMEDIATE_DIAGNOSTIC_ONLY_NO_MSS_PNL_SIZING_LIVE' > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-m3-v6-literal-intermediate-ultrafast-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
