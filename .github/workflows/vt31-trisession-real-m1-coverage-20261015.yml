@@ -106,6 +106,41 @@ jobs:
           assert p['live_demo_vps_broker_orders_fills_sizing']==0
           print('VT31_THREE_SESSIONS_REAL_M1_AUDITED_NO_AUTHOR_CERTIFICATION')
           PY
+      - name: Publish dated incomplete M1 cases without inventing CFD closures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          data=json.loads(Path('evidence/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json').read_text())
+          anomaly={}
+          for row in data['all_2325_day_session_records']:
+            if row['state']!='CLOSED_M1_WINDOW_COMPLETE_CONTEXT_ONLY':
+              anomaly.setdefault(row['session'],[]).append({
+                'ny_day':row['ny_day'],
+                'state':row['state'],
+                'observed_m1':row['observed_window_m1'],
+                'missing_m1':row['missing_window_m1'],
+                'h1_09_ttrades_complete':row['h1_09_ttrades_complete'],
+              })
+          expected={'VT31_LONDON':1,'VT31_NY_AM':6,'VT31_NY_PM':34}
+          assert {session:len(rows) for session,rows in anomaly.items()}==expected
+          for session,rows in anomaly.items():
+            print(session, 'M1_SOURCE_NOT_COMPLETE_DAYS=', json.dumps(rows,sort_keys=True))
+          output={
+            'status':'BROKER_PIT_CALENDAR_NOT_VERIFIED',
+            'not_broker_closed_assertions':True,
+            'anchor_source_sha256':data['source_sha256'],
+            'casebook_sha256':data['casebook_json_sha256'],
+            'incomplete_session_days':dict(sorted(anomaly.items())),
+            'non_certification':True,
+          }
+          Path('evidence/VT31_TRISESION_REAL_SOURCE_GAP_DATEBOOK.json').write_text(
+              json.dumps(output,indent=2,sort_keys=True)+'\n')
+          print('TRISESION_INCOMPLETE_DATES_PUBLISHED_NOT_HOLIDAY_INFERRED')
+          PY
       - name: Store reproducible non-raw coverage casebook
         if: always()
         shell: bash
