@@ -147,17 +147,24 @@ def run_short_mirror_tribunal() -> dict[str, Any]:
             no_mss = source[:-1] + (replace(source[-1], close=Decimal("97")),)
             _, no_shift = _run(no_mss, session)
             if no_shift.decision is not None:
-                raise ValueError(f"SHORT_MSS_CLOSE_ONLY_CONTRAFACTUAL_FAILED:{session.value}:{month}")
+                raise ValueError(
+                    f"SHORT_MSS_CLOSE_ONLY_CONTRAFACTUAL_FAILED:"
+                    f"{session.value}:{month}"
+                )
             _, before = _run(source[:-1], session)
             if before.decision is not None:
                 raise ValueError(f"COG_FABRICATED_SHORT_BEFORE_MSS:{session.value}:{month}")
 
-            def after(bar: M1Bar) -> Any:
-                fresh, first = _run(source, session)
+            def after(
+                bar: M1Bar, *,
+                fixed_source: tuple[M1Bar, ...] = source,
+                fixed_session: SessionId = session,
+            ) -> Any:
+                fresh, first = _run(fixed_source, fixed_session)
                 if first.decision is None:
                     raise ValueError("G3_POSITIVE_SOURCE_DISAPPEARED")
                 fresh.observe_closed_m1(bar)
-                return fresh.assess(session=session, as_of=bar.closed_at)
+                return fresh.assess(session=fixed_session, as_of=bar.closed_at)
 
             swept = after(_m1(at, o="94", high="95", low="79", close="94"))
             rev = after(_m1(at, o="94", high="98", low="93", close="97"))
