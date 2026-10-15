@@ -10,6 +10,8 @@ on:
       - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_price_lifecycle.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_price_lifecycle.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_gm3_cognitive_replay.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_gm3_cognitive_replay.py'
   workflow_dispatch:
 
 permissions:
@@ -34,9 +36,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_price_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_price_lifecycle.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_price_lifecycle.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_price_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_gm3_cognitive_replay.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_gm3_cognitive_replay.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_price_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_price_lifecycle.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_gm3_cognitive_replay.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_price_lifecycle.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_confirmed_h4_census.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_gm3_cognitive_replay.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_price_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_confirmed_h4_census.py
 
   real-original-atlas:
     needs: contract-quality
@@ -124,6 +126,39 @@ jobs:
         with:
           name: vt08-three-source-v3-price-path-dev-only-${{ matrix.market }}-${{ github.sha }}
           path: v3-lifecycle/${{ matrix.market }}
+          retention-days: 90
+          if-no-files-found: error
+      - name: Cognition G-M3 positive third-candle events, source-open ABSTAIN authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "v3-cognition/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_v3_gm3_cognitive_replay \
+            "$QORE_MARKET" original-native-m5 "v3-cognition/$QORE_MARKET" \
+            | tee "v3-cognition/$QORE_MARKET/stdout-summary.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path("v3-cognition")/os.environ["QORE_MARKET"]
+          src=Path("v3-causal")/os.environ["QORE_MARKET"]
+          m=json.loads((p/"v3-gm3-cognitive-summary.json").read_text())
+          s=json.loads((src/"three-source-v3-third-candle-summary.json").read_text())
+          assert m["V3_conceptual_sources"]==s["state_counts"].get("CONCEPTUAL_CANDIDATE_V3",0)
+          assert m["G_M3_positives_recognized"]==m["V3_conceptual_sources"]
+          assert m["cognitive_actions"]=={"ABSTAIN":m["V3_conceptual_sources"]}
+          assert m["all_causal_confirmations_recognized"]
+          assert m["no_sizing"] and m["no_PnL_or_fills"]
+          assert not m["G_M3_PASS"] and not m["GLOBAL_CERTIFIED"]
+          rows=[json.loads(x) for x in (p/"v3-gm3-cognitive-ledger.jsonl").read_text().splitlines() if x]
+          assert all(r["causal_confirmation_recognized"] and r["cognitive_action"]=="ABSTAIN" for r in rows)
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "v3-cognition/$QORE_MARKET/git-sha.txt"
+          (cd "v3-cognition/$QORE_MARKET"; sha256sum v3-gm3-cognitive-summary.json v3-gm3-cognitive-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Publish G-M3 cognitive positive recognition, fail-closed no broker authority
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-three-source-v3-gm3-cognitive-dev-only-${{ matrix.market }}-${{ github.sha }}
+          path: v3-cognition/${{ matrix.market }}
           retention-days: 90
           if-no-files-found: error
       - name: Publish research-only V3 pre-outcome artifact (no future prices, no fills)
