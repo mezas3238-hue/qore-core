@@ -95,7 +95,7 @@ def test_empty_last_bar_horizon_is_expired_without_hit() -> None:
 
 
 def test_noncausal_decision_time_rejected() -> None:
-    with pytest.raises(ValueError, match="inside live H4"):
+    with pytest.raises(ValueError, match="cannot precede or exceed"):
         observe_price_only_path(
             direction="BULLISH",
             decision_at=START,
@@ -110,3 +110,15 @@ def test_invalid_bar_geometry_rejected() -> None:
     bad = candle(30, 95, 94, 92, 95)
     with pytest.raises(ValueError, match="OHLC geometry"):
         _result(_path(bad))
+
+
+def test_confirmation_at_last_c3_m15_close_has_no_future_price_path() -> None:
+    result = observe_price_only_path(
+        direction="BULLISH",
+        decision_at=START + timedelta(hours=4),
+        c3_open=START,
+        invalidation_relative=90,
+        target_double_relative=200,
+        m5={},
+    )
+    assert result == ("EXPIRED_AT_C3_CLOSE_NO_POST_DECISION_WINDOW", None, 0)
