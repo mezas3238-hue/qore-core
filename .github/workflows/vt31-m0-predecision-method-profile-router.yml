@@ -1,0 +1,81 @@
+name: VT31 M0 Causal Method Identity Predecision Cognition No PNL
+on:
+  push:
+    branches:
+      - agent/vt31-m0-predecision-profile-router-20261015
+    paths:
+      - 'scripts/vt31_m0_predecision_method_router_20261015.py'
+      - 'tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py'
+      - 'docs/research/VT31_M0_PREDECISION_METHOD_PROFILE_ROUTER_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-m0-predecision-method-profile-router.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  vt31-source-identity-before-original-cognition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify precode preregistered method identity and G3 frozen blobs
+        run: |
+          set -euo pipefail
+          git cat-file -t 05e55b7528636ea60168d69a97b03559fae2f0dd
+          git merge-base --is-ancestor 05e55b7528636ea60168d69a97b03559fae2f0dd HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Run fast parallel M0 source identity and original COG qualitative suite
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist
+          ruff check scripts/vt31_m0_predecision_method_router_20261015.py tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py
+          python -m py_compile scripts/vt31_m0_predecision_method_router_20261015.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            tests/infrastructure/test_vt31_m0_profile_shadow_attestation_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_original_cog_traderlab_32x_long_short_20261015.py \
+            tests/infrastructure/test_vt31_original_g3_cog_short_sessions_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_m0_predecision_method_router_20261015.py \
+            --out evidence/VT31_M0_PREDECISION_METHOD_PROFILE_COG_16_CASES.json \
+            | tee evidence/summary.json
+      - name: Validate method profile identity and certify nothing prematurely
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_M0_PREDECISION_METHOD_PROFILE_COG_16_CASES.json"))
+          assert p["prereg_commit"]=="05e55b7528636ea60168d69a97b03559fae2f0dd"
+          assert p["source_g3_original_sha"]["git_blob_sha1"]=="d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9"
+          assert len(p["cases"])==16
+          assert sum(x["state"]=="RESEARCH_TTRADES_CONTEXT_CONFORMANT_NOT_CERTIFIED" for x in p["cases"])==4
+          assert sum(x["state"]=="G3_MIN10_AND_TTRADES_SOURCE_TARGET_CONFLICT_WAIT" for x in p["cases"])==4
+          assert sum(x["state"]=="ICT_CONTEXT_WITNESS_UNDERDETERMINED" for x in p["cases"])==8
+          assert p["single_vt31_method_profile_preselected_before_M1"] is True
+          assert p["owner_policy_approved"] is False
+          assert p["native_g3_profile_selector_integrated"] is False
+          assert not p["methodology_certified"] and not p["cognition_certified"]
+          assert not p["dual_cog_ops_human_signatures"]
+          assert p["historical_real_data_or_PNL"] is None and p["orders"]==p["sizing"]==0
+          assert not p["live"]
+          print("M0_METHOD_SOURCE_PREDECISION_RESEARCH_16CASES_NO_FALSIFIED_CERT")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 05e55b7528636ea60168d69a97b03559fae2f0dd > evidence/prereg_sha.txt
+          printf '%s\n' 'RESEARCH_PREDECLARED_PROFILE_SOURCE_COG_NO_PNL_OR_OMS' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-m0-predecision-method-cog-research-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
