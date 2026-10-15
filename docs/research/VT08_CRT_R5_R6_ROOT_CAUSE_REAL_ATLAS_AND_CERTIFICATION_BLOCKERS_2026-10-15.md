@@ -65,3 +65,22 @@ R5 nominal expires_at 2027-01-13T22:50:06Z; R6 nominal expires_at 2027-01-13T22:
 **P0-4 económico GLOBAL:** los V2/V3 históricos de desarrollo mostraron trayectoria adversa, no equity ni fills; no hay edge rentable probado, ni BID/ASK real ejecutado, ni nueva OOS virgen. PF/Sortino/Sharpe, costes, stress/WFO/Monte Carlo y DD patrimonial a cargo exclusivo de CIBO Risk. **VT08 sizing categóricamente prohibido**, incluso lotes o 1R ficticios.
 
 **Cert truth:** G-M1..4 PARTIAL; G-M5 NOT ISSUED; GLOBAL NOT CERTIFIED. PR #626 sigue DRAFT, NO MERGE, NO órdenes/demo/live/VPS.
+
+
+## Anexo R6-B — los cinco eventos y relojes EXACTOS en GitHub Actions (sin OCR ni supuestos)
+
+Reproducción read-only [run #38820840827](https://github.com/mezas3238-hue/qore-core/actions/runs/38820840827), commit `829dc4dfb631ffe91db1721285ee359931e27177`, 3/3 jobs SUCCESS. Publicados por matriz con el marcador textual `VT08_GM4_UNKNOWN_EXPOST_CASE_IDS_AND_CLOCKS`. Los datos siguientes son lectura directa de los logs, **no inferencia del resultado económico**:
+
+| Mercado | Source event ID | Decisión UTC | Clase | Primera M5 faltante UTC | Próxima M5 dentro de C3 |
+|---|---|---|---|---|---|
+| USDJPY | `9572d855b2dedc8fecb2` | 2024-12-26 23:00 | Open ya más allá de invalidación | — | — |
+| USDJPY | `11a7c3cdb30a9eabdbbe` | 2025-02-12 21:30 | Hueco M5 | **2025-02-12 22:30** | **2025-02-12 22:35** |
+| USDJPY | `a63b7073af8d33e8963a` | 2026-06-19 20:45 | Hueco M5 | **2026-06-19 21:00** | ninguna dentro de C3 |
+| AUDUSD | `bfc66b2457f3e3ec93ae` | 2025-04-25 20:45 | Hueco M5 | **2025-04-25 21:00** | ninguna dentro de C3 |
+| AUDUSD | `fa3965fd21bc149c2ce8` | 2026-08-06 21:00 | Open ya más allá de invalidación | — | — |
+
+**Nueva distinción para solucionar más deprisa:** los huecos del 25-ABR-2025 y 19-JUN-2026 empiezan **un viernes a las 21:00 UTC** y no existe una vela posterior dentro de la misma H4 C3. Son **compatibles** con cierre semanal ordinario de FX durante horario de verano estadounidense, pero **NO se comprobó aún el calendario histórico exacto del símbolo/feed original de cTrader**; no calificarlos automáticamente como “no corrupción”, tampoco inventar una expiración por mercado cerrado. El hueco USDJPY del **miércoles 12-FEB-2025 a las 22:30 UTC** sí tiene siguiente vela a las 22:35 dentro de C3: es un candidato mucho más específico para investigación/recuperación de una sola M5 original, sujeto a SHA y datos del proveedor.
+
+**Próximas tareas aisladas que NO requieren recalibrar un solo indicador de trading:** (a) recuperar/validar calendario cTrader AUDUSD/USDJPY efectivo el viernes (zona DST + 2025/2026) y obtener adjudicación de cómo expirar tesis al cierre; (b) auditar/probar recuperación puntual M5 USDJPY 2025-02-12T22:30Z con linaje del mismo Atlas proveedor; (c) revisar regla fuente que deniegue desde el open ya fuera de invalidación los 2 eventos sin ordenar, no transformar G-M4 histórico en terminal. Todos los cinco siguen UNKNOWN.
+
+**Artefactos run R6-B con SHA ZIP verificable:** AUDUSD id `12012955576`, sha256 `d6d62ade4b58329ddc079c8c91397085bea75a6d619373d242ec5b07c4c9ba78`; USDJPY id `12012508848`, sha256 `7dc8829d2d86ec48b880fb8cf966d60177f8b463070f85fc870e5c6ab4aed5cf`; ambos reportan `expired=false` y caducidad `2027-01-13T23:00:15Z` al consultarlos. El JSONL conserva clasificación retrospectiva y no se mezcla con el ledger de decisiones.
