@@ -76,7 +76,7 @@ def literal_intermediate_source_geometry(
     V5 validates aware time, consecutive fully-closed M1, causal as-of and
     first return. It remains unchanged; a literal triple never upgrades V5.
     """
-    if side not in (Side.LONG, Side.SHORT):
+    if not isinstance(side, Side):
         raise ValueError("LITERAL_INTERMEDIATE_INVALID_SIDE")
     intermediate_swing_source_geometry(
         ten_prefix, side=side, first_return_at=first_return_at, as_of=as_of,
