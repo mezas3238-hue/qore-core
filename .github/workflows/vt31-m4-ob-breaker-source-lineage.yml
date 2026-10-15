@@ -1,0 +1,93 @@
+name: VT31 M4 M5 Author-Source Evidence Gate for OB Breaker NO PNL
+on:
+  push:
+    branches:
+      - agent/vt31-m4-source-lineage-gates-20261015
+    paths:
+      - 'scripts/vt31_m4_ob_breaker_author_evidence_gate_20261015.py'
+      - 'tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py'
+      - 'docs/research/VT31_M4_M5_OB_BREAKER_AUTHOR_LINEAGE_GATE_PREREG_2026-10-15.md'
+      - '.github/workflows/vt31-m4-ob-breaker-source-lineage.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  methodological-source-attestation-ob-breaker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: prereg first and protected G3 blobs
+        run: |
+          set -euo pipefail
+          git cat-file -t 0fd053f894428a3810d71ef079847fa6b73d4002
+          git merge-base --is-ancestor 0fd053f894428a3810d71ef079847fa6b73d4002 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Verify old 4-family QORE proxy identity without importing trade backtests
+        run: |
+          set -euo pipefail
+          mkdir -p input evidence
+          gh api "repos/${GITHUB_REPOSITORY}/git/blobs/c8b96c26fc60ae86c1fcccb0877354093b3782bb" -q '.content' \
+            | tr -d '\n' | base64 --decode > input/vt31_four_family_old_proxy.py
+          test "$(git hash-object input/vt31_four_family_old_proxy.py)" = c8b96c26fc60ae86c1fcccb0877354093b3782bb
+          grep -F 'opposing[-1]' input/vt31_four_family_old_proxy.py
+          grep -F 'breaker_level = level' input/vt31_four_family_old_proxy.py
+          grep -F 'QORE_operational_definitions_NOT_author_literal' input/vt31_four_family_old_proxy.py
+          git hash-object input/vt31_four_family_old_proxy.py > evidence/source_906_blob.txt
+      - name: Qualitative source OB Breaker method stress, no market trading outcome
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          ruff check scripts/vt31_m4_ob_breaker_author_evidence_gate_20261015.py tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py
+          python -m py_compile scripts/vt31_m4_ob_breaker_author_evidence_gate_20261015.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_original_g3_cog_short_sessions_qualitative_20261015.py \
+            tests/infrastructure/test_vt31_l1_breaker_four_leg_source_20261014.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_m4_ob_breaker_author_evidence_gate_20261015.py \
+            --out evidence/VT31_M4_OB_BREAKER_AUTHOR_SOURCE_EVIDENCE_NO_PNL.json \
+            | tee evidence/summary.json
+      - name: Verify insufficiency cannot auto promote OB Breaker, swing and COG
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_M4_OB_BREAKER_AUTHOR_SOURCE_EVIDENCE_NO_PNL.json"))
+          assert p["prereg_commit"]=="0fd053f894428a3810d71ef079847fa6b73d4002"
+          assert p["old_qore_proxy_file_git_blob"]=="c8b96c26fc60ae86c1fcccb0877354093b3782bb"
+          assert len(p["cases"])==9
+          assert p["cases"][5]["status"]=="INSUFFICIENT_SOURCE_WITNESS"
+          assert p["cases"][8]["status"]=="CAUSAL_OR_PROFILE_REJECTED"
+          assert all(not x["author_full_method_certified"] and
+                     not x["cognition_certified"] and
+                     not x["human_author_example_approved"] and
+                     not x["operations_authorized"] for x in p["cases"])
+          assert p["method_certified"] is False and p["cognition_certified"] is False
+          assert p["swing_stop_author_caused_leg_certified"] is False
+          assert p["human_author_examples_independently_approved"] is False
+          assert p["economic_data_or_pnl"] is None
+          assert p["orders"]==p["sizing"]==0 and not p["live_authorized"]
+          print("M4_M5_AUTHOR_EVIDENCE_FAIL_CLOSED_NO_CERTIFICATE")
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 0fd053f894428a3810d71ef079847fa6b73d4002 > evidence/prereg_sha.txt
+          printf '%s\n' 'ONLY_METHODOLOGY_COGNITION_NO_MARKET_EDGE_NO_ORDERS_NO_LIVE' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-m4-author-source-ob-breaker-gate-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
