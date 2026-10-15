@@ -1,0 +1,124 @@
+name: VT31 M3 V5 TTrades Intermediate Swing Hierarchy Ultra Fast
+on:
+  push:
+    branches:
+      - agent/vt31-m3-intermediate-swing-source-v5-20261015
+    paths:
+      - 'docs/research/VT31_M3_INTERMEDIATE_SWING_SOURCE_PREREG_2026-10-15.md'
+      - 'scripts/vt31_m3_intermediate_swing_hierarchy_v5_20261015.py'
+      - 'tests/infrastructure/test_vt31_m3_intermediate_swing_hierarchy_v5_20261015.py'
+      - '.github/workflows/vt31-m3-intermediate-swing-v5-20261015.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+  NATIVE_SHA: '1556766c1831190b5459bf93404081412200ba7d'
+  CENSUS_SHA: '35bd317ddfed60e09523287de51347683d98e613'
+jobs:
+  vt31-m3-v5-intermediate-structural-swing-no-false-mss:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 40
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin original COG OPS V2 V3 first-open and source pivot prereg
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 54f5985ce174d3bcf8614d15ac33bc5201c882c0 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object scripts/vt31_m3_ttrades_cog_wait_v2_20261015.py)" = 2ab6a7b0fdbe31de6bef17fb2d8eb8cc4055d751
+          test "$(git hash-object scripts/vt31_m3_cisd_first_series_source_witness_20261015.py)" = f4799d2cbefc980d82e327c7a41e36f29aaacdf9
+          test "$(git hash-object scripts/vt31_m3_source_first_cisd_cognition_v3_20261015.py)" = cc0a8bf80709eaf9a65ec8fcef631b6d1d3f9c17
+          test "$(git hash-object scripts/vt31_m4_m5_author_semantics_bridge_20261015.py)" = ab35ef4d2446e53bf1513e019776961efc046d80
+          test "$(git hash-object scripts/vt31_m3_mss_structural_close_v4_20261015.py)" = eacf4053be244a7c7e02b00f7fd9bf030df608fd
+          git fetch --no-tags --depth=1 origin "$NATIVE_SHA"
+          git show "$NATIVE_SHA:scripts/vt31_ttrades_am_native_cog_v1_20261014.py" > scripts/vt31_ttrades_am_native_cog_v1_20261014.py
+          test "$(git hash-object scripts/vt31_ttrades_am_native_cog_v1_20261014.py)" = 407c5959c8cf2268ff210fbbe8bb07b91d2f4510
+          git fetch --no-tags --depth=1 origin "$CENSUS_SHA"
+          git show "$CENSUS_SHA:scripts/vt31_ttrades_am_method_m1_census_20261014.py" > scripts/vt31_ttrades_am_method_m1_census_20261014.py
+          test "$(git hash-object scripts/vt31_ttrades_am_method_m1_census_20261014.py)" = 43a219e21237acfddc773a7c78ab6103d3839168
+          git show "$CENSUS_SHA:tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py" > tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py
+      - name: Adversarial author swing CLOSE, ambiguity, no MSS without displacement
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check scripts/vt31_m3_intermediate_swing_hierarchy_v5_20261015.py tests/infrastructure/test_vt31_m3_intermediate_swing_hierarchy_v5_20261015.py
+          PYTHONPATH=src:. pytest -q -o addopts='' \
+            tests/infrastructure/test_vt31_m3_intermediate_swing_hierarchy_v5_20261015.py \
+            tests/infrastructure/test_vt31_m3_cisd_first_series_source_witness_20261015.py \
+            tests/infrastructure/test_vt31_m3_ttrades_cog_wait_v2_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_am_method_m1_census_20261014.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Retrieve canonical authentic NAS100 market M1 and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Compare original V4 318 ambiguous swings against causal intermediate source and Ultra Fast
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m3_intermediate_swing_hierarchy_v5_20261015.py \
+            --market source/NAS100/market-evidence.json --parity \
+            --out evidence/VT31_M3_INTERMEDIATE_SWING_V5_483_REAL_M1.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open("evidence/VT31_M3_INTERMEDIATE_SWING_V5_483_REAL_M1.json"))
+          assert p["prereg_before_code_sha"]=="54f5985ce174d3bcf8614d15ac33bc5201c882c0"
+          assert p["NAS100_M1_bars"]==1059784
+          assert p["frozen_source_first_return_contexts"]==483 and p["frozen_days"]==775
+          assert p["scalar_ultrafast_full_casebook_parity"] is True
+          assert p["intermediate_strict_extremum_is_QORE_policy"] is True
+          assert p["unchanged_V4_short_term_categories"]=={
+            "SINGLE_CONFIRMED_SWING_CLOSE_COMPONENT_ONLY":96,
+            "MULTIPLE_MSS_SWING_REFERENCE_UNKNOWN":318,
+            "NO_ATTESTED_STRUCTURAL_CLOSE_COMPONENT":69,
+          }
+          classes=p["V5_intermediate_source_geometries_not_MSS"]
+          assert sum(classes.values())==483
+          assert classes["NOT_IN_318_AMBIGUOUS_SCOPE"]==165
+          assert len(p["all_483_source_cognitive_cases"])==483
+          assert all(not x["method_certified"] and not x["trader_certified"] for x in p["all_483_source_cognitive_cases"])
+          assert p["author_displacement_MSS_certified"] is False
+          assert p["protected_swing_causation_certified"] is False
+          assert p["M4_author_entries_certified"] is False
+          assert p["M5_causative_stop_certified"] is False
+          assert p["M6_dual_signers_verified"] is False
+          assert p["methodology_certified"] is False
+          assert p["cognition_certified"] is False
+          assert p["trader_certified"] is False
+          assert p["sizing_PnL_computed"] is False
+          assert p["broker_fills_or_orders"]==0 and p["live_authorized"] is False
+          print("VT31_V5_INTERMEDIATE_SWING_SOURCE_HIERARCHY_PARITY_NOT_MSS")
+          PY
+      - name: Store only nonraw research cognitive receipts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/code_sha.txt
+          printf '%s\n' 'M3_V5_INTERMEDIATE_SWING_SOURCE_ONLY_NO_PNL_SIZING_OR_LIVE' > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-m3-v5-intermediate-hierarchy-ultrafast-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
