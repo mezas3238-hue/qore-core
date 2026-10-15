@@ -134,9 +134,14 @@ def test_catalog_forgery_rejected(
     elif attack == "changed_ohlc":
         next(iter(bars.values()))["ohlc"] = ("100", "110", "99", "101")
     elif attack == "extra_orphan":
-        item = dict(next(iter(bars.values())))
-        bars["d" * 64] = item
-        catalog["catalog_unique_bars"] = len(bars)
+        # Keep every raw bar real and correctly hashed but make the 12 genuine
+        # H1 bars unreferenced; no arbitrary malformed SHA shortcuts.
+        event["source_bar_groups"]["pre_c2_h1_m15_raw_bar_receipts"] = []
+        r3_case = r3["examples_by_stage"][
+            "UNIQUE_M3_CISD_PS_SHAPE_REQUIRES_AUTHOR_ADJUDICATION"
+        ][0]
+        r3_case["pre_c2_h1_context_available"] = False
+        r3["unique_ps_proxy_cases_with_three_closed_pre_c2_h1"] = 0
     elif attack == "wrong_group":
         groups = event["source_bar_groups"]
         groups["c1_m3_raw_bar_receipts"][0] = groups["c2_m3_raw_bar_receipts"][0]
