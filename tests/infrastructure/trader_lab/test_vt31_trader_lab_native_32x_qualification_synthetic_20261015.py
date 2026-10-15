@@ -146,7 +146,7 @@ def test_real_trader_lab_fast_forward_contract_accepts_32x_visible_instants(
 def test_synthetic_quote_carriers_not_real_market_or_vt31_candidate():
     events = synthetic_carriers()
     assert len(events) == 3
-    assert {e.payload.instrument.value for e in events} == {"NAS100"}
+    assert all(e.payload.instrument == Instrument("NAS100") for e in events)
     assert all(e.payload.bid.value == Decimal("100") for e in events)
     assert all(e.payload.ask.value == Decimal("101") for e in events)
     assert all(e.available_at > e.core_ingress_at for e in events)
