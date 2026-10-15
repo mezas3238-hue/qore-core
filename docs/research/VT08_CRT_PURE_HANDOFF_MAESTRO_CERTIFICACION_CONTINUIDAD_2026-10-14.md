@@ -203,3 +203,26 @@ Fuente código global: src/qore/infrastructure/traders/crt_pure_certification_re
 - **Siguiente acción prioritaria:** revisar video ORIGINAL y los **28 casos doble referencia** ciegos para averiguar cuál es CRTH/CRTL del autor y si existe desempate; no emplear sizing, PnL ni resultado futuro. Documentar divergencias caso a caso, reparar cognitiva y ejecutar G-M4 E2E completo con decisiones positivas/negativas antes de G-M5.
 
 **G-M1 PARTIAL; G-M2 PARTIAL; G-M3 PARTIAL; G-M4 PARTIAL; G-M5 NOT_CERTIFIED.** PR #626 DRAFT, NO MERGE, NO DEMO/LIVE/VPS, sin sizing de ninguna naturaleza. CIBO mantiene monopolio de capital/volumen.
+
+
+## ADDENDUM — Separación obligatoria G-M metodológico vs certificación global económica (14-OCT-2026)
+
+**Aclaración expresa del Owner:** PF, Drawdown, Sharpe, Sortino y demás pruebas económicas **siguen siendo Gates obligatorios para la certificación integral de un Trader QORE**. El programa específico G-M1..G-M5 de VT08 CRT PURE cubre metodología y cognitiva; **NO sustituye** los requisitos globales de rentabilidad, riesgo, calidad de datos y revisión independiente.
+
+### Dos carriles, dos estados distintos
+
+1. **CRT PURE / VT08 metodología y cognitiva:** G-M1 fuente original; G-M2 casos reales interpretados a ciegas; G-M3 razonamiento, falsación y decisiones; G-M4 integración causal y soberanía CIBO; G-M5 acta de metodología/cognitiva. Hoy G-M1..G-M4 PARTIAL y G-M5 NO EMITIDO. Sin sizing, sin capital propio, sin PF/DD/Sortino como sustitutos de fidelidad.
+2. **Certificación económica/global del trader:** fuente/identidad congelada y evidencia reproducible de ejecución; PF neto, expectancy, win/loss/payoff, DD, Sharpe y Sortino donde corresponda, drawdown de cola, robustez por mercado/régimen, costes reales, calidad y potencia muestral, OOS virgen, walk-forward, stress y Monte Carlo, revisión Risk/CIBO e independiente. **Todos esos Gates siguen OPEN/NO EVALUADOS para CRT PURE como certificado global**. Un certificado G-M5 *no* implica edge ni rentabilidad ni permiso operativo.
+
+**Autoridades GitHub:**
+- [Trader Lab #473](https://github.com/mezas3238-hue/qore-core/issues/473): secuencia methodology freeze → replay → fast-forward → OOS → stress → Monte Carlo → economic evaluation → Risk → CIBO → independent validation; evidencia neta de expectancy, PF, DD, coste y estabilidad.
+- [Roadmap #474](https://github.com/mezas3238-hue/qore-core/issues/474): CIBO consume perfiles económicos certificados y **no puede inventar métricas**.
+- [Profitability MVP #469](https://github.com/mezas3238-hue/qore-core/issues/469) y [Evidence #472](https://github.com/mezas3238-hue/qore-core/issues/472): rentabilidad/expectancy/PF/DD/Sharpe/Sortino, costes, atribución y política numérica **versionada y previa a resultados**.
+- [VT08 antiguo 5M TTrades #762](https://github.com/mezas3238-hue/qore-core/issues/762): ejemplos congelados en ese linaje PF ≥1,80, DD observado ≤6R, MC P95 DD ≤15R y MC positivos ≥90%. **No trasladar a CRT PURE automáticamente**: identidad/PR/reglas diferentes.
+- [QORE Alpha 2 #838](https://github.com/mezas3238-hue/qore-core/issues/838): para *ese otro trader* PF≥1,50, Sharpe≥1,50, Sortino≥2, expectancy≥0,15R, payoff≥1,50, DD≤6R, Monte Carlo y fresh OOS. Tampoco constituye un estándar numérico específico aprobado para CRT PURE.
+
+**Brecha formal pendiente:** confirmar o preregistrar con autoridad Owner/Risk los **umbrales numéricos específicos aplicables a VT08 CRT PURE** ANTES de consultar resultados económicos nuevos, así como definición de retornos/periodicidad/costos/cobertura OOS. **No inventar ratios, no rellenar PASS por analogía y no llamar métricas de otra identidad resultados de CRT.**
+
+**Directiva permanente contra sizing:** NO asignar ni simular dentro de VT08 ningún lote, multiplicador, porcentaje por operación, capital, equity ficticia ni sizing disfrazado de unidades normalizadas/R; el handoff principal veta expresamente ese bypass. Los Gate G-M deben seguir estrictamente no económicos. El riesgo/capital/volumen y cualquier eventual evaluación de DD patrimonial pertenecen a **CIBO/QORE Risk y a su expediente económico separado**, nunca al Trader VT08. La evaluación de un porcentaje de DD de cuenta sin un marco económico externo verificable es **NO EVALUABLE**, no PASS. El cálculo de métricas económicas no está reanudado por este addendum; la misión no cuantitativa de 13-OCT sigue rigiendo la ejecución actual salvo nueva instrucción expresa.
+
+**DICTAMEN CONJUNTO:** metodología/cognitiva NOT_CERTIFIED, rentabilidad/net edge NOT_DEMONSTRATED, certificación GLOBAL NOT_CERTIFIED. NO MERGE, NO DEMO/LIVE, NO VPS.
