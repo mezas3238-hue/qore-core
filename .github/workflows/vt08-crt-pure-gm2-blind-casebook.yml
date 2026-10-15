@@ -88,6 +88,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p "firstlook/$QORE_MARKET"
           python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm2_visual_firstlook \
             "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "firstlook/$QORE_MARKET" \
             | tee "firstlook/$QORE_MARKET/gm2-firstlook-stdout.json"
