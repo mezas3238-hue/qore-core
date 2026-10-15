@@ -125,6 +125,7 @@ class CrtGm1SourceEvent:
     event_generation: int
     observed_at: datetime
     decision_at: datetime
+    terminal_observed_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if not self.parent_id or not self.source_event_id or not self.hypothesis_id:
@@ -135,6 +136,10 @@ class CrtGm1SourceEvent:
         _require_aware(self.decision_at)
         if self.observed_at > self.decision_at:
             raise ValueError("G7 source cannot be observed after decision")
+        if self.terminal_observed_at is not None:
+            _require_aware(self.terminal_observed_at)
+            if self.terminal_observed_at < self.decision_at:
+                raise ValueError("G7 terminal observation predates decision")
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,6 +212,22 @@ def audit_g7_rearm(
         return CrtGm1G7Assessment(
             CrtGm1CausalVerdict.ABSTAIN,
             ("SOURCE_EVENT_NOT_NEW_AFTER_PRIOR_DECISION",),
+            proposal.event_generation,
+        )
+    if any(
+        prior.terminal_observed_at is not None
+        and prior.terminal_observed_at > proposal.decision_at
+        for prior in observed_history
+    ):
+        raise ValueError("future terminal evidence not admissible to G7 prefix")
+    if any(
+        prior.terminal_observed_at is None
+        or prior.terminal_observed_at >= proposal.observed_at
+        for prior in observed_history
+    ):
+        return CrtGm1G7Assessment(
+            CrtGm1CausalVerdict.WAIT,
+            ("PRIOR_THESIS_NOT_TERMINAL_BEFORE_NEW_SOURCE",),
             proposal.event_generation,
         )
     return CrtGm1G7Assessment(
