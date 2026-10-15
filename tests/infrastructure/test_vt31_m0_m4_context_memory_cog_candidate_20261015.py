@@ -296,6 +296,62 @@ def test_dossier_no_claim_of_certification_or_trade():
     assert record["broker_orders"] == record["sizing"] == 0
 
 
+
+@pytest.mark.parametrize("month", [1, 7])
+@pytest.mark.parametrize("side", [Side.LONG, Side.SHORT])
+def test_opposite_h1_sweep_after_context_invalidates_before_m4(
+    monkeypatch, month, side,
+):
+    old, future, evidence = _later_ob(side, month)
+    actor = cg.VT31M0M4CognitiveCandidate()
+    actor.capture_context(
+        session=SessionId.NY_AM, closed_m1=old, as_of=old[-1].closed_at,
+    )
+    assert actor.context is not None
+    # Fresh M1 opposite-side raid (distinct from already frozen source prefix).
+    source = list(future)
+    altered = source[-3]
+    if side is Side.LONG:
+        source[-3] = replace(altered, high=Decimal("125"))
+    else:
+        source[-3] = replace(altered, low=Decimal("75"))
+    _trap(monkeypatch)
+    v = actor.assess_later_retest(
+        session=SessionId.NY_AM, closed_m1=tuple(source),
+        as_of=future[-1].closed_at, family_evidence=evidence,
+    )
+    assert v.action == "REJECT"
+    assert v.reason == "FIRST_RAID_RETURN_OR_SOURCE_THESIS_INVALIDATED"
+    assert not v.m4_judge_invoked
+
+
+@pytest.mark.parametrize("month", [1, 7])
+def test_missing_prior_h1_never_generates_stateful_source_token(month):
+    original, _ = ttrades_fixture(
+        side=Side.SHORT, month=month, min10_valid=True,
+    )
+    local_day = original[-1].opened_at.astimezone(
+        cg.NEW_YORK,
+    ).date()
+    no_h1 = tuple(
+        row for row in original
+        if not (
+            row.opened_at.astimezone(cg.NEW_YORK).date() == local_day
+            and row.opened_at.astimezone(cg.NEW_YORK).hour == 9
+            and row.opened_at.astimezone(cg.NEW_YORK).minute == 24
+        )
+    )
+    actor = cg.VT31M0M4CognitiveCandidate()
+    v = actor.capture_context(
+        session=SessionId.NY_AM, closed_m1=no_h1,
+        as_of=no_h1[-1].closed_at,
+    )
+    assert v.action == "WAIT"
+    assert actor.context is None
+    assert not v.source_context_remembered
+    assert not v.original_cog_claim_from_m0
+
+
 def _trap(monkeypatch):
     def forbidden(**kwargs):
         pytest.fail("UNTRUSTED_SOURCE_REACHED_M4_JUDGE")
