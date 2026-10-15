@@ -77,7 +77,7 @@ def test_single_opposing_candle_reference_first_equals_last():
     b=candle(t+timedelta(minutes=1),o="100",c="105")
     w=witness((a,b))
     assert w is not None and w.opposing_series_length==1
-    assert w.first_candle_open_crossed==w.last_candle_open_crossed==True
+    assert w.first_candle_open_crossed and w.last_candle_open_crossed
 
 
 def test_equal_close_to_first_open_is_not_accepted():
