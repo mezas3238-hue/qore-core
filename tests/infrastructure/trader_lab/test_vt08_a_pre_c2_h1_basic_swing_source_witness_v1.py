@@ -95,6 +95,7 @@ def test_future_lookahead_or_bad_clock_rejected():
     p["source_only_events"][0]["c2_opened_at_utc"] = (
         C2 - timedelta(minutes=30)
     ).isoformat()
+    p["source_only_events"][0]["decision_at_utc"] = C2.isoformat()
     with pytest.raises(ValueError, match="pre-C2 custody/clock"):
         basic_swing_witnesses(p)
 
