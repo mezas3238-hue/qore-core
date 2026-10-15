@@ -1,0 +1,100 @@
+name: VT08 CRT G2 G7 Real Atlas PIT Research Only
+
+on:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-g2-g7-real-atlas-pit-audit.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: vt08-g2-g7-real-atlas-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Strict causal G2/G7 lint typing and adversarial tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py
+
+  verified_original_m5:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [AUDUSD, USDJPY]
+    env:
+      QORE_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Read existing SHA-backed CIBO Atlas original M5 (no download from broker)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.market }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original-native-m5
+      - name: Recompute frozen V3 plus G-M4 and audit bounded G2 versus causal G7
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s original-native-m5/MANIFEST_SHA256SUMS.txt
+          test -s original-native-m5/SYMBOL_SHA256SUMS.txt
+          test -d original-native-m5/RAW_M5_LEDGER
+          mkdir -p "g2-g7-real/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_g2_g7_real_atlas_pit_bridge \
+            "$QORE_MARKET" original-native-m5 "g2-g7-real/$QORE_MARKET" \
+            | tee "g2-g7-real/$QORE_MARKET/stdout-summary.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path("g2-g7-real")/os.environ["QORE_MARKET"]
+          m=json.loads((p/"g2-g7-real-atlas-pit-summary.json").read_text())
+          rows=[json.loads(line) for line in (p/"g2-g7-real-atlas-pit-ledger.jsonl").read_text().splitlines() if line]
+          assert len(rows)==m["V3_cases"]==m["GM4_cases_reconciled"]
+          assert len(rows)>0
+          assert m["counts"].get("G2_WAIT",0)==len(rows)
+          assert sum(v for k,v in m["counts"].items() if k.startswith("G7_"))==len(rows)
+          assert not m["G2_full_reference_inventory_proven"]
+          assert not m["G7_runtime_ledger_authenticated"]
+          assert m["G_M1_PASS"] is False and m["G_M4_PASS"] is False
+          assert m["G_M5_ISSUED"] is False and m["GLOBAL_CERTIFIED"] is False
+          assert m["no_sizing"] is True and m["no_orders"] is True and m["OOS_new"] is False
+          assert all(r["G2_verdict"]=="WAIT" and r["not_a_trade"] and r["no_sizing"] for r in rows)
+          assert len({r["source_event_id"] for r in rows})==len(rows)
+          print("VT08_G2_G7_ATLAS_RESEARCH_COUNTS",json.dumps(m["counts"],sort_keys=True))
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "g2-g7-real/$QORE_MARKET/git-sha.txt"
+          (cd "g2-g7-real/$QORE_MARKET"; sha256sum g2-g7-real-atlas-pit-summary.json g2-g7-real-atlas-pit-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Retain censored G2-G7 research artifact (no fills no sizing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-g2-g7-real-atlas-${{ matrix.market }}-${{ github.sha }}
+          path: g2-g7-real/${{ matrix.market }}
+          retention-days: 90
+          if-no-files-found: error
