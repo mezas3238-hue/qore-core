@@ -1,5 +1,8 @@
 # HANDOFF MAESTRO — QORE-alpha V1 | Arquitecto sucesor
 
+> **ADENDA OBLIGATORIA 14-OCT-2026 — CERTIFICACIÓN QORE CORE:** [QORE_ALPHA_V1_HANDOFF_ADENDA_GATES_CERTIFICACION_CORE_2026-10-14.md](QORE_ALPHA_V1_HANDOFF_ADENDA_GATES_CERTIFICACION_CORE_2026-10-14.md). El screening de las 96 variantes **NO equivale** a LAB CERTIFIED, DEMO CERTIFIED ni LIVE. Son obligatorios PF y drawdown con evidencia económica, Sharpe/Sortino cuando válidos, OOS fresco, stress/Monte Carlo, Risk, CIBO, validación independiente y firmas externas según issues canónicos [#469](https://github.com/mezas3238-hue/qore-core/issues/469), [#473](https://github.com/mezas3238-hue/qore-core/issues/473) y [#468](https://github.com/mezas3238-hue/qore-core/issues/468). Los mínimos numéricos institucionales de Sharpe/Sortino no se deben inventar: recuperar commit exacto de la política aplicable antes de certificar. **Sizing del Trader prohibido como rescate; volumen CIBO/QDLE después de la evidencia.**
+
+
 **Fecha de corte:** 13 de octubre de 2026 (America/Asuncion).  
 **Repositorio:** [mezas3238-hue/qore-core](https://github.com/mezas3238-hue/qore-core).  
 **Rama de trabajo:** `research/qore-alpha-96-frozen-20261011`.  
