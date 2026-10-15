@@ -5,7 +5,10 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.trader_lab.vt08_a_m30m3_frozen_family_source_funnel_v1 import (
-    STAGES, _sample_records, _within_frozen_owner_windows, bullish_c2_geometry,
+    STAGES,
+    _sample_records,
+    _within_frozen_owner_windows,
+    bullish_c2_geometry,
     classify,
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import Vt08B01Bar
