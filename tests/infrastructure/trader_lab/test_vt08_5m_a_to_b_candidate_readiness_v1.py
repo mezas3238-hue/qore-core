@@ -154,3 +154,62 @@ def test_qore_containment_is_not_author_complete_even_with_fake_manifest(
     )
     assert not report.cognitive_ready
     assert "A_B:NON_SOURCE_CONTAINMENT_BUNDLE" in report.blockers
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("fallback_strategy", "FOREIGN_AUTO_TRADER"),
+        ("parallel_track", "SECONDARY_MODEL"),
+        ("foreign_signal_origin", "EXTERNAL_SIGNAL"),
+        ("alpha_features", ["pattern"]),
+        ("external_strategy", {"strategy": "other"}),
+    ],
+)
+def test_owner_r18_foreign_strategy_blocked_at_real_a_b_ingress(
+    field: str, value: object,
+) -> None:
+    with pytest.raises(Vt08CandidateBoundaryError, match="OWNER foreign"):
+        inspect_architect_a_candidate(_a_envelope(**{field: value}))
+
+
+@pytest.mark.parametrize(
+    "bad_lineage",
+    [
+        "QORE-alpha",
+        {"metadata": {"source": "qore_alpha"}},
+        ["source_only", {"metadata": "VT08-ALPHA"}],
+        {"nested": [{"track": "alpha_fork"}]},
+    ],
+)
+def test_owner_r18_no_alpha_even_in_nested_source_provenance(
+    bad_lineage: object,
+) -> None:
+    with pytest.raises(Vt08CandidateBoundaryError, match="OWNER excluded QORE-alpha"):
+        inspect_architect_a_candidate(
+            _a_envelope(provenance_authority=bad_lineage)
+        )
+
+
+def test_owner_r18_nested_foreign_strategy_rejected_even_if_r16_source_passed() -> None:
+    with pytest.raises(Vt08CandidateBoundaryError, match="OWNER foreign"):
+        inspect_architect_a_candidate(
+            _a_envelope(
+                provenance={"source_bars": [], "metadata": {"fallback_strategy": "OTHER"}}
+            )
+        )
+
+
+def test_owner_r18_valid_vt08_only_metadata_cannot_bypass_missing_joint_manifest() -> None:
+    candidate = _a_envelope(
+        source_program={
+            "trader_id": "VT08",
+            "methodology_program": "VT08_TTRADES_CURRENT",
+            "cognitive_program": "VT08_COGNITION_CURRENT",
+            "variant": "CURRENT_ONLY",
+        }
+    )
+    r = inspect_architect_a_candidate(candidate, joint_contract_manifest_sha256="f" * 64)
+    assert not r.cognitive_ready
+    assert "A_B:CONTRACT_NOT_JOINTLY_FROZEN" in r.blockers
+    assert r.order_authorized is False
