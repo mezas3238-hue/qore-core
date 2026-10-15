@@ -12,7 +12,7 @@ import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Final
 
 from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
@@ -110,7 +110,32 @@ def verify_all_situation_field_receipts(
                 raise ValueError(f"VT08 B altered source bar ID: {field}")
             if record.get("source_raw_sha256") not in pinned_raw_shas:
                 raise ValueError(f"VT08 B source bar outside pinned raw feed: {field}")
+            profile = record.get("profile")
+            if profile not in ("M3", "M15"):
+                raise ValueError(f"VT08 B raw bar profile invalid: {field}")
+            raw_ohlc = record.get("ohlc")
+            if (
+                not isinstance(raw_ohlc, (tuple, list))
+                or len(raw_ohlc) != 4
+                or any(not isinstance(v, str) or not v for v in raw_ohlc)
+            ):
+                raise ValueError(f"VT08 B raw bar OHLC invalid: {field}")
+            opened = _utc(record.get("opened_at_utc"))
             closed = _utc(record.get("closed_at_utc"))
+            duration = 3 if profile == "M3" else 15
+            if closed - opened != timedelta(minutes=duration):
+                raise ValueError(f"VT08 B bar interval invalid: {field}")
+            body = {
+                "profile": profile,
+                "source_raw_sha256": record["source_raw_sha256"],
+                "opened_at_utc": opened.isoformat(),
+                "closed_at_utc": closed.isoformat(),
+                "ohlc": tuple(raw_ohlc),
+            }
+            if _json_sha(body) != bar_id:
+                raise ValueError(f"VT08 B source bar digest invalid: {field}")
+            if record.get("semantics") != "OBSERVED_OHLC_ONLY_NOT_TTRADES_RULE":
+                raise ValueError(f"VT08 B source bar semantic authority invalid: {field}")
             available = _utc(record.get("available_at_utc"))
             if closed != available:
                 raise ValueError(f"VT08 B closed_at vs available_at drift: {field}")
