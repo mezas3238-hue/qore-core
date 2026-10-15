@@ -117,7 +117,9 @@ def test_proposed_qore_engineering_cannot_change_current_certificate() -> None:
         for rule in CrtThreeSourceRule
     )
     hypothetical = evaluate_three_source_methodology(example)
-    assert hypothetical.methodology_closed is True
+    assert hypothetical.proposal_complete is True
+    assert hypothetical.methodology_closed is False
+    assert "METHODOLOGY_INDEPENDENT_APPROVAL_UNVERIFIED" in hypothetical.blockers
     assert hypothetical.grants_trading_authority is False
     assert current_three_source_methodology().methodology_closed is False
 
@@ -132,3 +134,24 @@ def test_unrelated_valid_corpus_url_does_not_prove_a_different_rule() -> None:
             operational_rule="TEST-ONLY non-source destination claim",
             independent_adjudication_id="EXAMPLE_NOT_REAL_REVIEW",
         )
+
+
+def test_all_seven_arbitrary_string_review_ids_cannot_fake_source_closure() -> None:
+    """Regression: complete declarations != real independent signed decisions."""
+    claims = tuple(
+        CrtThreeSourceRuleContract(
+            rule=rule,
+            decision=CrtThreeSourceDecision.OWNER_APPROVED_QORE_ENGINEERING,
+            operational_rule=f"TEST_ONLY:{rule.value}",
+            independent_adjudication_id="FORGED_REVIEWER",
+            owner_approval_id="FORGED_OWNER",
+            conflict_resolution="Unverified hypothetical",
+        )
+        for rule in CrtThreeSourceRule
+    )
+    result = evaluate_three_source_methodology(claims)
+    assert result.proposal_complete
+    assert not result.methodology_closed
+    assert result.blockers == ("METHODOLOGY_INDEPENDENT_APPROVAL_UNVERIFIED",)
+    assert not result.grants_trading_authority
+    assert not result.grants_volume_authority
