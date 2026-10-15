@@ -8,6 +8,7 @@ on:
       - .github/workflows/vt08-a-m30m3-native-raw-custody-source-only.yml
       - src/qore/infrastructure/trader_lab/vt08_a_m30m3_raw_bar_custody_v1.py
       - tests/infrastructure/trader_lab/test_vt08_a_m30m3_raw_bar_custody_v1.py
+      - docs/research/VT08_A_NATIVE_SOURCE_CUSTODY_MANIFEST_R2_2026-10-15.json
   workflow_dispatch:
 
 permissions:
@@ -71,7 +72,38 @@ jobs:
               "author_fidelity_certified","cognitive_certified",
               "economic_gates_evaluated","sealed_holdout_accessed",
           )}
+          # Verify published immutable report against the actual source files,
+          # not against a fabricated fixture or a manually asserted summary.
+          frozen = json.loads(Path(
+              "docs/research/VT08_A_NATIVE_SOURCE_CUSTODY_MANIFEST_R2_2026-10-15.json"
+          ).read_text(encoding="utf-8"))
+          expected = frozen["markets"][symbol]
+          for source_key, frozen_key in (
+              ("m3_raw_sha256", "m3_sha256"),
+              ("m15_raw_sha256", "m15_sha256"),
+              ("source_anchor_windows_observed", "observed"),
+              ("source_anchor_windows_complete", "complete"),
+              ("skipped_incomplete", "incomplete"),
+              ("skipped_mismatched", "mismatch"),
+          ):
+              if report[source_key] != expected[frozen_key]:
+                  raise SystemExit(f"published source manifest drift: {symbol} {source_key}")
+          frozen_gaps = {
+              x["anchor"]: x
+              for x in frozen["incomplete_anchor_groups_utc"] if symbol in x["markets"]
+          }
+          source_gaps = {
+              x["anchor_utc"]: x for x in report["incomplete_source_windows"]
+          }
+          if set(frozen_gaps) != set(source_gaps):
+              raise SystemExit(f"manifest gap clock mismatch: {symbol}")
+          for anchor_utc, gap in source_gaps.items():
+              group = frozen_gaps[anchor_utc]
+              if (gap["missing_or_unclosed_m3_utc"] != group["missing_or_unclosed_m3"]
+                  or gap["missing_or_unclosed_m15_utc"] != group["missing_or_unclosed_m15"]):
+                  raise SystemExit(f"manifest gap bar mismatch: {symbol} {anchor_utc}")
           print(json.dumps(summary, sort_keys=True))
+          print(f"PHYSICAL_SOURCE_MANIFEST_VERIFIED={symbol}")
           if report["attested_windows"] < 1:
               raise SystemExit("missing actual M3/M15 causal evidence")
           PY
