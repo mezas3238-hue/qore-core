@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
+from test_vt08_cognitive_5m_consumed_gate_v1 import _snapshot
 
 import qore.infrastructure.trader_lab.vt08_5m_a_to_b_candidate_readiness_v1 as readiness
 from qore.infrastructure.trader_lab.vt08_cognitive_5m_consumed_gate_v1 import (
@@ -19,7 +20,6 @@ from qore.infrastructure.traders.vt08_cognitive_5m_research_scope import (
     Vt08FiveMarketResearchSituation,
 )
 from qore.infrastructure.traders.vt08_cognitive_v1_contracts import Vt08CognitiveAction
-from test_vt08_cognitive_5m_consumed_gate_v1 import _snapshot
 
 T0 = datetime(2026, 9, 23, 13, 15, tzinfo=UTC)
 SOURCE = "vt08-5m-source:" + "a" * 64
