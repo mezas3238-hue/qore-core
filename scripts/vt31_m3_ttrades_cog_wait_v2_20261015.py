@@ -228,7 +228,11 @@ def audit_483_real_first_returns(
             or status_at_return.first_return_at != return_time
             or status_at_return.cognitive_decision_emitted
         ):
-            raise AssertionError("V2_NOT_WAITING_ON_FIRST_RETURN_CASE")
+            raise AssertionError(
+                f"V2_NOT_WAITING_ON_FIRST_RETURN_CASE day={day} "
+                f"expected={return_time.isoformat()} "
+                f"observed={status_at_return!r} end={end!r}"
+            )
         # With no source invalidation, frozen comparative source #952 found
         # either later QORE proxy (449) or natural expiry without proxy (34).
         if first_terminal.state not in {
