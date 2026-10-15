@@ -27,7 +27,9 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     M1Bar,
     SessionId,
 )
-from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
+from qore.infrastructure.traders.vt31_ict_cleanroom.operations import (
+    IctSilverBulletOperations,
+)
 from scripts.vt31_ict_cleanroom_cog_real_3y_fast_v1 import (
     _bar,
     _stream,
@@ -101,15 +103,16 @@ def replay_online_g3(
 ) -> tuple[dict[tuple[str, SessionId], SessionWitness], dict[str, Any]]:
     """NO sealed ledger parameter: impossible to import future coverage.
 
-    The original engine is instantiated ONCE and shared across all M1 and
-    all three sessions. Every bar enters original G3 exactly once, either
-    via trader.on_closed_m1 or research memory-only no-OPS path.
+    The ORIGINAL G3 engine is instantiated ONCE and shared across all M1 and
+    all three sessions. Each research OPS is explicitly G3 (native
+    VT31Trader currently bootstraps LEGACY OPS, an M7 integration blocker).
+    Every market M1 enters original cognition exactly once.
     """
-    trader = VT31Trader(
-        cognition=VT31CleanroomCognition(
-            framework_policy=G3_MSS_FRAMEWORK_POLICY,
-        ),
+    cog = VT31CleanroomCognition(
+        framework_policy=G3_MSS_FRAMEWORK_POLICY,
     )
+    research_ops: dict[tuple[str, SessionId], IctSilverBulletOperations] = {}
+    consumed = 0
     witnesses: dict[tuple[str, SessionId], SessionWitness] = {}
     nine_hours: dict[str, list[M1Bar]] = defaultdict(list)
     previous_opened: datetime | None = None
@@ -134,9 +137,8 @@ def replay_online_g3(
                 raise ValueError("ONLINE_NY_09H_HAS_MORE_THAN_60_M1")
         session = SESSION_HOURS.get(ny.hour)
         if session is None:
-            outside = trader.on_closed_m1(bar)
-            if outside.cognition is not None:
-                raise AssertionError("OUTSIDE_WINDOW_MUST_NOT_INVOKE_G3_COG")
+            cog.observe_closed_m1(bar)
+            consumed += 1
             continue
         key = (day, session)
         if key not in witnesses:
@@ -165,23 +167,30 @@ def replay_online_g3(
         if witness.terminal_wait_reason is not None:
             # Deliberately not the original on_closed_m1: it cannot
             # bootstrap/gap a partial OPS source safely.
-            trader.research_observe_incomplete_source_m1(bar)
+            cog.observe_closed_m1(bar)
+            consumed += 1
             source_veto_by_session[
                 f"{session.value}:{witness.terminal_wait_reason}"
             ] += 1
             witness.last_m1_close = bar.closed_at
             continue
 
-        result = trader.on_closed_m1(bar)
-        if (
-            result.cognition is None
-            or result.observed_at != bar.closed_at
-            or result.cognition.as_of != bar.closed_at
-        ):
+        cog.observe_closed_m1(bar)
+        consumed += 1
+        assessment = cog.assess(session=session, as_of=bar.closed_at)
+        if assessment.as_of != bar.closed_at:
             raise AssertionError("G3_ONLINE_COG_ASOF_MUST_EQUAL_CLOSED_M1")
+        ops = research_ops.get(key)
+        if ops is None:
+            ops = IctSilverBulletOperations(
+                session=session, day=bar.opened_at,
+                framework_policy=G3_MSS_FRAMEWORK_POLICY,
+            )
+            research_ops[key] = ops
+        ops.on_closed_m1(bar, cognition=assessment.decision)
         witness.actual_g3_invocations += 1
         calls_by_session[session.value] += 1
-        decision = result.cognition.decision
+        decision = assessment.decision
         if decision is not None:
             if decision.observed_at != bar.closed_at:
                 raise AssertionError("G3_CAUSAL_DECISION_BACKDATED_OR_FUTURE")
@@ -195,15 +204,20 @@ def replay_online_g3(
                 witness.first_positive_dol_family = decision.draw_family
         witness.last_m1_close = bar.closed_at
 
-    if n != expected_m1 or trader.total_closed_m1 != n:
+    if n != expected_m1 or consumed != n:
         raise AssertionError("ORIGINAL_M1_AND_ONE_G3_COG_INPUT_COUNT_DRIFT")
-    if len({id(trader.cognition)}) != 1:
-        raise AssertionError("SHOULD_HAVE_ONE_G3_COG")
+    if any(ops.framework_policy != G3_MSS_FRAMEWORK_POLICY
+           for ops in research_ops.values()):
+        raise AssertionError("ORIGINAL_G3_OPS_POLICY_MISMATCH")
     return witnesses, {
         "source_bars_consumed": n,
-        "one_trader": trader.trader_id,
+        "one_trader": "VT31",
         "one_cognition": True,
-        "framework_policy": trader.cognition.framework_policy,
+        "framework_policy": cog.framework_policy,
+        "original_ops_G3_research_windows": len(research_ops),
+        "native_VT31Trader_G3_integration_complete": False,
+        "M7_blocker_native_coordinator_still_defaults_OPS_to_LEGACY": True,
+        "one_G3_COG_many_session_day_G3_OPS_research_only": True,
         "actual_original_g3_calls_all_observed_days": dict(
             sorted(calls_by_session.items())
         ),
