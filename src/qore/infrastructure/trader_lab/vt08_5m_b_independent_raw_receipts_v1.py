@@ -59,7 +59,9 @@ def _prices(raw: object) -> tuple[Decimal, Decimal, Decimal, Decimal]:
     return op, high, low, close
 
 
-def _raw_bars(path: Path, profile: str, market: str) -> tuple[str, dict[datetime, Mapping[str, object]]]:
+def _raw_bars(
+    path: Path, profile: str, market: str
+) -> tuple[str, dict[datetime, Mapping[str, object]]]:
     source = path.read_bytes()
     sha = hashlib.sha256(source).hexdigest()
     try:
