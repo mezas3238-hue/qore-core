@@ -1041,3 +1041,43 @@ def test_fixture_mode_requires_exact_bool_and_never_grants_broker_authority() ->
     gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     trace = gate.evaluate(_snapshot(source="isolated-idea"))
     assert trace.research_only and not trace.broker_order_authorized
+
+
+def test_default_provenance_gate_rejects_unattested_fill_position_terminal() -> None:
+    """A future source signature must never promote caller-made economics."""
+    gate = Vt08FiveMarketCognitiveGate()
+    with pytest.raises(PermissionError, match="external provenance API"):
+        gate.record_fill(
+            Vt08ResearchFillEvidence(
+                source_event_id="synthetic-source-01",
+                market="EURJPY",
+                side="long",
+                source_cycle_id="synthetic-h4-cycle-09",
+                fill_id="synthetic-fill",
+                filled_at=T0,
+                entry_price=Decimal("100"),
+                evidence_sha256="a" * 64,
+            )
+        )
+    with pytest.raises(PermissionError, match="external provenance API"):
+        gate.record_terminal(
+            Vt08ResearchTerminalEvidence(
+                source_event_id="synthetic-source-01",
+                market="EURJPY",
+                fill_id="synthetic-fill",
+                fill_evidence_sha256="a" * 64,
+                closed_at=T0 + timedelta(minutes=3),
+                exit_price=Decimal("101"),
+                terminal_reason="TARGET",
+                evidence_sha256="b" * 64,
+            )
+        )
+    with pytest.raises(PermissionError, match="causal bar provenance API"):
+        gate.evaluate_position(
+            _snapshot(when=T0 + timedelta(minutes=3)),
+            _position(T0 + timedelta(minutes=3)),
+        )
+    assert gate.decisions == ()
+    assert gate.fills == ()
+    assert gate.positions == ()
+    assert gate.terminals == ()
