@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 
@@ -27,19 +28,25 @@ CATS = (
 
 
 def _bars(n: int, minutes: int, sha: str) -> list[dict[str, object]]:
-    return [
-        {
-            "market": M, "source_raw_sha256": sha,
-            "semantics": "OBSERVED_OHLC_ONLY_NOT_TTRADES_RULE",
-            "source_bar_id": str(i).zfill(64),
+    result = []
+    for i in range(n):
+        bar = {
             "profile": "M3" if minutes == 3 else "M15",
+            "source_raw_sha256": sha,
             "opened_at_utc": (T + timedelta(minutes=minutes*i)).isoformat(),
             "closed_at_utc": (T + timedelta(minutes=minutes*(i+1))).isoformat(),
-            "available_at_utc": (T + timedelta(minutes=minutes*(i+1))).isoformat(),
             "ohlc": ["100", "101", "99", "100"],
         }
-        for i in range(n)
-    ]
+        digest = hashlib.sha256(json.dumps(
+            bar, sort_keys=True, separators=(",", ":"),
+        ).encode()).hexdigest()
+        result.append({
+            **bar, "market": M,
+            "semantics": "OBSERVED_OHLC_ONLY_NOT_TTRADES_RULE",
+            "source_bar_id": digest,
+            "available_at_utc": bar["closed_at_utc"],
+        })
+    return result
 
 
 def _bundle() -> tuple[dict[str, object], dict[str, object]]:
