@@ -80,6 +80,7 @@ class VT31Trader:
             raise ValueError("VT31_ORIGINAL_COGNITION_REQUIRED")
         if cognition is not None and cognition.framework_policy != selected:
             raise ValueError("VT31_COG_OPS_FRAMEWORK_MISMATCH_BEFORE_M1")
+        self._frozen_framework_policy = selected
         self.framework_policy = selected
         self.cognition = (
             cognition if cognition is not None
@@ -92,7 +93,10 @@ class VT31Trader:
         self.total_source_windows_seen = 0
 
     def on_closed_m1(self, bar: M1Bar) -> UnifiedVT31Observation:
-        if self.cognition.framework_policy != self.framework_policy:
+        if (
+            self.framework_policy != self._frozen_framework_policy
+            or self.cognition.framework_policy != self._frozen_framework_policy
+        ):
             raise ValueError("VT31_COG_OPS_POLICY_CHANGED_AFTER_CONSTRUCTION")
         if self.framework_policy not in FRAMEWORK_POLICIES:
             raise ValueError("VT31_UNKNOWN_EXPLICIT_FRAMEWORK_POLICY")
@@ -190,7 +194,10 @@ class VT31Trader:
         or claim a fill. May be called by the scientific replay after the
         hour is *completely classified* as incomplete.
         """
-        if self.cognition.framework_policy != self.framework_policy:
+        if (
+            self.framework_policy != self._frozen_framework_policy
+            or self.cognition.framework_policy != self._frozen_framework_policy
+        ):
             raise ValueError("VT31_COG_OPS_POLICY_CHANGED_AFTER_CONSTRUCTION")
         if not isinstance(bar, M1Bar):
             raise ValueError("requires cleanroom validated M1")
@@ -222,7 +229,7 @@ class VT31Trader:
             "session_models": ("LONDON", "NEW_YORK"),
             "ny_windows": ("VT31_NY_AM", "VT31_NY_PM"),
             "single_cognitive_memory": True,
-            "explicit_framework_policy": self.framework_policy,
+            "explicit_framework_policy": self._frozen_framework_policy,
             "G3_opt_in_research_only": (
                 self.framework_policy == G3_MSS_FRAMEWORK_POLICY
             ),
