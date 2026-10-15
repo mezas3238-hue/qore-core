@@ -50,7 +50,7 @@ def test_real_case_adapter_abstains_if_model1_source_not_closed() -> None:
     assert result["G_M5_real_evidence_certificate_issued"] is False
     assert result["G_M5_forged_all_pass_certificate_issued"] is False
     assert result["G_M5_anti_forgery_safety_checked"] is True
-    assert "SOURCE_NOT_ADJUDICATED:model_1_reference_selection" in (
+    assert "THREE_SOURCE_RULE_OPEN:multiple_reference_priority" in (
         result["G_M5_source_primary_blockers"]
     )
     assert "model_1_reference_selection" in result["unresolved_source_concepts"]
