@@ -152,6 +152,21 @@ def test_m3_vs_m15_c1_disagreement_rejected(tmp_path: Path, monkeypatch) -> None
     sha = hashlib.sha256(m15.read_bytes()).hexdigest()
     monkeypatch.setitem(r13.PINNED_M15, M, sha)
     report["source_m15_sha256"] = sha
+    # Update the c2 M15 receipt digest to isolate a genuine C1 M3/M15
+    # aggregation disagreement rather than a cheap source SHA failure.
+    for rec in report["examples_by_stage"][r13.STAGE][0][
+        "c2_m15_raw_bar_receipts"
+    ]:
+        rec["source_raw_sha256"] = sha
+        payload = {
+            k: rec[k] for k in (
+                "profile", "source_raw_sha256", "opened_at_utc",
+                "closed_at_utc", "ohlc",
+            )
+        }
+        rec["source_bar_id"] = hashlib.sha256(json.dumps(
+            payload, sort_keys=True, separators=(",", ":"),
+        ).encode()).hexdigest()
     with pytest.raises(ValueError, match="aggregates disagree"):
         run(report, m3, m15)
 
