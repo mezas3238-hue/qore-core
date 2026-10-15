@@ -48,7 +48,7 @@ def test_all_parent_pairs_included_and_conceptual_not_order() -> None:
     assert summary["not_fresh_holdout"] and not summary["global_certified"]
 
 
-def test_saving_or_changing_later_C3_bars_must_not_change_earliest_event() -> None:
+def test_saving_or_changing_later_c3_bars_must_not_change_earliest_event() -> None:
     original = _m5()
     summary_a, results_a = full_utc_h4_census(CrtPureMarket.AUDUSD, original)
     first_six_only = tuple(
@@ -63,7 +63,7 @@ def test_saving_or_changing_later_C3_bars_must_not_change_earliest_event() -> No
     assert results_a[0]["first30_clock_utc"] == results_b[0]["first30_clock_utc"]
 
 
-def test_missing_M5_in_first_30_minutes_yields_wait_not_fake_bar() -> None:
+def test_missing_m5_in_first_30_minutes_yields_wait_not_fake_bar() -> None:
     broken = tuple(
         bar for bar in _m5()
         if bar.opened_at != BASE + timedelta(minutes=485)
