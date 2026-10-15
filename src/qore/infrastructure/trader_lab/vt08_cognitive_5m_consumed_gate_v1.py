@@ -40,6 +40,70 @@ from qore.infrastructure.traders.vt08_cognitive_v1_contracts import (
 GATE_SCHEMA: Final = "qore.vt08.cognitive_5m.consumed_gate.research.v1"
 
 
+def _require_matching_utc(
+    supplied: object, expected: datetime, label: str
+) -> None:
+    """Compare event instants, not ambiguous NY wall-clock strings."""
+    if not isinstance(supplied, str):
+        raise ValueError(f"VT08 A/B {label} missing ISO timestamp")
+    try:
+        parsed = datetime.fromisoformat(supplied)
+    except ValueError as exc:
+        raise ValueError(f"VT08 A/B {label} invalid ISO timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError(f"VT08 A/B {label} timestamp must be timezone-aware")
+    if _instant(parsed) != _instant(expected):
+        raise ValueError(f"VT08 A/B {label} drift across provenance boundary")
+
+
+def _require_source_situation_binding(
+    envelope: Mapping[str, object],
+    situation: Vt08FiveMarketResearchSituation,
+) -> None:
+    """Second independent boundary after A/B contract readiness.
+
+    Every value supplied twice MUST agree. Manifest + approved timestamps
+    alone cannot excuse a forged Situation side, anchor, profile, NY date,
+    lifecycle, or per-feature clocks. This does not verify bar SHA/semantics;
+    those require independent raw-source proofs before any joint sign-off.
+    """
+    for name, value in (
+        ("side", situation.side),
+        ("anchor_ny_hour", situation.anchor_hour_ny),
+        ("ltf_profile", situation.ltf_profile),
+        (
+            "ny_date",
+            situation.as_of.astimezone(ZoneInfo("America/New_York"))
+            .date().isoformat(),
+        ),
+    ):
+        if envelope.get(name) != value:
+            raise ValueError(f"VT08 A/B {name} drift across provenance boundary")
+    if situation.cycle_expires_at is None:
+        raise ValueError("VT08 A/B missing source cycle expiry")
+    _require_matching_utc(
+        envelope.get("pending_expiry_at"),
+        situation.cycle_expires_at,
+        "pending_expiry_at",
+    )
+    if situation.latest_available_bar_close is None:
+        raise ValueError("VT08 A/B missing latest available bar")
+    _require_matching_utc(
+        envelope.get("latest_available_bar_close"),
+        situation.latest_available_bar_close,
+        "latest_available_bar_close",
+    )
+    source_cutoffs = envelope.get("cognitive_feature_cutoffs")
+    if not isinstance(source_cutoffs, dict):
+        raise ValueError("VT08 A/B source cognitive feature timestamps missing")
+    for feature, cutoff in situation.feature_cutoffs:
+        _require_matching_utc(
+            source_cutoffs.get(feature), cutoff, f"cognitive feature {feature}",
+        )
+
+
+
+
 def _instant(timestamp: datetime) -> datetime:
     """UTC ordering: same-ZoneInfo NY wall-time comparison ignores fold."""
     return timestamp.astimezone(UTC)
@@ -334,6 +398,7 @@ class Vt08FiveMarketCognitiveGate:
             or readiness.decision_at != _instant(situation.as_of)
         ):
             raise ValueError("VT08 A/B source and cognitive Situation identity drift")
+        _require_source_situation_binding(envelope, situation)
         return self.evaluate(situation)
 
     def record_fill(self, evidence: Vt08ResearchFillEvidence) -> Vt08ResearchFillTrace:
