@@ -119,7 +119,7 @@ def attest_anchor_window(
 def attest_market_files(
     market: str, m3_path: Path, m15_path: Path,
 ) -> dict[str, object]:
-    """Predeclared EARLIEST 24 chronological anchor windows, outcome-blind.
+    """Audit ALL chronological native anchor windows and publish 24 receipts.
 
     No selection by pattern, win/loss, signal, spread or any price level.
     Physical source gaps and disagreements are counted, never hidden.
@@ -138,18 +138,25 @@ def attest_market_files(
     if len(idx3) != len(m3) or len(idx15) != len(m15):
         raise ValueError("duplicate source timestamps detected")
     selected: list[dict[str, object]] = []
+    complete = 0
+    observed_anchors = 0
     incomplete = 0
     mismatched = 0
-    # Chronological sampling from file-source timestamps; not from PnL.
+    # Audit ALL source-visible Owner 01/05/09 anchors; retain earliest
+    # 24 receipts as compact reviewer samples (never sample by PnL).
     for when in sorted(idx3):
         local = when.astimezone(NY)
         if local.hour not in ANCHORS or local.minute or local.second or local.microsecond:
             continue
+        observed_anchors += 1
         try:
-            selected.append(attest_anchor_window(
+            receipt = attest_anchor_window(
                 market=market, m3_bars=idx3, m15_bars=idx15,
                 opened_at=when, raw_m3_sha=m3_sha, raw_m15_sha=m15_sha,
-            ))
+            )
+            complete += 1
+            if len(selected) < LIMIT_PER_MARKET:
+                selected.append(receipt)
         except ValueError as exc:
             if "incomplete" in str(exc):
                 incomplete += 1
@@ -157,10 +164,8 @@ def attest_market_files(
                 mismatched += 1
             else:
                 raise
-        if len(selected) >= LIMIT_PER_MARKET:
-            break
-    if not selected:
-        raise ValueError("no physical M3/M15 source anchor windows were attested")
+    if not selected or observed_anchors != complete + incomplete + mismatched:
+        raise ValueError("source census empty or first-failure counts inconsistent")
     return {
         "schema": SCHEMA + ".inventory",
         "market": market,
@@ -172,6 +177,8 @@ def attest_market_files(
         "first_m15_at_utc": _iso(min(idx15)),
         "last_m15_at_utc": _iso(max(idx15)),
         "attested_windows": len(selected),
+        "source_anchor_windows_observed": observed_anchors,
+        "source_anchor_windows_complete": complete,
         "skipped_incomplete": incomplete,
         "skipped_mismatched": mismatched,
         "receipts": selected,
