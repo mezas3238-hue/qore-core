@@ -12,8 +12,8 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.cognition import (
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     G3_MSS_FRAMEWORK_POLICY,
     LEGACY_FRAMEWORK_POLICY,
-    M1Bar,
     NEW_YORK,
+    M1Bar,
     SessionId,
 )
 from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
@@ -72,7 +72,7 @@ def test_default_native_coordinator_stays_legacy_research_only():
 
 
 @pytest.mark.parametrize("month", [1, 7])
-def test_explicit_G3_native_coordinator_three_sessions_DST(month):
+def test_explicit_g3_native_coordinator_three_sessions_dst(month):
     trader = VT31Trader(framework_policy=G3_MSS_FRAMEWORK_POLICY)
     d = f"2025-{month:02d}-15"
     for hour, session in (
