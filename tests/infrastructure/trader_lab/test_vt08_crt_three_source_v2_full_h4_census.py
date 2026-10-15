@@ -75,7 +75,6 @@ def test_if_prior_early_wick_consumes_parent_target_late_candidate_is_blocked() 
         old.opened_at, old.open_price, 101, old.low_price, old.close_price
     )
     _, rows = full_utc_h4_v2_census(CrtPureMarket.USDJPY, tuple(bars))
-    assert rows[0]["conceptual_state"] if False else True
     assert rows[0]["state"] == "ABSTAIN"
     assert rows[0]["why"] == "H4_MIDPOINT_PREVIOUSLY_TOUCHED_OR_CONSUMED"
 
