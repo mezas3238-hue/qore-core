@@ -60,3 +60,19 @@ La selección temporal de barras produce **ejemplos de mercado**, NO 120 decisio
 - Arch. A solicita **B revisión de este corpus y schema de cada feature**; la rama B continúa con 205 PASS, pero está pinned a un contrato antiguo M15 y NO puede declarar integración M30/M3 actual sin nuevo pin/freeze revisado.
 
 **Status certificación:** `UNVERIFIED_AUTHOR_SELECTORS_AND_BROKER_EXECUTION`; M0 pendiente, C0 pendiente, X0 pendiente, Gates económicos no medidos. Cero new-source-complete fills, cero ejecución real. Sin sizing.
+
+
+## V. Cierre de ejecución R2 ampliada: 11 ventanas en 3 intervalos distintos
+
+Workflow definitivo de custodia [#38709570234](https://github.com/mezas3238-hue/qore-core/actions/runs/38709570234) — 5/5 jobs SUCCESS, cada job 11 tests + Ruff PASS. **Manifiesto JSON persistente en GitHub:** [VT08_A_NATIVE_SOURCE_CUSTODY_MANIFEST_R2_2026-10-15.json](VT08_A_NATIVE_SOURCE_CUSTODY_MANIFEST_R2_2026-10-15.json), commit `07c9fb46ef2444b6b252a6dc6cfdb12bec3ca0aa`. Congela los hashes M3/M15, 11.650/11.639/11/0, y el detalle de las fallas de procedencia.
+
+Las **11 ventanas incompletas** se concentran en solamente **3 fechas/anclas UTC distintas**. No asumir que la causa sea bróker, fin de jornada o calendario sin corroborar fuente:
+1. `2024-01-05T14:00Z` (cinco mercados): faltan o no cerraron M3 `14:09Z` y `14:12Z`; M15 presentes.
+2. `2024-03-29T13:00Z` (**solo NZDUSD**): falta/no cerró M3 `13:06Z`; M15 presentes.
+3. `2026-06-15T09:00Z` (cinco mercados): falta/no cerró M15 `09:15Z` y M3 desde `09:15Z` a `09:27Z` cada 3 minutos.
+
+Esto permite al Arquitecto B **reproducir las ausencias por bar-ID y UTC** con el dataset original en vez de tratar 11 ventanas como 11 trades perdidos. No imputar los valores. La causa física del proveedor debe investigarse aparte.
+
+**Cambio de muestreo de receipts:** el censo es 100% de los anchor opens M3 disponibles; los 24 receipts por mercado para auditoría humana se toman ahora a intervalos uniformes en el período DEV completo, solo por posición cronológica, sin filtrar por señal ni resultado; esa selección es material de revisión, no la distribución de un OOS validado.
+
+**Bloqueos intactos:** distinguir source data complete de TTrades author-valid; sin swing-POI-breaker-target confirmado / A+B firma / quotes BID/ASK y comisiones / Gates económicos y cognitivas completas, el Trader sigue `NOT_CERTIFIED`.
