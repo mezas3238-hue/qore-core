@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -40,9 +41,16 @@ def evaluate_three_source_case(case: dict[str, Any]) -> dict[str, Any]:
     h4c1 = case["parent_H4_C1_ohlc"]
     h4c2 = case["parent_H4_C2_ohlc"]
     m15 = case["M15_observed_prefix_through_C2"]
-    if len(m15) != 2:
-        raise ValueError("V1 prereg requires exactly the first TWO closed M15 bars")
-    m1, m2 = m15
+    if len(m15) < 2:
+        raise ValueError("V1 requires two fully closed M15 bars")
+    # The casebook was stratified at varying later C2 clocks. Analyze ONLY
+    # the first two bars, never the later review-bucket information as V1 input.
+    # This cohort is selected with some later information and NOT an unbiased
+    # estimate of V1 opportunity density.
+    m1, m2 = m15[:2]
+    first_two_clock = (
+        datetime.fromisoformat(m2["opened_at_utc"]) + timedelta(minutes=15)
+    )
     h4_dir = _direction(h4c1, h4c2)
     m15_dir = _direction(m1, m2)
     status, reason = "ABSTAIN", "H4_ONE_SIDE_SWEEP_AND_RECLAIM_ABSENT"
@@ -73,7 +81,9 @@ def evaluate_three_source_case(case: dict[str, Any]) -> dict[str, Any]:
         "schema": SCHEMA,
         "case_id": case["case_id"],
         "market": case["market"],
-        "decision_clock_utc": case["decision_clock_utc"],
+        "decision_clock_utc": first_two_clock.isoformat(),
+        "casebook_review_clock_utc_later_or_equal": case["decision_clock_utc"],
+        "sampling_biased_at_review_clock": True,
         "policy_id": POLICY_ID,
         "source_policy": "THREE_SOURCE_QORE_ENGINEERING_UNAPPROVED",
         "htf_direction_from_closed_candles": h4_dir,
@@ -114,7 +124,11 @@ def main() -> None:
         "schema": SCHEMA,
         "policy_id": POLICY_ID,
         "cases": len(out),
+        "unique_parent_H4_contexts": len({
+            case["parent_H4_c3_opened_at_utc"] for case in cases
+        }),
         "states": dict(sorted(counts.items())),
+        "sampling_censored_by_later_casebook_selection": True,
         "not_a_fresh_holdout": True,
         "no_profit_loss_calculated": True,
         "no_sizing_or_broker_order": True,
