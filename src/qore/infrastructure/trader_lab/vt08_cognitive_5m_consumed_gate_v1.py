@@ -263,7 +263,12 @@ class Vt08ResearchTerminalTrace:
 class Vt08FiveMarketCognitiveGate:
     """Stateful causal source-event cognition, no economic/broker authority."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, fixture_mode: bool = False) -> None:
+        # Explicit opt-in allows synthetic research fixtures only. Real-source
+        # admission must exclusively use evaluate_provenanced().
+        if type(fixture_mode) is not bool:
+            raise TypeError("VT08 fixture_mode must be exact bool")
+        self._fixture_mode = fixture_mode
         self._hypotheses: dict[str, Vt08Hypothesis] = {}
         self._event_identity: dict[str, tuple[str, ...]] = {}
         self._last_decision_at: dict[str, datetime] = {}
@@ -322,7 +327,18 @@ class Vt08FiveMarketCognitiveGate:
     def evaluate(
         self, situation: Vt08FiveMarketResearchSituation
     ) -> Vt08CognitiveDecisionTrace:
-        """Consume an as-of source snapshot, preserving WAIT and killed events."""
+        """Fixture-only ingress. Never use for a live/raw source event."""
+        if not self._fixture_mode:
+            raise PermissionError(
+                "VT08 direct evaluate is synthetic fixture-only; "
+                "real-source ingestion requires evaluate_provenanced"
+            )
+        return self._evaluate_snapshot(situation)
+
+    def _evaluate_snapshot(
+        self, situation: Vt08FiveMarketResearchSituation
+    ) -> Vt08CognitiveDecisionTrace:
+        """Private deterministic hypothesis transition after admission."""
         event_id, source_identity = self._check_source_identity(situation)
         if (
             self._last_global_as_of is not None
@@ -398,8 +414,12 @@ class Vt08FiveMarketCognitiveGate:
             or readiness.decision_at != _instant(situation.as_of)
         ):
             raise ValueError("VT08 A/B source and cognitive Situation identity drift")
+        if self._fixture_mode:
+            raise PermissionError(
+                "VT08 fixture gate cannot be used for provenance-certified ingestion"
+            )
         _require_source_situation_binding(envelope, situation)
-        return self.evaluate(situation)
+        return self._evaluate_snapshot(situation)
 
     def record_fill(self, evidence: Vt08ResearchFillEvidence) -> Vt08ResearchFillTrace:
         """Attach simulated execution to a previously EXECUTE-approved source.
