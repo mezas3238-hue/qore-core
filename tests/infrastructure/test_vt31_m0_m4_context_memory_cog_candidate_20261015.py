@@ -12,7 +12,7 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
 )
 from scripts import vt31_m0_m4_context_memory_cog_candidate_20261015 as cg
 from scripts.vt31_m4_ob_breaker_author_evidence_gate_20261015 import (
-    PROFILE, Candle, Swing,
+    PROFILE, Swing,
 )
 from scripts.vt31_original_cog_traderlab_32x_long_short_20261015 import (
     mirror_long_history,
