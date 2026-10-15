@@ -11,7 +11,6 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping
-from typing import Any
 
 PROGRAM = "VT08"
 FAMILY = "BULLISH_M30_C2_REVERSAL_M3_CISD_C3_POSITIONAL"
@@ -28,8 +27,8 @@ AUTHORITY = {
     "family": FAMILY,
 }
 EXCLUDED = re.compile(
-    r"(?:qore[\\s_-]*alpha|vt08[\\s_-]*alpha|"
-    r"alpha[\\s_-]*(?:fork|model|strategy|qore))",
+    r"(?:qore[\s_-]*alpha|vt08[\s_-]*alpha|"
+    r"alpha[\s_-]*(?:fork|model|strategy|qore))",
     re.IGNORECASE,
 )
 FOREIGN_STRATEGY_FIELDS = (
