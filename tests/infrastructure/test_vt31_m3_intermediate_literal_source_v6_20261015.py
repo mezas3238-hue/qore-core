@@ -189,3 +189,11 @@ def test_first_return_after_center_cannot_create_retrospective_literal():
     )
     assert a.state == "NO_LITERAL_INTERMEDIATE_BREAK"
     assert a.freshly_crossed_literal_triples == 0
+
+def test_untyped_direction_is_not_accepted_by_causal_witness():
+    x = highs()
+    with pytest.raises(ValueError, match="INVALID_SIDE"):
+        literal_intermediate_source_geometry(
+            x, side="LONG",
+            first_return_at=x[0].closed_at, as_of=x[-1].closed_at,
+        )
