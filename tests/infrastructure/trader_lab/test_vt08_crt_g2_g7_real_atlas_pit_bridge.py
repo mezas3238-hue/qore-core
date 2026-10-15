@@ -207,6 +207,66 @@ def test_forged_or_incomplete_gm4_source_is_denied(attack: str) -> None:
         bridge(bars=bars, sources=(s,), paths=(p,))
 
 
+
+def test_g2_blind_case_contains_only_closed_h4_and_no_outcome() -> None:
+    _, rows = bridge()
+    packet = rows[0]["G2_blind_predecision_case"]
+    assert packet is not None
+    assert packet["conflict_kind"] == "OPPOSITE"
+    assert packet["selected_reference"] is None
+    assert not packet["independent_reviewer_adjudicated"]
+    assert packet["c2_closed_at_utc"] < packet["decision_clock_utc"]
+    assert all(k in packet for k in (
+        "c0_closed_h4", "c1_closed_h4", "c2_closed_h4",
+    ))
+    assert not any(k in packet for k in (
+        "outcome", "terminal", "pnl", "sizing", "future_c3",
+    ))
+    assert packet["not_a_trade"]
+
+
+def test_g7_missing_proven_prior_is_reported_causally_and_expost_separately() -> None:
+    summary, rows = bridge(
+        bars=make_bars(second_parent=True),
+        sources=(source(3, "e1"), source(9, "e2")),
+        paths=(gm4(3, "e1", None), gm4(9, "e2", None)),
+    )
+    assert rows[1]["G7_verdict"] == "WAIT"
+    assert rows[1]["G7_first_causally_unresolved_source_event_id"] == "e1"
+    assert rows[1]["G7_prior_terminals_censored"] == 1
+    assert "EX_POST" not in str(rows)
+    posthoc = summary["G7_EX_POST_DIAGNOSTIC_NEVER_INITIAL_DECISION"]
+    assert posthoc["WAIT_WITH_AT_LEAST_ONE_GM4_UNKNOWN"] == 1
+    assert posthoc["MISSING_PRIOR_EXPOST_GM4_UNKNOWN"] == 1
+    assert posthoc["first_GM4_unknown_source_event_id"] == "e1"
+    assert posthoc["may_not_authorize_rearm"]
+
+
+def test_g7_eventually_known_but_late_is_only_expost_analytical_label() -> None:
+    later = (EPOCH + 9 * H4 + timedelta(hours=1)).isoformat()
+    summary, rows = bridge(
+        bars=make_bars(second_parent=True),
+        sources=(source(3, "e1"), source(9, "e2")),
+        paths=(gm4(3, "e1", later), gm4(9, "e2", None)),
+    )
+    assert rows[1]["G7_verdict"] == "WAIT"
+    assert rows[1]["G7_first_causally_unresolved_source_event_id"] == "e1"
+    posthoc = summary["G7_EX_POST_DIAGNOSTIC_NEVER_INITIAL_DECISION"]
+    assert posthoc["WAIT_ONLY_EVENTUALLY_KNOWN_TERMINAL_LATE"] == 1
+    assert posthoc["MISSING_PRIOR_EXPOST_TERMINAL_LATE"] == 1
+    assert not posthoc.get("WAIT_WITH_AT_LEAST_ONE_GM4_UNKNOWN", 0)
+    assert "eventually" not in str(rows).lower()
+
+
+def test_g2_predecision_pack_unaffected_by_c3_price_or_gm4_terminal() -> None:
+    early = (EPOCH + 3 * H4 + timedelta(hours=1)).isoformat()
+    baseline = bridge()[1][0]["G2_blind_predecision_case"]
+    mutated = bridge(
+        bars=make_bars(mutate_c3=True),
+        paths=(gm4(3, "e1", early),),
+    )[1][0]["G2_blind_predecision_case"]
+    assert baseline == mutated
+
 def test_second_parent_isolated_by_market_and_prefix() -> None:
     with pytest.raises(ValueError, match="BTCUSD frozen"):
         audit_v3_g2_g7_ledgers(
