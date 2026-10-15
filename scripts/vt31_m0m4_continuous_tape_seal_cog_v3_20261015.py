@@ -17,6 +17,7 @@ from typing import Any
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     M1Bar,
     SessionId,
+    Side,
     utc,
 )
 from scripts.vt31_m0_m4_context_memory_cog_candidate_20261015 import (
@@ -26,7 +27,6 @@ from scripts.vt31_m0_m4_context_memory_cog_candidate_20261015 import (
 from scripts.vt31_ttrades_source_first_g3_cognitive_proposal_20261015 import (
     ttrades_fixture,
 )
-from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import Side
 
 PREREG = "3a1c637811c6c2c648abc688d45bff22ddbc4c54"
 VERSION = "VT31_COG_V3_CONTINUOUS_M1_SOURCE_SEAL_RESEARCH_NO_OMS"
