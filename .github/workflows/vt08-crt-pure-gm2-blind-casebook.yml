@@ -8,6 +8,8 @@ on:
       - '.github/workflows/vt08-crt-pure-gm2-blind-casebook.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py'
@@ -41,9 +43,9 @@ jobs:
         run: python -m pip install -e '.[dev]'
       - name: Enforce code hygiene and contract tests
         run: |
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
 
   generate_real_casebook:
     needs: quality
@@ -86,6 +88,28 @@ jobs:
           python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm2_real_casebook \
             "$QORE_MARKET" original-native-m5 "artifacts/$QORE_MARKET" \
             > "artifacts/$QORE_MARKET/stdout-manifest.json"
+      - name: Run full-original-all-UTC-H4 tri-source V1 census without source-restrictive old R2-C windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "full-h4/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_v1_full_h4_census \
+            "$QORE_MARKET" original-native-m5 "full-h4/$QORE_MARKET" \
+            | tee "full-h4/$QORE_MARKET/three-source-v1-full-stdout.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path("full-h4")/os.environ["QORE_MARKET"]
+          m=json.loads((root/"three-source-v1-h4-full-summary.json").read_text())
+          assert m["complete_h4_c1_c2_contexts"]>0
+          assert m["PnL_computed"] is False and m["sizing_used"] is False
+          assert m["global_certified"] is False and m["not_fresh_holdout"] is True
+          rows=[json.loads(s) for s in (root/"three-source-v1-h4-full-ledger.jsonl").read_text().splitlines() if s]
+          assert len(rows)==m["complete_h4_c1_c2_contexts"]
+          assert all(r["not_a_trade"] for r in rows)
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "full-h4/$QORE_MARKET/git-sha.txt"
+          (cd "full-h4/$QORE_MARKET"; sha256sum three-source-v1-h4-full-summary.json three-source-v1-h4-full-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
       - name: Produce independent FIRST-LOOK H4/M15 visual reviews with no cognitive/geometric priming
         shell: bash
         run: |
@@ -244,6 +268,13 @@ jobs:
             echo "::error::Sealed future C3 leaked into blinded reviewer packet"
             exit 1
           fi
+      - name: Publish full-original H4 coverage census independently as DEV research
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-three-source-v1-full-h4-dev-only-${{ matrix.market }}-${{ github.sha }}
+          path: full-h4/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
       - uses: actions/upload-artifact@v4
         with:
           name: vt08-gm2-reviewer-blind-only-${{ matrix.market }}-${{ github.sha }}
