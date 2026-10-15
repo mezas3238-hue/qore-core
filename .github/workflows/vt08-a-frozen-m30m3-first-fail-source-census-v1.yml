@@ -8,6 +8,7 @@ on:
       - .github/workflows/vt08-a-frozen-m30m3-first-fail-source-census-v1.yml
       - src/qore/infrastructure/trader_lab/vt08_a_m30m3_frozen_family_source_funnel_v1.py
       - tests/infrastructure/trader_lab/test_vt08_a_m30m3_frozen_family_source_funnel_v1.py
+      - docs/research/VT08_A_FROZEN_M30M3_BULLISH_FIRST_FAIL_COUNTS_2026-10-15.json
   workflow_dispatch:
 
 permissions:
@@ -62,10 +63,28 @@ jobs:
           Path("evidence",f"{market}-frozen-source-firstfail.json").write_text(
               json.dumps(report,sort_keys=True,separators=(",",":")),encoding="utf-8"
           )
+          frozen=json.loads(Path(
+              "docs/research/VT08_A_FROZEN_M30M3_BULLISH_FIRST_FAIL_COUNTS_2026-10-15.json"
+          ).read_text())
+          expected=frozen["market_rows"][market]
+          for actual_key,expected_key in (
+              ("source_m3_sha256","m3_raw_sha256"),
+              ("source_m15_sha256","m15_raw_sha256"),
+              ("c2_windows_total","c2_windows_total"),
+              ("stage_counts","stage_counts"),
+          ):
+              if report[actual_key] != expected[expected_key]:
+                  raise SystemExit(f"FROZEN_M30M3_SOURCE_DRIFT: {market} {actual_key}")
+          assert (report["all_unique_proxy_cases_with_raw_receipts"]
+                  == report["stage_counts"][
+                      "UNIQUE_M3_CISD_PS_SHAPE_REQUIRES_AUTHOR_ADJUDICATION"
+                  ])
           print(json.dumps({
               "market":report["market"],
               "c2_windows_total":report["c2_windows_total"],
               "stage_counts":report["stage_counts"],
+              "full_unique_proxy_cases":report["all_unique_proxy_cases_with_raw_receipts"],
+              "frozen_source_sha_verified":True,
               "source_complete_entries":report["source_complete_entries"],
               "pnl_evaluated":report["pnl_evaluated"],
               "sealed_holdout_accessed":report["sealed_holdout_accessed"],
