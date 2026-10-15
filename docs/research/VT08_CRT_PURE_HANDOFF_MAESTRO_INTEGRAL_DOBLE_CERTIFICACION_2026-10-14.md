@@ -280,3 +280,22 @@ Los últimos 48 casos están seleccionados por buckets de C2 y sus 131 hipótesi
 **Última instrucción al siguiente arquitecto:** La forma correcta de avanzar no es ejecutar 100 variantes más ni mirar rentabilidad retrospectiva para escoger un nivel. Es resolver la **fuente original**, hacer **dictámenes ciegos genuinos sobre 48 casos**, demostrar **cognitiva que discrimina**, cerrar **E2E** y después, en expediente separado y cuando esté habilitado, superar **TODOS los Gates económicos auténticos**. Mantener el registro de problemas abierto hasta evidencia real. No sizing de VT08, no merge, no órdenes, no falsos PASS.
 
 **ESTADO FINAL DE ESTE HANDOFF: TRANSFERENCIA COMPLETA / CRT PURE NOT_CERTIFIED / GLOBAL NOT_CERTIFIED / NO DEPLOYMENT.**
+
+
+## 14. CHECKPOINT SUCESOR — FIRST LOOK VISUAL G-M2 (15-OCT-2026)
+
+**Avance verificable desde el handoff inicial:** [G-M2 48 FIRST LOOK NEUTROS — acta completa](VT08_CRT_PURE_GM2_NEUTRAL_VISUAL_FIRSTLOOK_48_CASES_2026-10-15.md). [Lab #38706589343](https://github.com/mezas3238-hue/qore-core/actions/runs/38706589343) en commit **a263120f99cd43b5522468042af9b1f38685caad**: calidad y ambos mercados **SUCCESS**; 24 casos AUDUSD y 24 USDJPY, dos visualizaciones cada caso = **96 gráficos SVG H4/M15** de datos originales causales y sin futuro sellado. Los dos FIRST-LOOK fueron descargados/verificados con todos los SHA256 internos PASS, sin campos de hipótesis mecánicas, respuestas cognitiva, sesgo de ingeniería, señales ni sizing. Toda evaluación humana aún pendiente: **0/48 dictámenes fuente-original completados**, G-M2 continúa PARTIAL.
+
+**Cambio en el protocolo de tres paquetes por símbolo:** revisión neutral FIRST LOOK antes de recibir el reviewer-blind anterior que contiene geometría/cognitiva; SEALED C3 solo posterior a acta firmada, nunca para escoger metodología. Separar ZIP **NO crea ACL**, custodiar permisos/atestaciones.
+
+| ZIP Actions #38706589343 | AUDUSD | USDJPY |
+|---|---:|---:|
+| FIRST LOOK gráfico neutral de solo H4/M15 | **11958423126** | **11958537855** |
+| REVIEWER BLIND diagnóstico/geométrico | **11958542859** | **11958433059** |
+| FUTURO C3 sellado (no pre-revisión) | **11958418187** | **11958128799** |
+
+Se añadieron `src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py`, test adversarial `tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py` y publicación independiente en `.github/workflows/vt08-crt-pure-gm2-blind-casebook.yml`. Reportar errores intermedios sin borrarlos: import order Ruff (#38706453267) y creación de directorio antes de `tee` (#38706530885), ambos corregidos y validados por #38706589343 SUCCESS.
+
+**P0 descubierto adicional:** páginas con SOLO C1/C2 H4 **no demuestran todos los old-levels que Romeo permitiría considerar**; los revisores deben marcar `INSUFFICIENT_CONTEXT` si hacen falta H4 más antiguos. Evitar «anclar» la regla a dos extremos por el solo hecho de que los dos están dibujados. **Próxima acción real:** conseguir revisores con fuente original, hacer su primera adjudicación causal de casos visuales y registrar desacuerdos verificados; no promover G-M2 al producir el HTML.
+
+**Certificados al cierre:** G-M1..G-M4 PARTIAL, G-M5 NOT_ISSUED, Gates PF/DD/Sharpe/Sortino/OOS globales NOT_EVALUATED, cero sizing de VT08; CIBO mantiene control capital/volumen. PR #626 DRAFT/UNMERGED, sin VPS/DEMO/LIVE.
