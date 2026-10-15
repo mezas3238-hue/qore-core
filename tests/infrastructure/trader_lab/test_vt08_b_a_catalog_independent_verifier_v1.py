@@ -106,7 +106,7 @@ def test_independent_full_catalog_binds_every_bar_and_source_group(
         ("cross_market", "cross-market"),
         ("fake_raw_sha", "raw SHA custody"),
         ("fake_bar_id", "source bar key drift"),
-        ("changed_ohlc", "source_bar_id invalid"),
+        ("changed_ohlc", "OHLC differs from raw"),
         ("extra_orphan", "orphaned"),
         ("wrong_group", "future or wrong group clock"),
         ("missing_event", "missing events or bars"),
