@@ -208,11 +208,20 @@ def audit_483_real_first_returns(
         for bar in nine:
             engine.observe_closed_m1(bar)
         status_at_return: CognitiveWaitSnapshot | None = None
+        first_terminal: CognitiveWaitSnapshot | None = None
         for bar in ten:
             snap = engine.observe_closed_m1(bar)
             if snap.as_of == return_time:
                 status_at_return = snap
+            # Diagnostic event order is fixed at FIRST late proxy or expiry.
+            # Continue observing through 11:00 to detect later invalidation.
+            if first_terminal is None and snap.state in {
+                "QORE_PROXY_OBSERVED_AUTHOR_DISPLACEMENT_UNVERIFIED", "EXPIRED",
+            }:
+                first_terminal = snap
         end = engine.snapshot()
+        if first_terminal is None:
+            raise AssertionError("V2_NO_FIRST_TERMINAL_SOURCE_CONTEXT")
         if (
             status_at_return is None
             or status_at_return.state != "WAIT_FOR_CONFIRMATION"
@@ -222,19 +231,23 @@ def audit_483_real_first_returns(
             raise AssertionError("V2_NOT_WAITING_ON_FIRST_RETURN_CASE")
         # With no source invalidation, frozen comparative source #952 found
         # either later QORE proxy (449) or natural expiry without proxy (34).
-        if end.state not in {
+        if first_terminal.state not in {
             "QORE_PROXY_OBSERVED_AUTHOR_DISPLACEMENT_UNVERIFIED", "EXPIRED",
         }:
             raise AssertionError("V2_INCONSISTENT_WITH_FROZEN_M3_CASE_STATES")
-        states[end.state] += 1
+        states[first_terminal.state] += 1
         record = {
             "ny_day": day,
             "first_return_at": return_time.isoformat(),
             "v2_state_at_first_return": status_at_return.state,
-            "v2_terminal_state": end.state,
+            "v2_first_phase_terminal_state": first_terminal.state,
+            "v2_first_phase_terminal_at": (
+                first_terminal.as_of.isoformat() if first_terminal.as_of else None
+            ),
+            "v2_end_of_window_state": end.state,
             "v2_first_proxy_at": (
-                end.first_qore_proxy_observed_at.isoformat()
-                if end.first_qore_proxy_observed_at else None
+                first_terminal.first_qore_proxy_observed_at.isoformat()
+                if first_terminal.first_qore_proxy_observed_at else None
             ),
             "v2_persisted_first_raid_at": (
                 end.first_sweep_at.isoformat() if end.first_sweep_at else None
