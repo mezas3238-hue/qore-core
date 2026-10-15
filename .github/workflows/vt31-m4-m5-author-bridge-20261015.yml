@@ -1,4 +1,4 @@
-name: VT31 TTrades Author Source M4 M5: OB CISD Breaker Swing No Trades
+name: 'VT31 TTrades Author Source M4 M5: OB CISD Breaker Swing No Trades'
 on:
   push:
     branches:
