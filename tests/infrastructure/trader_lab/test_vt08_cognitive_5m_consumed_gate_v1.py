@@ -112,7 +112,7 @@ def _ack(
 
 
 def test_wait_remains_alive_and_can_advance_to_execution() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     first = gate.evaluate(_snapshot(cisd_state="PENDING"))
     assert first.action is Vt08CognitiveAction.WAIT
     second = gate.evaluate(_snapshot(when=T0 + timedelta(minutes=3)))
@@ -129,7 +129,7 @@ def test_wait_remains_alive_and_can_advance_to_execution() -> None:
 
 
 def test_abstain_kills_source_and_no_fallback() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     first = gate.evaluate(
         _snapshot(material_contradictions=("SOURCE:INVALID",))
     )
@@ -142,7 +142,7 @@ def test_abstain_kills_source_and_no_fallback() -> None:
 
 
 def test_reject_timestamp_regression_and_cross_market_fingerprint() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot(cisd_state="PENDING"))
     with pytest.raises(ValueError, match="timestamp must advance"):
         gate.evaluate(_snapshot(cisd_state="PENDING"))
@@ -151,7 +151,7 @@ def test_reject_timestamp_regression_and_cross_market_fingerprint() -> None:
 
 
 def test_position_cognition_requires_admitted_source_and_causal_timestamps() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     later = T0 + timedelta(minutes=3)
     pos = _position(later)
     filled = _snapshot(
@@ -179,8 +179,8 @@ def test_position_cognition_requires_admitted_source_and_causal_timestamps() -> 
 
 
 def test_deterministic_immutable_decision_ledger() -> None:
-    left = Vt08FiveMarketCognitiveGate()
-    right = Vt08FiveMarketCognitiveGate()
+    left = Vt08FiveMarketCognitiveGate(fixture_mode=True)
+    right = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     for gate in (left, right):
         gate.evaluate(_snapshot(market="USDCAD"))
         _ack(gate, market="USDCAD")
@@ -211,14 +211,14 @@ def test_deterministic_immutable_decision_ledger() -> None:
 def test_event_identity_drift_of_side_anchor_profile_cycle_fails_closed(
     overrides: dict[str, object]
 ) -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot(cisd_state="PENDING"))
     with pytest.raises(ValueError, match="identity cannot drift"):
         gate.evaluate(_snapshot(when=T0 + timedelta(minutes=3), **overrides))
 
 
 def test_wait_event_expires_at_h4_boundary_without_late_execution() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     original = gate.evaluate(_snapshot(cisd_state="PENDING"))
     assert original.action is Vt08CognitiveAction.WAIT
     with pytest.raises(ValueError, match="expired at H4"):
@@ -235,7 +235,7 @@ def test_wait_event_expires_at_h4_boundary_without_late_execution() -> None:
 
 
 def test_source_id_cannot_be_reused_across_new_york_date() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot(cisd_state="PENDING"))
     tomorrow = T0 + timedelta(days=1)
     with pytest.raises(ValueError, match="identity cannot drift"):
@@ -258,7 +258,7 @@ def test_source_id_cannot_be_reused_across_new_york_date() -> None:
 def test_position_requires_actual_open_filled_source_state(
     entry_state: str, position_state: str, expected: str
 ) -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     _ack(gate)
     later = T0 + timedelta(minutes=3)
@@ -274,7 +274,7 @@ def test_position_requires_actual_open_filled_source_state(
 
 
 def test_position_refuses_unauthorized_side_change_and_old_candle() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     _ack(gate)
     with pytest.raises(ValueError, match="must follow recorded fill"):
@@ -296,7 +296,7 @@ def test_position_refuses_unauthorized_side_change_and_old_candle() -> None:
 
 
 def test_every_sovereign_decision_component_is_in_auditable_trace() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     supported = gate.evaluate(_snapshot())
     assert supported.metacognitive_state is Vt08KnowledgeState.SUPPORTED
     assert supported.supporting_evidence == ("SOURCE:CISD", "SOURCE:PS")
@@ -328,7 +328,7 @@ def test_every_sovereign_decision_component_is_in_auditable_trace() -> None:
 
 
 def test_no_cross_market_event_clock_regression() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     later = T0 + timedelta(minutes=3)
     gate.evaluate(_snapshot(source="A", market="EURJPY", when=later))
     with pytest.raises(ValueError, match="global replay clock"):
@@ -339,7 +339,7 @@ def test_no_cross_market_event_clock_regression() -> None:
 
 
 def test_position_trace_exposes_journey_destination_and_management_provenance() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     _ack(gate)
     later = T0 + timedelta(minutes=3)
@@ -362,7 +362,7 @@ def test_position_trace_exposes_journey_destination_and_management_provenance() 
 
 
 def test_h4_expiry_position_has_an_explicit_cognitive_exit_proposal() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     _ack(gate)
     at_expiry = T0 + timedelta(hours=4)
@@ -385,7 +385,7 @@ def test_h4_expiry_position_has_an_explicit_cognitive_exit_proposal() -> None:
 
 def test_full_five_market_stream_every_admission_gets_cognition() -> None:
     """Causal five-market acceptance fixture, NOT historical economic replay."""
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     first: dict[str, Vt08CognitiveAction] = {
         "EURJPY": Vt08CognitiveAction.WAIT,
         "USDCHF": Vt08CognitiveAction.ABSTAIN,
@@ -467,7 +467,7 @@ def test_dst_fallback_repeated_new_york_hour_uses_distinct_absolute_clock() -> N
     assert before_fold.astimezone(ny).hour == after_fold.astimezone(ny).hour == 1
     assert before_fold.astimezone(ny).fold == 0
     assert after_fold.astimezone(ny).fold == 1
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     wait = gate.evaluate(
         _snapshot(
             source="synthetic-dst-event",
@@ -493,7 +493,7 @@ def test_dst_fallback_repeated_new_york_hour_uses_distinct_absolute_clock() -> N
 
 
 def test_fill_is_not_implicitly_created_by_execute_and_does_not_multiply() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     assert gate.fills == ()
     _ack(gate)
@@ -516,7 +516,7 @@ def test_fill_is_not_implicitly_created_by_execute_and_does_not_multiply() -> No
 def test_fill_cannot_migrate_source_identity_or_time(
     changed: dict[str, object], expected: str
 ) -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     inputs: dict[str, object] = {
         "source_event_id": "synthetic-source-01",
@@ -535,7 +535,7 @@ def test_fill_cannot_migrate_source_identity_or_time(
 
 
 def test_fill_without_execute_and_fill_with_wrong_price_are_rejected() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     not_admitted = Vt08ResearchFillEvidence(
         source_event_id="synthetic-source-01",
         market="EURJPY",
@@ -613,7 +613,7 @@ def _terminal(
 
 
 def test_cognitive_position_trace_attaches_physical_fill_and_risk_terms() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     _ack(gate)
     later = T0 + timedelta(minutes=3)
@@ -636,7 +636,7 @@ def test_cognitive_position_trace_attaches_physical_fill_and_risk_terms() -> Non
 def test_cognitive_position_rejects_initial_risk_and_target_mutation(
     changed: str, value: Decimal,
 ) -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     _ack(gate)
     t1 = T0 + timedelta(minutes=3)
@@ -663,7 +663,7 @@ def test_cognitive_position_rejects_initial_risk_and_target_mutation(
 def test_cognitive_position_rejects_widening_stops_between_snapshots(
     side: str,
 ) -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot(side=side))
     if side == "long":
         _ack(gate)
@@ -710,7 +710,7 @@ def test_cognitive_position_rejects_widening_stops_between_snapshots(
 
 
 def test_terminal_external_evidence_blocks_all_future_position_cognition() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     _ack(gate)
     t1 = T0 + timedelta(minutes=3)
@@ -749,7 +749,7 @@ def test_terminal_external_evidence_blocks_all_future_position_cognition() -> No
 def test_terminal_evidence_wrong_lineage_or_clock_cannot_mutate_state(
     changed: dict[str, object], expected: str,
 ) -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     _ack(gate)
     data: dict[str, object] = {
@@ -767,7 +767,7 @@ def test_terminal_evidence_wrong_lineage_or_clock_cannot_mutate_state(
 
 
 def test_terminal_requires_external_fill_and_explicit_research_authority() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     with pytest.raises(ValueError, match="requires registered research fill"):
         gate.record_terminal(_terminal())
     with pytest.raises(ValueError, match="SHA256"):
@@ -781,7 +781,7 @@ def test_terminal_requires_external_fill_and_explicit_research_authority() -> No
 
 
 def test_cognitive_exit_advice_is_not_external_terminal_settlement() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     _ack(gate)
     at = T0 + timedelta(hours=4)
@@ -802,7 +802,7 @@ def test_cognitive_exit_advice_is_not_external_terminal_settlement() -> None:
 
 
 def test_terminal_global_clock_never_regresses_after_another_market_event() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot())
     _ack(gate)
     later = T0 + timedelta(minutes=12)
@@ -819,7 +819,7 @@ def test_dst_fall_back_wall_clock_decreases_while_actual_replay_clock_advances()
     assert early.astimezone(UTC) < later.astimezone(UTC)
     assert early.hour == later.hour == 1
     expiry = datetime(2026, 11, 1, 3, 0, tzinfo=ny)
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     pending = gate.evaluate(_snapshot(
         source="fall-fold",
         when=early,
@@ -874,7 +874,7 @@ def test_replay_position_accepts_same_instant_in_ny_and_utc_after_dst() -> None:
     at = datetime(2026, 11, 1, 1, 15, tzinfo=ny, fold=1)
     expiry = datetime(2026, 11, 1, 3, 0, tzinfo=ny)
     earlier = datetime(2026, 11, 1, 1, 5, tzinfo=ny, fold=1)
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     gate.evaluate(_snapshot(
         when=earlier, anchor_hour_ny=1, source_cycle_id="fold-pos",
         cycle_expires_at=expiry,
@@ -915,7 +915,7 @@ def test_string_false_cannot_become_truthy_cognitive_source_authority(field: str
 def test_malformed_source_snapshot_types_rejected_before_reasoning(
     field: str, raw: object, match: str,
 ) -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     with pytest.raises(ValueError, match=match):
         gate.evaluate(_snapshot(**{field: raw}))
     assert gate.decisions == () and gate.positions == ()
@@ -983,7 +983,7 @@ def _apparently_valid_a_to_b_source() -> dict[str, object]:
 
 
 def test_real_source_ingress_requires_actual_frozen_joint_manifest_not_claim() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     source = _apparently_valid_a_to_b_source()
     hypothetical = _snapshot(
         source="vt08-5m-source:" + "a" * 64,
@@ -999,7 +999,7 @@ def test_real_source_ingress_requires_actual_frozen_joint_manifest_not_claim() -
 
 
 def test_real_source_ingress_rejects_future_causal_field_before_reasoning() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     source = _apparently_valid_a_to_b_source()
     source["cognitive_feature_cutoffs"] = {
         name: (T0 + timedelta(minutes=3)).isoformat() if name == "bias_state"
@@ -1018,8 +1018,26 @@ def test_real_source_ingress_rejects_future_causal_field_before_reasoning() -> N
 
 
 def test_research_execute_is_only_intention_not_authorized_source_fill() -> None:
-    gate = Vt08FiveMarketCognitiveGate()
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
     hypothetical = gate.evaluate(_snapshot())
     assert hypothetical.action is Vt08CognitiveAction.EXECUTE
     assert hypothetical.research_only and not hypothetical.broker_order_authorized
     assert gate.fills == () and gate.terminals == ()
+
+
+def test_production_default_rejects_synthetic_bypass_before_state_mutation() -> None:
+    """Code-green fixtures never grant a raw-source entry point."""
+    gate = Vt08FiveMarketCognitiveGate()
+    with pytest.raises(PermissionError, match="evaluate_provenanced"):
+        gate.evaluate(_snapshot())
+    assert gate.decisions == ()
+    assert gate.fills == ()
+    assert gate.positions == ()
+
+
+def test_fixture_mode_requires_exact_bool_and_never_grants_broker_authority() -> None:
+    with pytest.raises(TypeError, match="exact bool"):
+        Vt08FiveMarketCognitiveGate(fixture_mode=1)  # type: ignore[arg-type]
+    gate = Vt08FiveMarketCognitiveGate(fixture_mode=True)
+    trace = gate.evaluate(_snapshot(source="isolated-idea"))
+    assert trace.research_only and not trace.broker_order_authorized
