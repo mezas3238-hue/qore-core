@@ -61,6 +61,16 @@ SOURCE_PAGES_BY_RULE: dict[str, frozenset[str]] = {
     "EXTERNAL_TARGET_UNTOUCHED_ASOF": frozenset((_TARGET,)),
     "C3_POSITIONAL_OPEN_AND_ORDER_CLOCK": frozenset((_POSITIONAL, _ALIGN)),
 }
+# A full C2 candle, its EQ regime, the stop derived from that EQ, and a
+# target still untouched at ENTRY cannot be known before the C2 close.
+C2_CLOSE_OBSERVABLE_FIELDS = frozenset((
+    "C2_CLOSURE_AND_M3_CISD_PS_ASOF",
+    "C2_EQ_REGIME_CONFIRMED",
+    "STOP_BELOW_BOTH_EQ_AND_BREAKER",
+    "EXTERNAL_TARGET_UNTOUCHED_ASOF",
+    "C3_POSITIONAL_OPEN_AND_ORDER_CLOCK",
+))
+
 if set(SOURCE_PAGES_BY_RULE) != REQUIRED_SOURCE_FIELDS:
     raise RuntimeError("VT08 source registry must cover exactly the frozen family")
 
@@ -105,9 +115,14 @@ class RuleReceipt:
     reviewer1_annotation_sha256: str | None = None
     reviewer2_annotation_sha256: str | None = None
     reviewers_agree: bool = False
+    # These are model lineage identifiers, NOT attestation of physical origin.
+    market: str = ""
+    scenario_id: str = ""
 
     def validated(self) -> bool:
         if self.key not in REQUIRED_SOURCE_FIELDS:
+            return False
+        if self.market not in MARKETS or not self.scenario_id.strip():
             return False
         if self.source_class != "A_WRITTEN":
             return False
@@ -139,6 +154,8 @@ class RuleReceipt:
         if decision_at != c3_at:
             return False
         if source_at > decision_at:
+            return False
+        if self.key in C2_CLOSE_OBSERVABLE_FIELDS and source_at != c3_at:
             return False
         if self.key in {
             "HTF_BIAS_KNOWN_PRE_C2",
@@ -182,6 +199,14 @@ class Final1Preflight:
         names = [r.key for r in self.receipts]
         if len(set(names)) != len(names):
             blocked.add("DUPLICATE_SOURCE_RECEIPTS")
+        # A receipt set is one causal setup, never a join of unrelated
+        # symbols/sessions or different decision instants.
+        lineage = {
+            (r.market, r.scenario_id, r.c2_opened_at, r.c3_opened_at, r.decision_at)
+            for r in self.receipts
+        }
+        if len(lineage) > 1:
+            blocked.add("CROSS_RECEIPT_SCENARIO_OR_CLOCK_MISMATCH")
         blocked.update(
             f"UNVERIFIED_{k}" for k in
             REQUIRED_VALIDATION_FIELDS - self.validation_evidence
