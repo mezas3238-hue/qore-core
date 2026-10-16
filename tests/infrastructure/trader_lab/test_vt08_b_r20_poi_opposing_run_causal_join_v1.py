@@ -79,6 +79,7 @@ def test_first_touch_during_actual_bearish_run_and_sweep_both_in_same_m3() -> No
     assert result["bearish_series_touched_fvg"] is True
     assert result["bearish_series_swept_c1_low"] is True
     assert result["same_bar_fvg_touch_and_liquidity_sweep"] is True
+    assert result["same_m3_bar_event_order_proven_by_ticks"] is False
     assert result["author_poi_significance_certified"] is False
 
 
