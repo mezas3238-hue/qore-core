@@ -18,6 +18,9 @@ from typing import Any
 from qore.infrastructure.trader_lab.vt08_crt_gm4_unknown_root_forensics import (
     diagnose_gm4_unknowns_expost,
 )
+from qore.infrastructure.trader_lab.vt08_crt_original_fx_weekly_close_forensics import (
+    examine_original_fx_weekly_close_gaps,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import ReplayBar
 from qore.infrastructure.trader_lab.vt08_crt_pure_original_atlas_reader import (
     load_atlas_vt08_m5,
@@ -441,6 +444,14 @@ def main() -> None:
         "GM4_EX_POST_UNKNOWN_FORENSICS_NEVER_INITIAL_DECISION"
     ]["unknown_cases"]:
         raise ValueError("GM4 unknown triage case count differs across replays")
+    r7_summary, r7_evidence = examine_original_fx_weekly_close_gaps(
+        market, bars, unknown_rows
+    )
+    if r7_summary["forensic_gaps"] != sum(
+        row["observed_issue"] == "SOURCE_M5_GAP" for row in unknown_rows
+    ):
+        raise ValueError("R7 missed an original G-M4 UNKNOWN gap")
+    summary["R7_EMPIRICAL_FX_WEEKLY_CLOSE_BROKER_NOT_VERIFIED"] = r7_summary
     summary["original_atlas_provenance"] = provenance
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "g2-g7-real-atlas-pit-summary.json").write_text(
@@ -467,6 +478,9 @@ def main() -> None:
             out.write(json.dumps(review_case, sort_keys=True) + "\n")
     with (args.output / "gm4-unknown-expost-forensics.jsonl").open("w") as out:
         for item in unknown_rows:
+            out.write(json.dumps(item, sort_keys=True) + "\n")
+    with (args.output / "r7-original-m5-fx-weekly-close-evidence.jsonl").open("w") as out:
+        for item in r7_evidence:
             out.write(json.dumps(item, sort_keys=True) + "\n")
     print(json.dumps({
         k: v for k, v in summary.items() if k != "original_atlas_provenance"
