@@ -374,3 +374,18 @@ Aunque [CI #38789606238](https://github.com/mezas3238-hue/qore-core/actions/runs
 **Artefactos R7 SHA GitHub:** AUDUSD id `12046397924` SHA256 `fc25417bd2e42994788658c3a5ebb0d18f7e15d08198c8307ea2a316172a57f2`; USDJPY id `12046911206` SHA256 `a81db8e9cc89904b5a614b1cec48fa2023fed8f6677a65cf04bccebfc03ef175`. Expiran temporalmente 2027-01-14T12:42:51Z; originales CIBO Atlas 2026-12-16, issue #837.
 
 **P0 próxima intervención:** elevar los dos viernes como **cierre de mercado observado**, NO falsos fallos M5, pero mantener terminal censurado hasta autenticar schedule. Recuperar e investigar la M5 USDJPY miércoles 2025-02-12 22:30Z desde mismo feed; completar 36 revisiones G2 y 48 G-M2 por revisor externo; G1–G7 autenticación doble (issue #976); G7 lineage/UNKNOWN aprobados; ejecutar posterior OOS verdaderamente nuevo y economic gates con QORE Risk/CIBO. No autoadjudicar certificación.
+
+
+---
+
+## Addendum R8 — reconciliacion SHA de los tres gaps originales (16 OCT 2026)
+
+**Nuevo resultado ejecutado y documentado:** [R8 original CIBO producer quality ledger](VT08_CRT_R8_ORIGINAL_PRODUCER_SHA_QUALITY_GAPS_VERIFIED_2026-10-16.md). Preregistro R8 antes de cálculos reales `e53084871793f9adb1b0f5584999f8f17288e6a5`. **GitHub Actions [#38975246782](https://github.com/mezas3238-hue/qore-core/actions/runs/38975246782) SUCCESS 3/3**, commit fuente probado `d345770ada8c4d2815866158f557483e031d7f6a`, **43 tests PASS**, Ruff/mypy, replay real AUDUSD/USDJPY SHA-validado. Implementación `src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py`, tests adversariales, workflow original ampliado.
+
+**P0 aclarado:** el artefacto original 10y M5 de CIBO no sólo carece de esos 3 slots: su **DATA_QUALITY_LEDGER anual**, firmado contra PARTITION_MANIFEST SHA por el propio productor `ab782b8...`, contiene exactamente un `UNRESOLVED_CLOSURE_OR_MISSING_DATA` por cada hueco. Identidad, market, clocks, número de slots y hash concuerdan. **AUDUSD 2025-04-25 21:00Z**: 576 slots entre última barra 2025-04-25 20:55 y primera barra 2025-04-27 21:00 (domingo), `spans_weekend=true`. **USDJPY 2026-06-19 21:00Z**: igual, 576 slots hasta domingo 2026-06-21 21:00Z. **USDJPY miércoles 2025-02-12 22:30Z**: exactamente **1 sola M5 ausente** entre 22:25 y 22:35, `spans_weekend=false`. Todos los registros originales anotan `market_open_expected=null`: productor NO afirmó apertura/cierre del broker.
+
+**Las tres ausencias eran del ingreso original CIBO**: descartada hipótesis de bug de reconstrucción VT08 que omitió estas velas. R7 ya probó 17/17 viernes vecinos consistentes con 17 ET NY por mercado; R8 verifica registros reales originales con SHA, pero la **autenticación del schedule de cTrader** sigue pendiente. Imposible rescatar OHLC de USDJPY 22:30 desde un ledger que sólo indica la ausencia: requerir fuente original verificable o censura.
+
+**No-Gates:** G-M4 mantiene 5 UNKNOWN (2 `ALREADY_BEYOND_INVALIDATION`, 2 cierres semanales convencionales aún no metodológicamente expirados, 1 hueco M5 interior original). G7 mantiene 108 WAIT de política ALL PRIOR TERMINAL, sin rearm; G2 36 referencias rivales y full old-CRT inventory faltante. G-M1/2/3/4 PARTIAL; G-M5 NOT ISSUED; Global sin edge/costs/OOS. **No sizing VT08, jamás patrimonial/DD, órdenes/demo/live/VPS/merge.**
+
+**Artefactos R8 SHA:** AUDUSD id 12079270181, ZIP sha256 `f9702a394b52347b08a604e3bd1a6f9c4f91b4278edc48416ace7ec669f2b739`; USDJPY id 12079026049, ZIP sha256 `400da2be84fd0c8a05a660aebb5520d4b4aef85ea0ffbe4d332ecb7a9a4a8c31`; caducan nominalmente 2027-01-14T22:21:25Z. Fuente Atlas original id 10475697610 AUDUSD y 10475389415 USDJPY expira 2026-12-16T00:21:18Z (issue #837): prioridad no perder custodia.
