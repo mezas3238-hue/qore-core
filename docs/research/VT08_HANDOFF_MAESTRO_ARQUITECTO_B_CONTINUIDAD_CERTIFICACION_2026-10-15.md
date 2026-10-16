@@ -326,3 +326,16 @@ Arquitecto A usa [issue #762](https://github.com/mezas3238-hue/qore-core/issues/
 **Nuevo entregable B R19:** [107 fichas outcome-blind (A+B) por SHA](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-cognition-replay-20261010/docs/research/VT08_B_R19_PREREGISTERED_BLIND_POI_DUAL_REVIEW_QUEUE_2026-10-16.md), [GitHub Actions #38903529731](https://github.com/mezas3238-hue/qore-core/actions/runs/38903529731) 5/5 GREEN, 40 adversariales. Muestra determinista pre-PnL: 50 FVG bullish pre-CISD, 50 controles sin FVG de las últimas 3 H1, 4 primero en barra CISD, 3 FVG bearish antes CISD. **0 revisiones A firmadas, 0 B firmadas**, 0 fuente completa. Auditor A tiene que clasificar source swing/POI/PS verdaderos por caso; B debe revisar independientemente fuente raw y disenso; D=>WAIT. La muestra no es nuevo denominador económico: permanecen 2.657 físicos originales.
 
 **Restricciones Owner ya vigentes**: VT08 actual EXCLUSIVO, QORE-alpha totalmente excluido, NO sizing, NO 7Y sellado, NO operaciones/merge; 27 `CAUSAL_FIELDS` sin semántica auténtica, `AUTHOR_COMPLETE=0`, `COGNITIVE_ADMISSIONS=0`, `BROKER_FILLS=0`, `GATES=NOT_EVALUABLE` y VT08 **NO CERTIFICADO**.
+
+
+---
+
+## APÉNDICE R22 — Matriz de conflictos POI, 16-oct-2026 (avance posterior R21)
+
+[**Informe completo R22**](VT08_B_R22_2657_MULTI_POI_SOURCE_CONFLICT_AND_107_BLIND_REVIEW_2026-10-16.md) · [Actions #38975204483](https://github.com/mezas3238-hue/qore-core/actions/runs/38975204483) **SUCCESS 6/6 jobs**, Ruff, 14 pruebas adversariales + 5 mercados completos. Código `vt08_b_r22_multi_poi_contradiction_join_v1.py`; workflow `vt08-b-r22-native-multi-poi-context-conflict.yml`.
+
+**Independencia fuente:** cruza censo RAW R18 H1 lows/FVG M3/M15, R19 muestras ciegas preregistradas 107 y R21 mínimo NY-DTD con SHA R18/R19 fijados y fuente M3 idéntica, exactos 2.657 IDs originales. Nada de PnL, nuevas señales, sizing o QORE-alpha.
+
+**Resultado físico:** 165 FVG alcistas H1 tocados ANTES barra CISD; de ellos **17** también barren NY-day-to-date low, **146** no lo barren y **2** con contexto NY incompleto. Hay 3 FVG bearish pre como controles negativos. H1 lows físicos con contacto pre-CISD: **963 cero**, **1.120 uno**, **418 dos**, **156 tres** (574 con 2+ velas low candidatas; no equivale a 574 distintos niveles de precio). De las 107 fichas originales de doble revisión se enriquecieron **107/107** con la clase física y sus barras sin alterar selección: reviewer A/B todavía NULL. 0 source-author POI seleccionados, 0 cognitivas, 0 fills.
+
+**Acción siguiente MÁS IMPORTANTE (sin prolongar inventarios indefinidamente):** iniciar revisión SOURCE-PRIMARIA **auténtica**, A independiente y luego B, sobre 107 dossiers; para cada señal que se quisiera promover, seleccionar explícitamente `important POI`, swing relevante con separación, PS causal con serie M3, breaker real, EQ régimen, SL y target mediante reglas escritas y bar IDs/timestamps. Cualquier ausencia de selector => D/WAIT/NO_ESPECIFICABLE; no llamar «valid TTrades» a FVG pre+NY low (17) o FVG pre solo (165), ni aplicar jerarquía CONTINUATION a la REVERSAL. Después 27 campos cognitivos con valores reales, firmas A/B de verdad, bid/ask e indicadores PF/DD/Sharpe/Sortino/MC/OOS **sin sizing**. 7Y sellado, PR A/B DRAFT, 0 trading/merges. **VT08 NO CERTIFICADO**.
