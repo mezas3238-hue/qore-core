@@ -28,7 +28,7 @@ def row(day: str, i: int, *, lo: str = "98", hi: str = "102") -> M1Bar:
 
 
 @pytest.mark.parametrize("day", ["2025-01-15", "2025-07-15"])
-def test_complete_cash_is_exact_390_M1_with_correct_dst(day):
+def test_complete_cash_is_exact_390_m1_with_correct_dst(day):
     source = cash_390_day(day, tuple(row(day, i) for i in range(390)))
     assert source["cash_390_M1_closed_contiguous"]
     assert source["cash_ny_0930_1600_M1"] == 390
@@ -40,7 +40,7 @@ def test_complete_cash_is_exact_390_M1_with_correct_dst(day):
 
 
 @pytest.mark.parametrize("missing", [0, 17, 389])
-def test_389_M1_cash_is_not_a_complete_day_or_valid_price(missing):
+def test_389_m1_cash_is_not_a_complete_day_or_valid_price(missing):
     day = "2025-07-03"
     source = cash_390_day(
         day, tuple(row(day, i) for i in range(390) if i != missing),
@@ -49,7 +49,7 @@ def test_389_M1_cash_is_not_a_complete_day_or_valid_price(missing):
     assert source["high"] is None and source["low"] is None
 
 
-def test_more_than_390_M1_cannot_be_silent_duplicate():
+def test_more_than_390_m1_cannot_be_silent_duplicate():
     with pytest.raises(ValueError, match="MORE_THAN_390"):
         cash_390_day(
             "2025-07-03",
