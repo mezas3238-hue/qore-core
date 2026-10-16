@@ -77,3 +77,48 @@ Los cierres están en UTC; tras cambios EST/EDT difieren las horas nominales, no
 4. Testigos para resolver: **intervalos M1 09:30–16 del weekday nominal y del efectivo anterior**, calendario NAS100 CFD PIT, exactitud OHLC de extremos, consumo hasta `as_of`, y fuente ICT/TTrades escrita para definir cuál es el pool exigido. Requiere juicio revisor independiente M2 y dos firmas M6. Issue [#994](https://github.com/mezas3238-hue/qore-core/issues/994).
 
 **Condición de cierre de #994:** los 18 casos fechados deben quedar clasificados como `SOURCE_CALENDAR_MISMATCH` fundamentado, `G3_POLICY_ERROR` fundamentado o `UNRESOLVED_WAIT` — sin modificar números para fabricar un PASS. `M2_ICT_AUTHOR_CERTIFIED=FALSE` hasta fuente validada, y 3 sesiones no certificadas.
+
+## 7. RESOLUCIÓN DE PROCEDENCIA POR OHLC M1 REAL, SIN CERTIFICACIÓN DOCTRINAL — 18/18
+
+**[GitHub Actions #38976680827 — SUCCESS, 139/139 pytest + Ruff](https://github.com/mezas3238-hue/qore-core/actions/runs/38976680827)**, commit ejecutado `7ab9902f497fbcd3f1693de10267e9d583fd8a11`, **1.059.784 NAS100 M1** SHA original. Tras el prereg **`cd49fc53a80700449e229121e39f7a306c968e88`** (fijó los 18 casos de la CI anterior antes del nuevo código), el segundo laboratorio independiente reconstruyó **todas** las sesiones cash 09:30–16:00 NY necesarias, determinó continuidad de 390 M1, HIGH/LOW y días completos intervenientes. No llamó COG ni leyó G3 para derivar niveles; usó los 18 DTOs originales fechados y sellados.
+
+[**Artifact final #12079207197**](https://github.com/mezas3238-hue/qore-core/actions/runs/38976680827/artifacts/12079207197), ZIP SHA256 `7b5a904be6a5c19015e0568d49415f445207cc913eac3dce5298ced43ed490f4`; JSON de 18 casos completos SHA256 `06d53cc37a88347da0a5e6089acf17dbc84bab7aa79f3fab37ba0d0aec03dc9d`. Artefacto incluye también el censo M2 principal completo de 2325 casos revalidado sin modificar el G3 original.
+
+**Resultado cerrado del contrafactual source-only:**
+- `OLDER_G3_CASH_SOURCE_COMPLETE_AND_PRICE_MATCH`: **18/18** casos. Cada fuente de G3 elegida tenía **390/390** M1 cash exactos con HIGH/LOW igual al precio del DTO, sin redondeos.
+- `OLDER_ONLY_COMPLETE_IN_OBSERVED_SOURCE_CONTEXT`: **18/18** casos. Ningún día cash completo más reciente intervenía entre fecha de origen elegida por G3 y fecha operativa de evaluación.
+- **18/18** cash nominal inmediatamente anterior estaban **INCOMPLETOS** frente al contrato estricto de 390 M1; ninguno tuvo fuente `NOMINAL_PRIOR_WEEKDAY_FULL_M1`.
+- `OLDER_G3_CASH_SOURCE_PRICE_DISAGREES`: **0**; `NEWER_COMPLETE_CASH_DAY_EXISTS_NEEDS_METHOD`: **0**; `OLDER_G3_CASH_SOURCE_INCOMPLETE_UNKNOWN`: **0**.
+
+### Corpus íntegro — origen G3 vs día nominal faltante
+
+| NY día | Sesión | Cash G3 anterior elegido | M1 cash G3 / Nivel | Cash nominal inmediato | M1 nominal/390 |
+|---|---|---|---|---|---:|
+| 2023-10-13 | NY AM | 2023-10-10 | 390; LOW 15040.60 | 2023-10-12 | 378 |
+| 2023-11-08 | NY PM | 2023-11-03 | 390; LOW 14964.30 | 2023-11-07 | 389 |
+| 2023-11-27 | NY AM | 2023-11-22 | 390; HIGH 16122.80 | 2023-11-24 | 225 |
+| 2023-12-14 | NY AM | 2023-12-12 | 390; LOW 16175.80 | 2023-12-13 | 389 |
+| 2023-12-27 | NY PM | 2023-12-22 | 390; LOW 16697.10 | 2023-12-26 | 388 |
+| 2023-12-29 | NY AM | 2023-12-27 | 390; LOW 16856.10 | 2023-12-28 | 383 |
+| 2024-01-16 | NY PM | 2024-01-12 | 390; HIGH 16900.10 | 2024-01-15 | 210 |
+| 2024-05-28 | NY AM | 2024-05-24 | 390; LOW 18666.13 | 2024-05-27 | 210 |
+| 2024-06-20 | NY AM | 2024-06-18 | 390; LOW 19848.46 | 2024-06-19 | 210 |
+| 2024-12-26 | NY PM | 2024-12-23 | 390; LOW 21188.95 | 2024-12-25 | 0 |
+| 2025-07-04 | NY AM | 2025-07-02 | 390; LOW 22440.00 | 2025-07-03 | 224 |
+| 2025-07-07 | NY AM | 2025-07-02 | 390; LOW 22440.00 | 2025-07-04 | 210 |
+| 2025-08-04 | NY PM | 2025-07-31 | 390; HIGH 23613.50 | 2025-08-01 | 389 |
+| 2025-12-26 | NY PM | 2025-12-23 | 390; LOW 25395.30 | 2025-12-25 | 0 |
+| 2026-01-02 | London | 2025-12-31 | 390; HIGH 25481.00 | 2026-01-01 | 0 |
+| 2026-01-20 | NY PM | 2026-01-16 | 390; HIGH 25733.60 | 2026-01-19 | 209 |
+| 2026-02-17 | London | 2026-02-13 | 390; HIGH 24920.80 | 2026-02-16 | 210 |
+| 2026-04-06 | NY PM | 2026-04-02 | 390; LOW 23501.40 | 2026-04-03 | 0 |
+
+**Interpretación corregida:** los 18 `REJECTED` del helper M2 `_previous_weekday(day)` son **falsos rechazos por fuente incompleta en el weekday nominal** respecto a la política observable `último cash realmente completo`. Los 18 casos son verificables como *source lineage* del G3 en el histórico original, y el conteo queda preservado en el casebook anterior para trazabilidad. **Esto NO verifica que elegir el último cash completo sea la doctrina exacta de ICT o TTrades**, ni que un CFD haya cerrado realmente cuando faltan barras. Los 0/209/210/224/225/378/388/389 son meros M1 observados (no broker calendario PIT). El nuevo testigo usa calendario NY IANA con DST, no DST fijo.
+
+### Próximo contrato para arquitecto metodológico
+
+- Proponer política M2 versionada y firmable **`LAST_CLOSED_FULL_CASH_390_M1`** versus `IMMEDIATE_PRIOR_NY_WEEKDAY` conforme fuente primaria exacta de cada perfil. **Owner decide/firma ANTES** de reemplazar el helper.
+- Hasta entonces NO modificar `vt31_ict_dol_source_v1_20261014.py` ni G3 original; mantener los 18 en `SOURCE_CALENDAR_POLICY_MISMATCH_PENDING_OWNER` en tribunal formal, no `COG_LOOKAHEAD_PROVEN`, y añadir test independiente que distinga ambas convenciones.
+- Los **298** DTO positivos con cobertura post-source incierta y **1.529** UNKNOWN sin DTO siguen WAIT o sin fuente; el censo de 445 QORE confirmados **no certifica método ICT**. Las otras puertas M3 MSS, M4 cuatro familias, M5 swing, M6 firmas humanas #897 y M7 tres certificados permanecen sin resolver.
+
+**Dictamen específico fuente cash:** `18_OF_18_G3_PRIOR_CASH_SOURCE_PRICE_AND_390_M1_LINEAGE_RECONCILED=TRUE`, `18_OF_18_IMMEDIATE_NOMINAL_WEEKDAY_M1_INCOMPLETE=TRUE`, `G3_FORWARD_DATA_LEAK_PROVEN=FALSE`, `ICT_TTRADES_METHOD_CORRECT=UNKNOWN`. Por tanto `M2_AUTHOR_CERTIFICATION=BLOCKED`, London, NY AM, NY PM y VT31 NO certificados.
