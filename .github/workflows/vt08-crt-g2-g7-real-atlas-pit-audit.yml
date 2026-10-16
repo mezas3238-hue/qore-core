@@ -9,6 +9,8 @@ on:
       - 'src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py'
@@ -36,9 +38,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
 
   verified_original_m5:
     needs: quality
@@ -92,6 +94,17 @@ jobs:
           assert all("EX_POST" not in json.dumps(row) for row in rows)
           posthoc=m["G7_EX_POST_DIAGNOSTIC_NEVER_INITIAL_DECISION"]
           unknown=m["GM4_EX_POST_UNKNOWN_FORENSICS_NEVER_INITIAL_DECISION"]
+          r8=m["R8_ORIGINAL_PRODUCER_SHA_VERIFIED_GAPS_NOT_MARKET_CALENDAR"]
+          r8_rows=[json.loads(line) for line in (p/"r8-original-producer-sha-backed-gap-custody.jsonl").read_text().splitlines() if line]
+          assert r8["original_gap_cases_matched"] == len(r8_rows) == (1 if os.environ["QORE_MARKET"]=="AUDUSD" else 2)
+          assert r8["counts"]["PRODUCER_GAP_WITNESSED"] == len(r8_rows)
+          assert r8["source_producer_sha"] == "ab782b8e9f890f86a2b6500070f0556b4b685e3d"
+          assert r8["quality_ledger_sha_verified"] and r8["GM4_UNKNOWN_STILL_NOT_TERMINAL"]
+          assert not r8["broker_historical_calendar_authenticated"]
+          assert all(x["quality_ledger_sha_verified"] and not x["underlying_missing_m5_recovered"] for x in r8_rows)
+          assert all(x["source_GM4_terminal_still_UNKNOWN"] and not x["terminal_adjudicated"] for x in r8_rows)
+          print("VT08_R8_ORIGINAL_PRODUCER_QUALITY_GAP_COUNTS",json.dumps(r8,sort_keys=True))
+          print("VT08_R8_ORIGINAL_PRODUCER_QUALITY_GAP_CASES",json.dumps(r8_rows,sort_keys=True))
           r7=m["R7_EMPIRICAL_FX_WEEKLY_CLOSE_BROKER_NOT_VERIFIED"]
           r7_rows=[json.loads(line) for line in (p/"r7-original-m5-fx-weekly-close-evidence.jsonl").read_text().splitlines() if line]
           assert len(r7_rows)==r7["forensic_gaps"]==(1 if os.environ["QORE_MARKET"]=="AUDUSD" else 2)
@@ -127,7 +140,7 @@ jobs:
           print("VT08_G2_G7_ATLAS_RESEARCH_COUNTS",json.dumps(m["counts"],sort_keys=True))
           PY
           printf '%s\n' "$GITHUB_SHA" > "g2-g7-real/$QORE_MARKET/git-sha.txt"
-          (cd "g2-g7-real/$QORE_MARKET"; sha256sum g2-g7-real-atlas-pit-summary.json g2-g7-real-atlas-pit-ledger.jsonl g2-c0-c1-blind-predecision-cases.jsonl gm4-unknown-expost-forensics.jsonl r7-original-m5-fx-weekly-close-evidence.jsonl git-sha.txt > SHA256SUMS.txt)
+          (cd "g2-g7-real/$QORE_MARKET"; sha256sum g2-g7-real-atlas-pit-summary.json g2-g7-real-atlas-pit-ledger.jsonl g2-c0-c1-blind-predecision-cases.jsonl gm4-unknown-expost-forensics.jsonl r7-original-m5-fx-weekly-close-evidence.jsonl r8-original-producer-sha-backed-gap-custody.jsonl git-sha.txt > SHA256SUMS.txt)
       - name: Retain censored G2-G7 research artifact (no fills no sizing)
         uses: actions/upload-artifact@v4
         with:
