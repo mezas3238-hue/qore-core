@@ -10,10 +10,11 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, deque
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     G3_MSS_FRAMEWORK_POLICY,
