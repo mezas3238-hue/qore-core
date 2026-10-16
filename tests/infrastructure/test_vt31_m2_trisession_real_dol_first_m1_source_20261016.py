@@ -129,7 +129,7 @@ def test_future_bar_fails_source_causal_attestor_even_without_cog():
     original = trader.on_closed_m1(current)
     with pytest.raises(AssertionError, match="FUTURE_M1"):
         first_m1_case(
-            trader=trader, bar=current, history=(current, later),
+            trader=trader, bar=current, history=(later, current),
             session=SessionId.LONDON, observation=original,
         )
 
