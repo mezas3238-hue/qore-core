@@ -54,7 +54,7 @@ def new_trader() -> VT31Trader:
 
 
 @pytest.mark.parametrize("month,offset", [(1, 5), (7, 4)])
-def test_one_native_trader_all_three_ict_clocks_DST(month, offset):
+def test_one_native_trader_all_three_ict_clocks_dst(month, offset):
     trader = new_trader()
     day = f"2025-{month:02d}-15"
     n = 0
@@ -158,7 +158,7 @@ def test_missing_first_m1_waits_without_bootstrapping_ops(hour, session):
     (10, SessionId.NY_AM),
     (14, SessionId.NY_PM),
 ])
-def test_first_two_asof_survive_midwindow_gap_but_no_further_COG(
+def test_first_two_asof_survive_midwindow_gap_but_no_further_cog(
     hour, session,
 ):
     trader = new_trader()
