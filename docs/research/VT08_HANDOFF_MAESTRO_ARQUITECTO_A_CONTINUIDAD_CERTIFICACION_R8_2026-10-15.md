@@ -335,3 +335,16 @@ Este documento es un corte verificable de continuidad: identifica los dos arquit
 **Nuevo entregable B R19:** [107 fichas outcome-blind (A+B) por SHA](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-cognition-replay-20261010/docs/research/VT08_B_R19_PREREGISTERED_BLIND_POI_DUAL_REVIEW_QUEUE_2026-10-16.md), [GitHub Actions #38903529731](https://github.com/mezas3238-hue/qore-core/actions/runs/38903529731) 5/5 GREEN, 40 adversariales. Muestra determinista pre-PnL: 50 FVG bullish pre-CISD, 50 controles sin FVG de las últimas 3 H1, 4 primero en barra CISD, 3 FVG bearish antes CISD. **0 revisiones A firmadas, 0 B firmadas**, 0 fuente completa. Auditor A tiene que clasificar source swing/POI/PS verdaderos por caso; B debe revisar independientemente fuente raw y disenso; D=>WAIT. La muestra no es nuevo denominador económico: permanecen 2.657 físicos originales.
 
 **Restricciones Owner ya vigentes**: VT08 actual EXCLUSIVO, QORE-alpha totalmente excluido, NO sizing, NO 7Y sellado, NO operaciones/merge; 27 `CAUSAL_FIELDS` sin semántica auténtica, `AUTHOR_COMPLETE=0`, `COGNITIVE_ADMISSIONS=0`, `BROKER_FILLS=0`, `GATES=NOT_EVALUABLE` y VT08 **NO CERTIFICADO**.
+
+
+---
+
+## APÉNDICE R20 — POI FVG VS SERIE M3 (16-oct-2026)
+
+**Último R20 B:** [Informe causal original 2.657 mercados + SHA + ficha 107](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-cognition-replay-20261010/docs/research/VT08_B_R20_PRE_CISD_POI_BEARISH_SERIES_CAUSAL_JOIN_2026-10-16.md); [GitHub Actions FINAL #38975212429](https://github.com/mezas3238-hue/qore-core/actions/runs/38975212429) **5/5 GREEN, 70 adversariales**. Commit informe `979c37c7dbd390d4961a14d2b325b145a8285c60`. Comparó **todo** R18 source original y R19 source SHA (no PnL) con R14 opposing bearish series reconstruida independientemente del raw M3 y `source_bar_id`.
+
+**Resultado relevante:** 290 FVG H1 alcistas anteriores a C2; 95 primer toque FVG ANTES de opposing bearish series, 70 PRIMER TOQUE DURANTE la serie, 73 de los 95 PRE volvieron a tocar durante la serie. **143 FVG** tuvieron cualquier toque durante bearish run y coincidencia M3 física entre toque de zona FVG y sweep C1.low. **NO hay tick-order conocido en esa misma M3 ni POI/PS autor-certificado.** Otros 22 de los 95 no retocaron durante run, 4 primer toque en barra CISD (secuencia UNKNOWN), 12 first touch posterior CISD, 109 nunca tocados. Los 143 son un estrato de revisión no un denominador de trades: los 2.657 permanecen fijos.
+
+**Entregable nuevo R20 para revisores A/B:** R19 107 fichas enriquecidas con `opposing_series_opened_at_utc`, contacto FVG por m3 id, `bearish_series_fvg_touch_bar_ids`, `bearish_series_sweep_bar_ids`, `same_m3_bar_event_order_proven_by_ticks=False`, firmas humanas `None`, `source_complete=False`. **A** debe decidir relación causal y relevancia de POI/swing/PS con soporte fuente y rúbrica de disenso, NO automatizar decisión a partir de la geometría; **B** auditar bar ids y clock source de firmas A independientes, nunca promover sin evidencia semántica, 27 `CAUSAL_FIELDS` pendientes.
+
+**Gobernanza Owner:** programa único VT08 TTrades/cognitiva; QORE-alpha completamente excluido, 7Y holdout sellado, sin sizing/orders/VPS/merge. `AUTHOR_COMPLETE=0` · `COGNITIVE_ADMISSIONS=0` · `BROKER_FILLS=0` · `GATES=NOT_EVALUABLE` · VT08 **NO CERTIFICADO**.
