@@ -87,6 +87,16 @@ def first_m1_case(
         raise AssertionError("DOL_CONFIRMED_WITHOUT_ORIGINAL_COG_DECISION")
     if attestation.state not in ("CONFIRMED", "UNKNOWN", "REJECTED"):
         raise AssertionError("DOL_UNEXPECTED_SOURCE_VERDICT")
+    matching_pool = next(
+        (p for p in attestation.pools if dto and p.family == dto.draw_family),
+        None,
+    )
+    temporal_source_end_lead_minutes = (
+        int(
+            (matching_pool.source_end - dto.draw_level_observed_at)
+            .total_seconds() // 60
+        ) if matching_pool is not None and dto is not None else None
+    )
     ny = bar.opened_at.astimezone(NEW_YORK)
     return {
         "ny_day": ny.date().isoformat(),
@@ -97,6 +107,17 @@ def first_m1_case(
         "original_G3_draw_family": dto.draw_family if dto is not None else None,
         "original_G3_draw_price": (
             str(dto.draw_target) if dto is not None else None
+        ),
+        "original_G3_draw_level_observed_at": (
+            dto.draw_level_observed_at.isoformat()
+            if dto is not None else None
+        ),
+        "matched_independent_source_end_utc": (
+            matching_pool.source_end.isoformat()
+            if matching_pool is not None else None
+        ),
+        "source_end_minus_cog_original_time_minutes": (
+            temporal_source_end_lead_minutes
         ),
         "native_M0_source_wait": observation.source_wait_reason,
         "nyam_h1_09_completed_at_10_if_applicable": (
@@ -185,6 +206,9 @@ def adjudicate_m2_posthoc(
                 "original_G3_QORE_DTO_present_not_trade": False,
                 "original_G3_draw_family": None,
                 "original_G3_draw_price": None,
+                "original_G3_draw_level_observed_at": None,
+                "matched_independent_source_end_utc": None,
+                "source_end_minus_cog_original_time_minutes": None,
                 "native_M0_source_wait": "NO_FIRST_M1_SOURCE_UNKNOWN",
                 "nyam_h1_09_completed_at_10_if_applicable": None,
                 "M2_QORE_independent_attestation_state": "NO_FIRST_M1",
@@ -249,6 +273,35 @@ def adjudicate_m2_posthoc(
             "M2_source_reasons": dict(sorted(reasons.items())),
             "ict_author_dol_certified": False,
         }
+    rejected = [
+        {
+            "day": case["ny_day"],
+            "session": case["session"],
+            "first_closed_M1_utc": case["first_closed_M1_utc"],
+            "original_G3_draw_family": case["original_G3_draw_family"],
+            "original_G3_draw_price": case["original_G3_draw_price"],
+            "original_G3_draw_level_observed_at": (
+                case["original_G3_draw_level_observed_at"]
+            ),
+            "source_interval_closed_at": (
+                case["matched_independent_source_end_utc"]
+            ),
+            "source_end_minus_cog_time_minutes": (
+                case["source_end_minus_cog_original_time_minutes"]
+            ),
+            "reason": case["M2_QORE_independent_attestation_reasons"],
+            "author_certified": False,
+        }
+        for case in expanded
+        if case["M2_QORE_independent_attestation_state"] == "REJECTED"
+    ]
+    # This independently observable count is not a target or tuning threshold.
+    if any(
+        c["source_end_minus_cog_time_minutes"] is None
+        for c in rejected
+        if "COG_DOL_ANNOUNCED_BEFORE_SOURCE_CLOSE" in c["reason"]
+    ):
+        raise AssertionError("M2_SOURCE_REJECTION_WITHOUT_DATED_TIME_WITNESS")
     canonical_bytes = json.dumps(
         expanded, sort_keys=True, separators=(",", ":")
     ).encode()
@@ -262,6 +315,8 @@ def adjudicate_m2_posthoc(
         "casebook_2325_json_sha256": sha256(canonical_bytes).hexdigest(),
         "session_M2_QORE_provenance_not_author_certification": stats,
         "full_2325_first_closed_M1_cases": expanded,
+        "all_dated_rejected_G3_DOL_source_cases": rejected,
+        "rejected_G3_DOL_source_count": len(rejected),
         "prior_independent_coverage_ledger_read_only_posthoc": True,
         "native_G3_COG_and_OPS_unmodified": True,
         "m2_qore_liquidity_source_context_tested": True,
