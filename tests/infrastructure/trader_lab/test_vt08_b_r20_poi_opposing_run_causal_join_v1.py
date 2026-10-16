@@ -94,7 +94,9 @@ def test_first_touch_before_opposing_bearish_series_is_not_during() -> None:
 def test_first_touch_in_cisd_bar_not_prior() -> None:
     source=bars()
     result=evaluate(source,make_zone(source,low="106.5",high="107.5"))
-    assert result["physical_first_touch_relative_to_run"] == "IN_CISD_CONFIRMATION_BAR_INTRABAR_UNKNOWN"
+    assert result["physical_first_touch_relative_to_run"] == (
+        "IN_CISD_CONFIRMATION_BAR_INTRABAR_UNKNOWN"
+    )
     assert result["bearish_series_touched_fvg"] is False
 
 
