@@ -39,3 +39,41 @@ El `PRIOR_NY_CASH_SESSION` contextual no tiene evidencia suficiente de continuid
 - `M7`: tres subcertificados separados London / NY AM / NY PM y autorización de integración formal pendientes.
 
 **DICTAMEN:** `M2_REAL_QORE_SOURCE_PROVENANCE_CENSUS=PASS_RESEARCH_ONLY`; `M2_AUTHOR_METODOLOGIA=BLOCKED`; `LONDON_CERTIFIED=FALSE`; `NYAM_CERTIFIED=FALSE`; `NYPM_CERTIFIED=FALSE`; `VT31_CERTIFICADO=FALSE`. No merge a main, no broker, ni órdenes, ni sizing, ni métricas económicas para certificar.
+
+## 6. EXPEDIENTE FECHADO COMPLETO de los 18 `REJECTED` — causa más precisa
+
+**[CI final #38975891228 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/38975891228)**, commit ejecutado `a4d8cc4ad4efe245e024a1787d3a0c24cb6c5839`, **127/127 pytest**, Ruff PASS. **[Artifact #12079131643](https://github.com/mezas3238-hue/qore-core/actions/runs/38975891228/artifacts/12079131643)**, ZIP SHA256 `30de8306225941208ecea73ab4b9ba9b88b625b8b1e9794f47c758ea3fdce07a`. Casebook extendido con observación y cierre nominal del rango DOL: SHA256 `d74b24242c4b8c5656547727b88886ecd1a18243c362d9d366825880bddbfc21`. Las tasas permanecen **exactamente iguales** a la primera CI. El SHA anterior es distinto porque este segundo casebook incluye columnas adicionales de procedencia, **no porque hayan cambiado gates o resultados**.
+
+**Advertencia interpretativa P0:** el helper independiente `vt31_ict_dol_source_v1_20261014.py` define `PRIOR_NY_CASH_SESSION` como `_previous_weekday(day)`, o sea **día hábil nominal inmediato anterior**, con intervalo 09:30–16:00 NY. Los **18** REJECTED tienen TODOS familia `PRIOR_NY_CASH_SESSION_{HIGH|LOW}` y timestamp original G3 más antiguo que el cierre del día nominal inmediatamente anterior. Así, `COG_DOL_ANNOUNCED_BEFORE_SOURCE_CLOSE` es **la etiqueta técnica del tribunal al contrastar dos políticas de selección de día**, **NO prueba de acceso de G3 al futuro**: G3 podría usar el último cash real completo observado previamente y el auditor requerir el último weekday aunque fuera festivo/incompleto. Ambos deben reconciliarse con calendario point-in-time símbolo/bróker y semántica de `draw_level_observed_at` antes de adjudicar falsos históricos. Prohibido declarar fraude/lookahead o corregir G3 core sin esa evidencia.
+
+| Fecha NY | Ventana | G3 observó nivel cash en UTC | Cierre cash nominal anterior UTC | Diferencia (min) | Precio G3 |
+|---|---|---|---|---:|---:|
+| 2023-10-13 | NY AM | 2023-10-10 20:00 | 2023-10-12 20:00 | 2.880 | 15040.60 LOW |
+| 2023-11-08 | NY PM | 2023-11-03 20:00 | 2023-11-07 21:00 | 5.820 | 14964.30 LOW |
+| 2023-11-27 | NY AM | 2023-11-22 21:00 | 2023-11-24 21:00 | 2.880 | 16122.80 HIGH |
+| 2023-12-14 | NY AM | 2023-12-12 21:00 | 2023-12-13 21:00 | 1.440 | 16175.80 LOW |
+| 2023-12-27 | NY PM | 2023-12-22 21:00 | 2023-12-26 21:00 | 5.760 | 16697.10 LOW |
+| 2023-12-29 | NY AM | 2023-12-27 21:00 | 2023-12-28 21:00 | 1.440 | 16856.10 LOW |
+| 2024-01-16 | NY PM | 2024-01-12 21:00 | 2024-01-15 21:00 | 4.320 | 16900.10 HIGH |
+| 2024-05-28 | NY AM | 2024-05-24 20:00 | 2024-05-27 20:00 | 4.320 | 18666.13 LOW |
+| 2024-06-20 | NY AM | 2024-06-18 20:00 | 2024-06-19 20:00 | 1.440 | 19848.46 LOW |
+| 2024-12-26 | NY PM | 2024-12-23 21:00 | 2024-12-25 21:00 | 2.880 | 21188.95 LOW |
+| 2025-07-04 | NY AM | 2025-07-02 20:00 | 2025-07-03 20:00 | 1.440 | 22440.00 LOW |
+| 2025-07-07 | NY AM | 2025-07-02 20:00 | 2025-07-04 20:00 | 2.880 | 22440.00 LOW |
+| 2025-08-04 | NY PM | 2025-07-31 20:00 | 2025-08-01 20:00 | 1.440 | 23613.50 HIGH |
+| 2025-12-26 | NY PM | 2025-12-23 21:00 | 2025-12-25 21:00 | 2.880 | 25395.30 LOW |
+| 2026-01-02 | London | 2025-12-31 21:00 | 2026-01-01 21:00 | 1.440 | 25481.00 HIGH |
+| 2026-01-20 | NY PM | 2026-01-16 21:00 | 2026-01-19 21:00 | 4.320 | 25733.60 HIGH |
+| 2026-02-17 | London | 2026-02-13 21:00 | 2026-02-16 21:00 | 4.320 | 24920.80 HIGH |
+| 2026-04-06 | NY PM | 2026-04-02 20:00 | 2026-04-03 20:00 | 1.440 | 23501.40 LOW |
+
+Los cierres están en UTC; tras cambios EST/EDT difieren las horas nominales, no se han normalizado a offset fijo. **No inferir que un NAS100 CFD estuvo cerrado en esos festivos: requieren metadata histórico PIT del proveedor.**
+
+### Decisión técnica formal
+
+1. **H0**: G3 usa nivel del último cash realmente completo, que estaba totalmente cerrado antes de emitir el DTO; `draw_level_observed_at` es correcto, el calendario nominal del testigo es insuficiente.
+2. **H1**: G3 declaró un nivel de cash antiguo cuando su método requería el cash del día hábil nominal inmediato anterior o un pool distinto; es selección contextual errónea aunque no lookahead.
+3. **H2**: el timestamp G3 no representa fin de pool, sino observación parcial, y debe separarse semánticamente de `source_completed_at`; no homologar sin una nueva especificación y no mutar el DTO congelado.
+4. Testigos para resolver: **intervalos M1 09:30–16 del weekday nominal y del efectivo anterior**, calendario NAS100 CFD PIT, exactitud OHLC de extremos, consumo hasta `as_of`, y fuente ICT/TTrades escrita para definir cuál es el pool exigido. Requiere juicio revisor independiente M2 y dos firmas M6. Issue [#994](https://github.com/mezas3238-hue/qore-core/issues/994).
+
+**Condición de cierre de #994:** los 18 casos fechados deben quedar clasificados como `SOURCE_CALENDAR_MISMATCH` fundamentado, `G3_POLICY_ERROR` fundamentado o `UNRESOLVED_WAIT` — sin modificar números para fabricar un PASS. `M2_ICT_AUTHOR_CERTIFIED=FALSE` hasta fuente validada, y 3 sesiones no certificadas.
