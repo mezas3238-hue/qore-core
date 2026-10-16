@@ -5,7 +5,10 @@ on:
       - agent/vt31-m2-trisession-real-dol-provenance-20261016
     paths:
       - 'scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py'
+      - 'scripts/vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py'
       - 'tests/infrastructure/test_vt31_m2_trisession_real_dol_first_m1_source_20261016.py'
+      - 'tests/infrastructure/test_vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py'
+      - 'docs/research/VT31_M2_PRIOR_CASH_18_CASE_REAL_M1_CALENDAR_PREREG_2026-10-16.md'
       - '.github/workflows/vt31-m2-trisession-real-dol-provenance-20261016.yml'
       - 'docs/research/VT31_M2_TRISESION_REAL_M1_DOL_SOURCE_PREREG_2026-10-16.md'
   workflow_dispatch:
@@ -30,6 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           git merge-base --is-ancestor 2e24b6ac2f08644441116d1df1f27ef8e011e161 HEAD
+          git merge-base --is-ancestor cd49fc53a80700449e229121e39f7a306c968e88 HEAD
           git merge-base --is-ancestor 2de96800374c5c27ccbf02bab54ff0736e568632 HEAD
           test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
           test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
@@ -40,10 +44,11 @@ jobs:
           set -euo pipefail
           python -m pip install -e '.[dev]' pytest-xdist 'ijson>=3.3,<4'
           mkdir -p evidence
-          ruff check scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py tests/infrastructure/test_vt31_m2_trisession_real_dol_first_m1_source_20261016.py
-          python -m py_compile scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py
+          ruff check scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py scripts/vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py tests/infrastructure/test_vt31_m2_trisession_real_dol_first_m1_source_20261016.py tests/infrastructure/test_vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py
+          python -m py_compile scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py scripts/vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py
           PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
             tests/infrastructure/test_vt31_m2_trisession_real_dol_first_m1_source_20261016.py \
+            tests/infrastructure/test_vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py \
             tests/infrastructure/test_vt31_ict_dol_source_v1_20261014.py \
             tests/infrastructure/test_vt31_m0b_native_source_gate_trisession_20261016.py \
             tests/infrastructure/test_vt31_m7a_native_g3_policy_trisession_20261015.py \
@@ -95,6 +100,31 @@ jobs:
             assert p[k] is False
           assert p['broker_trades']==p['broker_fills']==p['sizing']==0
           print('VT31_M2_REAL_QORE_PROVENANCE_NOT_AUTHOR_CERTIFIED')
+          PY
+      - name: Independent authentic 390 M1 prior cash evidence on exactly 18 prereg disputes
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py \
+            --market source/NAS100/market-evidence.json \
+            --out evidence/VT31_M2_REAL_18_PRIOR_CASH_390M1_DAY_ADJUDICATION.json \
+            | tee evidence/prior_cash_18_summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M2_REAL_18_PRIOR_CASH_390M1_DAY_ADJUDICATION.json'))
+          assert p['real_market_M1_consumed']==1059784
+          assert p['fixed_G3_temporal_disputes']==18
+          assert p['fixed_prior_casebook_sha']=='d74b24242c4b8c5656547727b88886ecd1a18243c362d9d366825880bddbfc21'
+          assert len(p['all_18_cash_source_falsifiers'])==18
+          assert sum(p['source_price_evidence_states'].values())==18
+          assert sum(p['source_selection_context_states'].values())==18
+          assert not p['ICT_author_cash_selection_method_certified']
+          assert not p['source_broker_NAS100_calendar_PIT_confirmed']
+          assert not p['M2_author_certified']
+          assert not p['M3_M4_M5_author_certified']
+          assert not p['M6_two_human_signatures']
+          assert not p['M7_VT31_three_silver_bullets_certified']
+          assert p['broker_orders']==p['sizing']==0
+          print('VT31_18_PRIOR_CASH_REAL_390M1_ADJUDICATED_SOURCE_ONLY')
           PY
       - name: Integrity of audit evidence
         if: always()
