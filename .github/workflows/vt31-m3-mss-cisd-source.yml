@@ -1,0 +1,86 @@
+name: VT31 M3 independent MSS CISD source witness research
+on:
+  push:
+    branches:
+      - agent/vt31-m3-mss-cisd-source-separation-20261016
+    paths:
+      - 'docs/research/VT31_M3_MSS_CISD_INDEPENDENT_SOURCE_PREREG_2026-10-16.md'
+      - 'scripts/vt31_m3_mss_cisd_separate_causal_witness_20261016.py'
+      - 'tests/infrastructure/test_vt31_m3_mss_cisd_separate_causal_witness_20261016.py'
+      - '.github/workflows/vt31-m3-mss-cisd-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  m3-distinct-author-source-research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert prereg ancestor and frozen original G3 artifacts
+        run: |
+          set -euo pipefail
+          git cat-file -t ea9df7d0f1fd7404d9e9e8271e0967aee8b36f09
+          git merge-base --is-ancestor ea9df7d0f1fd7404d9e9e8271e0967aee8b36f09 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Ruff pytest M3 contrasts and V4 previous regressions
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist
+          ruff check scripts/vt31_m3_mss_cisd_separate_causal_witness_20261016.py tests/infrastructure/test_vt31_m3_mss_cisd_separate_causal_witness_20261016.py
+          python -m py_compile scripts/vt31_m3_mss_cisd_separate_causal_witness_20261016.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m3_mss_cisd_separate_causal_witness_20261016.py \
+            tests/infrastructure/test_vt31_cog_v4_transactional_context_20261016.py \
+            tests/infrastructure/test_vt31_m0m4_continuous_tape_seal_cog_v3_20261015.py \
+            tests/infrastructure/test_vt31_m0_m4_context_memory_cog_candidate_20261015.py \
+            tests/infrastructure/test_vt31_m4_closed_m1_author_gate_20261015.py \
+            tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_m3_mss_cisd_separate_causal_witness_20261016.py \
+            --out evidence/VT31_M3_MSS_CISD_16_CONTRASTS.json \
+            | tee evidence/summary.json
+      - name: Validate no universal AM gate and no certification or OMS
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          d=json.load(open('evidence/VT31_M3_MSS_CISD_16_CONTRASTS.json'))
+          assert d['prereg_commit']=='ea9df7d0f1fd7404d9e9e8271e0967aee8b36f09'
+          assert len(d['cases'])==16
+          assert sum(x['mss_status']=='SWING_CLOSE_GEOMETRY_ONLY_DISPLACEMENT_NOT_PROVEN' for x in d['cases'])==8
+          assert sum(x['cisd_status']=='OPPOSING_SERIES_OPEN_CLOSE_GEOMETRY_ONLY_SELECTION_NOT_PROVEN' for x in d['cases'])==8
+          assert all(x['action']=='WAIT' for x in d['cases'])
+          assert d['mss_and_cisd_distinct'] and d['not_universal_am_gates']
+          assert not d['author_displacement_approved']
+          assert not d['author_swing_relevance_approved']
+          assert not d['author_cisd_series_selection_approved']
+          assert not d['m3_author_certified'] and not d['methodology_certified'] and not d['cognition_certified']
+          assert not d['native_cog_integrated'] and not d['owner_m0_signed'] and not d['human_cog_ops_signed']
+          assert all(x['broker_orders']==x['lot_sizing']==0 and not x['orders_authorized'] for x in d['cases'])
+          assert d['orders']==d['sizing']==0 and not d['live']
+          print('VT31_M3_INDEPENDENT_GEOMETRIES_RESEARCH_WAIT_NOT_CERTIFIED')
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' ea9df7d0f1fd7404d9e9e8271e0967aee8b36f09 > evidence/prereg_sha.txt
+          printf '%s\n' 'VT31_M3_GEOMETRY_RESEARCH_ONLY_NO_G3_MODIFICATION_NO_OMS' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-m3-mss-cisd-separate-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
