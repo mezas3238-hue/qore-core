@@ -95,7 +95,7 @@ def test_naive_cisd_time_rejected() -> None:
 
 def test_naive_m3_time_rejected() -> None:
     x = candles(touched_at=1)
-    x[2] = (datetime(2026, 1, 5, 12, 6), x[2][1])
+    x[0] = (datetime(2026, 1, 5, 12), x[0][1])
     with pytest.raises(ValueError, match="clock naive"):
         first_touch_phase(
             x, lower=Decimal("99"), upper=Decimal("100"),
