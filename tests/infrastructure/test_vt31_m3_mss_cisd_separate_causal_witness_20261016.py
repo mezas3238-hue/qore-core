@@ -125,7 +125,7 @@ def test_cisd_future_index_and_partial_series_rejected(month):
         assert v.action == m3.REJECT and v.reason == reason
 
 
-def test_uncommitted_M0_does_not_admit_structural_inference():
+def test_uncommitted_m0_does_not_admit_structural_inference():
     bad, at = ttrades_fixture(
         month=1, side=Side.LONG, min10_valid=False,
     )
