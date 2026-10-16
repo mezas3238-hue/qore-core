@@ -18,6 +18,9 @@ from typing import Any
 from qore.infrastructure.trader_lab.vt08_crt_gm4_unknown_root_forensics import (
     diagnose_gm4_unknowns_expost,
 )
+from qore.infrastructure.trader_lab.vt08_crt_original_atlas_quality_gap_custody import (
+    audit_original_producer_quality_gaps,
+)
 from qore.infrastructure.trader_lab.vt08_crt_original_fx_weekly_close_forensics import (
     examine_original_fx_weekly_close_gaps,
 )
@@ -447,6 +450,12 @@ def main() -> None:
     r7_summary, r7_evidence = examine_original_fx_weekly_close_gaps(
         market, bars, unknown_rows
     )
+    r8_summary, r8_evidence = audit_original_producer_quality_gaps(
+        market, args.atlas_root, bars, r7_evidence
+    )
+    if r8_summary["original_gap_cases_matched"] != len(r7_evidence):
+        raise ValueError("R8 producer quality gaps not matched to R7 forensics")
+    summary["R8_ORIGINAL_PRODUCER_SHA_VERIFIED_GAPS_NOT_MARKET_CALENDAR"] = r8_summary
     if r7_summary["forensic_gaps"] != sum(
         row["observed_issue"] == "SOURCE_M5_GAP" for row in unknown_rows
     ):
@@ -481,6 +490,9 @@ def main() -> None:
             out.write(json.dumps(item, sort_keys=True) + "\n")
     with (args.output / "r7-original-m5-fx-weekly-close-evidence.jsonl").open("w") as out:
         for item in r7_evidence:
+            out.write(json.dumps(item, sort_keys=True) + "\n")
+    with (args.output / "r8-original-producer-sha-backed-gap-custody.jsonl").open("w") as out:
+        for item in r8_evidence:
             out.write(json.dumps(item, sort_keys=True) + "\n")
     print(json.dumps({
         k: v for k, v in summary.items() if k != "original_atlas_provenance"
