@@ -161,6 +161,7 @@ def classify_physical_poi_into_series(
         "same_bar_fvg_touch_and_liquidity_sweep": bool(
             set(x[1] for x in swept) & set(x[1] for x in run_touch)
         ),
+        "same_m3_bar_event_order_proven_by_ticks": False,
         "author_poi_significance_certified": False,
     }
 
@@ -256,6 +257,18 @@ def audit_r20(
             counts["fvg_same_bar_run_sweep"] += int(
                 physical["same_bar_fvg_touch_and_liquidity_sweep"]
             )
+            if zone["type"] == "BULLISH_H1_3BAR_FVG_GEOMETRY":
+                counts["bullish_fvg_any_bearish_run_contact"] += int(
+                    physical["bearish_series_touched_fvg"]
+                )
+                counts["bullish_fvg_run_contact_same_m3_as_sweep"] += int(
+                    physical["same_bar_fvg_touch_and_liquidity_sweep"]
+                )
+                counts["bullish_fvg_first_touch_before_run_then_retouched_run"] += int(
+                    physical["physical_first_touch_relative_to_run"]
+                    == "BEFORE_BEARISH_OPPOSING_SERIES"
+                    and physical["bearish_series_touched_fvg"]
+                )
         full.append({
             "case_id_sha256": cid, "market": market,
             "original_r18_source_sha256": pinned18,
