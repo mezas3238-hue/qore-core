@@ -1,0 +1,82 @@
+name: VT31 COG V4 atomic PREPARE COMMIT research
+on:
+  push:
+    branches:
+      - agent/vt31-cog-v4-two-phase-commit-20261016
+    paths:
+      - 'docs/research/VT31_COG_V4_TRANSACTIONAL_PREDECISION_PREREG_2026-10-16.md'
+      - 'scripts/vt31_cog_v4_transactional_context_20261016.py'
+      - 'tests/infrastructure/test_vt31_cog_v4_transactional_context_20261016.py'
+      - '.github/workflows/vt31-cog-v4-transactional.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  atomic-cog-source-research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify precode prereg and unchanged frozen G3
+        run: |
+          set -euo pipefail
+          git cat-file -t a7e502fc2f17da23b229f5241a827d95992d22ba
+          git merge-base --is-ancestor a7e502fc2f17da23b229f5241a827d95992d22ba HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Run V4 atomicity and previous M0 M4 V2 V3 cognitive regressions
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist
+          ruff check scripts/vt31_cog_v4_transactional_context_20261016.py tests/infrastructure/test_vt31_cog_v4_transactional_context_20261016.py
+          python -m py_compile scripts/vt31_cog_v4_transactional_context_20261016.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_cog_v4_transactional_context_20261016.py \
+            tests/infrastructure/test_vt31_m0m4_continuous_tape_seal_cog_v3_20261015.py \
+            tests/infrastructure/test_vt31_m0_m4_context_memory_cog_candidate_20261015.py \
+            tests/infrastructure/test_vt31_m4_closed_m1_author_gate_20261015.py \
+            tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_cog_v4_transactional_context_20261016.py \
+            --out evidence/VT31_COG_V4_M0_PREPARE_COMMIT_8_CASES.json \
+            | tee evidence/summary.json
+      - name: Check claims, seal, operational zeros and checksums
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          d=json.load(open('evidence/VT31_COG_V4_M0_PREPARE_COMMIT_8_CASES.json'))
+          assert d['prereg_sha']=='a7e502fc2f17da23b229f5241a827d95992d22ba'
+          assert len(d['cases'])==8
+          assert sum(x['committed'] for x in d['cases'])==4
+          assert all(x['action']=='WAIT' for x in d['cases'])
+          assert not d['methodology_certified'] and not d['cognition_certified']
+          assert not d['human_cog_ops_reviews_complete']
+          assert not d['owner_policy_signed'] and not d['m3_m4_m5_author_approved']
+          assert not d['native_cog_integrated']
+          assert d['orders']==d['sizing']==0 and not d['live']
+          assert all(not r['live_or_oms_authorized'] and r['broker_orders']==r['lot_sizing']==0 for r in d['cases'])
+          print('VT31_COG_V4_RESEARCH_TWO_PHASE_ATOMIC_WAIT_ONLY')
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' a7e502fc2f17da23b229f5241a827d95992d22ba > evidence/prereg_sha.txt
+          printf '%s\n' 'VT31_COG_V4_RESEARCH_ONLY_NO_G3_MODIFICATION_NO_OMS_NO_SIZING' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-cog-v4-atomic-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
