@@ -6,6 +6,7 @@ CONTEXT OBSERVATION, NOT a new filter, author POI or CandidateEvent.
 """
 from __future__ import annotations
 
+import hashlib
 from collections import Counter
 from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
@@ -53,7 +54,7 @@ def inspect_intraday_low_context(
     for case in c2_events:
         c2 = _instant(case.get("c2_opened_at_utc"))
         decision = _instant(case.get("decision_at_utc"))
-        key = __import__("hashlib").sha256(
+        key = hashlib.sha256(
             f"{market}|{c2.isoformat()}|{decision.isoformat()}".encode()
         ).hexdigest()
         trusted = by_id.pop(key, None)
@@ -112,7 +113,7 @@ def inspect_intraday_low_context(
             "day_low_source_diagnostic": label,
             "c1_low_vs_day_context": significance,
             "important_level_ttrades_author_confirmed": False,
-            "poI_selection_source_rule": "D_NOT_ADJUDICATED",
+            "poi_selection_source_rule": "D_NOT_ADJUDICATED",
             "cognitive_admission": False,
         })
     if by_id or len(result) != r20["cases_audited"] or sum(counts.values()) != len(
