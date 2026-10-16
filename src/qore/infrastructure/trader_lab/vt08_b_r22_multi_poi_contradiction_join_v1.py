@@ -27,9 +27,6 @@ from qore.infrastructure.trader_lab.vt08_b_r21_intraday_low_source_context_v1 im
     LABEL_NO,
     LABEL_YES,
 )
-from qore.infrastructure.trader_lab.vt08_b_r19_blind_author_semantics_reviewer_pack_v1 import (
-    _key,
-)
 
 SCHEMA = "qore.vt08.b.r22.multi_poi_conflict_review.v1"
 R21_SCHEMA = "qore.vt08.b.r21.day_low_context_diagnostic.v1"
