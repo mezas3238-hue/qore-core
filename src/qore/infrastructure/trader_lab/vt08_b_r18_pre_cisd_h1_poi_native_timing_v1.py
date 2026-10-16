@@ -170,6 +170,10 @@ def audit_pre_cisd_h1_poi_inventory(
         c2_recs = item.get("c2_m3_raw_bar_receipts")
         if not isinstance(c2_recs, list) or len(c2_recs) != 10:
             raise ValueError("R18 missing original source M3 window")
+        first_touch_ids = {
+            _instant(rec["opened_at_utc"]): rec["source_bar_id"]
+            for rec in c2_recs
+        }
         bars = [(c2 + M3 * i, _verify_bar(
             rec, expected_open=c2 + M3 * i, minutes=3, profile="M3",
             source_sha=sha3, raw=raw3,
@@ -182,7 +186,15 @@ def audit_pre_cisd_h1_poi_inventory(
                 touch = first_touch_phase(
                     bars, lower=level, upper=level, cisd_closed_at=cisd,
                 )
+                touch_open = touch["first_touch_bar_opened_at_utc"]
+                touch_id = (
+                    first_touch_ids.get(_instant(touch_open))
+                    if touch_open is not None else None
+                )
+                if touch_open is not None and touch_id is None:
+                    raise ValueError("R18 low first touch lacks source M3 bar ID")
                 levels.append({
+                    "first_touch_m3_source_bar_id": touch_id,
                     "type": "H1_PREVIOUS_CLOSED_CANDLE_LOW_GEOMETRY",
                     "level": str(level),
                     "source_h1_opened_at_utc": candle["opened_at_utc"],
@@ -200,7 +212,18 @@ def audit_pre_cisd_h1_poi_inventory(
                 bars, lower=Decimal(fvg["lower"]),
                 upper=Decimal(fvg["upper"]), cisd_closed_at=cisd,
             )
-            fvg_witness = {**fvg, **touch, "author_significant_poi": False}
+            fvg_touch_open = touch["first_touch_bar_opened_at_utc"]
+            fvg_touch_id = (
+                first_touch_ids.get(_instant(fvg_touch_open))
+                if fvg_touch_open is not None else None
+            )
+            if fvg_touch_open is not None and fvg_touch_id is None:
+                raise ValueError("R18 FVG first touch lacks source M3 bar ID")
+            fvg_witness = {
+                **fvg, **touch,
+                "first_touch_m3_source_bar_id": fvg_touch_id,
+                "author_significant_poi": False,
+            }
             counts["cases_pre_c2_h1_fvg_exists"] += 1
             counts["fvg_"+touch["first_touch_phase"]] += 1
             counts["fvg_"+fvg["type"]] += 1
