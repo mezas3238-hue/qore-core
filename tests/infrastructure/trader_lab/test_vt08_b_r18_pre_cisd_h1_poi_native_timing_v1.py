@@ -127,3 +127,53 @@ def test_preceding_m3_touch_with_gap_is_never_accepted() -> None:
             x, lower=Decimal("99"), upper=Decimal("100"),
             cisd_closed_at=START + 4*M3,
         )
+
+
+def synthetic_prior_h1_m15():
+    """Causal 3 fully closed H1 M15 input with a bullish FVG."""
+    bars = {}
+    origin = START-timedelta(hours=3)
+    for i in range(12):
+        at = origin + i*timedelta(minutes=15)
+        if i < 4:
+            op, hi, lo, cl = "100", "101", "99", "100"
+        elif i < 8:
+            op, hi, lo, cl = "102", "103", "101", "102"
+        else:
+            op, hi, lo, cl = "106", "108", "105", "106"
+        bars[at] = {
+            "opened_at":at.isoformat(),
+            "closed_at":(at+timedelta(minutes=15)).isoformat(),
+            "open":op, "high":hi, "low":lo, "close":cl,
+        }
+    return bars
+
+
+def test_bullish_fvg_precedes_c2_and_has_m15_source_ids() -> None:
+    ctx=h1_causal_context(
+        synthetic_prior_h1_m15(),"f"*64,c2_open=START,
+    )
+    assert ctx["status"]=="THREE_PRIOR_H1_CLOSED"
+    assert len(ctx["h1_candles"])==3
+    assert ctx["fvg"]["type"]=="BULLISH_H1_3BAR_FVG_GEOMETRY"
+    assert ctx["fvg"]["lower"]=="101"
+    assert ctx["fvg"]["upper"]=="105"
+    assert ctx["fvg"]["available_at_utc"]==START.isoformat()
+    assert len(ctx["fvg"]["source_bar_ids"])==8
+
+
+def test_h1_fvg_is_not_computed_from_incomplete_last_h1() -> None:
+    raw=synthetic_prior_h1_m15()
+    raw.pop(START-timedelta(minutes=15))
+    ctx=h1_causal_context(raw,"f"*64,c2_open=START)
+    assert ctx["status"]=="UPSTREAM_H1_SOURCE_GAP"
+    assert ctx["h1_candles"]==[]
+
+
+def test_h1_prior_fvg_invariant_at_c2_halfhour_open() -> None:
+    raw=synthetic_prior_h1_m15()
+    early=h1_causal_context(raw,"f"*64,c2_open=START)
+    later=h1_causal_context(
+        raw,"f"*64,c2_open=START+timedelta(minutes=30),
+    )
+    assert early["fvg"]==later["fvg"]
