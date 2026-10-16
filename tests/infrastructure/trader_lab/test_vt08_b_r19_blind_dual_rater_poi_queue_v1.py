@@ -6,11 +6,13 @@ from copy import deepcopy
 
 import pytest
 
+from qore.infrastructure.trader_lab import vt08_b_r19_blind_dual_rater_poi_queue_v1 as r19
 from qore.infrastructure.trader_lab.vt08_b_r18_pre_cisd_h1_poi_native_timing_v1 import (
     SCHEMA as R18_SCHEMA,
+)
+from qore.infrastructure.trader_lab.vt08_b_r18_pre_cisd_h1_poi_native_timing_v1 import (
     digest as r18_digest,
 )
-from qore.infrastructure.trader_lab import vt08_b_r19_blind_dual_rater_poi_queue_v1 as r19
 
 
 def make_source() -> dict[str, object]:
