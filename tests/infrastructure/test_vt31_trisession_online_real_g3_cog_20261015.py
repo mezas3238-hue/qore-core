@@ -185,7 +185,7 @@ def test_sealed_future_ledger_cannot_be_provided_to_online_replay():
     import inspect
 
     names = inspect.signature(replay_online_g3).parameters
-    assert tuple(names) == ("rows", "expected_m1", "native_trader_g3")
+    assert tuple(names) == ("rows", "expected_m1", "native_trader_g3", "native_strict_source_admission")
     assert "ledger" not in names
 
 
