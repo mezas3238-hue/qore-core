@@ -12,14 +12,14 @@ from pathlib import Path
 from typing import Any
 
 from scripts.vt31_ict_cleanroom_cog_real_3y_fast_v1 import _stream
+from scripts.vt31_trisession_online_real_g3_cog_20261015 import (
+    adjudicate_posthoc,
+    replay_online_g3,
+)
 from scripts.vt31_ttrades_am_method_m1_census_20261014 import (
     M1_TOTAL,
     MARKET_SHA,
     hash_file,
-)
-from scripts.vt31_trisession_online_real_g3_cog_20261015 import (
-    adjudicate_posthoc,
-    replay_online_g3,
 )
 
 PREREG = "db60ccdc949bd04250680face8c27d5455b3555d"
