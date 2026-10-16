@@ -1,0 +1,144 @@
+name: VT31 M2 real first closed M1 DOL QORE provenance all three sessions
+on:
+  push:
+    branches:
+      - agent/vt31-m2-trisession-real-dol-provenance-20261016
+    paths:
+      - 'scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py'
+      - 'scripts/vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py'
+      - 'tests/infrastructure/test_vt31_m2_trisession_real_dol_first_m1_source_20261016.py'
+      - 'tests/infrastructure/test_vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py'
+      - 'docs/research/VT31_M2_PRIOR_CASH_18_CASE_REAL_M1_CALENDAR_PREREG_2026-10-16.md'
+      - '.github/workflows/vt31-m2-trisession-real-dol-provenance-20261016.yml'
+      - 'docs/research/VT31_M2_TRISESION_REAL_M1_DOL_SOURCE_PREREG_2026-10-16.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  M2-real-NAS100-source-court-London-NYAM-NYPM:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prereg BEFORE M2 code and protected original COG OPS
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 2e24b6ac2f08644441116d1df1f27ef8e011e161 HEAD
+          git merge-base --is-ancestor cd49fc53a80700449e229121e39f7a306c968e88 HEAD
+          git merge-base --is-ancestor 2de96800374c5c27ccbf02bab54ff0736e568632 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py)" = "$(git rev-parse 2de96800374c5c27ccbf02bab54ff0736e568632:src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py)"
+          test "$(git hash-object scripts/vt31_ict_dol_source_v1_20261014.py)" = "$(git rev-parse 2de96800374c5c27ccbf02bab54ff0736e568632:scripts/vt31_ict_dol_source_v1_20261014.py)"
+      - name: Ruff and qualitative source adversarial tests, native M0 H1 G3
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py scripts/vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py tests/infrastructure/test_vt31_m2_trisession_real_dol_first_m1_source_20261016.py tests/infrastructure/test_vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py
+          python -m py_compile scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py scripts/vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m2_trisession_real_dol_first_m1_source_20261016.py \
+            tests/infrastructure/test_vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py \
+            tests/infrastructure/test_vt31_ict_dol_source_v1_20261014.py \
+            tests/infrastructure/test_vt31_m0b_native_source_gate_trisession_20261016.py \
+            tests/infrastructure/test_vt31_m7a_native_g3_policy_trisession_20261015.py \
+            tests/infrastructure/test_vt31_trisession_real_m1_causal_coverage_20261015.py \
+            --junitxml=evidence/junit.xml | tee evidence/pytest.txt
+      - name: Retrieve original authentic M1 plus frozen PR980 cohort AFTER prereg
+        run: |
+          set -euo pipefail
+          mkdir -p source frozen-ledger
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/12000338010/zip" > ledger.zip
+          unzip -q ledger.zip -d frozen-ledger
+          (cd frozen-ledger && sha256sum -c SHA256SUMS)
+          test -s frozen-ledger/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json
+      - name: Real M2 first closed minute original G3 and independent six pool source court
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py \
+            --market source/NAS100/market-evidence.json \
+            --coverage-ledger frozen-ledger/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json \
+            --out evidence/VT31_M2_REAL_QORE_DOL_2325_FIRST_M1_CASEBOOK.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M2_REAL_QORE_DOL_2325_FIRST_M1_CASEBOOK.json'))
+          assert p['real_M1_source_sha256']=='0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+          assert p['real_M1_bars']==1059784
+          assert p['NY_days']==775 and p['day_session_casebook_size']==2325
+          assert len(p['full_2325_first_closed_M1_cases'])==2325
+          assert p['prior_independent_coverage_ledger_read_only_posthoc']
+          stats=p['session_M2_QORE_provenance_not_author_certification']
+          assert set(stats)=={'VT31_LONDON','VT31_NY_AM','VT31_NY_PM'}
+          assert all(x['reference_anchor_days']==775 for x in stats.values())
+          assert all(not x['ict_author_dol_certified'] for x in stats.values())
+          assert all(x['native_COG_called']<=x['first_M1_witness_present'] for x in stats.values())
+          for c in p['full_2325_first_closed_M1_cases']:
+            assert not c['ict_author_dol_certified']
+            assert not c['method_certified'] and not c['cognition_certified']
+            assert c['broker_trades_or_fills']==c['sizing']==0
+            if c['first_closed_M1_utc'] is not None:
+              assert len(c['source_pool_six_independent_M1_witnesses'])==6
+          for k in ('ict_london_source_dol_certified','ttrades_nyam_dol_certified',
+                    'ict_nypm_source_dol_certified','m3_author_mss_certified',
+                    'm4_four_entry_families_certified','m5_author_causative_swing_certified',
+                    'm6_two_independent_human_signatures','m7_three_session_trader_certified',
+                    'live_demo_vps_authorized'):
+            assert p[k] is False
+          assert p['broker_trades']==p['broker_fills']==p['sizing']==0
+          print('VT31_M2_REAL_QORE_PROVENANCE_NOT_AUTHOR_CERTIFIED')
+          PY
+      - name: Independent authentic 390 M1 prior cash evidence on exactly 18 prereg disputes
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py \
+            --market source/NAS100/market-evidence.json \
+            --out evidence/VT31_M2_REAL_18_PRIOR_CASH_390M1_DAY_ADJUDICATION.json \
+            | tee evidence/prior_cash_18_summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M2_REAL_18_PRIOR_CASH_390M1_DAY_ADJUDICATION.json'))
+          assert p['real_market_M1_consumed']==1059784
+          assert p['fixed_G3_temporal_disputes']==18
+          assert p['fixed_prior_casebook_sha']=='d74b24242c4b8c5656547727b88886ecd1a18243c362d9d366825880bddbfc21'
+          assert len(p['all_18_cash_source_falsifiers'])==18
+          assert sum(p['source_price_evidence_states'].values())==18
+          assert sum(p['source_selection_context_states'].values())==18
+          assert not p['ICT_author_cash_selection_method_certified']
+          assert not p['source_broker_NAS100_calendar_PIT_confirmed']
+          assert not p['M2_author_certified']
+          assert not p['M3_M4_M5_author_certified']
+          assert not p['M6_two_human_signatures']
+          assert not p['M7_VT31_three_silver_bullets_certified']
+          assert p['broker_orders']==p['sizing']==0
+          print('VT31_18_PRIOR_CASH_REAL_390M1_ADJUDICATED_SOURCE_ONLY')
+          PY
+      - name: Integrity of audit evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/executed_code_commit.txt
+          printf '%s\n' 2e24b6ac2f08644441116d1df1f27ef8e011e161 > evidence/prereg_commit.txt
+          printf '%s\n' M2_QORE_LIQUIDITY_PROVENANCE_ONLY_NOT_AUTHOR_METHOD_NO_TRADES > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-m2-real-QORE-DOL-firstM1-3sessions-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
