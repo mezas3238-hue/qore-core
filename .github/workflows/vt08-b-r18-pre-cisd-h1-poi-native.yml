@@ -1,0 +1,96 @@
+name: VT08 B R18 Pre-CISD HTF POI Native Causal Source
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/vt08-5m-cognition-replay-20261010]
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r18_pre_cisd_h1_poi_native_timing_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r18_pre_cisd_h1_poi_native_timing_v1.py
+      - .github/workflows/vt08-b-r18-pre-cisd-h1-poi-native.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  source-causal-htf-poi-before-cisd:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Ruff + adversarial source causal tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r18_pre_cisd_h1_poi_native_timing_v1.py tests/infrastructure/trader_lab/test_vt08_b_r18_pre_cisd_h1_poi_native_timing_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r18_pre_cisd_h1_poi_native_timing_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-frozen-m30m3-firstfail-${{ matrix.market }}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4
+          path: original-r3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38715560333
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.market }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: original-m3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.market }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: original-m15/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - name: Independent original-market H1 POI before CISD timing census
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r18_pre_cisd_h1_poi_native_timing_v1 import (
+              audit_pre_cisd_h1_poi_inventory, digest,
+          )
+          m=os.environ["MARKET"]
+          frozen=list(Path("original-r3",m).rglob(m+"-frozen-source-firstfail.json"))
+          m3=list(Path("original-m3",m).rglob("m3-evidence.json"))
+          m15=list(Path("original-m15",m).rglob("market-evidence-1095d.json"))
+          if len(frozen)!=1 or len(m3)!=1 or len(m15)!=1:
+              raise SystemExit("R18 missing fixed original source artifacts")
+          r3=json.loads(frozen[0].read_text(encoding="utf-8"))
+          out=audit_pre_cisd_h1_poi_inventory(
+              r3,market=m,original_m3=m3[0],original_m15=m15[0],
+          )
+          expected={"EURJPY":538,"USDCHF":518,"NZDUSD":550,"CADJPY":516,"USDCAD":535}
+          if out["original_source_cases"]!=expected[m] or out["counts"]["cases_source_only"]!=expected[m]:
+              raise SystemExit("R18 changed frozen original source denominator")
+          if (out["source_complete_entries"] or out["cognitive_admissions"]
+              or out["broker_fills"] or out["profit_factor"] is not None
+              or out["holdout_7y_accessed"] or out["sizing_used"]):
+              raise SystemExit("R18 false TTrades/cognitive/economic authority")
+          path=Path("evidence",m+"-VT08-B-R18-preCISD-H1-POI-source.json")
+          path.write_text(
+              json.dumps(out,sort_keys=True,separators=(",",":"),allow_nan=False),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "market":m, "cases":out["original_source_cases"],
+              "counts":out["counts"], "sha256":digest(out),
+              "author_poi_admitted":out["source_complete_entries"],
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r18-pre-cisd-poi-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
