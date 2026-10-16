@@ -1,0 +1,87 @@
+name: VT31 Original ICT 2023 London and NYPM source witness
+on:
+  push:
+    branches:
+      - agent/vt31-ict2023-london-nypm-source-bridge-20261016
+    paths:
+      - 'docs/research/VT31_ICT2023_LONDON_NYPM_SOURCE_ADMISSION_PREREG_2026-10-16.md'
+      - 'scripts/vt31_ict2023_london_nypm_causal_source_witness_20261016.py'
+      - 'tests/infrastructure/test_vt31_ict2023_london_nypm_causal_source_witness_20261016.py'
+      - '.github/workflows/vt31-ict2023-london-pm-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-ict-three-session-method-research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source prereg ancestor and three frozen G3 sha
+        run: |
+          set -euo pipefail
+          git cat-file -t 6b76b2f3ab75afa84bc0baf2a8b04f7ecfa838f2
+          git merge-base --is-ancestor 6b76b2f3ab75afa84bc0baf2a8b04f7ecfa838f2 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: ICT London PM independent source admission and earlier regression
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist
+          ruff check scripts/vt31_ict2023_london_nypm_causal_source_witness_20261016.py tests/infrastructure/test_vt31_ict2023_london_nypm_causal_source_witness_20261016.py
+          python -m py_compile scripts/vt31_ict2023_london_nypm_causal_source_witness_20261016.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_ict2023_london_nypm_causal_source_witness_20261016.py \
+            tests/infrastructure/test_vt31_m3_mss_cisd_separate_causal_witness_20261016.py \
+            tests/infrastructure/test_vt31_cog_v4_transactional_context_20261016.py \
+            tests/infrastructure/test_vt31_m0m4_continuous_tape_seal_cog_v3_20261015.py \
+            tests/infrastructure/test_vt31_m0_m4_context_memory_cog_candidate_20261015.py \
+            tests/infrastructure/test_vt31_m4_closed_m1_author_gate_20261015.py \
+            tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_ict2023_london_nypm_causal_source_witness_20261016.py \
+            --out evidence/VT31_ICT2023_LONDON_NYPM_16_CASES.json \
+            | tee evidence/summary.json
+      - name: Enforce original ICT provenance not TTrades cross contamination
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_ICT2023_LONDON_NYPM_16_CASES.json'))
+          assert p['prereg_commit']=='6b76b2f3ab75afa84bc0baf2a8b04f7ecfa838f2'
+          assert len(p['cases'])==16
+          assert sum(c['geometry_state']=='ICT_2023_CONTEXT_GEOMETRY_ONLY_ENTRY_RETEST_UNATTESTED' for c in p['cases'])==8
+          assert sum(c['geometry_state']=='ICT_2023_PROJECTED_FRAMEWORK_BELOW_10_WAIT' for c in p['cases'])==8
+          assert all(c['action']=='WAIT' for c in p['cases'])
+          assert p['ttrades_nyam_profile_not_used'] and p['source_ict2023_found']
+          assert p['projected_10handles_not_trade_profit'] and p['synthetic_m1_only']
+          assert not p['entry_retest_author_homologated']
+          assert not p['london_author_certified'] and not p['nypm_author_certified']
+          assert not p['methodology_certified'] and not p['cognition_certified']
+          assert not p['human_cog_ops_signed'] and not p['owner_profile_signed']
+          assert not p['native_g3_connected']
+          assert p['orders']==p['sizing']==0 and not p['live']
+          print('VT31_ICT2023_TWO_WINDOWS_WITNESSES_NOT_CERTIFIED')
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 6b76b2f3ab75afa84bc0baf2a8b04f7ecfa838f2 > evidence/prereg_sha.txt
+          printf '%s\n' 'ORIGINAL_ICT2023_LONDON_PM_SOURCE_RESEARCH_ONLY_NO_OMS' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-ict2023-london-nypm-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
