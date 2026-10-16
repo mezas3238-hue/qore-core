@@ -1,0 +1,118 @@
+name: VT31 M0-B native preCOG source admission tri-session real M1
+on:
+  push:
+    branches:
+      - agent/vt31-m0b-native-online-source-admission-20261016
+    paths:
+      - 'src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py'
+      - 'scripts/vt31_trisession_online_real_g3_cog_20261015.py'
+      - 'scripts/vt31_m0b_native_trisession_source_parity_20261016.py'
+      - 'tests/infrastructure/test_vt31_m0b_native_source_gate_trisession_20261016.py'
+      - 'tests/infrastructure/test_vt31_trisession_online_real_g3_cog_20261015.py'
+      - 'docs/research/VT31_M0B_NATIVE_TRISESION_PRECOG_SOURCE_PREREG_2026-10-16.md'
+      - '.github/workflows/vt31-m0b-native-pre-cog-source-20261016.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  native-pre-cog-source-3-sessions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prereg before implementation and protected original hashes
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor db60ccdc949bd04250680face8c27d5455b3555d HEAD
+          git merge-base --is-ancestor 5df19499e38f5d2cd42e20d15ac0119635e3a4fc HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/contracts.py)" = "$(git rev-parse 5df19499e38f5d2cd42e20d15ac0119635e3a4fc:src/qore/infrastructure/traders/vt31_ict_cleanroom/contracts.py)"
+      - name: Test preCOG H1 source, 3 windows EST EDT and existing G3 contracts
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py scripts/vt31_trisession_online_real_g3_cog_20261015.py scripts/vt31_m0b_native_trisession_source_parity_20261016.py tests/infrastructure/test_vt31_m0b_native_source_gate_trisession_20261016.py tests/infrastructure/test_vt31_trisession_online_real_g3_cog_20261015.py
+          python -m py_compile scripts/vt31_m0b_native_trisession_source_parity_20261016.py src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m0b_native_source_gate_trisession_20261016.py \
+            tests/infrastructure/test_vt31_m7a_native_g3_policy_trisession_20261015.py \
+            tests/infrastructure/test_vt31_trisession_online_real_g3_cog_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_ops.py \
+            tests/infrastructure/test_vt31_trisession_real_m1_causal_coverage_20261015.py \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+      - name: Retrieve source NAS100 and independently sealed casebook ledger
+        run: |
+          set -euo pipefail
+          mkdir -p source frozen-ledger
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/12000338010/zip" > ledger.zip
+          unzip -q ledger.zip -d frozen-ledger
+          (cd frozen-ledger && sha256sum -c SHA256SUMS)
+          test -s frozen-ledger/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json
+      - name: Strictly native preCOG M0 09H H1 and gap veto versus frozen complete 2325 JSON cases
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m0b_native_trisession_source_parity_20261016.py \
+            --market source/NAS100/market-evidence.json \
+            --coverage-ledger frozen-ledger/VT31_REAL_TRISESION_M0_M1_SOURCE_2325_CASES.json \
+            --out evidence/VT31_M0B_NATIVE_TRISESION_PRECOG_M1_2325_CASES_PARITY.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M0B_NATIVE_TRISESION_PRECOG_M1_2325_CASES_PARITY.json'))
+          assert p['canonical_real_M1']==1059784
+          assert p['NY_days_per_session']==775
+          assert p['day_session_records']==2325
+          assert p['native_source_gate_casebook_sha256']==p['reference_casebook_sha256']=='cae03ff5faaaebabef4c6f4eed736d802061bfc8598f311fb4a0e27129591de1'
+          assert p['native_VT31Trader_strict_preCOG_gate_engineering']=='PASS_RESEARCH_ONLY'
+          assert p['full_2325_json_casebook_exact_parity']
+          assert p['ny_am_TTrades_09H_gate']
+          assert not p['london_ICT_general_09H_gate']
+          assert not p['ny_pm_ICT_general_09H_gate']
+          x=p['session_cognition_observations_not_trades']
+          assert {k:v['original_G3_cog_call_events_not_trades'] for k,v in x.items()}=={
+            'VT31_LONDON':46440,'VT31_NY_AM':46235,'VT31_NY_PM':44515}
+          for key in ('source_profile_owner_approved','M2_author_liquidity_doctrine_certified',
+                      'M3_author_displacement_certified','M4_four_source_entry_families_certified',
+                      'M5_protected_swing_certified','M6_two_independent_human_signatures',
+                      'M7_three_sessions_integrated_method_certified','london_certified','ny_am_certified',
+                      'ny_pm_certified','methodology_certified','cognition_certified','trader_certified',
+                      'demo_live_vps_authorized'):
+            assert p[key] is False, key
+          assert p['broker_orders']==p['broker_fills']==p['sizing']==0
+          print('VT31_M0B_NATIVE_PRECOG_H1_AND_GAP_RESEARCH_ONLY_PASS')
+          PY
+      - name: Hash complete test and replay research evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/code_commit.txt
+          printf '%s\n' db60ccdc949bd04250680face8c27d5455b3555d > evidence/prereg_commit.txt
+          printf '%s\n' NO_AUTHOR_CERTIFICATE_NO_SIZING_NO_ORDERS_NO_PNL > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-m0b-native-preCOG-source-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn

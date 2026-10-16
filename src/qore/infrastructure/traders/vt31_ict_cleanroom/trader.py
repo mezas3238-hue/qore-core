@@ -10,7 +10,7 @@ or QDLE integration, production flag, or legacy VT31 dependencies.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 
 from .cognition import CognitiveAssessment, VT31CleanroomCognition
@@ -50,6 +50,8 @@ class UnifiedVT31Observation:
     research_only: bool = True
     order_authorized: bool = False
     position_authorized: bool = False
+    source_wait_reason: str | None = None
+    source_h1_09_complete: bool | None = None
 
 
 class VT31Trader:
@@ -65,6 +67,7 @@ class VT31Trader:
     def __init__(
         self, *, cognition: VT31CleanroomCognition | None = None,
         framework_policy: str | None = None,
+        strict_source_admission: bool = False,
     ) -> None:
         # Opt-in versioned framework binding: legacy default is untouched.
         # A mismatched COG/OPS contract is rejected BEFORE any market M1.
@@ -80,6 +83,21 @@ class VT31Trader:
             raise ValueError("VT31_ORIGINAL_COGNITION_REQUIRED")
         if cognition is not None and cognition.framework_policy != selected:
             raise ValueError("VT31_COG_OPS_FRAMEWORK_MISMATCH_BEFORE_M1")
+        if not isinstance(strict_source_admission, bool):
+            raise ValueError("VT31_STRICT_SOURCE_ADMISSION_REQUIRES_BOOL")
+        if strict_source_admission and selected != G3_MSS_FRAMEWORK_POLICY:
+            raise ValueError("VT31_STRICT_SOURCE_ADMISSION_REQUIRES_EXPLICIT_G3")
+        self._frozen_strict_source_admission = strict_source_admission
+        self.strict_source_admission = strict_source_admission
+        self._strict_nine_day: str | None = None
+        self._strict_nine_opens: list[datetime] = []
+        self._strict_last_source_close: dict[
+            tuple[str, SessionId], datetime
+        ] = {}
+        self._strict_wait_reasons: dict[
+            tuple[str, SessionId], str
+        ] = {}
+        self._strict_nyam_h1_complete: dict[str, bool] = {}
         self._frozen_framework_policy = selected
         self.framework_policy = selected
         self.cognition = (
@@ -96,6 +114,7 @@ class VT31Trader:
         if (
             self.framework_policy != self._frozen_framework_policy
             or self.cognition.framework_policy != self._frozen_framework_policy
+            or self.strict_source_admission != self._frozen_strict_source_admission
         ):
             raise ValueError("VT31_COG_OPS_POLICY_CHANGED_AFTER_CONSTRUCTION")
         if self.framework_policy not in FRAMEWORK_POLICIES:
@@ -120,6 +139,14 @@ class VT31Trader:
         if window is None:
             self.cognition.observe_closed_m1(bar)
             self.total_closed_m1 += 1
+            if self._frozen_strict_source_admission and local_hour == 9:
+                ny_day = opened.astimezone(NEW_YORK).date().isoformat()
+                if self._strict_nine_day != ny_day:
+                    self._strict_nine_day = ny_day
+                    self._strict_nine_opens = []
+                self._strict_nine_opens.append(opened)
+                if len(self._strict_nine_opens) > 60:
+                    raise ValueError("VT31_MORE_THAN_60_M1_IN_NY_09H")
             return UnifiedVT31Observation(
                 trader_id=TRADER_ID,
                 instrument=INSTRUMENT,
@@ -134,6 +161,61 @@ class VT31Trader:
             opened.astimezone(NEW_YORK).date().isoformat(),
             window,
         )
+        if self._frozen_strict_source_admission:
+            # Strict and entirely ONLINE M0: no future 60-M1 source view.
+            # H1 09 is exclusive to the TTrades NY AM research profile.
+            if window is SessionId.NY_AM and key[0] not in (
+                self._strict_nyam_h1_complete
+            ):
+                source_begin = datetime.fromisoformat(key[0]).replace(
+                    hour=9, tzinfo=NEW_YORK,
+                ).astimezone(opened.tzinfo)
+                self._strict_nyam_h1_complete[key[0]] = (
+                    self._strict_nine_day == key[0]
+                    and len(self._strict_nine_opens) == 60
+                    and all(
+                        stamp == source_begin + timedelta(minutes=i)
+                        for i, stamp in enumerate(self._strict_nine_opens)
+                    )
+                    and opened >= source_begin + timedelta(hours=1)
+                )
+            if key not in self._strict_wait_reasons:
+                if (
+                    window is SessionId.NY_AM
+                    and not self._strict_nyam_h1_complete[key[0]]
+                ):
+                    self._strict_wait_reasons[key] = (
+                        "SOURCE_09H_INCOMPLETE_WAIT"
+                    )
+                elif key not in self._strict_last_source_close:
+                    if opened.astimezone(NEW_YORK).minute != 0:
+                        self._strict_wait_reasons[key] = (
+                            "SOURCE_START_MISSING_WAIT"
+                        )
+                elif self._strict_last_source_close[key] != opened:
+                    self._strict_wait_reasons[key] = "SOURCE_GAP_WAIT"
+            reason = self._strict_wait_reasons.get(key)
+            self._strict_last_source_close[key] = at
+            if reason is not None:
+                # Research memory-only: no new COG assessment or OPS, and
+                # no retroactive erasure of earlier closed-M1 decisions.
+                self.cognition.observe_closed_m1(bar)
+                self.total_closed_m1 += 1
+                return UnifiedVT31Observation(
+                    trader_id=TRADER_ID,
+                    instrument=INSTRUMENT,
+                    session_model=SESSION_MODEL[window],
+                    session_window=window,
+                    observed_at=at,
+                    cognition=None,
+                    operational_phase=None,
+                    source_wait_reason=reason,
+                    source_h1_09_complete=(
+                        self._strict_nyam_h1_complete[key[0]]
+                        if window is SessionId.NY_AM else None
+                    ),
+                )
+
         ops = self._windows.get(key)
         if ops is None:
             start, _ = window_bounds(opened, window)
@@ -181,6 +263,11 @@ class VT31Trader:
             observed_at=at,
             cognition=assessment,
             operational_phase=phase,
+            source_h1_09_complete=(
+                self._strict_nyam_h1_complete[key[0]]
+                if self._frozen_strict_source_admission
+                and window is SessionId.NY_AM else None
+            ),
         )
 
     def research_observe_incomplete_source_m1(
@@ -197,6 +284,7 @@ class VT31Trader:
         if (
             self.framework_policy != self._frozen_framework_policy
             or self.cognition.framework_policy != self._frozen_framework_policy
+            or self.strict_source_admission != self._frozen_strict_source_admission
         ):
             raise ValueError("VT31_COG_OPS_POLICY_CHANGED_AFTER_CONSTRUCTION")
         if not isinstance(bar, M1Bar):
@@ -230,6 +318,25 @@ class VT31Trader:
             "ny_windows": ("VT31_NY_AM", "VT31_NY_PM"),
             "single_cognitive_memory": True,
             "explicit_framework_policy": self._frozen_framework_policy,
+            "strict_source_admission_research_only": (
+                self._frozen_strict_source_admission
+            ),
+            "source_method_profiles_unsigned": {
+                "VT31_LONDON": "ICT_GENERAL_2023",
+                "VT31_NY_AM": "TTRADES_NY_AM_2025",
+                "VT31_NY_PM": "ICT_GENERAL_2023",
+            },
+            "strict_source_wait_by_day_session": tuple(
+                {
+                    "ny_day": day,
+                    "session": session.value,
+                    "reason": reason,
+                }
+                for (day, session), reason in sorted(
+                    self._strict_wait_reasons.items(),
+                    key=lambda x: (x[0][0], x[0][1].value),
+                )
+            ),
             "G3_opt_in_research_only": (
                 self.framework_policy == G3_MSS_FRAMEWORK_POLICY
             ),

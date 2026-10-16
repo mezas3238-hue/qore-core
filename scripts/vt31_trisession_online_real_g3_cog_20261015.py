@@ -101,6 +101,7 @@ def _hour9_closed_before_10(
 
 def replay_online_g3(
     rows: Any, *, expected_m1: int, native_trader_g3: bool = False,
+    native_strict_source_admission: bool = False,
 ) -> tuple[dict[tuple[str, SessionId], SessionWitness], dict[str, Any]]:
     """NO sealed ledger parameter: impossible to import future coverage.
 
@@ -109,11 +110,17 @@ def replay_online_g3(
     VT31Trader currently bootstraps LEGACY OPS, an M7 integration blocker).
     Every market M1 enters original cognition exactly once.
     """
+    if native_strict_source_admission and not native_trader_g3:
+        raise ValueError("STRICT_NATIVE_ADMISSION_REQUIRES_NATIVE_G3")
     cog = VT31CleanroomCognition(
         framework_policy=G3_MSS_FRAMEWORK_POLICY,
     )
     trader = (
-        VT31Trader(cognition=cog, framework_policy=G3_MSS_FRAMEWORK_POLICY)
+        VT31Trader(
+            cognition=cog,
+            framework_policy=G3_MSS_FRAMEWORK_POLICY,
+            strict_source_admission=native_strict_source_admission,
+        )
         if native_trader_g3 else None
     )
     research_ops: dict[tuple[str, SessionId], IctSilverBulletOperations] = {}
@@ -156,7 +163,29 @@ def replay_online_g3(
         witness = witnesses[key]
         witness.observed_m1 += 1
 
-        if (
+        strict_result = None
+        if native_strict_source_admission:
+            if trader is None:
+                raise AssertionError("STRICT_SOURCE_ADMISSION_NEEDS_NATIVE_TRADER")
+            strict_result = trader.on_closed_m1(bar)
+            consumed += 1
+            if session is SessionId.NY_AM and (
+                witness.h1_complete_at_10_ny is None
+            ):
+                witness.h1_complete_at_10_ny = (
+                    strict_result.source_h1_09_complete
+                )
+            if strict_result.source_wait_reason is not None:
+                witness.terminal_wait_reason = (
+                    strict_result.source_wait_reason
+                )
+                source_veto_by_session[
+                    f"{session.value}:{witness.terminal_wait_reason}"
+                ] += 1
+                witness.last_m1_close = bar.closed_at
+                continue
+
+        if not native_strict_source_admission and (
             session is SessionId.NY_AM
             and witness.h1_complete_at_10_ny is None
         ):
@@ -165,16 +194,23 @@ def replay_online_g3(
             )
             if not witness.h1_complete_at_10_ny:
                 witness.terminal_wait_reason = SOURCE_H1
-        if witness.terminal_wait_reason is None and witness.last_m1_close is None:
+        if not native_strict_source_admission and (
+            witness.terminal_wait_reason is None
+            and witness.last_m1_close is None
+        ):
             if ny.minute != 0:
                 witness.terminal_wait_reason = SOURCE_START
         elif (
-            witness.terminal_wait_reason is None
+            not native_strict_source_admission
+            and witness.terminal_wait_reason is None
             and witness.last_m1_close != bar.opened_at
         ):
             witness.terminal_wait_reason = SOURCE_GAP
 
-        if witness.terminal_wait_reason is not None:
+        if (
+            not native_strict_source_admission
+            and witness.terminal_wait_reason is not None
+        ):
             # Deliberately not the original on_closed_m1: it cannot
             # bootstrap/gap a partial OPS source safely.
             if trader is not None:
@@ -189,7 +225,10 @@ def replay_online_g3(
             continue
 
         if trader is not None:
-            result = trader.on_closed_m1(bar)
+            result = (
+                strict_result if native_strict_source_admission
+                else trader.on_closed_m1(bar)
+            )
             assessment = result.cognition
             if assessment is None:
                 raise AssertionError("NATIVE_G3_MUST_INVOKE_COG")
@@ -212,7 +251,8 @@ def replay_online_g3(
                 )
                 research_ops[key] = ops
             ops.on_closed_m1(bar, cognition=assessment.decision)
-        consumed += 1
+        if not native_strict_source_admission:
+            consumed += 1
         if assessment.as_of != bar.closed_at:
             raise AssertionError("G3_ONLINE_COG_ASOF_MUST_EQUAL_CLOSED_M1")
         witness.actual_g3_invocations += 1
@@ -245,6 +285,7 @@ def replay_online_g3(
         "framework_policy": cog.framework_policy,
         "original_ops_G3_research_windows": len(research_ops),
         "native_VT31Trader_G3_integration_complete": native_trader_g3,
+        "native_strict_preCOG_M0_source_admission": native_strict_source_admission,
         "M7_blocker_native_coordinator_still_defaults_OPS_to_LEGACY": (
             not native_trader_g3
         ),
