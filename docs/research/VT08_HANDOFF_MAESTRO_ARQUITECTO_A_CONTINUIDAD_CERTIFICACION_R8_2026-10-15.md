@@ -324,3 +324,14 @@ Este documento es un corte verificable de continuidad: identifica los dos arquit
 **Owner R16:** QORE-alpha EXCLUIDO enteramente del programa VT08; no segundo track ni importaciones de esa estrategia. No sizing ni 7Y holdout ni operaciones ni merge.
 
 `R17_DOCUMENTARY_SOURCE_ADJUDICATION_ONLY` · `AUTHOR_COMPLETE=0` · `COGNITIVE_REAL_ADMISSIONS=0` · `BROKER_FILLS=0` · `ECONOMIC_GATES=NOT_EVALUABLE` · VT08 **NO CERTIFICADO**.
+
+
+---
+
+## APÉNDICE R18/R19 — POI PRE-CISD ORIGINAL (16-oct-2026)
+
+**Nuevo resultado B R18:** [informe fuente nativa de 2.657 eventos](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-cognition-replay-20261010/docs/research/VT08_B_R18_PRE_CISD_H1_POI_NATIVE_CAUSAL_CENSUS_2026-10-16.md), [GitHub Actions #38902918264](https://github.com/mezas3238-hue/qore-core/actions/runs/38902918264) 5/5 GREEN, 80 tests, cTrader M15+M3 por ID y hora. Inventario cerrado de últimas **tres H1 totalmente cerradas ANTES de C2**. 574 FVG físicos H1 (290 bullish/284 bearish); 165 bullish FVG primer contacto **antes de la barra M3 CISD**; 4 primer contacto en esa barra sin ordenar ticks, 20 después, 382 no tocados. 1.694 con al menos un low previo H1 tocado pre-CISD; 1 CADJPY upstream H1 incompleta y en cuarentena. **Estos hechos NO autentican el POI significativo según autor.** Por caso hay source H1/M15 bar IDs y primer touchdown M3 `source_bar_id`, cutoff, fase y firmas de autor falsas explícitamente descartadas.
+
+**Nuevo entregable B R19:** [107 fichas outcome-blind (A+B) por SHA](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-cognition-replay-20261010/docs/research/VT08_B_R19_PREREGISTERED_BLIND_POI_DUAL_REVIEW_QUEUE_2026-10-16.md), [GitHub Actions #38903529731](https://github.com/mezas3238-hue/qore-core/actions/runs/38903529731) 5/5 GREEN, 40 adversariales. Muestra determinista pre-PnL: 50 FVG bullish pre-CISD, 50 controles sin FVG de las últimas 3 H1, 4 primero en barra CISD, 3 FVG bearish antes CISD. **0 revisiones A firmadas, 0 B firmadas**, 0 fuente completa. Auditor A tiene que clasificar source swing/POI/PS verdaderos por caso; B debe revisar independientemente fuente raw y disenso; D=>WAIT. La muestra no es nuevo denominador económico: permanecen 2.657 físicos originales.
+
+**Restricciones Owner ya vigentes**: VT08 actual EXCLUSIVO, QORE-alpha totalmente excluido, NO sizing, NO 7Y sellado, NO operaciones/merge; 27 `CAUSAL_FIELDS` sin semántica auténtica, `AUTHOR_COMPLETE=0`, `COGNITIVE_ADMISSIONS=0`, `BROKER_FILLS=0`, `GATES=NOT_EVALUABLE` y VT08 **NO CERTIFICADO**.
