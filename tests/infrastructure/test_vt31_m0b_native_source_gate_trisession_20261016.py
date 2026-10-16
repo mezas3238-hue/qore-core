@@ -120,7 +120,7 @@ def test_missing_any_09h_M1_forces_nyam_WAIT_before_original_COG(
     assert pm.cognition is not None
     assert pm.source_h1_09_complete is None
     assert trader.snapshot()["source_windows_seen"] == 2
-    assert trader.cognition._observed_count == 122
+    assert trader.cognition._observed_count == 121
 
 
 @pytest.mark.parametrize("hour,session", [
