@@ -92,7 +92,7 @@ def test_native_first_m1_three_sessions_and_nyam_only_09h(month):
 
 
 @pytest.mark.parametrize("month", [1, 7])
-def test_incomplete_nyam_09h_causes_wait_not_positive_M2(month):
+def test_incomplete_nyam_09h_causes_wait_not_positive_m2(month):
     bars = (
         sample(month, 0, 1, 2, 3)
         + [m1(month, 9, k) for k in range(59)]
