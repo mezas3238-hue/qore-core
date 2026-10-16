@@ -13,13 +13,19 @@ from decimal import Decimal, InvalidOperation
 
 from qore.infrastructure.trader_lab.vt08_b_r18_pre_cisd_h1_poi_native_timing_v1 import (
     SCHEMA as R18_SCHEMA,
+)
+from qore.infrastructure.trader_lab.vt08_b_r18_pre_cisd_h1_poi_native_timing_v1 import (
     digest as digest_r18,
 )
 from qore.infrastructure.trader_lab.vt08_b_r19_blind_dual_rater_poi_queue_v1 import (
     MARKET_EXPECTED,
-    SCHEMA as R19_SCHEMA,
     SEED,
     _category,
+)
+from qore.infrastructure.trader_lab.vt08_b_r19_blind_dual_rater_poi_queue_v1 import (
+    SCHEMA as R19_SCHEMA,
+)
+from qore.infrastructure.trader_lab.vt08_b_r19_blind_dual_rater_poi_queue_v1 import (
     digest as digest_r19,
 )
 from qore.infrastructure.trader_lab.vt08_b_r21_intraday_low_source_context_v1 import (
