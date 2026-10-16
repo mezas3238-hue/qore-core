@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import Counter
-from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from datetime import timedelta
 from pathlib import Path
 
 from qore.infrastructure.trader_lab.vt08_5m_b_independent_raw_receipts_v1 import (
