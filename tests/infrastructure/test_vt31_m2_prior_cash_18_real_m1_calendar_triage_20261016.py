@@ -96,9 +96,7 @@ def test_g3_older_source_with_newer_complete_cash_is_explicit_conflict():
     assert result["original_cash_selection_context"] == (
         "NEWER_COMPLETE_CASH_DAY_EXISTS_NEEDS_METHOD"
     )
-    assert not result["ICT_author_cash_selection_method_certified"] if (
-        "ICT_author_cash_selection_method_certified" in result
-    ) else not result["cash_DOCTRINE_certified"]
+    assert not result["cash_DOCTRINE_certified"]
 
 
 def test_g3_cash_original_price_not_reconstructed_is_not_accepted():
