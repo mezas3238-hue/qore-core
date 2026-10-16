@@ -355,6 +355,10 @@ def main() -> None:
     print(json.dumps({
         "M1": n,
         "casebook_sha": report["casebook_2325_json_sha256"],
+        "rejected_DOL_source_case_count": report["rejected_G3_DOL_source_count"],
+        "all_dated_rejected_G3_DOL_source": (
+            report["all_dated_rejected_G3_DOL_source_cases"]
+        ),
         "stats": report["session_M2_QORE_provenance_not_author_certification"],
         "all_sessions_certified": False,
     }, sort_keys=True))
