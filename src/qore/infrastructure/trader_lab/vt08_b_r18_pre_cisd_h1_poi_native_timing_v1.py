@@ -203,6 +203,8 @@ def audit_pre_cisd_h1_poi_inventory(
             fvg_witness = {**fvg, **touch, "author_significant_poi": False}
             counts["cases_pre_c2_h1_fvg_exists"] += 1
             counts["fvg_"+touch["first_touch_phase"]] += 1
+            counts["fvg_"+fvg["type"]] += 1
+            counts["fvg_"+fvg["type"]+"_"+touch["first_touch_phase"]] += 1
         h1_pre_touch = any(
             x["first_touch_phase"] == "TOUCHED_BEFORE_CISD_BAR" for x in levels
         )
