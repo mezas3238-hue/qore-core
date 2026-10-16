@@ -51,9 +51,9 @@ def _tail(start, side):
             opened_at=start + timedelta(minutes=i),
             closed_at=start + timedelta(minutes=i + 1),
             open=Decimal(o), high=Decimal(h),
-            low=Decimal(l), close=Decimal(c),
+            low=Decimal(lo), close=Decimal(c),
         )
-        for i, (o, h, l, c) in enumerate(template)
+        for i, (o, h, lo, c) in enumerate(template)
     )
 
 
