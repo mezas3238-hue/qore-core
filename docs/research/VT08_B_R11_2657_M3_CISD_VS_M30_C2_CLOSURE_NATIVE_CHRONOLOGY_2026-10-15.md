@@ -51,3 +51,10 @@ El texto primario [How CISD Confirms Swing Points (TTrades, 10-Jan-2026)](https:
 
 ## Gate y prohibiciones
 `R11_PHYSICAL_CAUSAL_ORDER=PASS` · `AUTHOR_TIMING=UNADJUDICATED_D` · `C0_COGNITION=BLOCKED` · `X0_BIDASK=NOT_EVALUABLE` · `PF/DD/Sharpe/Sortino=NOT_MEASURED`. A/B manifest `None`. Sin sizing, no 7Y sellado, no VPS/LIVE/DEMO operativo, no órdenes y sin merge. Los runs rojos de QA inicial #38789689915 por regla de nombre Ruff no se ocultan: se corrigió sin relajar verificador y el run #38789768406 está verde.
+
+
+## Addendum de corrección metodológica — B R20, 16-oct-2026
+
+**R11 mantiene sus 2.504/153/0 relojes físicamente exactos, pero NO impone una secuencia cronológica poscierre como regla TTrades.** La fuente original [CISD Confirms Swing Points](https://ttrades.com/how-change-in-the-state-of-delivery-cisd-confirms-swing-points/) indica que el CISD LTF se examina **dentro de la misma vela HTF C2/C3** una vez la vela cerró, mientras [Fractal Model Playbook](https://ttrades.com/fractal-model-playbook-aligning-daily-hourly-and-5-minute-charts/) lo confirma para C2. El orden textual de revisión no establece que el cierre físico del M3 CISD deba ser posterior a C2.close.
+
+El [R20 independiente](VT08_B_R20_NATIVE_2657_C1_LOW_SWEEP_CISD_CAUSAL_ORDER_AND_TTRADES_INTRAC2_RULE_2026-10-16.md), [Actions #38902326551](https://github.com/mezas3238-hue/qore-core/actions/runs/38902326551) **6/6 SUCCESS**, reconstruyó desde las barras originales **2.657/2.657 barridos C1.low observables ANTES de CISD M3**, con C2.close disponible en C3.open. **Causalidad física PASS** para esos tres hitos; `POI_IMPORTANCE`, `PS_AUTHOR`, `BREAKERS`, `SWING`, `EQ`, `TARGET` todavía D; 0 entradas fuente completas. Nunca invalide/seleccione los 2.504 por una regla poscierre supuesta.
