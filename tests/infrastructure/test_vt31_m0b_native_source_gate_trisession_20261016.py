@@ -99,7 +99,7 @@ def test_one_native_trader_all_three_ict_clocks_DST(month, offset):
 
 @pytest.mark.parametrize("month", [1, 7])
 @pytest.mark.parametrize("missing_09", [0, 1, 39, 59])
-def test_missing_any_09h_M1_forces_nyam_WAIT_before_original_COG(
+def test_missing_any_09h_m1_forces_nyam_wait_before_original_cog(
     month, missing_09,
 ):
     trader = new_trader()
@@ -127,7 +127,7 @@ def test_missing_any_09h_M1_forces_nyam_WAIT_before_original_COG(
     (3, SessionId.LONDON),
     (14, SessionId.NY_PM),
 ])
-def test_ict_general_does_not_borrow_ttrades_H1(hour, session):
+def test_ict_general_does_not_borrow_ttrades_h1(hour, session):
     trader = new_trader()
     out = trader.on_closed_m1(candle(DAY, hour, 0))
     assert out.cognition is not None
@@ -191,7 +191,7 @@ def test_other_day_09h_cannot_pretend_to_complete_nyam_current_day():
     assert out.cognition is None
 
 
-def test_unadmitted_nyam_does_not_call_original_COG_even_once():
+def test_unadmitted_nyam_does_not_call_original_cog_even_once():
     trader = new_trader()
     initial = trader.cognition._observed_count
     out = trader.on_closed_m1(candle(DAY, 10, 0))
@@ -230,7 +230,7 @@ def test_strict_opt_in_immutable_even_when_public_value_changes():
 
 
 @pytest.mark.parametrize("month", [1, 7])
-def test_new_native_mode_same_all_session_online_M1_witnesses(month):
+def test_new_native_mode_same_all_session_online_m1_witnesses(month):
     market = [
         *rows(month, 3), *rows(month, 9),
         *rows(month, 10), *rows(month, 14),
