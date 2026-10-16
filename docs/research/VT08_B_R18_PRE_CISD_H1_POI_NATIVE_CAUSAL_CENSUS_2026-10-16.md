@@ -13,7 +13,7 @@ R11–R14 ya habían demostrado 2.657 series opuestas / CISD **geométricos** or
 - Código: `src/qore/infrastructure/trader_lab/vt08_b_r18_pre_cisd_h1_poi_native_timing_v1.py`
 - Tests: `tests/infrastructure/trader_lab/test_vt08_b_r18_pre_cisd_h1_poi_native_timing_v1.py`, **16 adversariales**×5=**80**. Pruebas cubren M3 touch primero en barra anterior a CISD, CISD misma barra (orden intrabar **DESCONOCIDO**), posteriores, no-tocados, M3 discontinuos, relojes naive y H1 incompleta; reconstrucción sintética de gap bullish con doce M15, sin futuro.
 - Workflow: `.github/workflows/vt08-b-r18-pre-cisd-h1-poi-native.yml`
-- CI FINAL **[GitHub Actions #38902562278](https://github.com/mezas3238-hue/qore-core/actions/runs/38902562278)**, cinco mercados **SUCCESS**, Ruff+80/80 tests y todo censo original. La primera ejecución [#38902230164](https://github.com/mezas3238-hue/qore-core/actions/runs/38902230164) falló solo porque el test naive de reloj activaba ANTES una excepción de discontinuidad (fail-closed correcto); reparado test aislamiento en commit `50f3165810ca261ac71e467b7f21db0688c7963f`; inicial [#38902298416](https://github.com/mezas3238-hue/qore-core/actions/runs/38902298416) 5/5; se agregaron clasificación bullish/bearish y tres pruebas H1 reales sintéticas al final, sin alterar origen/datos.
+- CI FINAL **[GitHub Actions #38902918264](https://github.com/mezas3238-hue/qore-core/actions/runs/38902918264)**, cinco mercados **SUCCESS**, Ruff+80/80 tests y todo censo original. La primera ejecución [#38902230164](https://github.com/mezas3238-hue/qore-core/actions/runs/38902230164) falló solo porque el test naive de reloj activaba ANTES una excepción de discontinuidad (fail-closed correcto); reparado test aislamiento en commit `50f3165810ca261ac71e467b7f21db0688c7963f`; inicial [#38902298416](https://github.com/mezas3238-hue/qore-core/actions/runs/38902298416) 5/5; se agregaron clasificación bullish/bearish y tres pruebas H1 reales sintéticas al final, sin alterar origen/datos.
 - Fuentes originales **fijadas sin acceder al holdout**: A R3 GitHub Actions `#38715560333` `vt08-a-frozen-m30m3-firstfail-${market}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4`; M3 cTrader `#35941643396`; M15 cTrader `#35934924907`. Se recalculan SHA M3/M15 originales, M15 contra `PINNED_M15`, se contrastan 10 receipts M3 C2 por caso con `source_bar_id`, precio y `available_at`, y se valida universo `audit_frozen_source_program_scope` R16 `VT08_CURRENT_ONLY_NO_QORE_ALPHA`.
 - R18 toma **las últimas tres H1 completamente cerradas ANTES del inicio C2** (12 M15 raws; no la H1 parcial, ni H1 futura). Calcula 3 bajos H1 fuente; define posible **FVG bullish** solo si `H1_older.high < H1_newer.low` o **bearish** `H1_newer.high < H1_older.low`. Solo se etiqueta candidato geométrico, no FVG elegido ni POI significativo.
 - Cada zona/nivel se cruza contra los 10 M3 originales C2. `TOUCHED_BEFORE_CISD_BAR` significa primera barra M3 **cerrada antes de que inicie la barra CISD** (sin lookahead), `TOUCHED_IN_CISD_BAR_SEQUENCE_UNKNOWN` prohíbe asumir secuencia de ticks dentro de M3, `TOUCHED_AFTER_CISD_CLOSE` no es POI observable previo, `NOT_TOUCHED_DURING_C2` no acredita interacción. **Una H1 incompleta CADJPY queda en cuarentena**, jamás rellenada o contada como FVG ausente.
@@ -34,11 +34,11 @@ R11–R14 ya habían demostrado 2.657 series opuestas / CISD **geométricos** or
 Al menos uno de los 3 H1 lows previos tuvo contacto físico anterior a la barra CISD para 1.694 candidatos; **no** se ha demostrado que esos H1 lows sean swings relevantes ni POI elegidos. Los 165 con FVG bullish anterior NO deben **reemplazar** los 2.657 del denominador para el estudio: solo forman un estrato de revisión source-blind pre-PnL.
 
 **SHA256 de reportes completos inmutables R18 CI FINAL:**
-- EURJPY: `0a735b732dfdaa93b2b5abacedb9e5dc6dcf9db30d2f38c06a0cafcabc714812`
-- USDCHF: `3ae8f91689e9ecc0620f328d9aa7e11e01321c08a6ad190e6ff430e0f45f8fbe`
-- NZDUSD: `c371d731bd3a8c45976594986504a36df4a98a2983d6121b31931736ad1d9c32`
-- CADJPY: `a31a7a7969afa4539397eb716d7edc7c141e25654e31ef511c75cd504d957e96`
-- USDCAD: `6753087ae2d050089daa47100ae12b8be9390d1c0008576bfe2e209fca278b97`
+- EURJPY: `aa4e64613aad028548f1d07cf4ed8f4c4ae5a8aa3ebbd5454943e7e2ee2fd5b9`
+- USDCHF: `f306859c13b3925b42f6c1b49f5eb62497d3c72235a4a49fbdb5979872f043f6`
+- NZDUSD: `1bb8871d28fe2217b1d1e9187fd99e1b9260090258ab4f5995959cdcebb103f3`
+- CADJPY: `f0e3d2dd7fb1cc73e4cb4d2a07c25fb93b76137e09ff0f1fdc607eba288a0dbc`
+- USDCAD: `bec27d9651a65d85502dd62c319f258d540a56784c0b141efccdf973946332a6`
 
 **Output report `all_pre_cisd_h1_poi_source_witnesses`:** market, `case_id_sha256`, `c2_opened_at`, `cisd_closed_at`, `c3_opened_at`; low kandidatos H1 con `source_h1_opened_at`, H1 `available_at`, 4 source M15 bar IDs y touch phase; FVG 3bar con lower/upper, H1 `available_at`, los ocho IDs del H1 older/newer, touch phase; false inmutables `author_relevant_swing_selected`, `author_poi_significant_and_selected`, `author_protected_swing_adjudicated`, `author_source_complete`, `cognitive_admission`, `broker_fill`.
 
@@ -51,3 +51,5 @@ Al menos uno de los 3 H1 lows previos tuvo contacto físico anterior a la barra 
 **Operacional:** firma dual manifest, 27 campos `CAUSAL_FIELDS` en `evaluate_provenanced`, stop bajo EQ & breaker de Example1 y PS fuente, target untouched source, bid/ask completos, costos y Gates económicas permanecen P0. Ningún derecho para LIVE/DEMO/VPS ni sizing/merge.
 
 **Estatus:** R18 **5/5 SOURCE_POI_TIMING_PHYSICAL_PASS** · `SOURCE_COMPLETE_ENTRIES=0` · `REAL_COGNITIVE_ADMISSIONS=0` · `BROKER_FILLS=0` · `PF/DD/SORTINO=NOT_EVALUABLE` · `SEALED_7Y=UNTOUCHED` · `QORE_ALPHA=EXCLUDED` · VT08 **NO CERTIFICADO**.
+
+**R18 fuente enriquecida (16-oct-2026):** commit `9349cc84ee245c68291db60b4613411453061c94` añadió `first_touch_m3_source_bar_id` original a cada H1 low/FVG tocado (incluyendo phase IN/POST), que se comprueba por receipts cTrader en toda la cohorte; reporte anterior y hashes iniciales quedan sustituidos por CI FINAL #38902918264 y los SHA anteriores. El censo, conteos y estado D permanecen iguales. Esta ampliación no firma la semántica TTrades.
