@@ -161,7 +161,7 @@ def _assert_ballot(
         )
     except (InvalidSignature, ValueError) as exc:
         raise ValueError("R23 altered/forged reviewer signature") from exc
-    return key_id, tuple(selected)
+    return pub, tuple(selected)
 
 
 def audit_dual_source_review(
