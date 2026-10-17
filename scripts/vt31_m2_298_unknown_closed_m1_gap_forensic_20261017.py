@@ -11,10 +11,11 @@ import json
 from array import array
 from bisect import bisect_left
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from scripts.vt31_ict_cleanroom_cog_real_3y_fast_v1 import _dt, _stream
 from scripts.vt31_ttrades_am_method_m1_census_20261014 import (
