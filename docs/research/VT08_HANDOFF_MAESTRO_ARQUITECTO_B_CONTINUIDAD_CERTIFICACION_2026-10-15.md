@@ -363,3 +363,19 @@ Arquitecto A usa [issue #762](https://github.com/mezas3238-hue/qore-core/issues/
 **Próximo trabajo decisivo, no más censos geométricos:** A debe realmente adjudicar `relevant_swing`, `important_poi`, `protected_swing`, `equilibrium`, `breaker`, `stop_loss`, `target` con fuente autor, source-bar IDs y cutoffs por caso. B debe contrastar independientemente original M3/M15, registrar disensos/escenarios realmente D, y SOLO posteriormente certificar los 27 `CAUSAL_FIELDS` por SITUATION real. **Nadie puede escribir firma humana inexistente en JSON**; sin decisión esencial válida => WAIT. Econ Gates PF/DD/Sortino no evaluables sin fuente completa y BID/ASK con costes.
 
 **Gobernanza Owner:** únicamente VT08 actual TTrades y cognitiva VT08, **QORE-alpha completamente excluido**, sin sizing ni 7Y sellado, VPS/LIVE/DEMO ni merge. PR A #765 y B #764 DRAFT, VT08 **NO CERTIFICADO**.
+
+
+---
+
+## APÉNDICE R23 — AUTENTICACIÓN DE DOS REVISORES A/B (17-oct-2026, complemento del source-firstfail)
+
+[**Informe de review Ed25519 R23**](VT08_B_R23_ED25519_INDEPENDENT_AB_AUTHOR_REVIEW_AUTHORITY_GATE_2026-10-17.md) · [CI #39037926346](https://github.com/mezas3238-hue/qore-core/actions/runs/39037926346) **5/5 SUCCESS, 24 pruebas adversariales×5 mercados = 120 PASS**. Códigos y workflows:
+- `src/qore/infrastructure/trader_lab/vt08_b_r23_signed_semantic_review_contract_v1.py`
+- `tests/infrastructure/trader_lab/test_vt08_b_r23_signed_semantic_review_contract_v1.py`
+- `.github/workflows/vt08-b-r23-signed-dual-methodology-source-review.yml`
+
+**Por qué se necesitaba:** el R23 `firstfail` preparó 107 fichas fuente y 856 obligaciones de prueba, pero ni una firma humana real. Este segundo componente comprueba que cuando lleguen los dos dictámenes A+B sean realmente independientes por identidad criptográfica Ed25519 y provengan de los 107 `case_id_sha256` preregistrados por SHA R19, con 8 campos obligatorios de evidencia TTrades/bar_ids/available_at <= C3, URL/sección y rationale. Protege ante duplicados, falsificación de firmas, dos alias de una misma public key, PnL spoofing, time futuro, fuente extranjera, A/B discrepancia y campos incompletos. El registro de claves públicas Owner-aprobadas está **intencionalmente vacío e inmutable** (MappingProxyType), no lo puede rellenar un remitente A o B sin código revisado. Los tests de claves transitorias criptográficas son **fixtures**, no firmas humanas.
+
+**Resultado real inalterado:** EURJPY 21/21 WAIT, USDCHF 21/21, NZDUSD 21/21, CADJPY 21/21, USDCAD 23/23, **107/107 WAIT_UNREVIEWED, 0 A keys, 0 B keys, 0 revisiones reales firmadas, 0 source-complete, 0 cog, 0 fills**. Un hipotético `DUAL_SOURCE_REVIEW_CONSISTENT_ONLY` **nunca activa** CandidateEvent real ni `evaluate_provenanced`: el review con firma prueba identidad/integridad del dictamen, no veracidad de elección TTrades, raw bars, semantic 27 fields, PF/DD ni brokers.
+
+**Bloqueo siguiente prioritario:** realizar decisiones fuente reales A, revisión ciega B realmente independiente, resolver/disponer D donde original no discrimina POI/relevant swing, autoridad Owner de claves **públicas** solo una vez aprobados revisores y conectar revisión fuente a validaciones RAW, CandidateEvent V2, cognitiva `evaluate_provenanced`. No continuar creando protocolos en lugar de adjudicar los casos. No cambiar denominador 2.657/107 ni abrir 7Y. No sizing, no QORE-alpha ni orden/merge. **VT08 NO CERTIFICADO; progreso cuantitativo hacia certificación NO inferible de tests CI**.
