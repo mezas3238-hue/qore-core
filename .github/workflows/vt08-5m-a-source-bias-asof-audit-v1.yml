@@ -1,0 +1,71 @@
+name: VT08 A Five Market Real Bias AsOf M15 Audit V1
+
+on:
+  push:
+    branches:
+      - agent/vt08-5m-methodology-source-20261010
+    paths:
+      - .github/workflows/vt08-5m-a-source-bias-asof-audit-v1.yml
+      - src/qore/infrastructure/trader_lab/vt08_5m_source_bias_asof_attestation_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_5m_source_bias_asof_attestation_v1.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  bias-asof-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Lint compile and causal adversarial tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_5m_source_bias_asof_attestation_v1.py tests/infrastructure/trader_lab/test_vt08_5m_source_bias_asof_attestation_v1.py
+          python -m compileall -q src/qore/infrastructure/trader_lab/vt08_5m_source_bias_asof_attestation_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_5m_source_bias_asof_attestation_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.symbol }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: evidence/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - name: Independently attest every consumed source-day and bias
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+          from qore.infrastructure.trader_lab.vt08_5m_source_bias_asof_attestation_v1 import audit_market
+          symbol = os.environ["SYMBOL"]
+          data = audit_market(Path(f"evidence/{symbol}/market-evidence-1095d.json"))
+          Path(f"artifacts/{symbol}-bias-asof-full.json").write_text(
+              json.dumps(data, sort_keys=True, separators=(",", ":")), encoding="utf-8",
+          )
+          summary = {key: data[key] for key in (
+              "schema", "symbol", "source_sha", "observed_owner_anchors",
+              "reasons", "cognitive_readiness_signed", "eligible_to_trade",
+          )}
+          Path(f"artifacts/{symbol}-bias-asof-summary.json").write_text(
+              json.dumps(summary, sort_keys=True, indent=2), encoding="utf-8",
+          )
+          print(json.dumps(summary, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-a-real-bias-asof-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/*
+          retention-days: 30
+          if-no-files-found: error

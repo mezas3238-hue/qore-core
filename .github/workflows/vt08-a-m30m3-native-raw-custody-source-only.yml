@@ -1,0 +1,115 @@
+name: VT08 A Native M30M3 Raw Custody and A-B Bar Receipts
+
+on:
+  push:
+    branches:
+      - agent/vt08-5m-methodology-source-20261010
+    paths:
+      - .github/workflows/vt08-a-m30m3-native-raw-custody-source-only.yml
+      - src/qore/infrastructure/trader_lab/vt08_a_m30m3_raw_bar_custody_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_a_m30m3_raw_bar_custody_v1.py
+      - docs/research/VT08_A_NATIVE_SOURCE_CUSTODY_MANIFEST_R2_2026-10-15.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  native-source-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Hermetic adversarial corpus and Ruff
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_a_m30m3_raw_bar_custody_v1.py tests/infrastructure/trader_lab/test_vt08_a_m30m3_raw_bar_custody_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_a_m30m3_raw_bar_custody_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.market }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: m15/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.market }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: m3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Attest every native M3 M15 NY anchor and preserve gap bar IDs, NEVER signal
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_a_m30m3_raw_bar_custody_v1 import attest_market_files
+          symbol = os.environ["MARKET"]
+          paths = list(Path("m3", symbol).rglob("m3-evidence.json"))
+          if len(paths) != 1:
+              raise SystemExit("one genuine cTrader M3 source required")
+          raw15 = Path("m15", symbol, "market-evidence-1095d.json")
+          if not raw15.is_file():
+              raise SystemExit("missing native M15 source")
+          report = attest_market_files(symbol, paths[0], raw15)
+          dest = Path("evidence", symbol + "-raw-custody-receipts.json")
+          dest.write_text(json.dumps(report, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+          summary = {key: report[key] for key in (
+              "schema","market","scope","m3_raw_sha256","m15_raw_sha256",
+              "attested_windows","source_anchor_windows_observed",
+              "source_anchor_windows_complete","skipped_incomplete","skipped_mismatched",
+              "incomplete_source_windows","sample_selection",
+              "author_fidelity_certified","cognitive_certified",
+              "economic_gates_evaluated","sealed_holdout_accessed",
+          )}
+          # Verify published immutable report against the actual source files,
+          # not against a fabricated fixture or a manually asserted summary.
+          frozen = json.loads(Path(
+              "docs/research/VT08_A_NATIVE_SOURCE_CUSTODY_MANIFEST_R2_2026-10-15.json"
+          ).read_text(encoding="utf-8"))
+          expected = frozen["markets"][symbol]
+          for source_key, frozen_key in (
+              ("m3_raw_sha256", "m3_sha256"),
+              ("m15_raw_sha256", "m15_sha256"),
+              ("source_anchor_windows_observed", "observed"),
+              ("source_anchor_windows_complete", "complete"),
+              ("skipped_incomplete", "incomplete"),
+              ("skipped_mismatched", "mismatch"),
+          ):
+              if report[source_key] != expected[frozen_key]:
+                  raise SystemExit(f"published source manifest drift: {symbol} {source_key}")
+          frozen_gaps = {
+              x["anchor"]: x
+              for x in frozen["incomplete_anchor_groups_utc"] if symbol in x["markets"]
+          }
+          source_gaps = {
+              x["anchor_utc"]: x for x in report["incomplete_source_windows"]
+          }
+          if set(frozen_gaps) != set(source_gaps):
+              raise SystemExit(f"manifest gap clock mismatch: {symbol}")
+          for anchor_utc, gap in source_gaps.items():
+              group = frozen_gaps[anchor_utc]
+              if (gap["missing_or_unclosed_m3_utc"] != group["missing_or_unclosed_m3"]
+                  or gap["missing_or_unclosed_m15_utc"] != group["missing_or_unclosed_m15"]):
+                  raise SystemExit(f"manifest gap bar mismatch: {symbol} {anchor_utc}")
+          print(json.dumps(summary, sort_keys=True))
+          print(f"PHYSICAL_SOURCE_MANIFEST_VERIFIED={symbol}")
+          if report["attested_windows"] < 1:
+              raise SystemExit("missing actual M3/M15 causal evidence")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-a-native-raw-custody-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          retention-days: 30
+          if-no-files-found: error

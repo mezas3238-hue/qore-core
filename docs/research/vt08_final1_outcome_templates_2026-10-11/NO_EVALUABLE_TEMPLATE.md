@@ -1,0 +1,5 @@
+# VT08 FINAL #1 — NO EVALUABLE (PLANTILLA, NO ACTIVADA)
+
+**ESTADO ACTUAL: TEMPLATE ONLY / NOT RUN.** No confundir con estado intermedio PENDING_SOURCE. Issue #787.
+
+Emitir NO EVALUABLE al CERRAR formalmente el único intento de especificación porque swing EQ referencia pre-C2, POI relevante, breaker low autor, target externo, A/B approval, broker bid/ask/fees, independencia causal o 100 fills suficientes **NO** se pudieron probar sin inventar reglas C como si fueran A. Adjuntar para cada bloqueante: cita autor exacta, qué decisión no es única, qué evidencia falta, timestamp fuente y revisión B; documentar que ningún PF fue medido bajo modelo fuente-fiel completo, y no se tocó 7Y/VPS. Concluir: *ensayo no ejecutable, método NO DEMOSTRADO y NO REFUTADO; cierre operativo VT08 por insuficiencia de especificación/evidencia*, sin proclamar resultado económico. Para criterio discrecional sin fórmula, considerar rater ciego con capturas PRE-decisión y sin resultados futuros, con control de consenso QORE C, antes de declarar imposible; si no es reproducible, cierre NO_EVALUABLE.
