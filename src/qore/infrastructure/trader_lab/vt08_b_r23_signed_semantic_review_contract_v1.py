@@ -10,7 +10,6 @@ Review approval is NEVER methodology execution approval, an authenticated
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from datetime import UTC, datetime
@@ -18,8 +17,12 @@ from typing import Final
 
 from qore.infrastructure.trader_lab.vt08_b_r19_blind_dual_rater_poi_queue_v1 import (
     MARKET_EXPECTED,
-    SCHEMA as R19_SCHEMA,
     SEED,
+)
+from qore.infrastructure.trader_lab.vt08_b_r19_blind_dual_rater_poi_queue_v1 import (
+    SCHEMA as R19_SCHEMA,
+)
+from qore.infrastructure.trader_lab.vt08_b_r19_blind_dual_rater_poi_queue_v1 import (
     digest as digest_r19,
 )
 
