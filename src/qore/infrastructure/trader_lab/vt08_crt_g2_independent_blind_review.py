@@ -127,7 +127,7 @@ def build_g2_independent_review_packets(
             "review_question": (
                 "Independently determine relevant old CRT reference and "
                 "direction from source-supported three-source CRT/QORE policy "
-                "at this instant, or abstain. No outcome or PnL permitted."
+                "at this instant, or abstain. Only predecision evidence permitted."
             ),
             "allowed_answer_choices": ALLOWED_CHOICES,
             "proposed_reference": None,
