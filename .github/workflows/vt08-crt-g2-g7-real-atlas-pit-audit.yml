@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/workflows/vt08-crt-g2-g7-real-atlas-pit-audit.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py'
@@ -38,9 +40,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
 
   verified_original_m5:
     needs: quality
@@ -79,6 +81,26 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
+          reviewdir=Path("g2-reviewer-only")/os.environ["QORE_MARKET"]
+          sealeddir=Path("g2-sealed-engine")/os.environ["QORE_MARKET"]
+          manifest=json.loads((sealeddir/"g2-review-manifest-sealed.json").read_text())
+          review=[json.loads(s) for s in (reviewdir/"g2-reviewer-only-no-engine-labels.jsonl").read_text().splitlines() if s]
+          blank=[json.loads(s) for s in (reviewdir/"g2-blank-human-review-responses.jsonl").read_text().splitlines() if s]
+          sealed=[json.loads(s) for s in (sealeddir/"g2-sealed-engine-labels.jsonl").read_text().splitlines() if s]
+          expected=16 if os.environ["QORE_MARKET"]=="AUDUSD" else 20
+          assert len(review)==len(blank)==len(sealed)==manifest["reviewer_cases"]==expected
+          assert len({c["case_id"] for c in review})==expected
+          assert [c["case_id"] for c in review]==[c["case_id"] for c in sealed]==[c["case_id"] for c in blank]
+          assert sum(c["engine_conflict_kind"]=="OPPOSITE" for c in sealed)==(4 if os.environ["QORE_MARKET"]=="AUDUSD" else 10)
+          assert all(c["reviewer_result"] is None and not c["independent_methodology_review_complete"] for c in review)
+          assert all(c["human_choice"] is None and not c["methodology_gate_passed"] for c in blank)
+          forbidden=("engine","conflict_kind","c0_direction","c1_direction","source_event","parent_id","terminal","profit","pnl","outcome","g7","gm4")
+          assert all(not any(t in json.dumps(case).lower() for t in forbidden) for case in review)
+          assert all(not any(t in json.dumps(case).lower() for t in forbidden) for case in blank)
+          assert all(c["closed_H4_C0_C1_C2"][2]["opened_at_utc"]<c["decision_clock_utc"] for c in review)
+          assert all(not c["release_to_reviewer_before_signed_review"] for c in sealed)
+          assert not manifest["G_M1_PASS"] and not manifest["GLOBAL_CERTIFIED"]
+          print("VT08_R9_REVIEWER_ONLY_COUNTS",json.dumps({"market":os.environ["QORE_MARKET"],"case_count":expected,"signed_reviews":0},sort_keys=True))
           p=Path("g2-g7-real")/os.environ["QORE_MARKET"]
           m=json.loads((p/"g2-g7-real-atlas-pit-summary.json").read_text())
           rows=[json.loads(line) for line in (p/"g2-g7-real-atlas-pit-ledger.jsonl").read_text().splitlines() if line]
@@ -140,11 +162,29 @@ jobs:
           print("VT08_G2_G7_ATLAS_RESEARCH_COUNTS",json.dumps(m["counts"],sort_keys=True))
           PY
           printf '%s\n' "$GITHUB_SHA" > "g2-g7-real/$QORE_MARKET/git-sha.txt"
+          printf '%s\n' "$GITHUB_SHA" > "g2-reviewer-only/$QORE_MARKET/git-sha.txt"
+          printf '%s\n' "$GITHUB_SHA" > "g2-sealed-engine/$QORE_MARKET/git-sha.txt"
+          (cd "g2-reviewer-only/$QORE_MARKET"; sha256sum g2-reviewer-only-no-engine-labels.jsonl g2-blank-human-review-responses.jsonl git-sha.txt > SHA256SUMS.txt)
+          (cd "g2-sealed-engine/$QORE_MARKET"; sha256sum g2-sealed-engine-labels.jsonl g2-review-manifest-sealed.json git-sha.txt > SHA256SUMS.txt)
           (cd "g2-g7-real/$QORE_MARKET"; sha256sum g2-g7-real-atlas-pit-summary.json g2-g7-real-atlas-pit-ledger.jsonl g2-c0-c1-blind-predecision-cases.jsonl gm4-unknown-expost-forensics.jsonl r7-original-m5-fx-weekly-close-evidence.jsonl r8-original-producer-sha-backed-gap-custody.jsonl git-sha.txt > SHA256SUMS.txt)
       - name: Retain censored G2-G7 research artifact (no fills no sizing)
         uses: actions/upload-artifact@v4
         with:
           name: vt08-g2-g7-real-atlas-${{ matrix.market }}-${{ github.sha }}
           path: g2-g7-real/${{ matrix.market }}
+          retention-days: 90
+          if-no-files-found: error
+      - name: Publish only reviewer-blind G2 cases as distinct artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-g2-independent-reviewer-only-${{ matrix.market }}-${{ github.sha }}
+          path: g2-reviewer-only/${{ matrix.market }}
+          retention-days: 90
+          if-no-files-found: error
+      - name: Retain separate sealed G2 engine-labels for AFTER independent adjudication
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-g2-sealed-engine-DO-NOT-RELEASE-${{ matrix.market }}-${{ github.sha }}
+          path: g2-sealed-engine/${{ matrix.market }}
           retention-days: 90
           if-no-files-found: error
