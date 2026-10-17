@@ -348,3 +348,16 @@ Este documento es un corte verificable de continuidad: identifica los dos arquit
 **Entregable nuevo R20 para revisores A/B:** R19 107 fichas enriquecidas con `opposing_series_opened_at_utc`, contacto FVG por m3 id, `bearish_series_fvg_touch_bar_ids`, `bearish_series_sweep_bar_ids`, `same_m3_bar_event_order_proven_by_ticks=False`, firmas humanas `None`, `source_complete=False`. **A** debe decidir relación causal y relevancia de POI/swing/PS con soporte fuente y rúbrica de disenso, NO automatizar decisión a partir de la geometría; **B** auditar bar ids y clock source de firmas A independientes, nunca promover sin evidencia semántica, 27 `CAUSAL_FIELDS` pendientes.
 
 **Gobernanza Owner:** programa único VT08 TTrades/cognitiva; QORE-alpha completamente excluido, 7Y holdout sellado, sin sizing/orders/VPS/merge. `AUTHOR_COMPLETE=0` · `COGNITIVE_ADMISSIONS=0` · `BROKER_FILLS=0` · `GATES=NOT_EVALUABLE` · VT08 **NO CERTIFICADO**.
+
+
+---
+
+## APÉNDICE R23 — EXPEDIENTES DE REVISIÓN SEMÁNTICA A/B (17-oct-2026)
+
+[**Informe R23 y nuevos source-first dossiers**](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-cognition-replay-20261010/docs/research/VT08_B_R23_SEMANTIC_SOURCE_FIRSTFAIL_107_DOSSIERS_2026-10-17.md) · [GitHub Actions #39037632164](https://github.com/mezas3238-hue/qore-core/actions/runs/39037632164) **5/5 SUCCESS, 60 tests adversariales, Ruff**. Archivos B nuevos `vt08_b_r23_semantic_review_firstfail_ledger_v1.py`, test homónimo y workflow `vt08-b-r23-semantic-review-firstfail.yml`.
+
+**Primer join verificable contra dos ramas independientes de investigación:** B R20-FVG-opposing M3 y B R22 competing HTF POI, comparados hasta el mismo `case_id`, `selection_rank_sha256`, fecha C2/CISD/C3, bar IDs y contenido físico por caso. Toda adulteración de firma/review/economía/denominador o hash de R20 causa fallo; **2.657/2.657 original source preserved**. Resultado: 107/107 fichas pre-PnL y 8 preguntas metodológicas/cognitivas por ficha = **856 campos abiertos de revisión fuente**, sin crear ocho reglas del autor nuevas. **35** primer FVG touch antes opposing bearish run, **18** durante, **4** primera vez en barra CISD (orden tick UNKNOWN), y 50 controles sin FVG H1 local (no necesariamente sin otro POI). `human_A_signoff=0`, `human_B_signoff=0`, `author_complete=0`, `cognitive_real=0`, `broker_fills=0`. La falta de respuesta es `AWAITING_REAL_REVIEW`, NO equivalencia con `D_SOURCE_UNSPECIFIED` hasta revisar autor.
+
+**Próximo trabajo decisivo, no más censos geométricos:** A debe realmente adjudicar `relevant_swing`, `important_poi`, `protected_swing`, `equilibrium`, `breaker`, `stop_loss`, `target` con fuente autor, source-bar IDs y cutoffs por caso. B debe contrastar independientemente original M3/M15, registrar disensos/escenarios realmente D, y SOLO posteriormente certificar los 27 `CAUSAL_FIELDS` por SITUATION real. **Nadie puede escribir firma humana inexistente en JSON**; sin decisión esencial válida => WAIT. Econ Gates PF/DD/Sortino no evaluables sin fuente completa y BID/ASK con costes.
+
+**Gobernanza Owner:** únicamente VT08 actual TTrades y cognitiva VT08, **QORE-alpha completamente excluido**, sin sizing ni 7Y sellado, VPS/LIVE/DEMO ni merge. PR A #765 y B #764 DRAFT, VT08 **NO CERTIFICADO**.
