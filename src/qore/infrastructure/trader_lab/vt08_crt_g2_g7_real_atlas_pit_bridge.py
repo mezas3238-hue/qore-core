@@ -15,6 +15,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab.vt08_crt_g2_independent_blind_review import (
+    build_g2_independent_review_packets,
+)
 from qore.infrastructure.trader_lab.vt08_crt_gm4_unknown_root_forensics import (
     diagnose_gm4_unknowns_expost,
 )
@@ -482,6 +485,38 @@ def main() -> None:
         raise ValueError("duplicate G2 blind case identity")
     if len(blind_cases) != summary["counts"].get("C0_COMPETING", 0):
         raise ValueError("G2 blind challenge coverage mismatch")
+    review_meta, reviewer_only, sealed_only, blank_replies = (
+        build_g2_independent_review_packets(market, blind_cases)
+    )
+    expected_counts = (16, 20)
+    if review_meta["reviewer_cases"] != expected_counts[
+        0 if market == CrtPureMarket.AUDUSD else 1
+    ]:
+        raise ValueError("R9 original G2 reviewer inventory mismatch")
+    reviewer_dir = args.output.parent.parent / "g2-reviewer-only" / market.value
+    sealed_dir = args.output.parent.parent / "g2-sealed-engine" / market.value
+    reviewer_dir.mkdir(parents=True, exist_ok=True)
+    sealed_dir.mkdir(parents=True, exist_ok=True)
+    for path, records in (
+        (reviewer_dir / "g2-reviewer-only-no-engine-labels.jsonl", reviewer_only),
+        (reviewer_dir / "g2-blank-human-review-responses.jsonl", blank_replies),
+        (sealed_dir / "g2-sealed-engine-labels.jsonl", sealed_only),
+    ):
+        with path.open("w") as out:
+            for record in records:
+                out.write(json.dumps(record, sort_keys=True) + "\n")
+    (sealed_dir / "g2-review-manifest-sealed.json").write_text(
+        json.dumps(review_meta, sort_keys=True, indent=2) + "\n"
+    )
+    print("VT08_R9_SEALED_G2_BLIND_REVIEW_COUNTS", json.dumps({
+        "market": market.value,
+        "reviewer_cases": review_meta["reviewer_cases"],
+        "engine_distribution_SEALED_ONLY": (
+            review_meta["engine_distribution_SEALED_ONLY"]
+        ),
+        "G_M1_PASS": False,
+        "independent_review_missing": True,
+    }, sort_keys=True))
     with (args.output / "g2-c0-c1-blind-predecision-cases.jsonl").open("w") as out:
         for review_case in blind_cases:
             out.write(json.dumps(review_case, sort_keys=True) + "\n")
