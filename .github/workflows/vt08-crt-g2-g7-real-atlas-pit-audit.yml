@@ -1,0 +1,190 @@
+name: VT08 CRT G2 G7 Real Atlas PIT Research Only
+
+on:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-g2-g7-real-atlas-pit-audit.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: vt08-g2-g7-real-atlas-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Strict causal G2/G7 lint typing and adversarial tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
+
+  verified_original_m5:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [AUDUSD, USDJPY]
+    env:
+      QORE_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Read existing SHA-backed CIBO Atlas original M5 (no download from broker)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.market }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original-native-m5
+      - name: Recompute frozen V3 plus G-M4 and audit bounded G2 versus causal G7
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s original-native-m5/MANIFEST_SHA256SUMS.txt
+          test -s original-native-m5/SYMBOL_SHA256SUMS.txt
+          test -d original-native-m5/RAW_M5_LEDGER
+          mkdir -p "g2-g7-real/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_g2_g7_real_atlas_pit_bridge \
+            "$QORE_MARKET" original-native-m5 "g2-g7-real/$QORE_MARKET" \
+            | tee "g2-g7-real/$QORE_MARKET/stdout-summary.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          reviewdir=Path("g2-reviewer-only")/os.environ["QORE_MARKET"]
+          sealeddir=Path("g2-sealed-engine")/os.environ["QORE_MARKET"]
+          manifest=json.loads((sealeddir/"g2-review-manifest-sealed.json").read_text())
+          review=[json.loads(s) for s in (reviewdir/"g2-reviewer-only-no-engine-labels.jsonl").read_text().splitlines() if s]
+          blank=[json.loads(s) for s in (reviewdir/"g2-blank-human-review-responses.jsonl").read_text().splitlines() if s]
+          sealed=[json.loads(s) for s in (sealeddir/"g2-sealed-engine-labels.jsonl").read_text().splitlines() if s]
+          expected=16 if os.environ["QORE_MARKET"]=="AUDUSD" else 20
+          assert len(review)==len(blank)==len(sealed)==manifest["reviewer_cases"]==expected
+          assert len({c["case_id"] for c in review})==expected
+          assert [c["case_id"] for c in review]==[c["case_id"] for c in sealed]==[c["case_id"] for c in blank]
+          assert sum(c["engine_conflict_kind"]=="OPPOSITE" for c in sealed)==(4 if os.environ["QORE_MARKET"]=="AUDUSD" else 10)
+          assert all(c["reviewer_result"] is None and not c["independent_methodology_review_complete"] for c in review)
+          assert all(c["human_choice"] is None and not c["methodology_gate_passed"] for c in blank)
+          forbidden=("engine","conflict_kind","c0_direction","c1_direction","source_event","parent_id","terminal","profit","pnl","outcome","g7","gm4")
+          assert all(not any(t in json.dumps(case).lower() for t in forbidden) for case in review)
+          assert all(not any(t in json.dumps(case).lower() for t in forbidden) for case in blank)
+          assert all(c["closed_H4_C0_C1_C2"][2]["opened_at_utc"]<c["decision_clock_utc"] for c in review)
+          assert all(not c["release_to_reviewer_before_signed_review"] for c in sealed)
+          assert not manifest["G_M1_PASS"] and not manifest["GLOBAL_CERTIFIED"]
+          print("VT08_R9_REVIEWER_ONLY_COUNTS",json.dumps({"market":os.environ["QORE_MARKET"],"case_count":expected,"signed_reviews":0},sort_keys=True))
+          p=Path("g2-g7-real")/os.environ["QORE_MARKET"]
+          m=json.loads((p/"g2-g7-real-atlas-pit-summary.json").read_text())
+          rows=[json.loads(line) for line in (p/"g2-g7-real-atlas-pit-ledger.jsonl").read_text().splitlines() if line]
+          blind=[json.loads(line) for line in (p/"g2-c0-c1-blind-predecision-cases.jsonl").read_text().splitlines() if line]
+          assert len(blind)==m["counts"].get("C0_COMPETING",0)
+          assert len({case["blind_case_id"] for case in blind})==len(blind)
+          assert all(case["c2_closed_at_utc"]<case["decision_clock_utc"] for case in blind)
+          assert all(case["selected_reference"] is None and case["independent_reviewer_adjudicated"] is False for case in blind)
+          assert all(all(k in case for k in ("c0_closed_h4","c1_closed_h4","c2_closed_h4")) for case in blind)
+          forbidden=("outcome","terminal","pnl","sizing","future","profit","fill")
+          assert all(not any(t in k.lower() for t in forbidden) for case in blind for k in case)
+          assert all("G2_blind_predecision_case" not in row for row in rows)
+          assert all("EX_POST" not in json.dumps(row) for row in rows)
+          posthoc=m["G7_EX_POST_DIAGNOSTIC_NEVER_INITIAL_DECISION"]
+          unknown=m["GM4_EX_POST_UNKNOWN_FORENSICS_NEVER_INITIAL_DECISION"]
+          r8=m["R8_ORIGINAL_PRODUCER_SHA_VERIFIED_GAPS_NOT_MARKET_CALENDAR"]
+          r8_rows=[json.loads(line) for line in (p/"r8-original-producer-sha-backed-gap-custody.jsonl").read_text().splitlines() if line]
+          assert r8["original_gap_cases_matched"] == len(r8_rows) == (1 if os.environ["QORE_MARKET"]=="AUDUSD" else 2)
+          assert r8["counts"]["PRODUCER_GAP_WITNESSED"] == len(r8_rows)
+          assert r8["source_producer_sha"] == "ab782b8e9f890f86a2b6500070f0556b4b685e3d"
+          assert r8["quality_ledger_sha_verified"] and r8["GM4_UNKNOWN_STILL_NOT_TERMINAL"]
+          assert not r8["broker_historical_calendar_authenticated"]
+          assert all(x["quality_ledger_sha_verified"] and not x["underlying_missing_m5_recovered"] for x in r8_rows)
+          assert all(x["source_GM4_terminal_still_UNKNOWN"] and not x["terminal_adjudicated"] for x in r8_rows)
+          print("VT08_R8_ORIGINAL_PRODUCER_QUALITY_GAP_COUNTS",json.dumps(r8,sort_keys=True))
+          print("VT08_R8_ORIGINAL_PRODUCER_QUALITY_GAP_CASES",json.dumps(r8_rows,sort_keys=True))
+          r7=m["R7_EMPIRICAL_FX_WEEKLY_CLOSE_BROKER_NOT_VERIFIED"]
+          r7_rows=[json.loads(line) for line in (p/"r7-original-m5-fx-weekly-close-evidence.jsonl").read_text().splitlines() if line]
+          assert len(r7_rows)==r7["forensic_gaps"]==(1 if os.environ["QORE_MARKET"]=="AUDUSD" else 2)
+          assert r7["terminal_adjudicated"] is False and r7["G_M4_PASS"] is False
+          assert r7["source_broker_schedule_verification"]=="MISSING"
+          assert sum(row["conventional_ny_friday_1700"] for row in r7_rows)==1
+          assert all(row["no_sizing"] and row["gm4_original_terminal_remains_unknown"] for row in r7_rows)
+          assert all(row["broker_specific_historical_calendar_authenticated"] is False for row in r7_rows)
+          print("VT08_R7_ORIGINAL_MARKET_CALENDAR_DIAGNOSTICS",json.dumps(r7,sort_keys=True))
+          print("VT08_R7_ORIGINAL_M5_WEEKLY_CLOSE_CASES",json.dumps(r7_rows,sort_keys=True))
+          unknown_rows=[json.loads(line) for line in (p/"gm4-unknown-expost-forensics.jsonl").read_text().splitlines() if line]
+          assert len(unknown_rows)==unknown["unknown_cases"]==m["counts"].get("GM4_UNKNOWN",0)
+          assert unknown["unknown_frozen_reasons"].get("UNKNOWN_ENTRY_ALREADY_BEYOND_BARRIER",0)==1
+          assert unknown["unknown_frozen_reasons"].get("UNKNOWN_MISSING_M5_BEFORE_TERMINAL",0)==(1 if os.environ["QORE_MARKET"]=="AUDUSD" else 2)
+          assert all(z["gm4_terminal_remains_UNKNOWN"] and z["G_M4_PASS"] is False for z in unknown_rows)
+          assert all(z["not_a_trade"] and z["no_sizing"] for z in unknown_rows)
+          print("VT08_GM4_UNKNOWN_EXPOST_CASE_IDS_AND_CLOCKS",json.dumps(unknown_rows,sort_keys=True))
+          assert posthoc["may_not_authorize_rearm"] is True
+          waits=m["counts"].get("G7_WAIT",0)
+          assert posthoc.get("WAIT_WITH_AT_LEAST_ONE_GM4_UNKNOWN",0)+posthoc.get("WAIT_ONLY_EVENTUALLY_KNOWN_TERMINAL_LATE",0)==waits
+          assert posthoc.get("MISSING_PRIOR_EXPOST_GM4_UNKNOWN",0)+posthoc.get("MISSING_PRIOR_EXPOST_TERMINAL_LATE",0)==posthoc.get("TOTAL_MISSING_PRIOR_AT_DECISION",0)
+          assert len(rows)==m["V3_cases"]==m["GM4_cases_reconciled"]
+          assert len(rows)>0
+          assert m["counts"].get("G2_WAIT",0)==len(rows)
+          assert sum(v for k,v in m["counts"].items() if k.startswith("G7_"))==len(rows)
+          assert not m["G2_full_reference_inventory_proven"]
+          assert not m["G7_runtime_ledger_authenticated"]
+          assert m["G_M1_PASS"] is False and m["G_M4_PASS"] is False
+          assert m["G_M5_ISSUED"] is False and m["GLOBAL_CERTIFIED"] is False
+          assert m["no_sizing"] is True and m["no_orders"] is True and m["OOS_new"] is False
+          assert all(r["G2_verdict"]=="WAIT" and r["not_a_trade"] and r["no_sizing"] for r in rows)
+          assert len({r["source_event_id"] for r in rows})==len(rows)
+          print("VT08_G2_G7_ATLAS_RESEARCH_COUNTS",json.dumps(m["counts"],sort_keys=True))
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "g2-g7-real/$QORE_MARKET/git-sha.txt"
+          printf '%s\n' "$GITHUB_SHA" > "g2-reviewer-only/$QORE_MARKET/git-sha.txt"
+          printf '%s\n' "$GITHUB_SHA" > "g2-sealed-engine/$QORE_MARKET/git-sha.txt"
+          (cd "g2-reviewer-only/$QORE_MARKET"; sha256sum g2-reviewer-only-no-engine-labels.jsonl g2-blank-human-review-responses.jsonl git-sha.txt > SHA256SUMS.txt)
+          (cd "g2-sealed-engine/$QORE_MARKET"; sha256sum g2-sealed-engine-labels.jsonl g2-review-manifest-sealed.json git-sha.txt > SHA256SUMS.txt)
+          (cd "g2-g7-real/$QORE_MARKET"; sha256sum g2-g7-real-atlas-pit-summary.json g2-g7-real-atlas-pit-ledger.jsonl g2-c0-c1-blind-predecision-cases.jsonl gm4-unknown-expost-forensics.jsonl r7-original-m5-fx-weekly-close-evidence.jsonl r8-original-producer-sha-backed-gap-custody.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Retain censored G2-G7 research artifact (no fills no sizing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-g2-g7-real-atlas-${{ matrix.market }}-${{ github.sha }}
+          path: g2-g7-real/${{ matrix.market }}
+          retention-days: 90
+          if-no-files-found: error
+      - name: Publish only reviewer-blind G2 cases as distinct artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-g2-independent-reviewer-only-${{ matrix.market }}-${{ github.sha }}
+          path: g2-reviewer-only/${{ matrix.market }}
+          retention-days: 90
+          if-no-files-found: error
+      - name: Retain separate sealed G2 engine-labels for AFTER independent adjudication
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-g2-sealed-engine-DO-NOT-RELEASE-${{ matrix.market }}-${{ github.sha }}
+          path: g2-sealed-engine/${{ matrix.market }}
+          retention-days: 90
+          if-no-files-found: error

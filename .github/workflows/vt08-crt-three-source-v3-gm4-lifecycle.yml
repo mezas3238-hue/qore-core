@@ -1,0 +1,98 @@
+name: VT08 CRT 3-Source V3 G-M4 Causal Lifecycle (Research Only)
+
+on:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-three-source-v3-gm4-lifecycle.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_gm4_lifecycle.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_gm4_lifecycle.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: vt08-three-source-v3-gm4-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Causal G-M4 tests, type-checks and no-leak controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_gm4_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_gm4_lifecycle.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_gm4_lifecycle.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_gm4_lifecycle.py
+
+  causal_real_atlas:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [AUDUSD, USDJPY]
+    env:
+      QORE_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Fetch pre-existing SHA-backed original historical M5 (no broker)
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.market }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original-native-m5
+      - name: Reconcile source, cognition, locked-GM5 and subsequent terminal evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s original-native-m5/MANIFEST_SHA256SUMS.txt
+          test -s original-native-m5/SYMBOL_SHA256SUMS.txt
+          test -d original-native-m5/RAW_M5_LEDGER
+          mkdir -p "gm4-v3/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_v3_gm4_lifecycle \
+            "$QORE_MARKET" original-native-m5 "gm4-v3/$QORE_MARKET" \
+            | tee "gm4-v3/$QORE_MARKET/stdout-summary.json"
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          p=Path("gm4-v3")/os.environ["QORE_MARKET"]
+          m=json.loads((p/"v3-gm4-causal-lifecycle-summary.json").read_text())
+          rows=[json.loads(x) for x in (p/"v3-gm4-causal-lifecycle-ledger.jsonl").read_text().splitlines() if x]
+          assert m["v3_confirmed_source_count"]==len(rows)
+          assert m["v3_cognition_recognized"]==len(rows)==m["v3_gm4_cases_reconciled"]
+          assert m["cognitive_action_ABSTAIN"]==len(rows)
+          assert m["terminal_proven"]+m["terminal_unknown"]==len(rows)
+          assert m["all_initial_routers_blocked"]
+          assert m["no_sizing"] and m["no_PnL_or_broker_fills"] and m["not_fresh_OOS"]
+          assert m["G_M4_PASS"] is False and m["GLOBAL_CERTIFIED"] is False
+          assert len(set(r["source_event_id"] for r in rows))==len(rows)
+          assert all(r["not_a_trade"] and r["initial_confirmation_recognized"] and
+                     r["gm5_router_blocked_at_decision"] for r in rows)
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "gm4-v3/$QORE_MARKET/git-sha.txt"
+          (cd "gm4-v3/$QORE_MARKET"; sha256sum v3-gm4-causal-lifecycle-summary.json v3-gm4-causal-lifecycle-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Publish G-M4 research evidence, no orders, no sizing
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-three-source-v3-gm4-read-only-${{ matrix.market }}-${{ github.sha }}
+          path: gm4-v3/${{ matrix.market }}
+          retention-days: 90
+          if-no-files-found: error

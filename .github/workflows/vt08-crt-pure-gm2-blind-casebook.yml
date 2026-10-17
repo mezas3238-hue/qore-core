@@ -1,0 +1,358 @@
+name: QORE VT08 G-M2 Real Blinded Casebook (non-economic)
+
+on:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-gm2-blind-casebook.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_full_h4_census.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_price_lifecycle.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_price_lifecycle.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_full_h4_census.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: vt08-gm2-blind-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only test dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Enforce code hygiene and contract tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_price_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_price_lifecycle.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_price_lifecycle.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v2_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_v1_full_h4_census.py src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_visual_firstlook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_model1_ambiguous_geometry.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm1_reference_challenge.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm2_real_casebook.py src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_price_lifecycle.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v2_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_v1_full_h4_census.py tests/infrastructure/trader_lab/test_vt08_crt_three_source_candidate_v1.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_visual_firstlook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_model1_ambiguous_geometry.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm1_reference_challenge.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm2_real_casebook.py tests/infrastructure/trader_lab/test_vt08_crt_pure_gm3_real_case_safety.py
+
+  generate_real_casebook:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [AUDUSD, USDJPY]
+    env:
+      QORE_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only repo (no broker login)
+        run: python -m pip install -e .
+      - name: Retrieve original immutable CIBO Atlas per-market M5 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.market }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          run-id: '35166210458'
+          github-token: ${{ github.token }}
+          path: original-native-m5
+      - name: Verify original provenance and files exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s original-native-m5/git-sha.txt
+          test -s original-native-m5/symbol-consumption-manifest.json
+          test -s original-native-m5/MANIFEST_SHA256SUMS.txt
+          test -s original-native-m5/SYMBOL_SHA256SUMS.txt
+          test -d original-native-m5/RAW_M5_LEDGER
+      - name: Produce real historical G-M2 cases with future withheld
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "artifacts/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm2_real_casebook \
+            "$QORE_MARKET" original-native-m5 "artifacts/$QORE_MARKET" \
+            > "artifacts/$QORE_MARKET/stdout-manifest.json"
+      - name: Run full-original-all-UTC-H4 tri-source V1 census without source-restrictive old R2-C windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "full-h4/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_v1_full_h4_census \
+            "$QORE_MARKET" original-native-m5 "full-h4/$QORE_MARKET" \
+            | tee "full-h4/$QORE_MARKET/three-source-v1-full-stdout.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path("full-h4")/os.environ["QORE_MARKET"]
+          m=json.loads((root/"three-source-v1-h4-full-summary.json").read_text())
+          assert m["complete_h4_c1_c2_contexts"]>0
+          assert m["PnL_computed"] is False and m["sizing_used"] is False
+          assert m["global_certified"] is False and m["not_fresh_holdout"] is True
+          rows=[json.loads(s) for s in (root/"three-source-v1-h4-full-ledger.jsonl").read_text().splitlines() if s]
+          assert len(rows)==m["complete_h4_c1_c2_contexts"]
+          assert all(r["not_a_trade"] for r in rows)
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "full-h4/$QORE_MARKET/git-sha.txt"
+          (cd "full-h4/$QORE_MARKET"; sha256sum three-source-v1-h4-full-summary.json three-source-v1-h4-full-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Run pre-registered NEW-ID V2 all-session nested M15 census, development only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "full-h4-v2/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_v2_full_h4_census \
+            "$QORE_MARKET" original-native-m5 "full-h4-v2/$QORE_MARKET" \
+            | tee "full-h4-v2/$QORE_MARKET/v2-full-stdout.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path("full-h4-v2")/os.environ["QORE_MARKET"]
+          m=json.loads((root/"three-source-v2-h4-census-summary.json").read_text())
+          assert m["complete_h4_c1_c2_contexts"]>0
+          assert m["no_PnL"] is True and m["no_sizing"] is True and m["zero_orders"] is True
+          assert m["replay_dev_only_not_fresh_OOS"] is True and m["global_certified"] is False
+          rows=[json.loads(s) for s in (root/"three-source-v2-h4-census-ledger.jsonl").read_text().splitlines() if s]
+          assert len(rows)==m["complete_h4_c1_c2_contexts"]
+          assert all(not r["is_trade"] and not r["grants_volume_or_broker_authority"] for r in rows)
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "full-h4-v2/$QORE_MARKET/git-sha.txt"
+          (cd "full-h4-v2/$QORE_MARKET"; sha256sum three-source-v2-h4-census-summary.json three-source-v2-h4-census-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Evaluate frozen V2 first-hit DOL/invalidation price-only lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "lifecycle-v2/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_v2_price_lifecycle \
+            "$QORE_MARKET" original-native-m5 "lifecycle-v2/$QORE_MARKET" \
+            | tee "lifecycle-v2/$QORE_MARKET/v2-price-lifecycle-stdout.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path("lifecycle-v2")/os.environ["QORE_MARKET"]
+          m=json.loads((root/"v2-price-lifecycle-summary.json").read_text())
+          assert m["v2_candidates_original"]==m["price_path_events_reconciled"]
+          assert m["no_sizing"] and m["no_PnL"] and m["not_fresh_OOS"]
+          assert m["GLOBAL_CERTIFIED"] is False
+          rows=[json.loads(x) for x in (root/"v2-price-lifecycle-ledger.jsonl").read_text().splitlines() if x]
+          assert len(rows)==m["v2_candidates_original"]
+          assert all(r["not_a_trade"] and r["no_sizing"] for r in rows)
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "lifecycle-v2/$QORE_MARKET/git-sha.txt"
+          (cd "lifecycle-v2/$QORE_MARKET"; sha256sum v2-price-lifecycle-summary.json v2-price-lifecycle-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+      - name: Produce independent FIRST-LOOK H4/M15 visual reviews with no cognitive/geometric priming
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "firstlook/$QORE_MARKET"
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm2_visual_firstlook \
+            "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "firstlook/$QORE_MARKET" \
+            | tee "firstlook/$QORE_MARKET/gm2-firstlook-stdout.json"
+          python - <<'PY'
+          import json,os,hashlib
+          from pathlib import Path
+          root=Path("firstlook")/os.environ["QORE_MARKET"]
+          m=json.loads((root/"gm2-firstlook-manifest.json").read_text())
+          html=(root/"gm2-methodologist-firstlook.html").read_bytes()
+          assert m["cases"]==24
+          assert m["firstlook_html_sha256"]==hashlib.sha256(html).hexdigest()
+          assert m["reveal_or_cognitive_output_included"] is False
+          assert m["adjudication_authored"] is False and m["G_M2_passed"] is False
+          assert m["G_M5_certificate_issued"] is False
+          for bad in (
+            b"mechanical_source_candle_hypotheses",
+            b"first_body_confirmation_known_at",
+            b"gm3-real-safety",
+            b"C3_M5_reveal_after_independent_review",
+            b"UNRESOLVED_BY_PRIMARY_SOURCE",
+          ):
+            assert bad not in html
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "firstlook/$QORE_MARKET/git-sha.txt"
+          (cd "firstlook/$QORE_MARKET"; sha256sum gm2-methodologist-firstlook.html gm2-firstlook-manifest.json git-sha.txt > SHA256SUMS.txt)
+      - name: Enumerate source-neutral dual H4 reference challenges from real blinded cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm1_reference_challenge \
+            "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/gm1-reference-dispute-stdout.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root=Path('artifacts')/os.environ['QORE_MARKET']
+          m=json.loads((root/'gm1-reference-dispute-summary.json').read_text())
+          assert m['cases']==24 and m['candidate_reference_count']==48
+          assert m['GM1_PASS'] is False and m['GM5_certificate_issued'] is False
+          assert m['sizing_performed'] is False
+          rows=[json.loads(x) for x in (root/'gm1-reference-dispute-reviewer-only.jsonl').read_text().splitlines() if x]
+          assert len(rows)==24
+          assert all(r['source_authorized_selection'] is None for r in rows)
+          PY
+      - name: Enumerate source-neutral Model1 M15 candle geometry against BOTH H4 raw hypotheses
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm1_model1_ambiguous_geometry \
+            "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/gm1-model1-geometry-stdout.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root=Path('artifacts')/os.environ['QORE_MARKET']
+          m=json.loads((root/'gm1-model1-raw-reference-summary.json').read_text())
+          assert m['cases']==24
+          assert m['old_crth_crtl_authenticity_source_approved'] is False
+          assert m['GM1_PASS'] is False and m['GM5_issued'] is False
+          assert m['sizing_or_trading_performed'] is False
+          rows=[json.loads(x) for x in (root/'gm1-model1-raw-reference-observations.jsonl').read_text().splitlines() if x]
+          assert len(rows)==24
+          assert all(row['reference_selector_source_approved'] is False for row in rows)
+          assert all(not obs['entry_authorized'] for row in rows for obs in row['observations'])
+          PY
+      - name: Run PRE-REGISTERED three-source QORE V1 (development ONLY; never FIRST-LOOK)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.vt08_crt_three_source_candidate_v1 \
+            "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/three-source-qore-v1-stdout.json"
+          python - <<'PY'
+          import os, json
+          from pathlib import Path
+          root=Path("artifacts")/os.environ["QORE_MARKET"]
+          m=json.loads((root/"three-source-qore-v1-summary.json").read_text())
+          assert m["cases"]==24 and m["GM1_PASS"] is False and m["GLOBAL_CERTIFIED"] is False
+          assert m["no_sizing_or_broker_order"] is True
+          rows=[json.loads(s) for s in (root/"three-source-qore-v1-dev-ledger.jsonl").read_text().splitlines() if s]
+          assert len(rows)==24
+          assert all(r["not_trading_signal"] and r["no_capital_or_volume_authority"] for r in rows)
+          PY
+      - name: Run existing VT08 cognition on real case prefixes (G-M3 safety only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_gm3_real_case_safety \
+            "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "artifacts/$QORE_MARKET" \
+            | tee "artifacts/$QORE_MARKET/gm3-safety-stdout.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root=Path('artifacts')/os.environ['QORE_MARKET']
+          m=json.loads((root/'gm3-real-safety-summary.json').read_text())
+          assert m['cases']>0 and m['actions']=={'ABSTAIN':m['cases']}
+          assert m['methodological_GM3_certified'] is False
+          assert m['sizing_or_broker_orders'] is False
+          PY
+      - name: Validate no certification was accidentally emitted
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root = Path('artifacts') / os.environ['QORE_MARKET']
+          m = json.loads((root / 'gm2-real-casebook-manifest.json').read_text())
+          blind = [json.loads(l) for l in (root / 'gm2-blind-cases.jsonl').read_text().splitlines() if l]
+          sealed = [json.loads(l) for l in (root / 'gm2-sealed-c3-witness.jsonl').read_text().splitlines() if l]
+          assert m['case_count'] == len(blind) == len(sealed) > 0
+          assert [c['case_id'] for c in blind] == [c['case_id'] for c in sealed]
+          assert all(c['future_C3_withheld_from_blind_file'] for c in blind)
+          assert all(not c['is_execution_authorized'] for c in blind)
+          assert m['gm5_certificate_issued'] is False
+          assert m['global_certified'] is False
+          assert m['live_authorized'] is False
+          PY
+      - name: Bind source and provenance to immutable commit hash
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_MARKET/git-sha.txt"
+          cd "artifacts/$QORE_MARKET"
+          sha256sum three-source-qore-v1-summary.json three-source-qore-v1-dev-ledger.jsonl three-source-qore-v1-stdout.json gm1-model1-raw-reference-summary.json gm1-model1-raw-reference-observations.jsonl gm1-model1-geometry-stdout.json gm1-reference-dispute-summary.json gm1-reference-dispute-reviewer-only.jsonl gm1-reference-dispute-stdout.json gm2-real-casebook-manifest.json gm2-blind-cases.jsonl gm2-sealed-c3-witness.jsonl gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl gm3-safety-stdout.json stdout-manifest.json git-sha.txt > SHA256SUMS.txt
+      - name: Separate blinded reviewer packet from sealed C3 (no access control implied)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "reviewer-blind/$QORE_MARKET" "sealed-future/$QORE_MARKET"
+          cp "artifacts/$QORE_MARKET/three-source-qore-v1-summary.json" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/three-source-qore-v1-dev-ledger.jsonl" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm1-model1-raw-reference-summary.json" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm1-model1-raw-reference-observations.jsonl" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm1-reference-dispute-summary.json" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm1-reference-dispute-reviewer-only.jsonl" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm2-blind-cases.jsonl" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm2-real-casebook-manifest.json" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm3-real-safety-summary.json" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm3-real-safety-ledger.jsonl" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/git-sha.txt" "reviewer-blind/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/gm2-sealed-c3-witness.jsonl" "sealed-future/$QORE_MARKET/"
+          cp "artifacts/$QORE_MARKET/git-sha.txt" "sealed-future/$QORE_MARKET/"
+          (cd "reviewer-blind/$QORE_MARKET"; sha256sum three-source-qore-v1-summary.json three-source-qore-v1-dev-ledger.jsonl gm1-model1-raw-reference-summary.json gm1-model1-raw-reference-observations.jsonl gm1-reference-dispute-summary.json gm1-reference-dispute-reviewer-only.jsonl gm2-blind-cases.jsonl gm2-real-casebook-manifest.json gm3-real-safety-summary.json gm3-real-safety-ledger.jsonl git-sha.txt > SHA256SUMS.txt)
+          (cd "sealed-future/$QORE_MARKET"; sha256sum gm2-sealed-c3-witness.jsonl git-sha.txt > SHA256SUMS.txt)
+          if grep -R -l 'C3_M5_reveal_after_independent_review' "reviewer-blind/$QORE_MARKET"; then
+            echo "::error::Sealed future C3 leaked into blinded reviewer packet"
+            exit 1
+          fi
+      - name: Publish frozen V2 price-only lifecycle observation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-three-source-v2-price-lifecycle-dev-only-${{ matrix.market }}-${{ github.sha }}
+          path: lifecycle-v2/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish V2 full H4 plus rolling M15 first-admission DEV artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-three-source-v2-full-h4-dev-only-${{ matrix.market }}-${{ github.sha }}
+          path: full-h4-v2/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish full-original H4 coverage census independently as DEV research
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-three-source-v1-full-h4-dev-only-${{ matrix.market }}-${{ github.sha }}
+          path: full-h4/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-gm2-reviewer-blind-only-${{ matrix.market }}-${{ github.sha }}
+          path: reviewer-blind/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish first-look visual ONLY as a third segregated reviewer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt08-gm2-methodologist-firstlook-only-${{ matrix.market }}-${{ github.sha }}
+          path: firstlook/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-gm2-sealed-future-only-${{ matrix.market }}-${{ github.sha }}
+          path: sealed-future/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90

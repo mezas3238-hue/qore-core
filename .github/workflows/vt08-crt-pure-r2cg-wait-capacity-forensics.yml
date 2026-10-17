@@ -1,0 +1,93 @@
+name: QORE VT08 CRT PURE R2-CG WAIT Capacity Forensics
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-r2cg-wait-capacity-forensics.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2cg_wait_capacity_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_r2cg_wait_capacity_forensics.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Verify R2-CG quality and frozen accounting contracts
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_r2cg_wait_capacity_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_pure_r2cg_wait_capacity_forensics.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_r2cg_wait_capacity_forensics.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_r2cg_wait_capacity_forensics.py
+
+  forensic:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - market: AUDUSD
+            source_run: 36173116494
+            source_artifact: qore-vt08-crt-pure-r2cc-audusd-f0973808af1a6e342b71ba179ccecb1c43a7913c
+            r2cf_artifact: qore-vt08-r2cf-AUDUSD-16dd5d9a0ec016e65f1ea5d2e1423ad3b8f2cf95
+          - market: USDJPY
+            source_run: 36173125334
+            source_artifact: qore-vt08-crt-pure-r2cd-usdjpy-e49ed06db7e9fc5095e856491fcd68de7f61aca0
+            r2cf_artifact: qore-vt08-r2cf-USDJPY-16dd5d9a0ec016e65f1ea5d2e1423ad3b8f2cf95
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Download original read-only historical frozen ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.source_artifact }}
+          repository: ${{ github.repository }}
+          run-id: ${{ matrix.source_run }}
+          github-token: ${{ github.token }}
+          path: evidence/original
+      - name: Download independent R2-CF original results
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.r2cf_artifact }}
+          repository: ${{ github.repository }}
+          run-id: '38442593863'
+          github-token: ${{ github.token }}
+          path: evidence/r2cf
+      - name: Evaluate prespecified causal fold and capacity diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s evidence/original/report.json
+          test -s evidence/original/delayed.jsonl
+          test -s evidence/r2cf/report.json
+          mkdir -p artifacts/${{ matrix.market }}
+          sha256sum evidence/original/report.json evidence/original/delayed.jsonl evidence/r2cf/report.json | tee artifacts/${{ matrix.market }}/source_sha256.txt
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_r2cg_wait_capacity_forensics \
+            artifacts/${{ matrix.market }} \
+            --market ${{ matrix.market }} \
+            --frozen-ledger evidence/original/delayed.jsonl \
+            --frozen-report evidence/original/report.json \
+            --frozen-r2cf evidence/r2cf/report.json \
+            | tee artifacts/${{ matrix.market }}/stdout.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-r2cg-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/${{ matrix.market }}
+          if-no-files-found: warn
+          retention-days: 90
