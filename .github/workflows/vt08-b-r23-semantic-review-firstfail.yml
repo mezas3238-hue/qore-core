@@ -1,0 +1,95 @@
+name: VT08 B R23 Semantics Evidence FIRSTFAIL Review
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/vt08-5m-cognition-replay-20261010]
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r23_semantic_review_firstfail_ledger_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r23_semantic_review_firstfail_ledger_v1.py
+      - .github/workflows/vt08-b-r23-semantic-review-firstfail.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  genuine-source-review-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Ruff and 12 fail-closed source-provenance tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r23_semantic_review_firstfail_ledger_v1.py tests/infrastructure/trader_lab/test_vt08_b_r23_semantic_review_firstfail_ledger_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r23_semantic_review_firstfail_ledger_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-b-r20-causal-poi-${{ matrix.market }}-d1eef91667fb705cec41379a3f0c81a2206ab010
+          path: r20/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38975212429
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-b-r22-competing-poi-context-${{ matrix.market }}-731c495d318a1a6f0ad5f756004a2ba1c8803299
+          path: r22/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38975204483
+      - name: Lock all 107 unanswered semantic evidence requirements
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r23_semantic_review_firstfail_ledger_v1 import (
+              build_semantic_wait_ledger, digest, REQUIRED,
+          )
+          m=os.environ["MARKET"]
+          x=list(Path("r20",m).rglob(m+"-VT08-B-R20-original-M3-POI-run-join.json"))
+          y=list(Path("r22",m).rglob(m+"-R22-competing-source-POI-and-blind-review.json"))
+          if len(x)!=1 or len(y)!=1:
+              raise SystemExit("R23 missing pinned R20+R22 source originals")
+          a=json.loads(x[0].read_text(encoding="utf-8"))
+          b=json.loads(y[0].read_text(encoding="utf-8"))
+          out=build_semantic_wait_ledger(a,b,market=m)
+          n,p={"EURJPY":(538,21),"USDCHF":(518,21),
+               "NZDUSD":(550,21),"CADJPY":(516,21),
+               "USDCAD":(535,23)}[m]
+          if (out["original_source_cases_unchanged"]!=n
+              or out["sample_cases_for_genuine_review"]!=p
+              or out["sample_context_counts"]["unreviewed"]!=p
+              or any(len(z["source_fidelity_questions"])!=len(REQUIRED)
+                     or z["source_authenticity_accepted"]
+                     or z["economic_evaluation_authorized"]
+                     or z["decision"]!="WAIT_FOR_AUTHENTIC_SWING_POI_PS_ADJUDICATION"
+                     for z in out["review_dossiers"])
+              or out["human_A_genuinely_reviewed"]
+              or out["human_B_genuinely_reviewed"]
+              or out["source_author_complete"]
+              or out["broker_fills"] or out["cognitive_admissions"]
+              or out["holdout_7y_accessed"] or out["sizing_used"]):
+              raise SystemExit("R23 forged source/cognitive approval or lost original case")
+          dest=Path("evidence",m+"-VT08-R23-semantic-firstfail-review-ledger.json")
+          dest.write_text(json.dumps(out,sort_keys=True,separators=(",",":"),allow_nan=False),
+                          encoding="utf-8")
+          print(json.dumps({
+             "market":m,"original":n,"source_review_dossiers":p,
+             "required_fields_per_case":len(REQUIRED),
+             "counts":out["sample_context_counts"],
+             "sha256":digest(out),"approved":out["source_author_complete"],
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r23-source-review-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
