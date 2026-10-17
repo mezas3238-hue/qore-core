@@ -39,7 +39,7 @@ El **Gate R23** unió **dos revisiones físicas independientes ya congeladas** p
 - CADJPY: `1ec64b4bff295b2b18d0e96010ddfc6943fadc0dd7336abc6347b05fd5627dd9`
 - USDCAD: `31f8241ad67c1a1d3ddbb90efe47c89f524b4e769544abada2cc35c952b4647e`
 
-**Estratos internos dentro de los 107:** 50 sin FVG H1 local (¡no necesariamente sin otro POI!), 4 primer contacto en la barra CISD (tick order desconocido); de los demás, **35** primer contacto FVG durante la serie bearish M3 y **18** antes de ella (incluye los tres controles FVG bearish). Estas son características físicas para ayudar a los revisores, NO casos certificados.
+**Estratos internos dentro de los 107:** 50 sin FVG H1 local (¡no necesariamente sin otro POI!), 4 primer contacto en la barra CISD (tick order desconocido); de los demás, **18** primer contacto FVG durante la serie bearish M3 y **35** antes de ella (incluye los tres controles FVG bearish). Estas son características físicas para ayudar a los revisores, NO casos certificados.
 
 ## 3. Las ocho exigencias por caso, no ocho reglas nuevas de trading
 
