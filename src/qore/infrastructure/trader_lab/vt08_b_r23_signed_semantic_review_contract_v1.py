@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
+from types import MappingProxyType
 from typing import Final
 
 from qore.infrastructure.trader_lab.vt08_b_r19_blind_dual_rater_poi_queue_v1 import (
@@ -49,10 +51,12 @@ FINDINGS: Final = frozenset(("SUPPORTED", "REJECTED", "D_UNSPECIFIED"))
 # This immutable trust-root slot is intentionally EMPTY. No A or B keys have
 # been independently appointed/approved by the Owner for this project.
 # Modifying this is a code-reviewed governance action, not API payload input.
-APPROVED_RATER_ED25519_PUBLIC_KEYS: Final[dict[str, dict[str, str]]] = {
-    "A_METHOD": {},
-    "B_INDEPENDENT": {},
-}
+APPROVED_RATER_ED25519_PUBLIC_KEYS: Final[Mapping[str, Mapping[str, str]]] = (
+    MappingProxyType({
+        "A_METHOD": MappingProxyType({}),
+        "B_INDEPENDENT": MappingProxyType({}),
+    })
+)
 PINNED_R19_REPORT_DIGESTS: Final = {
     "EURJPY": "f553e6f8da86d7af30ce1f811257b0d05b892d03ee4d60d046d1f10bb65c5b7c",
     "USDCHF": "87d43288eecddce84c1fcc99578558cb03f1be69dbf5d438766582fbd8e14bc4",
