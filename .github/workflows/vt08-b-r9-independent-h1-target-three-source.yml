@@ -1,0 +1,114 @@
+name: VT08 B R9 Independent Native H1 Target + Three Source Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r9_independent_h1_target_join_audit_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r9_independent_h1_target_join_audit_v1.py
+      - .github/workflows/vt08-b-r9-independent-h1-target-three-source.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  b-r9-independent-physical:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Static guard and independent physical synthetic attacks
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r9_independent_h1_target_join_audit_v1.py tests/infrastructure/trader_lab/test_vt08_b_r9_independent_h1_target_join_audit_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r9_independent_h1_target_join_audit_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-b-market-catalog-${{ matrix.market }}-f61b5e7a931e2c057a0660f4702f11d55ebc58af
+          path: a-r4/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38740699499
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-h1-untouched-source-${{ matrix.market }}-4ee9930a576f8185299fb4f7e376191511fb0ed7
+          path: a-r6/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38763309669
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-blind-three-source-${{ matrix.market }}-385e89cb769eef36f85ddca56f3f3dcaf1e0f863
+          path: a-r7/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38765076497
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.market }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: original-m15/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - name: Verify native H1 targets and triple-join without A code or outcomes
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r9_independent_h1_target_join_audit_v1 import (
+              canonical_sha256, run_from_files,
+          )
+          market = os.environ["MARKET"]
+          counts = {"EURJPY":538, "USDCHF":518, "NZDUSD":550, "CADJPY":516, "USDCAD":535}
+          hash_r6 = {
+              "EURJPY":"c756b54cf0fe5c7067521c5a9aead942afd9d64c800f915eb2690cfae7e148e1",
+              "USDCHF":"542ed612a3e46c7c00e937ecab5dd33859284ca786c48a2324f8b4c0fdc1a55b",
+              "NZDUSD":"dc56b20075cec2b3347bd61e6df9488c3c8a8bd2d1d394abbc5238140c16962b",
+              "CADJPY":"8ed517ce4c8f66d6e8e42456a85fe73287e03a063da48c6cfdc123187d2cf32d",
+              "USDCAD":"f1d40dc4330828666a60533c053de24715e54e93e4aa544a99a5df1c3ed911e6",
+          }
+          hash_r7 = {
+              "EURJPY":"65718734b9120ca6cefbf17800e0ecb5dcfc5a6c17421753f3879003314c6c69",
+              "USDCHF":"ac9457ca757e9253ae8bff37a29ef1be7742e3797a19c00f613efe08ed24eb6d",
+              "NZDUSD":"6bbd8e9e6947e8979d69aa3d078274dfda401f50e75f6fe64bd00c282eebaa4b",
+              "CADJPY":"db91a50305127ea9bcf88cd3e7bb178eb6d932e53b7c1f462fa56d734dfd7279",
+              "USDCAD":"7875e7f0a8ed27d1b969f5437938636522739946f7757f5b525328212116e58a",
+          }
+          def exactly_one(base, filename):
+              files = list(Path(base, market).rglob(filename))
+              if len(files) != 1:
+                  raise SystemExit(f"R9 requires one pinned source {base}/{filename}")
+              return files[0]
+          cat = exactly_one("a-r4", market + "-A-to-B-canonical-source-catalog.json")
+          r6 = exactly_one("a-r6", market + "-h1-observed-untouched-witnesses.json")
+          r7 = exactly_one("a-r7", market + "-three-source-blind-review.json")
+          raw = exactly_one("original-m15", "market-evidence-1095d.json")
+          if canonical_sha256(json.loads(r6.read_text())) != hash_r6[market]:
+              raise SystemExit("R9 pinned R6 SHA mismatch")
+          if canonical_sha256(json.loads(r7.read_text())) != hash_r7[market]:
+              raise SystemExit("R9 pinned R7 SHA mismatch")
+          result = run_from_files(
+              market=market, catalog_path=cat, target_path=r6,
+              join_path=r7, m15_path=raw,
+          )
+          if result["source_events_audited"] != counts[market]:
+              raise SystemExit("R9 lost original physical C2 population")
+          p = Path("evidence", market + "-B-R9-physical-only.json")
+          p.write_text(json.dumps(result, sort_keys=True, separators=(",",":")))
+          print(json.dumps(result, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r9-native-source-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          retention-days: 30
+          if-no-files-found: error

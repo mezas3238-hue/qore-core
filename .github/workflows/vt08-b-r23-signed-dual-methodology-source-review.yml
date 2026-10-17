@@ -1,0 +1,78 @@
+name: VT08 B R23 Signed Dual Methodology Source Review Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r23_signed_semantic_review_contract_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r23_signed_semantic_review_contract_v1.py
+      - .github/workflows/vt08-b-r23-signed-dual-methodology-source-review.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  b-r23-immutable-107-independent-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install source research and Ed25519 test verifier
+        run: |
+          pip install -e ".[dev]" "cryptography>=45,<50"
+      - name: Ruff and real Ed25519 adversarial signatures
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r23_signed_semantic_review_contract_v1.py tests/infrastructure/trader_lab/test_vt08_b_r23_signed_semantic_review_contract_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r23_signed_semantic_review_contract_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-b-r19-blind-poi-${{ matrix.market }}-e999e127be84a1ebb9d3e8b1d13e110cfa2cb51a
+          path: r19/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38903529731
+      - name: Authenticate original blind review cohort; no invented approvals
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r23_signed_semantic_review_contract_v1 import (
+              audit_dual_source_review,
+          )
+          m=os.environ["MARKET"]
+          paths=list(Path("r19",m).rglob(m+"-VT08-R19-blind-POI-review-packet.json"))
+          if len(paths)!=1:
+              raise SystemExit("VT08 R23 exactly one immutable R19 original artifact required")
+          frozen=json.loads(paths[0].read_text(encoding="utf-8"))
+          # In the real project there are NO approved reviewer keys and NO
+          # actual independent signed source adjudications yet.
+          result=audit_dual_source_review(frozen,market=m,submitted_ballots=[])
+          total={"EURJPY":21,"USDCHF":21,"NZDUSD":21,"CADJPY":21,"USDCAD":23}[m]
+          if (result["original_preregistered_cases"]!=total
+              or result["source_review_status_counts"]["WAIT_UNREVIEWED"]!=total
+              or result["approved_rater_keys_A"] or result["approved_rater_keys_B"]
+              or result["author_complete_entries"] or result["real_cognitive_admissions"]
+              or result["broker_fills"] or result["economic_gates_evaluated"]):
+              raise SystemExit("VT08 R23 real source cases cannot be self-signed")
+          out=Path("evidence",m+"-R23-signed-dual-review-actual-WAIT.json")
+          out.write_text(json.dumps(result,sort_keys=True,separators=(",",":"),allow_nan=False))
+          print(json.dumps({k:v for k,v in result.items() if k!="case_review_register"},sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r23-dual-source-review-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          retention-days: 30
+          if-no-files-found: error

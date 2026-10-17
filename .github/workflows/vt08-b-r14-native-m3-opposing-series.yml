@@ -1,0 +1,85 @@
+name: VT08 B R14 Independent Native M3 Opposing Series CISD Proxy
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r14_opposing_series_native_cisd_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r14_opposing_series_native_cisd_v1.py
+      - .github/workflows/vt08-b-r14-native-m3-opposing-series.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original-native-m3-cisd:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Ruff and adversarial independent opposing-candle tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r14_opposing_series_native_cisd_v1.py tests/infrastructure/trader_lab/test_vt08_b_r14_opposing_series_native_cisd_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r14_opposing_series_native_cisd_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-frozen-m30m3-firstfail-${{ matrix.market }}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4
+          path: frozen-r3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38715560333
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.market }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: native-m3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Independently reconstruct every native M3 opposing series
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r14_opposing_series_native_cisd_v1 import (
+              audit_m3_opposing_series, result_sha256,
+          )
+          market=os.environ["MARKET"]
+          a=list(Path("frozen-r3",market).rglob(market+"-frozen-source-firstfail.json"))
+          n=list(Path("native-m3",market).rglob("m3-evidence.json"))
+          if len(a)!=1 or len(n)!=1:
+              raise SystemExit("R14 missing frozen A R3 or actual original cTrader M3")
+          src=json.loads(a[0].read_text(encoding="utf-8"))
+          out=audit_m3_opposing_series(src,market=market,native_m3=n[0])
+          expected={"EURJPY":538,"USDCHF":518,"NZDUSD":550,"CADJPY":516,"USDCAD":535}
+          if (out["frozen_source_cases"]!=expected[market] or
+              out["counts"].get("independent_unique_m3_opposing_series_proxy")!=expected[market] or
+              out["counts"].get("cisd_proxy_known_asof_c3")!=expected[market]):
+              raise SystemExit("R14 broken source census or M3 CISD proxy")
+          if out["author_cisd_and_ps_validated"] or out["broker_fills"]:
+              raise SystemExit("R14 false source or trade authority")
+          dest=Path("evidence",market+"-B-R14-opposing-M3-native-cisd.json")
+          dest.write_text(
+              json.dumps(out,sort_keys=True,separators=(",",":"),allow_nan=False),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "market":market,"cases":out["frozen_source_cases"],
+              "counts":out["counts"],"sha256":result_sha256(out),
+              "author_status":"D_UNADJUDICATED","fills":out["broker_fills"],
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r14-native-m3-cisd-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          if-no-files-found: error
+          retention-days: 30

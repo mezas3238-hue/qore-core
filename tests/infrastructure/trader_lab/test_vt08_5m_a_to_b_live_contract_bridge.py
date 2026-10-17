@@ -1,0 +1,99 @@
+"""Cross-branch integration against Architect A's actual frozen GitHub module.
+
+CI checks out A at an exact SHA. This test dynamically reads A's source file,
+does not copy or mutate it, and verifies B refuses to invent missing evidence.
+"""
+from __future__ import annotations
+
+import importlib.util
+import os
+import sys
+from dataclasses import replace
+from datetime import datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+import pytest
+
+from qore.infrastructure.trader_lab.vt08_5m_a_to_b_candidate_readiness_v1 import (
+    Vt08CandidateBoundaryError,
+    inspect_architect_a_candidate,
+)
+
+
+def _real_a_golden() -> object:
+    location = os.environ.get("VT08_ARCHITECT_A_FROZEN_MODULE")
+    if not location:
+        pytest.skip("cross-branch source fixture only available in frozen CI checkout")
+    path = Path(location)
+    assert path.is_file(), "GitHub A contract checkout failed"
+    spec = importlib.util.spec_from_file_location("vt08_a_frozen_source_module", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    ny = ZoneInfo("America/New_York")
+    anchor = datetime(2026, 1, 5, 1, tzinfo=ny)
+    return module.Vt08CandidateEventV1(
+        market="EURJPY",
+        source_family="positional-entry",
+        ltf_profile="M15_STANDARD",
+        side="long",
+        scenario="C2_COMPLETED",
+        h4_anchor_at=anchor,
+        decision_at=anchor,
+        evidence_as_of=anchor,
+        candle2_closed_at=anchor,
+        opposing_series_opened_at=anchor - timedelta(hours=2),
+        cisd_confirmed_at=anchor - timedelta(minutes=15),
+        ps_confirmed_at=anchor - timedelta(minutes=15),
+        entry_price=Decimal("160.00"),
+        stop_price=Decimal("159.50"),
+        target_price=Decimal("161.00"),
+        pending_expiry_at=anchor + timedelta(hours=4),
+        source_methodology_sha256="a" * 64,
+        evidence_sha256="b" * 64,
+    )
+
+
+def test_latest_a_methodology_contract_is_unambiguously_source_incomplete() -> None:
+    actual = _real_a_golden()
+    envelope = actual.envelope()
+    assert envelope["market"] == "EURJPY"
+    assert envelope["source_event_id"] == actual.source_event_id()
+    assert envelope["event_id"] == "vt08-5m:" + actual.fingerprint()
+    # Latest A corrected false SOURCE_COMPLETE from the B01 legacy producer.
+    # An actual A envelope must be REJECTED, not silently counted as ready.
+    assert envelope["methodology_status"] == "SOURCE_INCOMPLETE_QORE_CONTAINMENT"
+    assert envelope["author_fidelity_verified"] is False
+    assert envelope["cognitive_source_admission_authorized"] is False
+    with pytest.raises(Vt08CandidateBoundaryError, match="source bundle not executable"):
+        inspect_architect_a_candidate(envelope)
+
+
+def test_a_source_event_identity_survives_snapshot_evidence_changes() -> None:
+    actual = _real_a_golden()
+    alternative = replace(actual, evidence_sha256="c" * 64)
+    assert actual.source_event_id() == alternative.source_event_id()
+    assert actual.fingerprint() != alternative.fingerprint()
+    # Both real A snapshots stay blocked by B; stable ID is computed by A,
+    # not endorsed by the nonexistent joint source-semantic manifest.
+    for source in (actual, alternative):
+        with pytest.raises(Vt08CandidateBoundaryError, match="source bundle not executable"):
+            inspect_architect_a_candidate(source.envelope())
+
+
+def test_b_rejects_a_envelope_if_a_source_confirmation_goes_into_future() -> None:
+    actual = _real_a_golden()
+    contents = actual.envelope()
+    feature_times = dict(contents["feature_close_cutoffs"])
+    feature_times["cisd"] = (
+        actual.decision_at + timedelta(minutes=1)
+    ).isoformat()
+    contents["feature_close_cutoffs"] = feature_times
+    # Mimic a malicious stale A writer attempting to override the corrected
+    # fail-closed status; B must then independently reject future clocks.
+    contents["methodology_status"] = "SOURCE_COMPLETE_EXECUTABLE"
+    with pytest.raises(Vt08CandidateBoundaryError, match="future source confirmation"):
+        inspect_architect_a_candidate(contents)
