@@ -1,0 +1,123 @@
+name: VT31 M2 real 298 UNKNOWN M1 gap forensic versus 445 CONFIRMED
+on:
+  push:
+    branches:
+      - agent/vt31-m2-298-unknown-source-gap-audit-20261017
+    paths:
+      - 'scripts/vt31_m2_298_unknown_closed_m1_gap_forensic_20261017.py'
+      - 'tests/infrastructure/test_vt31_m2_298_unknown_closed_m1_gap_forensic_20261017.py'
+      - 'docs/research/VT31_M2_298_UNKNOWN_M1_GAP_FORENSIC_PREREG_2026-10-17.md'
+      - '.github/workflows/vt31-m2-298-unknown-m1-coverage-20261017.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  source-gap-trisession-original-g3-untouched:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 60
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prereg before code and frozen COG OPS source contracts
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 2fdef8113e4ea591651933d72288e89287981288 HEAD
+          git merge-base --is-ancestor 1de03f9946db1b339ca5785a163513adcb08d490 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          for p in src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py scripts/vt31_ict_dol_source_v1_20261014.py scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py; do
+            test "$(git hash-object "$p")" = "$(git rev-parse "1de03f9946db1b339ca5785a163513adcb08d490:$p")"
+          done
+      - name: Ruff and source adversarial tests all three Silver Bullet profiles
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check scripts/vt31_m2_298_unknown_closed_m1_gap_forensic_20261017.py tests/infrastructure/test_vt31_m2_298_unknown_closed_m1_gap_forensic_20261017.py
+          python -m py_compile scripts/vt31_m2_298_unknown_closed_m1_gap_forensic_20261017.py
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m2_298_unknown_closed_m1_gap_forensic_20261017.py \
+            tests/infrastructure/test_vt31_m2_trisession_real_dol_first_m1_source_20261016.py \
+            tests/infrastructure/test_vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py \
+            tests/infrastructure/test_vt31_ict_dol_source_v1_20261014.py \
+            tests/infrastructure/test_vt31_m0b_native_source_gate_trisession_20261016.py \
+            --junitxml=evidence/junit.xml | tee evidence/pytest.txt
+      - name: Fetch separately sealed real M1 and prior M2 casebook, verify SHA
+        run: |
+          set -euo pipefail
+          mkdir -p source prior-m2
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/12079131643/zip" > prior-m2.zip
+          echo "30de8306225941208ecea73ab4b9ba9b88b625b8b1e9794f47c758ea3fdce07a  prior-m2.zip" | sha256sum -c -
+          unzip -q prior-m2.zip -d prior-m2
+          (cd prior-m2 && sha256sum -c SHA256SUMS)
+          test -s prior-m2/VT31_M2_REAL_QORE_DOL_2325_FIRST_M1_CASEBOOK.json
+      - name: Independently verify all 445 CONFIRMED complete vs 298 UNKNOWN gapped
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m2_298_unknown_closed_m1_gap_forensic_20261017.py \
+            --market source/NAS100/market-evidence.json \
+            --original-m2-casebook prior-m2/VT31_M2_REAL_QORE_DOL_2325_FIRST_M1_CASEBOOK.json \
+            --out evidence/VT31_M2_298_UNKNOWN_VS_445_CONFIRMED_GAP_WITNESSES.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M2_298_UNKNOWN_VS_445_CONFIRMED_GAP_WITNESSES.json'))
+          assert p['historical_original_closed_M1']==1059784
+          assert p['prior_775x3_cases_verified']==2325
+          assert p['original_G3_first_minute_positive_not_trades']==761
+          assert p['original_M2_QORE_CONFIRMED_source_only']==445
+          assert p['original_M2_QORE_UNKNOWN_due_to_missing_M1']==298
+          assert p['prior_nominal_calendar_disagreement_cases_kept_separate']==18
+          assert p['independent_M1_gap_testimony_case_count']==743
+          assert len(p['full_743_closed_M1_interval_testimonies'])==743
+          stats=p['per_session_closed_M1_gap_counts']
+          assert set(stats)=={'VT31_LONDON','VT31_NY_AM','VT31_NY_PM'}
+          assert sum(x['UNKNOWN'] for x in stats.values())==298
+          assert sum(x['CONFIRMED'] for x in stats.values())==445
+          for t in p['full_743_closed_M1_interval_testimonies']:
+            w=t['independent_M1_gap_witness']
+            assert w['expected_closed_M1_slots']==w['observed_closed_M1_slots']+w['missing_M1_slots']
+            assert not w['broker_market_closed_proven']
+            assert not t['source_fact_author_method_certified']
+            assert not t['broker_trade_authorized']
+            if t['original_QORE_M2_state']=='UNKNOWN':
+              assert w['missing_M1_slots']>0
+            elif t['original_QORE_M2_state']=='CONFIRMED':
+              assert w['missing_M1_slots']==0
+            else:
+              raise AssertionError('UNKNOWN_THIRD_STATE')
+          for x in ('source_fact_certified_by_ICT_TTrades','QORE_G3_COG_or_OPS_modified',
+                    'M2_author_certified','M3_M4_M5_author_certified',
+                    'M6_two_independent_human_signatures',
+                    'M7_3_Silver_Bullet_sessions_certified'):
+            assert p[x] is False, x
+          assert p['orders']==p['sizing']==0
+          print('VT31_M2_298_GAPPED_445_COMPLETE_THREE_SESSIONS_SOURCE_ONLY_PASS')
+          PY
+      - name: Hash and publish signed research only source evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/executed_commit.txt
+          printf '%s\n' 2fdef8113e4ea591651933d72288e89287981288 > evidence/prereg_commit.txt
+          printf '%s\n' NO_METHOD_CERT_NO_TRADES_NO_SIZING_NO_PNL > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-m2-298-unknown-445-confirmed-m1-coverage-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
