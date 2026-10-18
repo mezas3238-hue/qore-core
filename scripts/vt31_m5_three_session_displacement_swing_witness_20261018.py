@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    M1Bar,
     NEW_YORK,
+    M1Bar,
     SessionId,
     Side,
     utc,
@@ -153,12 +153,6 @@ def adjudicate_m5_swing_reference(
         and first < at <= last
     ):
         return emit(REJECT, "M5_DISPLACEMENT_NOT_CLOSED_IN_SOURCE_SESSION")
-    if not (
-        displacement.close > displacement.open
-        if side is Side.LONG else displacement.close < displacement.open
-    ):
-        return emit(WAIT, "M5_DIRECTIONAL_DISPLACEMENT_CLOSE_NOT_EVEN_GEOMETRIC", at=at)
-
     if session is SessionId.NY_AM:
         if not isinstance(nyam_actor, VT31TwoPhaseCognitiveCandidate):
             return emit(WAIT, "M5_NYAM_COG_V4_NOT_PROVIDED", at=at)
@@ -203,6 +197,12 @@ def adjudicate_m5_swing_reference(
         anchor_start = next(
             (i for i, t in enumerate(starts) if t >= first), len(closed_m1),
         )
+
+    if not (
+        displacement.close > displacement.open
+        if side is Side.LONG else displacement.close < displacement.open
+    ):
+        return emit(WAIT, "M5_DIRECTIONAL_DISPLACEMENT_CLOSE_NOT_EVEN_GEOMETRIC", at=at)
 
     if not (anchor_start <= candidate_swing_index < displacement_index):
         return emit(REJECT, "M5_SWING_NOT_IN_CAUSAL_SOURCE_INTERVAL", at=at)
