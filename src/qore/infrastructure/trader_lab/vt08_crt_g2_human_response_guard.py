@@ -118,7 +118,7 @@ def audit_g2_human_responses_structural_only(
         challenge = response["counterexample_if_any"]
         if not isinstance(challenge, str) or len(challenge.strip()) < 20:
             blocker_counts["MISSING_COUNTEREXAMPLE_OR_EXPLICIT_NONE_RATIONALE"] += 1
-    completed = not blocker_counts and len(answer_counts) == expected
+    completed = not blocker_counts and sum(answer_counts.values()) == expected
     return {
         "schema": SCHEMA,
         "market": market,
