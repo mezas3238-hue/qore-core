@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 
 import pytest
 
@@ -60,7 +59,7 @@ def make(
             True if session is SessionId.NY_AM else None
         ),
         "M2_QORE_independent_attestation_state": state,
-        "original_G3_draw_family": (
+        "original_g3_draw_family": (
             "PRIOR_NY_CASH_SESSION_HIGH" if state == "REJECTED"
             else "ASIA_NY_CLOCK_HIGH"
         ),
@@ -79,8 +78,8 @@ def make(
 def test_complete_context_is_research_only_not_ops_or_author(month, session):
     tape, case = make(month, session, "CONFIRMED")
     out = tape.admit_committed_cog_event(case)
-    assert out.source_M2_status == "SOURCE_CONTEXT_COMPLETE_UNCERTIFIED"
-    assert out.independent_missing_M1 == 0
+    assert out.source_m2_status == "SOURCE_CONTEXT_COMPLETE_UNCERTIFIED"
+    assert out.independent_missing_m1 == 0
     assert out.ops_cognition is None
     assert out.ops_authorized is False
     assert out.author_method_certified is False
@@ -94,8 +93,8 @@ def test_complete_context_is_research_only_not_ops_or_author(month, session):
 def test_exact_one_closed_m1_missing_forces_preops_wait(month, session):
     tape, case = make(month, session, "UNKNOWN", miss=1)
     out = tape.admit_committed_cog_event(case)
-    assert out.source_M2_status == "WAIT_SOURCE_M1_GAP"
-    assert out.independent_missing_M1 == 1
+    assert out.source_m2_status == "WAIT_SOURCE_M1_GAP"
+    assert out.independent_missing_m1 == 1
     assert out.ops_cognition is None
     assert not out.ops_authorized
 
@@ -104,8 +103,8 @@ def test_exact_one_closed_m1_missing_forces_preops_wait(month, session):
 def test_preexisting_cash_method_mismatch_remains_wait(session):
     tape, case = make(7, session, "REJECTED")
     out = tape.admit_committed_cog_event(case)
-    assert out.source_M2_status == "WAIT_CASH_CALENDAR_POLICY_UNSIGNED"
-    assert out.independent_missing_M1 is None
+    assert out.source_m2_status == "WAIT_CASH_CALENDAR_POLICY_UNSIGNED"
+    assert out.independent_missing_m1 is None
     assert out.ops_cognition is None
     assert not out.ops_authorized
 
@@ -215,7 +214,7 @@ def test_source_ingress_is_strictly_m1_closed_monotonic(kind):
 def test_unsigned_cash_policy_never_activates_ops_even_with_390_source():
     tape, case = make(7, SessionId.LONDON, "REJECTED")
     obs = tape.admit_committed_cog_event(case)
-    assert obs.source_M2_status == "WAIT_CASH_CALENDAR_POLICY_UNSIGNED"
+    assert obs.source_m2_status == "WAIT_CASH_CALENDAR_POLICY_UNSIGNED"
     assert obs.ops_cognition is None
     assert not obs.ops_authorized
 
