@@ -137,7 +137,9 @@ def adjudicate_m5_swing_reference(
         first, last = window_bounds(at, session)
     except (TypeError, ValueError):
         return emit(REJECT, "M5_TIME_OR_WINDOW_INVALID")
-    if at != ends[-1] or any(
+    if at != ends[-1] or any(end > at for end in ends):
+        return emit(REJECT, "M5_TAPE_ASOF_GAP_OR_FUTURE")
+    if session is not SessionId.NY_AM and any(
         ends[i] != starts[i + 1] for i in range(len(closed_m1) - 1)
     ):
         return emit(REJECT, "M5_TAPE_ASOF_GAP_OR_FUTURE")
@@ -170,6 +172,15 @@ def adjudicate_m5_swing_reference(
             or tape_sha256(closed_m1) != seal.sha256_total
         ):
             return emit(REJECT, "M5_NYAM_FULL_M1_SOURCE_SEAL_FORK", at=at)
+        # Historical tape may span sessions/days with legitimate market gaps.
+        # Only the closed, post-M0 sequence must be minute-contiguous; every
+        # older bar remains immutably bound by the full V4 SHA256 seal.
+        if any(
+            ends[i] != starts[i + 1]
+            for i in range(len(closed_m1) - 1)
+            if starts[i] >= ctx.at
+        ):
+            return emit(REJECT, "M5_POST_M0_SOURCE_MINUTE_GAP", at=at)
         if ends[displacement_index] <= ctx.returned_at:
             return emit(REJECT, "M5_DISPLACEMENT_BEFORE_CONTEXT_RETURN", at=at)
         anchor_start = next(
