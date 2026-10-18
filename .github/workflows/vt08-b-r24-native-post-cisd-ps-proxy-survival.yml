@@ -1,0 +1,109 @@
+name: VT08 B R24 Native Post-CISD Protected Low Falsification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r24_protected_swing_post_cisd_invalidation_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r24_protected_swing_post_cisd_invalidation_v1.py
+      - .github/workflows/vt08-b-r24-native-post-cisd-ps-proxy-survival.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  r24-physical-source-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Source-only post-CISD clock and original PS proxy adversarial tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r24_protected_swing_post_cisd_invalidation_v1.py tests/infrastructure/trader_lab/test_vt08_b_r24_protected_swing_post_cisd_invalidation_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r24_protected_swing_post_cisd_invalidation_v1.py
+
+  r24-actual-m3-original-case-census:
+    runs-on: ubuntu-24.04
+    needs: r24-physical-source-contract
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-frozen-m30m3-firstfail-${{ matrix.market }}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4
+          path: r3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38715560333
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.market }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: native-m3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-b-r19-blind-poi-${{ matrix.market }}-e999e127be84a1ebb9d3e8b1d13e110cfa2cb51a
+          path: r19/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38903529731
+      - name: Reconstruct all original C2 M3 PS low and test AFTER-CISD lows
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r24_protected_swing_post_cisd_invalidation_v1 import audit_original_ps_proxy_survival
+          m=os.environ["MARKET"]
+          src=list(Path("r3",m).rglob(m+"-frozen-source-firstfail.json"))
+          native=list(Path("native-m3",m).rglob("m3-evidence.json"))
+          blind=list(Path("r19",m).rglob(m+"-VT08-R19-blind-POI-review-packet.json"))
+          if len(src)!=1 or len(native)!=1 or len(blind)!=1:
+              raise SystemExit("R24 original A R3/cTrader M3/R19 exactly-one artifacts missing")
+          r3=json.loads(src[0].read_text())
+          r19=json.loads(blind[0].read_text())
+          out=audit_original_ps_proxy_survival(r3,r19,market=m,native_m3=native[0])
+          expected={"EURJPY":(538,21),"USDCHF":(518,21),"NZDUSD":(550,21),"CADJPY":(516,21),"USDCAD":(535,23)}
+          n,review=expected[m]
+          if (out["original_frozen_case_count"]!=n
+              or out["blind_review_107_sample_cases"]!=review
+              or sum(out["post_cisd_ps_proxy_state_counts"].values())!=n):
+              raise SystemExit("R24 original physical/source blind denominator changed")
+          if (out["source_complete_author_entries"] or out["real_cognitive_admissions"]
+              or out["broker_fills"] or out["economic_gates_evaluated"]
+              or out["holdout_7y_accessed"] or out["sizing_used"]):
+              raise SystemExit("R24 cannot claim author source/cognition/trading success")
+          dest=Path("evidence",m+"-R24-post-CISD-PS-low-source-audit.json")
+          dest.write_text(json.dumps(out,sort_keys=True,separators=(",",":"),allow_nan=False))
+          print(json.dumps({k:v for k,v in out.items() if k not in (
+              "full_original_physical_index","same_107_blind_review_with_post_cisd_causality"
+          )},sort_keys=True))
+          # Materialize a deterministic first few cases for human SOURCE
+          # review, not optimization/selection and never output PnL or fills.
+          picks=sorted(out["same_107_blind_review_with_post_cisd_causality"],
+              key=lambda x:x["source_sample_original_seed_rank_sha256"])[:3]
+          for row in picks:
+              print("R24_PRE_PNL_PRIMARY_SOURCE_CASE",json.dumps(row,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r24-native-ps-survival-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          retention-days: 30
+          if-no-files-found: error
