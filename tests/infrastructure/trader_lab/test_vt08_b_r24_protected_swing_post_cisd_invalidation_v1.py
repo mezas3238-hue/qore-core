@@ -44,6 +44,8 @@ def test_post_cisd_lower_low_falsifies_original_proxy(
     )
     assert state["post_cisd_original_ps_proxy_state"] == expected
     assert state["post_cisd_m3_count"] == 4
+    assert state["first_post_cisd_break_m3_index"] == (6 if later == "lower" else None)
+    assert state["first_post_cisd_break_low"] == ("97" if later == "lower" else None)
     assert state["new_author_ps_reestablished"] == "D_NOT_ASSESSED"
     assert state["cisd_bar_intrabar_sequence_proven"] is False
 
