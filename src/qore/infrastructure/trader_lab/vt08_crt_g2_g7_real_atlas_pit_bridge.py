@@ -15,6 +15,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab.vt08_crt_g2_human_response_guard import (
+    audit_g2_human_responses_structural_only,
+)
 from qore.infrastructure.trader_lab.vt08_crt_g2_independent_blind_review import (
     build_g2_independent_review_packets,
 )
@@ -508,6 +511,24 @@ def main() -> None:
     (sealed_dir / "g2-review-manifest-sealed.json").write_text(
         json.dumps(review_meta, sort_keys=True, indent=2) + "\n"
     )
+    response_readiness = audit_g2_human_responses_structural_only(
+        market.value, reviewer_only, blank_replies
+    )
+    if (
+        response_readiness["unanswered"] != review_meta["reviewer_cases"]
+        or response_readiness["G_M1_PASS"] is not False
+        or response_readiness["structurally_complete_NOT_APPROVED"] is not False
+    ):
+        raise ValueError("R10 falsely accepted unauthenticated human reviews")
+    (reviewer_dir / "g2-independent-human-response-readiness-R10.json").write_text(
+        json.dumps(response_readiness, sort_keys=True, indent=2) + "\n"
+    )
+    print("VT08_R10_G2_INDEPENDENT_HUMAN_RESPONSES_NOT_READY", json.dumps({
+        "market": market.value,
+        "required": response_readiness["frozen_R9_review_cases"],
+        "unanswered": response_readiness["unanswered"],
+        "G_M1_PASS": False,
+    }, sort_keys=True))
     print("VT08_R9_SEALED_G2_BLIND_REVIEW_COUNTS", json.dumps({
         "market": market.value,
         "reviewer_cases": review_meta["reviewer_cases"],
