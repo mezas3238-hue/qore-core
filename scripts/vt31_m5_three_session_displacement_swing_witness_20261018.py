@@ -17,6 +17,7 @@ from typing import Any
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
     M1Bar,
+    NEW_YORK,
     SessionId,
     Side,
     utc,
@@ -167,9 +168,7 @@ def adjudicate_m5_swing_reference(
         if (
             ctx.session is not session
             or ctx.side != side.value
-            or ctx.ny_date != at.astimezone(
-                __import__("zoneinfo").ZoneInfo("America/New_York")
-            ).date().isoformat()
+            or ctx.ny_date != at.astimezone(NEW_YORK).date().isoformat()
         ):
             return emit(REJECT, "M5_NYAM_SOURCE_SESSION_SIDE_OR_DATE_CONFLICT", at=at)
         if (
