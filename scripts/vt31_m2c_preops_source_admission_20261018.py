@@ -56,9 +56,9 @@ class PreOpsAdmission:
     ny_day: str
     session: str
     as_of_utc: str
-    original_G3_draw_family: str
-    source_M2_status: str
-    independent_missing_M1: int | None
+    original_g3_draw_family: str
+    source_m2_status: str
+    independent_missing_m1: int | None
     ops_cognition: None = None
     ops_authorized: bool = False
     method_owner_signed: bool = False
@@ -81,7 +81,7 @@ class M2PreOpsResearchGate:
         self._emitted: set[tuple[str, str]] = set()
 
     @property
-    def total_observed_M1(self) -> int:
+    def total_observed_m1(self) -> int:
         return len(self._observed_opens)
 
     def observe_closed_m1(self, *, opened_at: str, closed_at: str) -> None:
@@ -119,7 +119,7 @@ class M2PreOpsResearchGate:
             raise ValueError("M2C_PROFILE_H1_M0_GATE_CONTRADICTION")
 
         state = case["M2_QORE_independent_attestation_state"]
-        family = case["original_G3_draw_family"]
+        family = case["original_g3_draw_family"]
         reason: str
         missing: int | None = None
         if state == "REJECTED":
@@ -173,9 +173,9 @@ class M2PreOpsResearchGate:
             ny_day=day,
             session=session.value,
             as_of_utc=datetime.fromtimestamp(at * 60, UTC).isoformat(),
-            original_G3_draw_family=family,
-            source_M2_status=reason,
-            independent_missing_M1=missing,
+            original_g3_draw_family=family,
+            source_m2_status=reason,
+            independent_missing_m1=missing,
         )
 
 
@@ -224,14 +224,14 @@ def replay_real_m2_preops(
             if decision.ops_cognition is not None or decision.ops_authorized:
                 raise AssertionError("M2C_UNCERTIFIED_G3_REACHED_OPS")
             outcomes.append(asdict(decision))
-    if tape.total_observed_M1 != M1_TOTAL or fixtures:
+    if tape.total_observed_m1 != M1_TOTAL or fixtures:
         raise AssertionError("M2C_ORIGINAL_M1_OR_G3_ASOF_MISSING")
-    counts = Counter(x["source_M2_status"] for x in outcomes)
+    counts = Counter(x["source_m2_status"] for x in outcomes)
     if dict(counts) != EXPECTED:
         raise AssertionError("M2C_SOURCE_ADMISSION_FALSIFIED_PREDECLARED_DISTRIBUTION")
     by_session = defaultdict(Counter)
     for x in outcomes:
-        by_session[x["session"]][x["source_M2_status"]] += 1
+        by_session[x["session"]][x["source_m2_status"]] += 1
     if set(by_session) != {x.value for x in SessionId}:
         raise AssertionError("M2C_ALL_THREE_SOURCE_WINDOWS_REQUIRED")
     source = json.dumps(outcomes, sort_keys=True, separators=(",", ":")).encode()
@@ -239,7 +239,7 @@ def replay_real_m2_preops(
         "version": VERSION,
         "preregistered_before_code_commit": PREREG,
         "original_source_sha256": MARKET_SHA,
-        "canonical_NAS100_M1_consumed": tape.total_observed_M1,
+        "canonical_NAS100_M1_consumed": tape.total_observed_m1,
         "original_2325_day_session_G3_casebook_sha256": ORIGINAL_M2_CASEBOOK,
         "replay_g3_events_previously_committed_not_generated_live": True,
         "gate_receives_only_current_asof_event_and_past_M1": True,
