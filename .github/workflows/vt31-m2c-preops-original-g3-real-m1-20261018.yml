@@ -1,0 +1,125 @@
+name: VT31 M2C pre-OPS source gate 761 sealed G3 DTO tri-session real M1
+on:
+  push:
+    branches:
+      - agent/vt31-m2-preops-closed-m1-guard-three-sessions-20261018
+    paths:
+      - 'scripts/vt31_m2c_preops_source_admission_20261018.py'
+      - 'tests/infrastructure/test_vt31_m2c_preops_source_admission_20261018.py'
+      - 'docs/research/VT31_M2C_PREOPS_RESEARCH_GATE_PREREG_2026-10-18.md'
+      - '.github/workflows/vt31-m2c-preops-original-g3-real-m1-20261018.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  MARKET_SHA: '0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa'
+jobs:
+  M2C-pre-OPS-761-positive-G3-3sessions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 60
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prereg commit before code and protected original COG OPS trader
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 788e1951e1c721db3c23c25b5f892c92b15faa16 HEAD
+          git merge-base --is-ancestor 603f73a2b842200cbe9139fd38e3d50e17a1a07c HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          for p in src/qore/infrastructure/traders/vt31_ict_cleanroom/trader.py scripts/vt31_m2_trisession_real_dol_first_m1_source_20261016.py scripts/vt31_m2_298_unknown_closed_m1_gap_forensic_20261017.py; do
+            test "$(git hash-object "$p")" = "$(git rev-parse "603f73a2b842200cbe9139fd38e3d50e17a1a07c:$p")"
+          done
+      - name: Pytest adversarial fail-closed source and all 3 session profiles
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist 'ijson>=3.3,<4'
+          mkdir -p evidence
+          ruff check scripts/vt31_m2c_preops_source_admission_20261018.py tests/infrastructure/test_vt31_m2c_preops_source_admission_20261018.py
+          python -m py_compile scripts/vt31_m2c_preops_source_admission_20261018.py
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m2c_preops_source_admission_20261018.py \
+            tests/infrastructure/test_vt31_m2_298_unknown_closed_m1_gap_forensic_20261017.py \
+            tests/infrastructure/test_vt31_m2_trisession_real_dol_first_m1_source_20261016.py \
+            tests/infrastructure/test_vt31_m2_prior_cash_18_real_m1_calendar_triage_20261016.py \
+            tests/infrastructure/test_vt31_m0b_native_source_gate_trisession_20261016.py \
+            --junitxml=evidence/junit.xml | tee evidence/pytest.txt
+      - name: Download authentic M1 and sealed original preexisting G3 first-minute DTO casebook
+        run: |
+          set -euo pipefail
+          mkdir -p source sealed-m2
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11459859004/zip" > source.zip
+          unzip -q source.zip -d source
+          echo "${MARKET_SHA}  source/NAS100/market-evidence.json" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/12079131643/zip" > original-m2.zip
+          echo "30de8306225941208ecea73ab4b9ba9b88b625b8b1e9794f47c758ea3fdce07a  original-m2.zip" | sha256sum -c -
+          unzip -q original-m2.zip -d sealed-m2
+          (cd sealed-m2 && sha256sum -c SHA256SUMS)
+          test -s sealed-m2/VT31_M2_REAL_QORE_DOL_2325_FIRST_M1_CASEBOOK.json
+      - name: Replay preOPS veto on 1M original M1 and 761 original asof-committed DTO events
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src:. python scripts/vt31_m2c_preops_source_admission_20261018.py \
+            --market source/NAS100/market-evidence.json \
+            --original-m2-casebook sealed-m2/VT31_M2_REAL_QORE_DOL_2325_FIRST_M1_CASEBOOK.json \
+            --out evidence/VT31_M2C_PREOPS_761_FIRST_CLOSED_M1_GATE_VERDICTS.json \
+            | tee evidence/summary.json
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M2C_PREOPS_761_FIRST_CLOSED_M1_GATE_VERDICTS.json'))
+          assert p['canonical_NAS100_M1_consumed']==1059784
+          assert p['pre_OPS_first_minute_761_source_cases']==761
+          assert p['original_2325_day_session_G3_casebook_sha256']=='d74b24242c4b8c5656547727b88886ecd1a18243c362d9d366825880bddbfc21'
+          assert p['source_gate_decisions']=={
+            'SOURCE_CONTEXT_COMPLETE_UNCERTIFIED':445,
+            'WAIT_SOURCE_M1_GAP':298,
+            'WAIT_CASH_CALENDAR_POLICY_UNSIGNED':18}
+          x=p['per_session_M2_preops_decisions']
+          assert set(x)=={'VT31_LONDON','VT31_NY_AM','VT31_NY_PM'}
+          assert x['VT31_LONDON']['SOURCE_CONTEXT_COMPLETE_UNCERTIFIED']==283
+          assert x['VT31_LONDON']['WAIT_SOURCE_M1_GAP']==113
+          assert x['VT31_LONDON']['WAIT_CASH_CALENDAR_POLICY_UNSIGNED']==2
+          assert x['VT31_NY_AM']['SOURCE_CONTEXT_COMPLETE_UNCERTIFIED']==97
+          assert x['VT31_NY_AM']['WAIT_SOURCE_M1_GAP']==98
+          assert x['VT31_NY_AM']['WAIT_CASH_CALENDAR_POLICY_UNSIGNED']==8
+          assert x['VT31_NY_PM']['SOURCE_CONTEXT_COMPLETE_UNCERTIFIED']==65
+          assert x['VT31_NY_PM']['WAIT_SOURCE_M1_GAP']==87
+          assert x['VT31_NY_PM']['WAIT_CASH_CALENDAR_POLICY_UNSIGNED']==8
+          for e in p['full_761_pre_OPS_gate_casebook']:
+            assert e['ops_cognition'] is None
+            assert e['ops_authorized'] is False
+            assert e['author_method_certified'] is False
+            assert e['method_owner_signed'] is False
+            assert e['broker_orders']==0 and e['sizing']==0
+          for key in ('method_source_context_complete_is_author_certified','owner_method_profile_signed',
+                      'g3_original_cognition_replayed_live_in_this_run',
+                      'original_g3_OPS_invoked_by_this_preops_gate',
+                      'native_runtime_preops_gate_integrated','M2_author_source_certified',
+                      'M3_M4_M5_author_certified','M6_two_independent_human_signatures',
+                      'M7_London_NYAM_NYPM_certified','VT31_certified','live_demo_vps_authorized'):
+            assert p[key] is False,key
+          assert p['orders']==p['sizing']==0
+          print('VT31_M2C_761_PREOPS_RESEARCH_GUARD_PASS_NOT_CERTIFIED')
+          PY
+      - name: Timestamp and hash immutable evidence and scope
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/code_commit.txt
+          printf '%s\n' 788e1951e1c721db3c23c25b5f892c92b15faa16 > evidence/prereg_commit.txt
+          printf '%s\n' NO_NATIVE_INTEGRATION_NO_G3_LIVE_REPLAY_NO_METHOD_CERT_NO_ORDERS > evidence/scope.txt
+          (cd evidence && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vt31-m2c-preops-761-G3-source-gate-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: warn
