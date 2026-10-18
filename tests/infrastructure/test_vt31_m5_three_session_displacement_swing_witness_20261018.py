@@ -197,7 +197,9 @@ def test_gap_and_unclosed_m1_rejected_even_if_structural_wick_looks_valid():
     assert bad.reason == "M5_TAPE_ASOF_GAP_OR_FUTURE"
     row = tape[-1]
     fake = replace(
-        row, closed_at=row.closed_at + timedelta(minutes=1),
+        row,
+        opened_at=row.opened_at + timedelta(minutes=1),
+        closed_at=row.closed_at + timedelta(minutes=1),
     )
     missed = m5.adjudicate_m5_swing_reference(
         **(kwargs | {"closed_m1": tape[:-1] + (fake,)})
