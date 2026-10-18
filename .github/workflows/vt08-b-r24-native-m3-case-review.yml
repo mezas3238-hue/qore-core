@@ -1,0 +1,108 @@
+name: VT08 B R24 Genuine Native M3 Case Source Review Snapshots
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/vt08-5m-cognition-replay-20261010]
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r24_real_case_m3_source_review_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r24_real_case_m3_source_review_v1.py
+      - .github/workflows/vt08-b-r24-native-m3-case-review.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  reviewer-visible-raw-source-case-analysis:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Ruff and 8 anti-forgery tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r24_real_case_m3_source_review_v1.py tests/infrastructure/trader_lab/test_vt08_b_r24_real_case_m3_source_review_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r24_real_case_m3_source_review_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-b-r23-source-review-${{ matrix.market }}-ad483b8f9342b8c8464c44f0b52e35b0cce0185b
+          path: r23/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 39037632164
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-frozen-m30m3-firstfail-${{ matrix.market }}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4
+          path: r3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38715560333
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.market }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: native-m3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Show real reviewed pre-CISD M3 source bars without economic outcome
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r24_real_case_m3_source_review_v1 import (
+              review_real_frozen_cases,digest,
+          )
+          m=os.environ["MARKET"]
+          patterns=[
+              ("r23",m+"-VT08-R23-semantic-firstfail-review-ledger.json"),
+              ("r3",m+"-frozen-source-firstfail.json"),
+              ("native-m3","m3-evidence.json"),
+          ]
+          files=[]
+          for parent,name in patterns:
+              matches=list(Path(parent,m).rglob(name))
+              if len(matches)!=1:
+                  raise SystemExit("R24 requires exactly one original raw source: "+name)
+              files.append(matches[0])
+          a=json.loads(files[0].read_text(encoding="utf-8"))
+          b=json.loads(files[1].read_text(encoding="utf-8"))
+          result=review_real_frozen_cases(a,b,files[2],market=m)
+          if (result["author_complete_entries"] or result["genuine_A_signoffs"]
+              or result["genuine_B_signoffs"] or result["cognitive_admissions"]
+              or result["broker_fills"] or result["economic_gates_evaluated"]
+              or result["holdout_7y_accessed"] or result["sizing_used"]):
+              raise SystemExit("R24 cannot fabricate source/cognitive/trade approval")
+          dest=Path("evidence",m+"-VT08-R24-REAL-M3-CASE-REVIEW.json")
+          dest.write_text(json.dumps(result,sort_keys=True,separators=(",",":"),allow_nan=False),
+                          encoding="utf-8")
+          print(json.dumps({"market":m,"original_cases":result["preregistered_original_universe"],
+              "review_real_examples":result["case_review_snapshots"],
+              "by_category":result["count_by_real_temporal_bucket"],
+              "sha256":digest(result)},sort_keys=True))
+          # Human-readable original case data for SOURCE review with no PnL.
+          for d in result["review_evidence"]:
+              print("R24_REVIEW_CASE "+json.dumps({
+                  "market":m, "id":d["case_id_sha256"],
+                  "bucket":d["review_bucket"],
+                  "c2":d["c2_opened_at_utc"], "series":d["opposing_series_started_at_utc"],
+                  "cisd":d["cisd_confirmed_at_utc"],
+                  "fvg_first_touch_m3":d["fvg_first_touch_id"],
+                  "run_fvg_contact_ids":d["run_fvg_touch_bar_ids"],
+                  "run_sweep_ids":d["run_liquidity_sweep_bar_ids"],
+                  "competing":d["competing_poi_source_context"],
+                  "ten_m3":[[x["opened_at_utc"],x["open"],x["high"],x["low"],x["close"]]
+                            for x in d["native_c2_m3_source_only_bars"]],
+                  "author_signoff":False,
+              },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r24-real-m3-review-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
