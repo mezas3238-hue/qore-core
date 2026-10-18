@@ -8,7 +8,6 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
-    M1Bar,
     SessionId,
     Side,
 )
@@ -51,15 +50,12 @@ def test_declared_swing_must_be_same_unique_pre_displacement_extreme(session):
     kwargs, _ = m5.synthetic_m5_case(
         session=session, side=Side.LONG, month=1,
     )
-    anchor = (
-        len(kwargs["closed_m1"]) - 4
-        if session is SessionId.NY_AM else 0
-    )
+    anchor = len(kwargs["closed_m1"]) - 4 if session is SessionId.NY_AM else 1
     bad = m5.adjudicate_m5_swing_reference(
         **(kwargs | {"candidate_swing_index": anchor})
     )
     assert bad.action == "REJECT"
-    assert bad.reason == "M5_PROPOSED_SWING_IS_NOT_SOURCE_EXTREME" if session is SessionId.NY_AM else bad.action == "WAIT"
+    assert bad.reason == "M5_PROPOSED_SWING_IS_NOT_SOURCE_EXTREME"
 
 
 @pytest.mark.parametrize("month", [1, 7])
@@ -143,7 +139,8 @@ def test_swap_side_and_profile_never_promotes_another_session(session):
         wrong_side = m5.adjudicate_m5_swing_reference(
             **(kwargs | {"side": Side.SHORT})
         )
-        assert wrong_side.action == "WAIT" or wrong_side.reason == "M5_NYAM_SOURCE_SESSION_SIDE_OR_DATE_CONFLICT"
+        assert wrong_side.action == "REJECT"
+        assert wrong_side.reason == "M5_NYAM_SOURCE_SESSION_SIDE_OR_DATE_CONFLICT"
 
 
 def test_ict_dol_recheck_rejects_post_session_source_claim():
