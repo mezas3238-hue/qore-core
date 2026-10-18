@@ -8,6 +8,8 @@ on:
       - '.github/workflows/vt08-crt-g2-g7-real-atlas-pit-audit.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_g2_human_response_guard.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_g2_human_response_guard.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py'
@@ -40,9 +42,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ruff check src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
-          mypy src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py
-          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_g2_human_response_guard.py tests/infrastructure/trader_lab/test_vt08_crt_g2_human_response_guard.py src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_g2_human_response_guard.py src/qore/infrastructure/trader_lab/vt08_crt_g2_independent_blind_review.py src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py src/qore/infrastructure/trader_lab/vt08_crt_gm4_unknown_root_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_g2_human_response_guard.py tests/infrastructure/trader_lab/test_vt08_crt_g2_independent_blind_review.py tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py tests/infrastructure/trader_lab/test_vt08_crt_gm4_unknown_root_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_fx_weekly_close_forensics.py tests/infrastructure/trader_lab/test_vt08_crt_original_atlas_quality_gap_custody.py
 
   verified_original_m5:
     needs: quality
@@ -88,6 +90,15 @@ jobs:
           blank=[json.loads(s) for s in (reviewdir/"g2-blank-human-review-responses.jsonl").read_text().splitlines() if s]
           sealed=[json.loads(s) for s in (sealeddir/"g2-sealed-engine-labels.jsonl").read_text().splitlines() if s]
           expected=16 if os.environ["QORE_MARKET"]=="AUDUSD" else 20
+          response_readiness=json.loads((reviewdir/"g2-independent-human-response-readiness-R10.json").read_text())
+          assert response_readiness["frozen_R9_review_cases"]==expected
+          assert response_readiness["unanswered"]==expected
+          assert response_readiness["blocker_counts"]=={"UNANSWERED_BLIND_CASE":expected}
+          assert response_readiness["structurally_complete_NOT_APPROVED"] is False
+          assert response_readiness["G_M1_PASS"] is False
+          assert response_readiness["independent_GitHub_identity_authenticated"] is False
+          assert response_readiness["owner_approval_authenticated"] is False
+          print("VT08_R10_REAL_UNANSWERED_G2_REVIEW_COUNTS",json.dumps({"market":os.environ["QORE_MARKET"],"unanswered":expected,"gm1_pass":False},sort_keys=True))
           assert len(review)==len(blank)==len(sealed)==manifest["reviewer_cases"]==expected
           assert len({c["case_id"] for c in review})==expected
           assert [c["case_id"] for c in review]==[c["case_id"] for c in sealed]==[c["case_id"] for c in blank]
@@ -164,7 +175,7 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > "g2-g7-real/$QORE_MARKET/git-sha.txt"
           printf '%s\n' "$GITHUB_SHA" > "g2-reviewer-only/$QORE_MARKET/git-sha.txt"
           printf '%s\n' "$GITHUB_SHA" > "g2-sealed-engine/$QORE_MARKET/git-sha.txt"
-          (cd "g2-reviewer-only/$QORE_MARKET"; sha256sum g2-reviewer-only-no-engine-labels.jsonl g2-blank-human-review-responses.jsonl git-sha.txt > SHA256SUMS.txt)
+          (cd "g2-reviewer-only/$QORE_MARKET"; sha256sum g2-reviewer-only-no-engine-labels.jsonl g2-blank-human-review-responses.jsonl g2-independent-human-response-readiness-R10.json git-sha.txt > SHA256SUMS.txt)
           (cd "g2-sealed-engine/$QORE_MARKET"; sha256sum g2-sealed-engine-labels.jsonl g2-review-manifest-sealed.json git-sha.txt > SHA256SUMS.txt)
           (cd "g2-g7-real/$QORE_MARKET"; sha256sum g2-g7-real-atlas-pit-summary.json g2-g7-real-atlas-pit-ledger.jsonl g2-c0-c1-blind-predecision-cases.jsonl gm4-unknown-expost-forensics.jsonl r7-original-m5-fx-weekly-close-evidence.jsonl r8-original-producer-sha-backed-gap-custody.jsonl git-sha.txt > SHA256SUMS.txt)
       - name: Retain censored G2-G7 research artifact (no fills no sizing)
