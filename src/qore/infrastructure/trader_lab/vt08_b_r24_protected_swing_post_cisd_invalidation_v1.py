@@ -61,7 +61,10 @@ def classify_post_cisd_original_ps(
         raise ValueError("R24 original M3 OHLC inconsistent")
     confirm = bars[cisd_closed_m3_index-1]
     subsequent = bars[cisd_closed_m3_index:]
-    if subsequent and min(x[2] for x in subsequent) < proxy_low:
+    post_first_break_offset = next(
+        (i for i, bar in enumerate(subsequent) if bar[2] < proxy_low), None,
+    )
+    if post_first_break_offset is not None:
         phase = "ORIGINAL_PS_PROXY_LOW_BROKEN_AFTER_CISD_BEFORE_C3"
     elif subsequent and any(x[2] == proxy_low for x in subsequent):
         phase = "PS_PROXY_LOW_RETOUCHED_AFTER_CISD"
@@ -75,6 +78,14 @@ def classify_post_cisd_original_ps(
         "cisd_m3_confirmation_bar_touches_proxy": confirm[2] <= proxy_low,
         "cisd_bar_intrabar_sequence_proven": False,
         "post_cisd_m3_count": len(subsequent),
+        "first_post_cisd_break_m3_index": (
+            cisd_closed_m3_index + post_first_break_offset
+            if post_first_break_offset is not None else None
+        ),
+        "first_post_cisd_break_low": (
+            str(subsequent[post_first_break_offset][2])
+            if post_first_break_offset is not None else None
+        ),
         "new_author_ps_reestablished": "D_NOT_ASSESSED",
     }
 
@@ -167,6 +178,22 @@ def audit_original_ps_proxy_survival(
         confirming["CISD_M3_BAR_TOUCHED_RUN_LOW"] += int(
             physical["cisd_m3_confirmation_bar_touches_proxy"]
         )
+        confirming["ORIGINAL_RUN_LOW_REQUIRES_REANCHOR_ASOF_C3"] += int(
+            physical["cisd_m3_confirmation_bar_low_below_proxy"]
+            or physical["first_post_cisd_break_m3_index"] is not None
+        )
+        confirming["CISD_BAR_NEW_LOW_AND_LATER_BREAK_OVERLAP"] += int(
+            physical["cisd_m3_confirmation_bar_low_below_proxy"]
+            and physical["first_post_cisd_break_m3_index"] is not None
+        )
+        broken_i = physical["first_post_cisd_break_m3_index"]
+        broken_source = (
+            case["c2_m3_raw_bar_receipts"][broken_i]["source_bar_id"]
+            if broken_i is not None else None
+        )
+        broken_closed = (
+            (c2+(broken_i+1)*M3).isoformat() if broken_i is not None else None
+        )
         record = {
             "market": market, "case_id_sha256": cid,
             "c2_opened_at_utc": c2.isoformat(),
@@ -177,6 +204,8 @@ def audit_original_ps_proxy_survival(
                 case["c2_m3_raw_bar_receipts"][cisd_i-1]["source_bar_id"]
             ),
             "post_cisd_m3_source_bar_ids": after_ids,
+            "first_post_cisd_break_m3_source_bar_id": broken_source,
+            "first_post_cisd_break_m3_closed_at_utc": broken_closed,
             **physical,
             "author_selected_poi": False,
             "author_protected_swing_validated": False,
