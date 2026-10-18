@@ -12,7 +12,6 @@ rule, not automatic rejection of other valid setups, and not a trade.
 from __future__ import annotations
 
 import hashlib
-import json
 from collections import Counter
 from datetime import timedelta
 from decimal import Decimal
