@@ -59,7 +59,7 @@ def make(
             True if session is SessionId.NY_AM else None
         ),
         "M2_QORE_independent_attestation_state": state,
-        "original_g3_draw_family": (
+        "original_G3_draw_family": (
             "PRIOR_NY_CASH_SESSION_HIGH" if state == "REJECTED"
             else "ASIA_NY_CLOCK_HIGH"
         ),
