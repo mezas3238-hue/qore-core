@@ -119,7 +119,7 @@ class M2PreOpsResearchGate:
             raise ValueError("M2C_PROFILE_H1_M0_GATE_CONTRADICTION")
 
         state = case["M2_QORE_independent_attestation_state"]
-        family = case["original_g3_draw_family"]
+        family = case["original_G3_draw_family"]
         reason: str
         missing: int | None = None
         if state == "REJECTED":
