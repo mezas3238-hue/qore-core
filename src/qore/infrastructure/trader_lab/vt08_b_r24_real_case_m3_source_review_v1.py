@@ -14,7 +14,9 @@ from datetime import timedelta
 from pathlib import Path
 
 from qore.infrastructure.trader_lab.vt08_5m_b_independent_raw_receipts_v1 import (
-    _instant, _raw_bars, _verify_bar,
+    _instant,
+    _raw_bars,
+    _verify_bar,
 )
 from qore.infrastructure.trader_lab.vt08_b_r11_cisd_after_htf_close_chronology_v1 import STAGE
 from qore.infrastructure.trader_lab.vt08_b_r23_semantic_review_firstfail_ledger_v1 import (
