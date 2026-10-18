@@ -1,0 +1,88 @@
+name: VT31 M5 all three sessions source-only causal swing
+on:
+  push:
+    branches:
+      - agent/vt31-m5-causal-swing-lineage-three-sessions-20261018
+    paths:
+      - 'docs/research/VT31_M5_THREE_SESSION_CAUSAL_SWING_PREREG_2026-10-18.md'
+      - 'scripts/vt31_m5_three_session_displacement_swing_witness_20261018.py'
+      - 'tests/infrastructure/test_vt31_m5_three_session_displacement_swing_witness_20261018.py'
+      - '.github/workflows/vt31-m5-three-session-swing.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  three-session-m5-research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 150
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify precode hypothesis and protected G3 unchanged
+        run: |
+          set -euo pipefail
+          git cat-file -t 89f8d8e87d287aae40946b75e9fde2f3e9307bc5
+          git merge-base --is-ancestor 89f8d8e87d287aae40946b75e9fde2f3e9307bc5 HEAD
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/cognition.py)" = d0ab4c15d6e9d24e53224d27bdb2cd96af914fb9
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_ict_cleanroom/operations.py)" = 0ce9707314aecb71155de8b57044b6ec028847b2
+          test "$(git hash-object docs/research/VT31_G3_DECISION_METODOLOGICA_STOP_FRAMEWORK_FVG_EXIT_V1_2026-10-12.md)" = e99c70b4e018d626fb620d9a21b9314a51abc36d
+      - name: Ruff and V4 M3 M4 ICT2023 M5 negative source-causality tests
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]' pytest-xdist
+          ruff check scripts/vt31_m5_three_session_displacement_swing_witness_20261018.py tests/infrastructure/test_vt31_m5_three_session_displacement_swing_witness_20261018.py
+          python -m py_compile scripts/vt31_m5_three_session_displacement_swing_witness_20261018.py
+          mkdir -p evidence
+          PYTHONPATH=src:. pytest -q -n 4 -o addopts='' \
+            tests/infrastructure/test_vt31_m5_three_session_displacement_swing_witness_20261018.py \
+            tests/infrastructure/test_vt31_ict2023_london_nypm_causal_source_witness_20261016.py \
+            tests/infrastructure/test_vt31_m3_mss_cisd_separate_causal_witness_20261016.py \
+            tests/infrastructure/test_vt31_cog_v4_transactional_context_20261016.py \
+            tests/infrastructure/test_vt31_m0m4_continuous_tape_seal_cog_v3_20261015.py \
+            tests/infrastructure/test_vt31_m0_m4_context_memory_cog_candidate_20261015.py \
+            tests/infrastructure/test_vt31_m4_closed_m1_author_gate_20261015.py \
+            tests/infrastructure/test_vt31_m4_ob_breaker_author_evidence_gate_20261015.py \
+            tests/infrastructure/test_vt31_m0_temporal_admission_20261015.py \
+            tests/infrastructure/test_vt31_m0_real_cog_invocation_20261015.py \
+            tests/infrastructure/test_vt31_m0_predecision_method_router_20261015.py \
+            tests/infrastructure/test_vt31_ttrades_source_first_g3_cognitive_proposal_20261015.py \
+            tests/infrastructure/test_vt31_ict_cleanroom_cognition.py \
+            --junitxml=evidence/junit.xml | tee evidence/tests.txt
+          PYTHONPATH=src:. python scripts/vt31_m5_three_session_displacement_swing_witness_20261018.py \
+            --out evidence/VT31_M5_THREE_SESSIONS_12_CASES.json \
+            | tee evidence/summary.json
+      - name: Verify no author certification and zero broker-stop
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/VT31_M5_THREE_SESSIONS_12_CASES.json'))
+          assert p['prereg_commit']=='89f8d8e87d287aae40946b75e9fde2f3e9307bc5'
+          assert len(p['cases'])==12
+          assert len({r['session'] for r in p['cases']})==3
+          assert all(x['candidate_unique'] and x['action']=='WAIT' for x in p['cases'])
+          assert all(x['stop_tick_price'] is None for x in p['cases'])
+          assert p['source_10handle_interpretation_disputed']
+          assert p['synthetic_m1_not_real_market_or_author_charts']
+          assert not p['causing_swing_author_certified']
+          assert not p['stop_tick_price_certified']
+          assert not p['m5_methodology_certified'] and not p['cognition_certified']
+          assert not p['owner_m0_signed'] and not p['human_cog_ops_signed']
+          assert not p['native_g3_connected']
+          assert p['broker_orders']==p['sizing']==0 and not p['live']
+          print('VT31_M5_THREE_SESSIONS_CAUSAL_REFERENCE_NOT_STOP')
+          PY
+          git rev-parse HEAD > evidence/commit_sha.txt
+          printf '%s\n' 89f8d8e87d287aae40946b75e9fde2f3e9307bc5 > evidence/prereg_sha.txt
+          printf '%s\n' 'M5_RESEARCH_CAUSAL_EXTREMA_ONLY_NO_AUTHOR_STOP_NO_OMS_NO_SIZING' > evidence/scope.txt
+          (cd evidence && sha256sum *.json *.xml *.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-m5-three-session-swing-${{ github.sha }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
