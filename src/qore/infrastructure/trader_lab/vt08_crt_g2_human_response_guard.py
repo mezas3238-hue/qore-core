@@ -13,6 +13,8 @@ from typing import Any
 
 from qore.infrastructure.trader_lab.vt08_crt_g2_independent_blind_review import (
     ALLOWED_CHOICES,
+)
+from qore.infrastructure.trader_lab.vt08_crt_g2_independent_blind_review import (
     SCHEMA as R9_SCHEMA,
 )
 
