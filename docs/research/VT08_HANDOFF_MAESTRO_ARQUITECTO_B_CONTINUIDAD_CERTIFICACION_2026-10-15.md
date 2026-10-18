@@ -379,3 +379,28 @@ Arquitecto A usa [issue #762](https://github.com/mezas3238-hue/qore-core/issues/
 **Resultado real inalterado:** EURJPY 21/21 WAIT, USDCHF 21/21, NZDUSD 21/21, CADJPY 21/21, USDCAD 23/23, **107/107 WAIT_UNREVIEWED, 0 A keys, 0 B keys, 0 revisiones reales firmadas, 0 source-complete, 0 cog, 0 fills**. Un hipotético `DUAL_SOURCE_REVIEW_CONSISTENT_ONLY` **nunca activa** CandidateEvent real ni `evaluate_provenanced`: el review con firma prueba identidad/integridad del dictamen, no veracidad de elección TTrades, raw bars, semantic 27 fields, PF/DD ni brokers.
 
 **Bloqueo siguiente prioritario:** realizar decisiones fuente reales A, revisión ciega B realmente independiente, resolver/disponer D donde original no discrimina POI/relevant swing, autoridad Owner de claves **públicas** solo una vez aprobados revisores y conectar revisión fuente a validaciones RAW, CandidateEvent V2, cognitiva `evaluate_provenanced`. No continuar creando protocolos en lugar de adjudicar los casos. No cambiar denominador 2.657/107 ni abrir 7Y. No sizing, no QORE-alpha ni orden/merge. **VT08 NO CERTIFICADO; progreso cuantitativo hacia certificación NO inferible de tests CI**.
+
+
+---
+
+## APÉNDICE VINCULANTE R24 — EL ORIGEN DE PROTECTED SWING PUEDE QUEDAR SUPERADO DESPUÉS CISD (18-oct-2026)
+
+[**R24: informe completo fuente primaria, censo y casos específicos**](VT08_B_R24_NATIVE_ORIGINAL_PS_PROXY_REANCHOR_809_OF_2657_PRIMARY_SOURCE_FIRSTFAIL_2026-10-18.md) · [**CI FINAL #39096870184**](https://github.com/mezas3238-hue/qore-core/actions/runs/39096870184) **6/6 SUCCESS**, Ruff + 18 pruebas adversariales + 5 mercados M3 reales, SHA IDs originales recontra raws. Código `vt08_b_r24_protected_swing_post_cisd_invalidation_v1.py`, tests homónimos y workflow `vt08-b-r24-native-post-cisd-ps-proxy-survival.yml`.
+
+**Relevancia para certificación real: NO usar un PS original sólo porque R14 detectó serie bearish→CISD.** Reconstrucción original R3/R14/R19 2.657/2.657 y 107/107 review packets muestra:
+- **348** candidatos con M3 posterior al cierre CISD y anterior a C3 que marcó `low < ps_low_proxy` original.
+- **564** con `low < ps_low_proxy` en la PROPIA vela que confirmó CISD (intrabar tick-order desconocido, pero su low ya es observable al cerrar).
+- **103** de ambos tipos; **809 casos únicos (30,45%)** en los que **el origen mínimo de serie bajista originalmente seleccionado ya NO representa el mínimo intacto de ese giro al abrir C3**; precisa reanclaje o nueva revisión de PS genuino. NO inferir que 809 setups completos TTrades están invalidados: puede formarse segundo protected swing con su cierre, y el PS autor original ni siquiera estaba firmado.
+- Los demás estados posteriores: **2.131** sin nueva ruptura observada después de CISD, **25** retocaron igual `ps_low_proxy`, **153** CISD al cerrar C2 sin M3 posterior. NINGUNO queda autor-source-complete automáticamente.
+
+**Casos reproducibles con bajos M3 reales y SHA:**
+1. USDCHF **27-sep-2023**: C2 13:00Z, CISD 13:06Z, PS-proxy `0.91758`, fuente M3 cerrada 13:12Z hizo `0.91750`, source bar ID `3d2c6d8041545d87abd49fafc600c68e8da2f5dc21a26f7178bc9001302d456a` (case `83c687ffa373093c3ea211eafdbb4f015f9068cfc8aa0fceb5f8184799bcb990`).
+2. USDCHF **07-nov-2023**: CISD 12:09Z, original low `0.90072`, posterior M3 12:15Z low `0.90069`, bar `00a27e66ca41b2da89410b6ce7b6ae011d6c750b91638cf24561014f993cae1a`.
+3. NZDUSD **25-feb-2026**: CISD 09:18Z, old PS `0.59735`, posterior 09:21Z `0.59733`, bar `f2e71adf73841b1e67a28ccdb7c27c27eb516565050adcb60b3e24b1c2e0230c`. Su vela CISD también había tocado un low inferior al original; tick order aún desconocido.
+Los tres están en la muestra 107 R19 congelada antes del PnL; NO selección por rentabilidad.
+
+**Fuente nueva 17-oct-2026, autoridad escrita para stops (NO body-stop obligatorio):** [TTrades How to Have Better Stop Losses for Trading (TTFM)](https://ttrades.com/how-to-have-better-stop-losses-for-trading-ttfm/) introduce regla condicional de refinar stop al **cuerpo opuesto sólo si más allá del 50 % del opposing run**, aplicable a reversión o continuación. No confundir 50 % de **opposing run** con EQ condicional M30 C2; y no sustituir unilateralmente stop Example1 M30→M3 bajo EQ y breaker low. Primeramente es imprescindible identificar swing, opposing run, POI, protected swing y breaker legítimos; precedencia de fuentes requiere verificación A+B. Esta fuente no existía en R17 y debe llevarse al siguiente arquitecto.
+
+**Acción P0 real:** A source-first revisa las 3 trazas SHA y los 809 casos como estrato y documenta qué PS (si existe) queda genuinamente protegido DESPUÉS del nuevo low, sin PnL; B independiente verifica el raw y adjudica disensos con autor; no permitir 27 Situation fields / BID-ASK / Gates hasta superar esa contradicción. Conservar los 2.657 y 107 totales y 0 firmas auténticas sin inventarlas.
+
+**Estado después de R24:** 0 author-POI+PS certificados, 0 cognitiva, 0 fills, PF/DD/Sortino/Sharpe NOT_EVALUABLE, no QORE-alpha, no 7Y holdout, no sizing, no trades, no PR merge. **VT08 NO CERTIFICADO**.
