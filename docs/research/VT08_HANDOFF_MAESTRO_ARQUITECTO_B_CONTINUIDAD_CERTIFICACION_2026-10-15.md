@@ -404,3 +404,21 @@ Los tres están en la muestra 107 R19 congelada antes del PnL; NO selección por
 **Acción P0 real:** A source-first revisa las 3 trazas SHA y los 809 casos como estrato y documenta qué PS (si existe) queda genuinamente protegido DESPUÉS del nuevo low, sin PnL; B independiente verifica el raw y adjudica disensos con autor; no permitir 27 Situation fields / BID-ASK / Gates hasta superar esa contradicción. Conservar los 2.657 y 107 totales y 0 firmas auténticas sin inventarlas.
 
 **Estado después de R24:** 0 author-POI+PS certificados, 0 cognitiva, 0 fills, PF/DD/Sortino/Sharpe NOT_EVALUABLE, no QORE-alpha, no 7Y holdout, no sizing, no trades, no PR merge. **VT08 NO CERTIFICADO**.
+
+
+---
+
+## APÉNDICE R25 — REANCLAJE DEL ORIGEN PS EN CISD Y RECIERRE SOBRE EL NIVEL ORIGINAL (19-oct-2026)
+
+[**Informe R25, 2.657 casos y tres ejemplos fuente**](VT08_B_R25_2657_NATIVE_PS_REANCHOR_AND_316_OLD_CISD_RECLAIMS_2026-10-19.md) · [**GitHub Actions #39338842612**](https://github.com/mezas3238-hue/qore-core/actions/runs/39338842612) **6/6 SUCCESS** · Ruff + **20 tests adversariales**, cinco mercados cTrader original SHA, 107/107 casos R19 ciegos intactos. Código `vt08_b_r25_ps_reanchor_and_cisd_reclaim_native_v1.py`, test homónimo y workflow `vt08-b-r25-original-ps-reanchor-and-old-cisd-level-reclaim.yml`.
+
+**Corrección causal vs R24:** el `PS` original de la bearish-run R14 fue **modificado en 564 casos** por una mecha más baja **dentro de la propia vela M3 que confirmó CISD**. El low observado **as-of el CIERRE del CISD** es `min(bearish-run-low, CISD-bar.low)`. Con este anclaje temporal correcto, **316/2.657** (no 348) muestran nuevo low todavía más bajo DESPUÉS de confirmar CISD; **2.341/2.657** no tienen nuevo low posterior bajo dicho valor. De los 316, **43** cierran por encima del nivel antiguo de CISD en la misma M3 que hizo low, **258** cierran encima mediante otra M3 posterior y **15** no recuperaron ese nivel al abrir C3. **301/316 recuperan nivel antiguo**, pero **NO son un segundo CISD fuente ni un PS auténtico**: el autor exige cierre sobre la serie opuesta que originó el NUEVO extremo y POI importante, no se ha probado esa causalidad ni la significancia.
+
+**Tres casos concretos reales, ya anclados RAW y preregistro R19 (sin firma A/B real):**
+- **USDCHF 27-sep-2023**, `case_id=83c687ffa373093c3ea211eafdbb4f015f9068cfc8aa0fceb5f8184799bcb990`: old-run-low `0.91758`, CISD wick `0.91767`, post low `0.91750` a 13:12Z, antiguo CISD-level `0.91782`, M3 recierra **13:30Z** sobre ese nivel (exactamente en C3.open). **No author re-CISD aprobado.**
+- **USDCHF 07-nov-2023**, `case_id=c463ba07bb354d4cd617f8d3c0d1a8073a9cd9b67c7c3f19af43b6321189dbae`: old low `0.90072`, barra 12:15Z marca `0.90069`, CISD-level `0.90094`, nueva M3 cierra **12:27Z** sobre nivel. **No demuestra que cerró sobre la serie correcta del nuevo low.**
+- **NZDUSD 25-feb-2026**, `case_id=ab42c7b10290b2ab1af37cb9efc479fbc3366fb3f3a601f96810a95d510088d1`: original low `0.59735` PERO la **barra CISD cerrada 09:18Z** incluye low inferior `0.59723`; posterior M3 09:21Z hizo `0.59733` y **no rompió** anchor correcto `0.59723`. Esto evita falsa caracterización de segunda ruptura al usar solo run-low viejo. Sin important POI/source-signoff el PS sigue D.
+
+**LO QUE DEBE RESOLVER A AHORA (P0):** adjudicar por fuente original importante POI y swing para esos 3 IDs y los **15 no recapture** con `author_url/section`, barras, cutoff, serie opuesta real y cierre para cualquier nuevo PS. El detector R14 eligió inicialmente **un solo** proxy en cada C2; no inferir una segunda confirmación válida solo porque recuperó `run.open`. Las 107 fichas R23 y las reglas Ed25519 siguen **sin firmas auténticas**. B audita independiente los raws y clasifica D vs fuente respaldada; no autoproducir firma A+B. Prohibido convertir 316/301/15 en una cohorte económica a posteriori.
+
+**CERTIFICACIÓN NO ALCANZADA:** 0 author-complete, 0 cognitive real, 0 broker fills, PF/MaxDD/Sortino/OOS/MC NOT EVALUABLE, no QORE-alpha, no sizing, holdout 7Y sellado, no VPS/DEMO/LIVE ni merge. CI R25 física PASS ≠ metodología certificada.
