@@ -274,3 +274,47 @@ La certificación es acumulativa y **no se puede saltar ninguna puerta**:
 - **Último dato físico R25:** 2.657 original; 564 CISD lows más bajos que old-run-low; **316** rupturas POST del anchor corregido; 43+258=**301** recuperaciones del antiguo nivel, **15** sin recuperar; nunca 301 source-valid protected swings. Los 107 expedientes fuente quedan sin dos firmas humanas.
 - **La infraestructura no es el bloqueo dominante.** El cuello de botella es la adjudicación semántica autor-real de swing/POI/PS y la selección de stop/target; después queda cognitiva verdadera y finalmente net profitability BID/ASK con Gates congelados.
 - Progreso honesto a fecha del documento: **VT08 no certificado**. **QORE-alpha no está ni puede estar dentro del programa.**
+
+
+---
+
+## 13. ACTUALIZACIÓN FINAL DE CUSTODIA Y TRANSFERENCIA — 20-oct-2026, auditoría en vivo
+
+> **ESTA SECCIÓN ES PRIORIDAD P0 PARA EL SUCESOR.** No sustituye las 23 incidencias de §6 ni las fases 0–3 de §8. Fecha de verificación de GitHub: **20-oct-2026**. El archivo canónico de ambas ramas se actualizó tras consultar realmente GitHub Actions, PRs, commits y metadatos de los artefactos, no de memoria.
+
+### 13.1 Estado comprobado de repositorio y veredicto, sin inferencias
+
+- PR **A #765**, rama `agent/vt08-5m-methodology-source-20261010`, **DRAFT/OPEN**, HEAD previo a esta actualización `6304771936bef82d881a484a226d07e2599f387d`. La rama contiene espejo del handoff maestro del 20-oct, enlazado desde el handoff A histórico.
+- PR **B #764**, rama `agent/vt08-5m-cognition-replay-20261010`, **DRAFT/OPEN**, HEAD previo a esta actualización `af3eedee93f6fbe99e1060f7dbe439ffe46ae05b`. Es el documento canónico de referencia y contiene R1–R25, así como sus códigos/workflows.
+- [GitHub Actions **B R25 #39338842612**](https://github.com/mezas3238-hue/qore-core/actions/runs/39338842612) **CONFIRMADO 6/6 SUCCESS**: contrato 20 tests + EURJPY, USDCHF, NZDUSD, CADJPY y USDCAD. Commit realmente ensayado `6409087eb359145f190db137d0a630ebe9386aaa`; **no** asumir que commits de documentación posteriores equivalen a una corrida nueva del código.
+- [CI A CandidateEvent #39400494290](https://github.com/mezas3238-hue/qore-core/actions/runs/39400494290) marcada SUCCESS; no inferir que ese CandidateEvent sea entrada metodológica M30/M3 real ni que su CI equivalga a integración cognitiva A/B.
+- Dato **más reciente** del PS provisional: **R25** usa el ancla *correcta as-of el cierre de M3 CISD*, no el mínimo viejo de la serie bearish. Del universo de 2.657: **564** anclas originales modificadas por bajo de la propia confirmación CISD; **316** nuevos bajos por M3 posterior bajo ancla corregida; de estos, **43** cierres recuperan antiguo CISD level en la misma M3 que baja, **258** lo recuperan en cierres M3 posteriores y **15** no recuperan ese nivel antes de C3. `43+258+15=316` y `316+2341=2657`. Los antiguos **348** son brechas del bajo VIEJO R24 y **NO deben publicarse como 348 rupturas del ancla correcta**. Los **301** reclaims del nivel antiguo NO verifican second protected swing source-valid.
+- Hoy se conservan **2.657 geometrías originales** y **107 expedientes source-only ciegos**, **0 firmas A+B humanas/independientes auténticas**, **0 author-source-complete**, **0 cognition admissions verificadas para esta familia**, **0 fills**, **economía NO_EVALUABLE**. No añadir puntuación ficticia por volumen de CIs.
+
+### 13.2 ALERTA URGENTE P0: datos M15 y M3 originales expiran el 23 y 24 octubre
+
+Se inspeccionó **la metadata real de GitHub Actions** (campos `expired=false`, `expires_at` y nombre) de los siguientes CUATRO grupos. Este estado verifica **que la API aún los enumera no vencidos**, NO asegura un backup físico independiente ni permanencia futura. **El handoff por sí solo NO copia las barras cTrader.**
+
+| Evidencia indispensable, 5 mercados cada una | Actions run original | Estado verificado 20-oct | Fecha límite de expiración indicada por GitHub, UTC | Prioridad |
+|---|---|---|---|---|
+| **M15 cTrader fuente originaria**, `market-evidence-1095d.json` | [#35934924907](https://github.com/mezas3238-hue/qore-core/actions/runs/35934924907) | **5/5 artefactos, `expired=false`** | **2026-10-23 23:47:10–23:48:29 UTC** | **MÁXIMA — EL PRIMERO QUE CADUCA** |
+| **M3 cTrader fuente originaria**, `m3-evidence.json` | [#35941643396](https://github.com/mezas3238-hue/qore-core/actions/runs/35941643396) | **5/5 artefactos, `expired=false`** | **2026-10-24 01:10:59–01:11:07 UTC** | **MÁXIMA** |
+| **A R3 censo físico FIRSTFAIL / case ID**, `frozen-source-firstfail` | [#38715560333](https://github.com/mezas3238-hue/qore-core/actions/runs/38715560333) | **5/5 artefactos, `expired=false`** | **2026-11-14 ~09:48 UTC** | ALTA |
+| **B R19 107 expedientes seleccionados antes PnL** | [#38903529731](https://github.com/mezas3238-hue/qore-core/actions/runs/38903529731) | **5/5 artefactos, `expired=false`** | **2026-11-15 ~12:52 UTC** | ALTA |
+| **B R25 anclas corregidas y 301/15 recapturas** | [#39338842612](https://github.com/mezas3238-hue/qore-core/actions/runs/39338842612) | **5/5 artefactos, `expired=false`** | **2026-11-18 ~23:01 UTC** | ALTA |
+
+**Primera instrucción operativa para el sucesor, ANTES DE NUEVAS PRUEBAS:** descargar con autenticación autorizada los cinco ZIP **M15** y cinco ZIP **M3**, verificar bytes realmente descomprimibles, calcular y registrar SHA256 por ZIP y JSON bruto, registrar `run_id/artifact_id/market/expires_at/source_raw_sha`, y almacenar los datos en repositorio/archivo **privado autorizado con permisos/licencia cTrader**, integridad, backup y control de acceso. **NO subir raw histórico licenciado a GitHub público ni a lugar sin autorización; NO declararlo salvado hasta verificar descarga y almacenamiento real**. Si la autorización de custodia no existe, reportar `P0_DATA_SOURCE_EXPIRY_AT_RISK` y pedir decisión de ubicación al Owner. No compensar datos perdidos con holdout 7Y ni valores simulados. Restaurar/renovar artefactos sólo a partir de fuente original y SHA verificable. Nota: fechas indicadas son metadata API, consultar otra vez antes de actuar.
+
+### 13.3 Qué debe producir el siguiente arquitecto en su PR, comprobablemente
+
+**Entregable técnico 1 (fuente):** para los tres CIDs de R25 con bars exactos del informe, crear `A/source_semantic_ruling` con `important_poi`, timeframes/bar-ID SHA, candidato swing, separación cualitativa, `opposing_series_that_created_NEW_low`, posible **segundo CISD sobre la NUEVA serie**, PS as-of C3, EQ régimen, breaker, stop, target y `D/WAIT` por ausencia de selector. No confundir cierre nuevamente sobre viejo nivel con nueva confirmación auténtica. No forzar `source_complete`.
+
+**Entregable técnico 2 (independencia):** revisión `B/independent_raw_and_article_countercheck` de esos mismos CIDs desde M3/M15 brutos y URLs/secciones del autor, no copiando el dictamen A; desglosar acuerdos/disensos, unknown tick-order, competidores POI y cero sustitución por lectura de PnL. Sólo después extender a los **15 no-reclaim** y **107 casos** preregistrados; **476 multi-shape** siguen en D hasta regla fuente.
+
+**Entregable técnico 3 (cognitiva):** cuando y SOLO cuando exista fuente author-complete y A+B signoffs reales, conectar manifiesto verificable a `CandidateEvent V2`/`evaluate_provenanced`, `27 CAUSAL_FIELDS` con cada valor `value_sha/source_bars/available_at`, veto Owner R16 y WAL. La confianza Ed25519 de R23 está vacía; las claves de pruebas jamás son certificados A/B reales.
+
+**Entregable técnico 4 (economía):** definir thresholds exactos de PF net/DD/Sortino/Sharpe/MC/OOS/densidad por contrato Owner antes de leer outcomes, conseguir histórico BID/ASK+costos y equivalencia C3 OPEN con Ultra Fast Runner/Trader Lab. Hasta contar con fills verificables `PF/DD/SORTINO=NOT_EVALUABLE`; 7Y sellado y operaciones LIVE/DEMO/VPS prohibidas.
+
+**Condiciones de aceptación del relevo:** (a) primero fuente M15/M3 preservada legal y físicamente o riesgo explícito, (b) tres CIDs con conclusiones SOURCE-ONLY separadas A/B, (c) cada negativa con causa y datos UTC/bar IDs, (d) denominador intacto 2.657 y 107, (e) 0 falsas firmas/admisiones, (f) Issues #762/#763 actualizados con commit/CI y referencia exacta, (g) QORE-alpha excluido absolutamente, (h) no apertura de 7Y ni órdenes. El primer hito correcto puede ser **un WAIT metodológico documentado con evidencia**; no inventar una regla o optimizar PnL para obtener GO.
+
+**Éste es un documento de transferencia de investigación y custodia, NO certificado de metodología, cognitiva, operativa ni rentabilidad.**
