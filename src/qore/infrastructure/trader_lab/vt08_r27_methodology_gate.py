@@ -85,10 +85,9 @@ def adjudicate(packet: dict, *, trusted_reviewers: frozenset[str] = frozenset())
         blocked.append("independent_A_B_signoffs")
     if not trusted_reviewers:
         blocked.append("trusted_reviewer_roster_missing")
-    # Identity/claimed signatures alone are not cryptographic verification.
-    # No authority is granted until a trusted verifier supplies a verified result.
-    if packet.get("cryptographic_review_verification") is not True:
-        blocked.append("cryptographic_review_verification_missing")
+    # Packet-supplied verification flags are untrusted. Require a separately
+    # injected, authenticated verifier result; no such verifier is wired yet.
+    blocked.append("external_signature_verifier_not_connected")
     return {
         "case_id_sha256": packet["case_id_sha256"],
         "methodology_gate": "PASS" if not blocked else "BLOCKED",
