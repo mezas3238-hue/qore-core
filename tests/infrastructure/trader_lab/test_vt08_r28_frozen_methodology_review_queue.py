@@ -17,3 +17,25 @@ def test_rejects_non_frozen_blind_sample():
 def test_rejects_unauthorized_market():
     with pytest.raises(ValueError, match="unauthorized market"):
         build_methodology_queue({}, market="BTCUSD")
+
+
+def test_category_census_must_match(monkeypatch):
+    import qore.infrastructure.trader_lab.vt08_r28_frozen_methodology_review_queue as mod
+    monkeypatch.setattr(mod, "digest", lambda _: "pinned")
+    monkeypatch.setitem(mod.PINNED_R19_REPORT_DIGESTS, "EURJPY", "pinned")
+    count, source = mod.MARKET_EXPECTED["EURJPY"]
+    blind = {
+        "market": "EURJPY", "original_r18_sha256": source,
+        "original_r18_cases": count, "rater_A_signed": 0,
+        "rater_B_signed": 0, "source_complete_entries": 0,
+        "selected_source_only_cases": 1,
+        "selected_category_counts": {"EXPECTED": 1},
+        "review_packets": [{
+            "case_id_sha256": "a" * 64, "market": "EURJPY",
+            "category": "UNEXPECTED", "c3_opened_at_utc": "2026-10-01T12:30:00Z",
+            "selection_rank_sha256": "b" * 64,
+            "candidate_h1_fvg": None, "candidate_h1_prior_lows": [],
+        }],
+    }
+    with pytest.raises(ValueError, match="category census drift"):
+        mod.build_methodology_queue(blind, market="EURJPY")
