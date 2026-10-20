@@ -2,14 +2,18 @@
 from __future__ import annotations
 
 from collections import Counter
+from hashlib import sha256
 from pathlib import Path
 
 from qore.infrastructure.trader_lab.vt08_b_r25_ps_reanchor_and_cisd_reclaim_native_v1 import (
-    audit_r25, M3,
+    M3,
+    audit_r25,
 )
 from qore.infrastructure.trader_lab.vt08_b_r26_second_run_diagnostic import inspect
 from qore.infrastructure.trader_lab.vt08_5m_b_independent_raw_receipts_v1 import (
-    _instant, _raw_bars, _verify_bar,
+    _instant,
+    _raw_bars,
+    _verify_bar,
 )
 
 FIRSTFAIL = "UNIQUE_M3_CISD_PS_SHAPE_REQUIRES_AUTHOR_ADJUDICATION"
@@ -29,7 +33,6 @@ def audit_r26(frozen: dict, blind: dict, *, market: str, native_m3: Path) -> dic
     for case in cases:
         c2 = _instant(case["c2_opened_at_utc"])
         c3 = _instant(case["decision_at_utc"])
-        from hashlib import sha256
         cid = sha256(f"{market}|{c2.isoformat()}|{c3.isoformat()}".encode()).hexdigest()
         row = prior.pop(cid, None)
         if row is None:
@@ -46,10 +49,6 @@ def audit_r26(frozen: dict, blind: dict, *, market: str, native_m3: Path) -> dic
         state = inspect(prices, cisd_i, row["original_run_low"])
         if str(state["anchor"]) != row["reanchored_as_of_cisd_closed_low"]:
             raise ValueError("R26 reanchor disagrees with R25")
-        if (state["first_breach"] is None) != (
-            row["first_post_cisd_break_reanchored_index"] is None
-        ):
-            raise ValueError("R26 breach disagrees with R25")
         if state["first_breach"] != row["first_post_cisd_break_reanchored_index"]:
             raise ValueError("R26 first breach drift")
         for run in state["runs"]:
