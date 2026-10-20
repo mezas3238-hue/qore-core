@@ -33,11 +33,14 @@ def build_methodology_queue(blind: dict, *, market: str) -> dict:
         raise ValueError("R28 incomplete frozen review queue")
     output = []
     seen = set()
+    categories = {}
     for case in cases:
         cid = case["case_id_sha256"]
         if cid in seen or case["market"] != market:
             raise ValueError("R28 duplicate or cross-market R19 case")
         seen.add(cid)
+        category = case["category"]
+        categories[category] = categories.get(category, 0) + 1
         packet = {
             "case_id_sha256": cid,
             "market": market,
@@ -70,6 +73,8 @@ def build_methodology_queue(blind: dict, *, market: str) -> dict:
             "gate": verdict,
             "review_state": "WAIT_FOR_INDEPENDENT_METHOD_AUTHOR_ADJUDICATION",
         })
+    if categories != blind.get("selected_category_counts"):
+        raise ValueError("R28 source sample category census drift")
     return {
         "schema": "qore.vt08.r28.frozen_r19_methodology_queue.v1",
         "market": market,
