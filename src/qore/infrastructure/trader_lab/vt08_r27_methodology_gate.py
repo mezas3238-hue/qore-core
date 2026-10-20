@@ -29,7 +29,7 @@ REQUIRED = (
 )
 
 
-def adjudicate(packet: dict) -> dict:
+def adjudicate(packet: dict, *, trusted_reviewers: frozenset[str] = frozenset()) -> dict:
     if not isinstance(packet, dict):
         raise ValueError("R27 packet must be a mapping")
     identity = ("case_id_sha256", "market", "decision_as_of_utc", "source_sha256")
@@ -72,6 +72,8 @@ def adjudicate(packet: dict) -> dict:
             and all(isinstance(x.get("reviewer_id"), str)
                     and x["reviewer_id"] for x in (a, b))
             and a["reviewer_id"] != b["reviewer_id"]
+            and a["reviewer_id"] in trusted_reviewers
+            and b["reviewer_id"] in trusted_reviewers
             and all(x.get("signed_evidence") and
                     x.get("verdict") == "PASS" for x in (a, b))
         )
@@ -80,6 +82,8 @@ def adjudicate(packet: dict) -> dict:
         blocked.append("unresolved_disagreements")
     if not signed:
         blocked.append("independent_A_B_signoffs")
+    if not trusted_reviewers:
+        blocked.append("trusted_reviewer_roster_missing")
     return {
         "case_id_sha256": packet["case_id_sha256"],
         "methodology_gate": "PASS" if not blocked else "BLOCKED",
