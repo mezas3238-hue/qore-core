@@ -1,0 +1,425 @@
+# QORE CORE — VT08 CRT DE TRES FUENTES
+
+> **ACTUALIZACIÓN DE RELEVO — 20-OCT-2026:** este documento conserva la investigación técnica histórica con anexos sucesivos. El **handoff maestro íntegro, independiente y prioritario R1–R10** se encuentra en [VT08_CRT_HANDOFF_MAESTRO_TOTAL_R1_R10_CERTIFICACION_2026-10-20.md](VT08_CRT_HANDOFF_MAESTRO_TOTAL_R1_R10_CERTIFICACION_2026-10-20.md) (371 líneas, 15 capítulos); usarlo como primer documento para el nuevo arquitecto. Estado G-M1…G-M4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED, sin sizing, ejecución o firma independiente.
+# HANDOFF MAESTRO DE TRANSFERENCIA INTEGRAL — 15 OCTUBRE 2026
+
+**DOCUMENTO DE RELEVO AUTÓNOMO.** La finalidad es que el próximo arquitecto pueda retomar el trabajo directamente desde GitHub sin reabrir debates, confundir candidatos con operaciones, volver a repetir ensayos falsados ni emitir certificaciones falsas.
+
+- **Repositorio soberano:** [mezas3238-hue/qore-core](https://github.com/mezas3238-hue/qore-core).
+- **Rama de trabajo:** agent/vt08-crt-pure-source-identity-001.
+- **PR:** [#626 — VT08 CRT PURE](https://github.com/mezas3238-hue/qore-core/pull/626), **OPEN / DRAFT / UNMERGED**; **base** agent/vt08-crt-cognitive-architecture-freeze-001 (**NO** asumir que la base es main).
+- **HEAD verificado JUSTO ANTES de redactar:** df4e49455e87529d56d1f54d9de66ccd2d5e6bb7.
+- **Evidencia CI final en ese HEAD:** [QORE VT08 CRT PURE Cognitive Gate #38763492695](https://github.com/mezas3238-hue/qore-core/actions/runs/38763492695) SUCCESS. Los ensayos económicos *no* están incluidos en este CI.
+- **Último replay G-M4 completo sobre datos reales:** [Actions #38763192649](https://github.com/mezas3238-hue/qore-core/actions/runs/38763192649), commit c69f0b4dd716cc3ffd4bad8f7e2d88759e476971, **3/3 SUCCESS**.
+- **Estudio:** AUDUSD y USDJPY, histórico Atlas original consumido. BTCUSD está **FROZEN**, no validado por los ensayos V1–V3.
+- **ESTADO ÚNICO DEL TRADER:** G-M1, G-M2, G-M3, G-M4 = **PARTIAL**; G-M5 = **NOT ISSUED**; ECONÓMICO-GLOBAL = **NOT CERTIFIED**; operación/capital = **NO AUTORIZADO**.
+
+> **ORDEN ACTUAL DEL OWNER QUE PREVALECE SOBRE DOCUMENTOS HISTÓRICOS:** No se necesita fidelidad exclusiva a RomeoTPT. Se permite desarrollar **CRT QORE compuesto a partir de RomeoTPT + SpeculatorFL + TraderFlameseN**, distinguiendo de modo auditable citas originales de decisiones de ingeniería QORE. Se exige certificación tanto de **metodología/cognitiva (G-M1…G-M5)** como de **economía global (Profit Factor, Drawdown, Sharpe, Sortino y demás Gates)**. Está **terminantemente prohibido usar sizing para certificar VT08**, incluso disfrazado de «1 lote», «R normalizada», «capital supuesto» o «unidad fija». **CIBO / QORE Risk** es dueño único de volumen, capital y DD patrimonial. **No merge, no órdenes, no demo/live, VPS, MT5 o producción**.
+
+---
+
+## 1. Dictamen ejecutivo — qué es verdad y qué no
+
+**SÍ existe** un laboratorio original SHA-backed, modelado de fuente compuesta, generadores CRT V1/V2/V3 pre-registrados, cognitiva positiva sobre casos reales, protecciones contra futuro, y un flujo de G-M4 observacional que enlaza fuente → cognitiva → veto de autorización → invalidación/expiración. La calidad de sus últimas ejecuciones está verde.
+
+**NO existe aún** una metodología compuesta con los **siete contratos operativos independientemente adjudicados**; tampoco existen firmas independientes verificadas de G-M1…G-M4, PF neto/fills BID-ASK ejecutables ni DD patrimonial certificado por Risk/CIBO, ni OOS genuinamente no consultado. V2 y V3 obtuvieron diagnósticos ADVERSOS de precio. **No se puede declarar rentable o certificado VT08.**
+
+**Distinciones imprescindibles:**
+1. Contexto H4 / barrido / confirmación geométrica **≠** trade ejecutado.
+2. Alcanzar DOL por wick M5 **≠** fill ni operación rentable.
+3. 139/139 confirmaciones reconocidas cognitivamente **≠** 139 pronósticos correctos.
+4. 3/3 jobs GitHub SUCCESS **≠** G-M4 PASS.
+5. Certificado metodológico G-M5 futuro **≠** certificado económico GLOBAL y **nunca** autoriza capital.
+6. Tres fuentes para metodología QORE **≠** consenso universal de tres autores, especialmente porque los textos SpeculatorFL y TraderFlameseN son muy parecidos.
+
+---
+
+## 2. Fuentes autorizadas y cambio de autoridad
+
+**Fuentes:**
+- RomeoTPT: [video Model #1](https://www.youtube.com/watch?v=UUq_wKQ61Wo) y [post old CRTH](https://t.me/s/officialRomeotpt/6615). Es **inspiración/origen**, pero la falta de una regla *exclusivamente Romeo* que resuelva todos los old CRTH simultáneos **no es veto universal** del CRT QORE.
+- SpeculatorFL: [thread CRT 28-APR-2024](https://threadreaderapp.com/thread/1784493604473618604.html) y [conformational/advanced 25-MAY-2024](https://threadreaderapp.com/scrolly/1794311615535518154). Ideas de HTF/LTF, confirmation, timing, PD array y modalidades.
+- TraderFlameseN: [Choose best CRT candle 13-MAY-2024](https://threadreaderapp.com/thread/1790141530461622525.html). Ideación semejante, **no validación independiente de edge**.
+- [Acta vinculante de cambio de Owner](VT08_CRT_OWNER_TRES_FUENTES_CAMBIO_MANDATO_2026-10-15.md).
+- Registro corpus y referencias: src/qore/infrastructure/traders/crt_pure_source_corpus.py y crt_pure_source_registry.py. Mantener adjudicaciones Romeo históricas AMBIGUOUS cuando lo sean; no maquillarlas CANONICAL.
+
+**Regla de gobernanza:** una regla puede ser SOURCE_SUPPORTED por una fuente permitida con concepto+URL exactos o explícitamente OWNER_APPROVED_QORE_ENGINEERING con motivación, Owner y revisor independiente auténticos. **No seleccionar según PnL futuro**. El permiso del Owner de combinar tres fuentes **no aprueba automáticamente los detalles V1, V2 o V3**.
+
+**Código de autoridad ya migrado de Romeo-only:**
+- src/qore/infrastructure/traders/crt_pure_three_source_methodology.py — contrato de tres fuentes y siete categorías.
+- src/qore/infrastructure/traders/crt_pure_methodological_certification.py — G-M1…G-M5, no sizing.
+- src/qore/infrastructure/traders/crt_pure_certification_readiness.py — readiness global, aún fail closed.
+- src/qore/infrastructure/traders/crt_pure_r2_entry_router.py — router de familia, bloqueo por QORE composite sin adjudicar.
+- src/qore/infrastructure/trader_lab/vt08_crt_pure_gm3_real_case_safety.py — casebook 48, rechazo causal/autoridad.
+
+**LOS SIETE CONTRATOS SIGUEN OPEN:** reference_eligibility, multiple_reference_priority, parent_child_timeframe, entry_confirmation, invalidation_expiry, destination_lifecycle y conflict_and_rearm. Cerrar sus textos con verificaciones reales, no cambiando un booleano.
+
+---
+
+## 3. Datos originales, procedencia, cobertura y custodia P0
+
+**Fuente exacta:** [GitHub Actions Atlas12 original #35166210458](https://github.com/mezas3238-hue/qore-core/actions/runs/35166210458), usado por src/qore/infrastructure/trader_lab/vt08_crt_pure_original_atlas_reader.py. Originales de investigación AUDUSD **148.171 M5** y USDJPY **148.201 M5**: **296.372 M5**. Velas relativas del proveedor con manifiestos, hashes y reloj UTC. Los 5.524 pares completos H4 son **2.738 AUDUSD y 2.786 USDJPY**, según el censo UTC completo de V1–V3.
+
+**Limitaciones materiales:** M5 OHLC NO equivale a precio ejecutable BID/ASK, tick, order book, orden intrabar precisa ni coste neto; gaps causan UNKNOWN. El histórico septiembre 2024–septiembre 2026 fue visto durante V1, V2, V3 y antes: **TOTALMENTE CONSUMIDO como desarrollo; NO holdout virgen**. Las 48 fichas seleccionadas con buckets tampoco representan frecuencia general de señales.
+
+**Otros repositorios/runs:** [New21 M5 #38193802541](https://github.com/mezas3238-hue/qore-core/actions/runs/38193802541) y datos de 33 activos de QORE Native no se convierten automáticamente en aprobación multi-mercado VT08; validación separada de proveedor, mercado, PIT/BID-ASK, clocks y autorización. No buscar Dukascopy por defecto: primero inventariar GitHub/Atlas existentes, sin confundir OHLC M5 con BID/ASK históricos.
+
+**CRÍTICO #837:** [Data Vault: backup duradero + restore SHA](https://github.com/mezas3238-hue/qore-core/issues/837), aún OPEN a este checkpoint. El handoff histórico identifica el **vencimiento del Atlas12 original 2026-12-16 00:21:18 UTC**; verificar fecha real del artifact vía API, NO asumir retención permanente por CI GREEN. Obtener vault privado aprobado/licenciado, manifest run_id/artifact_id/source_sha/datasource/símbolo/timeframe/sha, prueba de restore independiente y control de acceso. **No copiar raw licenciados al repo público ni VPS, no activar pagos sin autorización**.
+
+---
+
+## 4. Qué se hizo antes del trabajo de tres fuentes: preservar y NO repetir
+
+**Investigaciones históricas R1/R2/N:**
+- [Handoff historia 13-OCT](VT08-CRT-PURE-MASTER-HANDOFF-2026-10-13.md) y [handoff operativo 14-OCT](VT08_CRT_PURE_HANDOFF_MAESTRO_CERTIFICACION_CONTINUIDAD_2026-10-14.md): R1/R2 y variantes AO, BE, BM, CC, CD; densidades y PF exploratorios **no comparables** a V1/V2/V3 ni certificados.
+- **Error grave R2-BM:** se priorizó TP antes de SL en la misma M15, inflando PF bruto (~1,119 vs ~1,019 corregido; con coste hipotético 0,02R ~0,976). Usar STOP_FIRST cuando no se conoce secuencia intrabar; idealmente pedir datos ejecutables, nunca proyectar el PF antiguo.
+- R2-CC AUDUSD PF bruto exploratorio ~1,074; R2-CD USDJPY ~1,012; costes hipotéticos, hipótesis distintas, robustez insuficiente. **No presentarlos como edge CRT QORE certificado**.
+- [Forense N1/N2/N3](VT08_CRT_PURE_HANDOFF_MAESTRO_INTEGRAL_DOBLE_CERTIFICACION_2026-10-14.md): 939 geometrías anidadas, 2.634 diagnósticos N3 y otros candidatos **no son fills/trades**; confusiones de duración de fuente, oposición H4/M15 y selección posterior permanecen identificadas.
+- 48 casos G-M2 reales (24 AUDUSD y 24 USDJPY) sobre H4 C1/C2 + prefijo cerrado M15: [laboratorio #38622889457](https://github.com/mezas3238-hue/qore-core/actions/runs/38622889457). 96 posibles extremos H4 de dos velas, referencias «old CRT» NO homologadas por autor. En [G-M1 challenge #38650459457](https://github.com/mezas3238-hue/qore-core/actions/runs/38650459457) no surgió ninguna selección old-CRTH auténtica definitiva.
+- 48/48 ABSTAIN/WAIT fail closed, G-M5 no emitido en [#38659571365](https://github.com/mezas3238-hue/qore-core/actions/runs/38659571365), prueba NEGATIVA de seguridad, NO precisión cognitiva en CRT.
+- Los 48 paquetes [FIRST-LOOK NEUTRAL VISUAL #38706589343](https://github.com/mezas3238-hue/qore-core/actions/runs/38706589343): **48 fichas/96 SVG**, sin anotación direccional mecánica/futuro, 0 dictámenes humanos. [Informe blind G-M2](VT08_CRT_PURE_GM2_NEUTRAL_VISUAL_FIRSTLOOK_48_CASES_2026-10-15.md). Paquetes separados (FIRST LOOK, técnico posterior y futuro sellado) son **aislamiento por contenido, NO ACL real de acceso**; requieren revisión independiente antes de abrir C3 posterior.
+
+---
+
+## 5. Programa CRT de tres fuentes: V1 / V2 / V3 CONGELADAS
+
+Los tres modelos son **síntesis de ingeniería QORE predefinidas**, no implementaciones «certificadas» de la estrategia de Romeo. Para evitar hindsight el sucesor debe conservar sus versiones y sus diagnósticos falsadores; un cambio posterior crea identidad NUEVA y exige protocolo y OOS diferentes.
+
+| Experimento | Regla causal principal | Candidatos conceptuales | Experimento de precio posterior | Dictamen |
+|---|---|---:|---|---|
+| **V1** | H4 C1→C2 barrido unilateral/close dentro + **primer par M15** del C3 con confirmación restrictiva y midpoint H4 disponible | **54** = AUDUSD 31 + USDJPY 23 | No se debe suponer rentabilidad; primera prueba fue densidad | Filtro demasiado restrictivo para densidad perseguida; NO EDGE demostrado |
+| **V2** | Mismo parent H4, micro-CRT en cualquiera de pares M15 durante C3, primer evento por parent y DOL no consumido | **745** = AUDUSD 353 + USDJPY 392 | **115** DOL primero, **538** invalidación primero, **2** ambos misma M5, **57** expire no-hit, **6** expire al cierre C3, **27** unknown | Trayectoria adversa, NO_SUPPORT para V2 como está definida |
+| **V3** | H4 parent igual; *tercera vela M15* cerrada y **body-confirm** que supera apertura de source, no mecha; primera triple válida; invalidez en wick source; DOL midpoint H4 | **139** = AUDUSD 61 + USDJPY 78 | **23** DOL primero, **69** invalidación primero, **42** expire no-hit, **5** unknown | Trayectoria adversa V3, NO_SUPPORT para pretensión económica V3; no invalida universalmente CRT |
+
+**Bajo V3**, del total original 5.524 H4, **1.734 padres H4** cumplen purga/reclaim estructural, pero **1.109** contextos ya habían consumido el destino al considerar confirmaciones. No convertir descartes en trades, ni exigir artificialmente todas las confluencias propuestas por autores sin pre-registro.
+
+**Código exacto:**
+- V1 src/qore/infrastructure/trader_lab/vt08_crt_three_source_candidate_v1.py y vt08_crt_three_source_v1_full_h4_census.py, tests homónimos. [Prereg V1](VT08_CRT_3_FUENTES_QORE_V1_PREREG_2026-10-15.md). [Lab V1 #38710923324](https://github.com/mezas3238-hue/qore-core/actions/runs/38710923324) 3/3 SUCCESS.
+- V2 vt08_crt_three_source_v2_full_h4_census.py y vt08_crt_three_source_v2_price_lifecycle.py; [prereg V2](VT08_CRT_3_FUENTES_QORE_V2_PREREG_2026-10-15.md), [prereg PRICE-PATH](VT08_CRT_THREE_SOURCE_V2_LIFECYCLE_PREREG_2026-10-15.md), [V2 censo #38711787794](https://github.com/mezas3238-hue/qore-core/actions/runs/38711787794) y [outcomes #38713036976](https://github.com/mezas3238-hue/qore-core/actions/runs/38713036976), ambos 3/3 SUCCESS. [Informe falsación V2](VT08_CRT_THREE_SOURCE_V2_PRICE_LIFECYCLE_FALSATION_2026-10-15.md).
+- V3 vt08_crt_three_source_v3_confirmed_h4_census.py y vt08_crt_three_source_v3_price_lifecycle.py; [prereg V3](VT08_CRT_THREE_SOURCE_QORE_V3_CSD_THIRD_CANDLE_PREREG_2026-10-15.md), [prereg V3 PRICE-PATH](VT08_CRT_THREE_SOURCE_V3_PRICE_LIFECYCLE_PREREG_2026-10-15.md), [V3 censo #38749028744](https://github.com/mezas3238-hue/qore-core/actions/runs/38749028744), [V3 price path #38749761117](https://github.com/mezas3238-hue/qore-core/actions/runs/38749761117), ambos 3/3 SUCCESS. [Falsación V3](VT08_CRT_THREE_SOURCE_V3_CONFIRMED_139_CAUSAL_FALSATION_2026-10-15.md).
+- Tests y workflow: .github/workflows/vt08-crt-pure-gm2-blind-casebook.yml (V1/V2, blind), .github/workflows/vt08-crt-three-source-v3-third-candle.yml (V3 real original y price path), calidad Ruff/mypy/pytest en Actions.
+
+**ADVERTENCIA:** V2 fue ideada después de conocer V1 y V3 después de V2, aunque cada versión se pre-registró **antes de su propio resultado**. Todo el histórico comparte información de desarrollo y no se convierte en OOS por usar nuevo nombre. La sucesión V1→V2→V3 NO justifica elegir retrospectivamente la mejor.
+
+---
+
+## 6. Estado G-M3: reconocimiento cognitivo sobre hechos positivos
+
+**Módulos:** src/qore/infrastructure/traders/crt_pure_cognitive_state.py (Situation Model, ATTENTION, knowledge, metacognición, adversarial, `reason()`, transiciones), crt_pure_cognitive_contract.py, identidad de mercado. Fuente real V3 mediante src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_gm3_cognitive_replay.py y tests de anti-leak/revisor falso.
+
+**Prueba [G-M3 #38750815066](https://github.com/mezas3238-hue/qore-core/actions/runs/38750815066):** quality + AUDUSD + USDJPY **3/3 SUCCESS**. 61/61 eventos source confirmados AUDUSD + 78/78 USDJPY = **139/139 RECONOCIDOS causalmente**; `supporting_evidence` incluye confirmación y DOL disponible a reloj; `reason()` produce **139/139 ABSTAIN** con `CRT_SOURCE_STRATEGY_NOT_CLOSED`, **0 EXECUTE**, por método triad QORE sin siete contratos aprobados. [Informe G-M3](VT08_CRT_THREE_SOURCE_V3_GM3_REAL_POSITIVES_139_2026-10-15.md). Artifacts AUDUSD **11980952529**, USDJPY **11981706027**, SHA internos verificados en la ronda.
+
+**Lectura correcta:** reconoce lo que el generador V3 etiquetó como confirmación geométrica, pero eso **no es precisión frente a expertos independientes**, ni verifica meta-cognición «perfecta» ni edge; la respuesta ABSTAIN es legal. Falta contraposición con tesis/contratesis, source-ground truth de autor/QORE, conflictos, memoria/expiración con nuevos eventos y firma externa.
+
+---
+
+## 7. Estado G-M4: pipeline end-to-end causal, NO aprobado formalmente
+
+**Nuevo protocolo pre-registrado:** [G-M4 V3](VT08_CRT_THREE_SOURCE_V3_GM4_CAUSAL_LIFECYCLE_PREREG_2026-10-15.md). Código src/qore/infrastructure/trader_lab/vt08_crt_three_source_v3_gm4_lifecycle.py; tests tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_gm4_lifecycle.py; workflow .github/workflows/vt08-crt-three-source-v3-gm4-lifecycle.yml.
+
+**Último replay verdaderamente ejecutado:** [#38763192649](https://github.com/mezas3238-hue/qore-core/actions/runs/38763192649), SHA c69f0b4dd716cc3ffd4bad8f7e2d88759e476971, quality/AUDUSD/USDJPY **3/3 SUCCESS**, con guards de identidad source/clock/market/dirección, precio invalidante de M15 source idéntico en ambos ledgers, M5 temporal exacta, no future payload, no sizing y no rearm tras tesis terminada.
+
+| Corte G-M4 original | AUDUSD | USDJPY | Total |
+|---|---:|---:|---:|
+| V3 source→cognition→router reconciliado | 61 | 78 | **139** |
+| Reconocidos, `ABSTAIN`, routing bloqueado | 61 | 78 | **139** |
+| TERMINAL observado post-decisión (ya cerrado causalmente) | 59 | 75 | **134** |
+| UNKNOWN por evidencia incompleta (sin terminal inventado) | 2 | 3 | **5** |
+| DOL primero | 11 | 12 | **23** |
+| Invalidez primero | 29 | 40 | **69** |
+| Expiración sin toque | 19 | 23 | **42** |
+
+**Mecanismo de estado:** OBSERVED_EVENT→HYPOTHESIS_FORMING→AWAITING_CONFIRMATION→CONFIRMED y, sólo después de M5 closed, INVALIDATED→KILLED o KILLED por destino/expiry; los UNKNOWN permanecen CONFIRMED en el ledger de investigación **sin representar una posición activa**. El estado cognitivo inicial y el WHY no utilizan precio M5 del futuro. **El pipeline representa el ciclo de observación de una hipótesis, NO un E2E con broker/Risk/CIBO real y no equivale a G-M4 PASS**.
+
+**Evidencia:** [Informe final G-M4 139](VT08_CRT_THREE_SOURCE_V3_GM4_139_END_TO_END_INVARIANTS_2026-10-15.md). ZIP finales **AUDUSD 11986482995** y **USDJPY 11985714852** en [run #38763192649](https://github.com/mezas3238-hue/qore-core/actions/runs/38763192649). SHA256SUMS 3/3 por cada ZIP, descarga verificada durante ejecución anterior, comprobar de nuevo tras expiración nominal 2027-01-13. 134/139 TERMINAL probado; 5/139 CENSORED. G-M4 formal PARTIAL.
+
+---
+
+## 8. Matriz de Gates y definición concreta de qué queda por hacer
+
+| Gate | Estado real | PASO BLOQUEANTE / evidencia faltante, no solo código |
+|---|---|---|
+| **G-M1 Fuente y método compuesto** | PARTIAL | Cerrar SIETE reglas CRT tri-source con fuente individual y/o ingeniería QORE marcada, operacional, sin futuro, firmada por Owner/revisor independiente; resolver jerarquía, DOL, timeframes, invalidación, timing, PD array y conflictos. No Romeo-only. |
+| **G-M2 Percepción y dictamen externo** | PARTIAL | Revisor independiente realiza 48 FIRST-LOOK visuales sin scores, antes de abrir C3 sellado; labels de tesis, contra-tesis, nivel válido y motivo, disagreement, timestamp/fuente; cubrir también escenarios auténticos V3 positivos y rechazos no seleccionados. |
+| **G-M3 Cognitiva y metacognitiva** | PARTIAL | Contrastar razón, incertidumbre y transición de `reason()` contra dictámenes externos y contraejemplos; corregir errores reales sin usar outcomes; memoria/event_generation/contradicciones/rearm y cancelación de fuente. 139 reconocidos ≠ 139 aciertos. |
+| **G-M4 Recorrido causal completo** | PARTIAL | 139 eventos source→cognition→router→post-M5 probados; **5 UNKNOWN**. Falta cierre fuente-adjudicado y traspaso conceptual a soberanía CIBO/Risk, con pruebas sin broker/sizing; firmas independientes y fallas fail-safe. |
+| **G-M5 Certificado método** | NOT ISSUED | Solo emitir cuando G-M1..G-M4 tengan prueba, Owner/reviewers autenticados y cuatro PASS genuinos. El certificado no autoriza operar ni volumen. |
+| **GLOBAL económico** | NOT CERTIFIED | Candidato nuevo o válido método congelado; datos BID/ASK PIT + costs/fills, PF net, DD Risk/CIBO externo, Sharpe/Sortino, fresh OOS real, WFO, stress, MC, validación intermercado y revisión independiente. |
+| **EXECUTION** | NOT AUTHORIZED | No broker/demo/live/production/VPS, PR no merged, CIBO sigue dueño soberano de capital. |
+
+**FALLO ARQUITECTÓNICO ABIERTO P0:** `CrtPureMethodGateEvidence` actualmente acepta un string `independent_adjudicator`, booleano `no_future_leak_attested` y refs declaradas, pero **NO autentica por sí mismo la identidad o firma criptográfica del revisor**. `CrtThreeSourceRuleContract` acepta un `owner_approval_id` con cadena: **esa cadena por sí sola no prueba una aprobación**. Aunque source OPEN impida hoy falsa certificación, un cierre futuro basado solo en strings podría provocar AUTO-PASS sin evidencia. **Requerir un gate de evidencia verificada externa con blob SHA, principal autorizado, firma/acta y cadena de custodia antes de permitir cualquier certificación real.** No llenar el campo con "test review".
+
+**FALLO DE ALCANCE ABIERTO P0:** `crt_pure_certification_readiness.py` todavía requiere `btcusd_history_verified` y `combined_three_market_validation_green`, mientras BTCUSD está **congelado** para VT08 actual. Esto no se resuelve poniendo flags falsos ni descongelando producción: **solicitar decisión del Owner del alcance GLOBAL AUDUSD/USDJPY o tres mercados**, versionar contrato y revisión Risk/CIBO. La semántica de certificación metodológica y global debe permanecer separada.
+
+---
+
+## 9. Economía GLOBAL: Gates E0–E11 siguen abiertos
+
+**El Owner ratificó explícitamente Profit Factor, Drawdown, Sortino, Sharpe y demás Gates**; el método/cognitiva debe pasar G-M1…G-M5 antes de GLOBAL. No se permite certificar un modelo económicamente débil por «inteligente».
+
+| ID | Entregable de la autoridad correspondiente | Estado |
+|---|---|---|
+| E0 Modelo/mercados/identity congelados | Código SHA, metodología aprobada, hipótesis identificada, reglas de ejecución neutrales a sizing, calendario PIT | OPEN |
+| E1 Mercado ejecutable + costes | Históricos BID/ASK/quotes/ticks verificables, broker contract, comisión, slippage, spread, gaps y fill semantics | OPEN |
+| E2 PF net / expectancy | Ledger REALIZABLE bruto/neto, nº trades verificables por mercado/año, muestra/IC, sin confundir wick-hit con fill | NOT EVALUATED |
+| E3 Drawdown | **DD de cuenta patrimonial solo QORE Risk/CIBO**, no sizing propio ni simulado del Trader; definir autoridad y unidad | NOT EVALUATED |
+| E4 Sharpe / Sortino | Frecuencia de retornos válida, downside benchmark/MAR, anualización, n suficiente, incertidumbre | NOT EVALUATED |
+| E5 OOS genuinamente virgen | Datos posteriores/no vistos, acceso sellado y auditor independiente, sin usar Atlas 2024–2026 como OOS | OPEN |
+| E6 Walk-forward / embargo | Folds chronology, purging, no leakage ni refit del test final | OPEN |
+| E7 Stress & sensibilidad | Shocks de spreads/costes, gaps, DST/session, orden intrabar, regímenes y proveedores | OPEN |
+| E8 Monte Carlo / dependencia | Bootstrap por bloques/regímenes, tail/quantiles/predefinidos y límites falsadores | OPEN |
+| E9 Comparadores / multiplicidad | Baseline, incertidumbre, potencia, estabilidad temporal/mercados, correction for selection bias | OPEN |
+| E10 CIBO / Risk / reviewer | Evidencia económica independiente y alcance, sin transferir capital authority a VT08 | OPEN |
+| E11 GLOBAL CERTIFICATE | Todos E0–E10 y G-M5 PASS auténticos, código/global gate que NO sea configurable por flags falsos | NOT CERTIFIED |
+
+**Umbrales numéricos CRT PURE** NO aparecen formalmente aprobados en el expediente: **NO COPIAR** los de [#762](https://github.com/mezas3238-hue/qore-core/issues/762) (VT08 5M TTrades, otra identidad) ni [#838](https://github.com/mezas3238-hue/qore-core/issues/838) (QORE-Alpha2). Pedir al Owner/Risk acta de alcance y umbrales PF/DD/Sharpe/Sortino y tolerancias ANTES de mirar el nuevo OOS; tampoco inventar 1 lote o 1R para poder calcular DD.
+
+---
+
+## 10. Registro de PROBLEMAS conocidos — responsables y salida exigible
+
+| Problema | Causa raíz / evidencia | Severidad | Resolución mínima para sucesor |
+|---|---|---|---|
+| P-01 Romeo-only bloqueaba método sintético | Requería old CRTH única atribuida a Romeo aun con 3 fuentes permitidas | **CORREGIDO contrato** | Mantener política tri-source; preservar incertidumbre original sin veto exclusivo. |
+| P-02 Siete reglas QORE abiertas | Fuente inspiracional ≠ semántica operativa completa/review | **P0 OPEN** | Contrato por regla con casos positivos, negativos y contraejemplo; aprobación Owner+auditor real. |
+| P-03 Método V1 densidad baja | Primeras dos M15 rígidas, contexto HTF demasiado estrecho | **DIAGNOSTICADO** | Mantener V1 congelada; no tuning ex-post. |
+| P-04 Método V2 trayectoria adversa | 745 conceptuales, DOL primero 115 vs invalidez 538 | **EVIDENCIA ADVERSA** | No usar V2 como estrategia rentable o retunear sus barreras in-sample. |
+| P-05 Método V3 trayectoria adversa | 139 confirmadas, DOL primero 23 vs invalidez 69 | **EVIDENCIA ADVERSA** | No certificar V3 ni retunear contra resultados vistos. |
+| P-06 Positivos cognitivos no adjudicados | 139/139 reconocidos, pero source-contract OPEN | **P0 OPEN** | Etiquetas independientes, precisión/falsación, source-aware cognitive policy. |
+| P-07 G-M4 tiene 5 UNKNOWN | M5 missing o barrera al inicio no confiable, no podemos inventar terminal | **P1 OPEN** | Recuperar evidencia temporal original o censurar definitivamente y formalizar política de falta de datos. |
+| P-08 Firma no autenticada | Campos string reviewer/Owner acceptance verifican no-vacío, no principal | **P0 OPEN** | Revisor y Owner autenticados, firma/commit/review auditada, protección anti self-attestation. |
+| P-09 Blind y SEALED mismo dominio ACL | ZIP distintos; mismos permisos de repo/run potencialmente permiten leer futuro | **P0 OPEN** | Revisión externa con permisos/custodia y sellado verdadero antes de C3 future. |
+| P-10 OOS contaminado | Iteración V1/V2/V3 y búsquedas previas sobre Atlas 2024–26 | **P0 OPEN** | Nuevo holdout realmente virgen, timing/control de acceso; no reutilizar fechas vistas. |
+| P-11 No costes/fills BID-ASK | Solo source OHLC/provider relative y path first-touch | **P0 OPEN** | Broker original/time-aligned BID/ASK, costes PIT, fill rule, instrument mapping y auditoría. |
+| P-12 R2-BM TP antes de SL | Orden intrabar desconocido; PF inflado | **CORREGIDO histórica** | Nunca reutilizar PF legacy defectuoso, STOP_FIRST / datos tick. |
+| P-13 BTCUSD frozen vs Global 3-market | Readiness general exige 3 mercados sin política de alcance del Owner | **P0 OPEN** | Resolución alcance explícita, no false flags. |
+| P-14 Artefactos no permanentes | Retention 90 días, riesgo Atlas12 #837 | **P0 OPEN** | Vault privado autorizado + restore SHA antes del vencimiento real. |
+| P-15 CI GREEN ≠ metodología PASS | Tests invariantes internos no prueban fuentes/ejecución | **P0 DISCIPLINA** | No emitir G-M1..5 ni global por test verde; independencia real. |
+| P-16 Sizing prohibido | Tentación de usar lotes, cash o 1R ficticia para DD/PF | **BLOQUEO PERMANENTE** | CIBO/Risk externo DD/capital, nada de tamaño en VT08. |
+| P-17 No separación reaction/journey/confirmation | V1–V3 prueban subconjuntos de CRT anidado y destinos H4; otras familias no predefinidas | **P1 OPEN** | Especificar mecanismos causales separados antes de test NUEVO (no elegir por 2024–26). |
+| P-18 Tiempo NY/DST / PD array / sesión | H4 censo UTC QORE, no validación de temporalidad/composición diaria del autor | **P1 OPEN** | Timestamps PIT, calendario NY-DST/market session, HTF key levels y fuente. |
+| P-19 Datos source M1/ticks heterogéneos | No confundir otros datasets QORE Native con tick ejecutable del broker correcto | **P1 OPEN** | Inventario proveedor/símbolo/timeframe + permiso/contrato, no interpolar M1 desde M5. |
+
+**Acciones NO autorizadas para «resolver» problemas:** liberar PR, fabricar señales con futuro, cambiar falsaciones, elegir niveles por PnL, cambiar alcance BTCUSD vía booleanos, copiar datos licenciados sin permiso, usar sizing dentro del Trader, activar cuentas/demo/live.
+
+---
+
+## 11. Procedimiento de takeover ejecutable — 12 pasos SIN perder contexto
+
+1. **Verificar GitHub primero:** branch `agent/vt08-crt-pure-source-identity-001`, PR #626 DRAFT/unmerged, su base; consultar HEAD y registrar el nuevo HEAD antes de modificar. **No hacer merge**.
+2. **Leer este handoff completo y sus fuentes enlazadas**: [maestro histórico integral 14-OCT](VT08_CRT_PURE_HANDOFF_MAESTRO_INTEGRAL_DOBLE_CERTIFICACION_2026-10-14.md), [directiva owner 15-OCT](VT08_CRT_OWNER_TRES_FUENTES_CAMBIO_MANDATO_2026-10-15.md), informes V2/V3/G-M3/G-M4 y preregistros. **Directiva nueva prevalece** sobre cualquier Romeo-only histórico.
+3. **Custodia antes de perder M5:** atender [Issue #837](https://github.com/mezas3238-hue/qore-core/issues/837); mirar API `expires_at` Atlas12, inventario todos symbols+hashes, backup **privado licenciado aprobado**, restore independiente, sin VPS ni fugas de datos.
+4. **Congelar línea falsada:** conservar V1/V2/V3 y sus hashes/outcomes como observaciones DEV, no candidates para retune. Respetar primero-no-mismo-M5 y último M15 C3 expirado.
+5. **Cerrar fuente/ingeniería G-M1:** inventariar siete contratos y sus source locators; jerarquía de old key levels; clases **reaction/journey/confirmation**; política H4, M15, PD-array, expiración y tratamiento de conflictos. Pre-registrar especificaciones concretas QORE diferenciadas de autor, obtener Owner y revisor REAL verificable.
+6. **Cerrar revisión ciega G-M2:** distribuir SOLO first-look sin etiquetas/resultados, documentar market UTC+NY DST y nivel/tesis/contra-tesis por case ID; doble revisión independiente y adjudicación de desacuerdos ANTES de revelar SEALED C3. Documentar accesos, no asumir ACL por ZIP.
+7. **Auditar cognitiva G-M3:** incorporar etiquetas independientemente adjudicadas sin desenlace futuro, evaluar WAIT/ABSTAIN y «conceptual entry» legítimo por caso, WHY, incertidumbre, contradicciones/invalidación, generación nueva y precisión error class. 139/139 positive recognition solo baseline, no PASS.
+8. **Cerrar G-M4 científico y Risk boundary:** usar flujo 139 real source→cognition→router→lifecycle, persistir los 5 UNKNOWN/censura y verificar hipotético handoff conceptual sin generar órdenes/volumen. Diseñar pruebas end-to-end con política y reviewer firmados, no sólo una colección de assertions.
+9. **Corregir protocolo antifalsificación:** impedir que cadenas o booleans declaren source-approved/GM-PASS sin evidencia externa firmada y rastreable, sample SHA, identidad del reviewer diferente del implementador. Repetir tests self-attestation.
+10. **Emitir G-M5 sólo cuando de verdad se cumpla**: cuatro PASS genuinos de G-M1–G-M4, acta firmada y hash de método; en caso contrario informar NOT_CERTIFIED, sin conceder operación.
+11. **Carril GLOBAL económico:** resolución formal de BTCUSD congelado y alcance exacto; definición previa Owner/Risk de métricas y thresholds; datos BID/ASK PIT y costes/fills; hipótesis nueva con corpus OOS intacto, WFO, stress/MC e informe independiente Risk/CIBO sobre DD patrimonial, SIN sizing propio. Si no hay edge: NO_SUPPORT honesto, no regresión hasta pasar.
+12. **Cierre de cada ronda:** actualizar este handoff o crear addendum con HEAD/código, Actions jobs, nombres de artifacts + SHA + retención, número de casos por mercado, nuevos problemas, estatus exacto de cada gate, revisión/firmas, Issue/PR comment. Mantener DRAFT, sin merge ni permisos de ejecución.
+
+**Primer backlog ideal del sucesor:** (a) cerrar los 7 contratos y resolver autenticación de reviewer Owner; (b) resolver el alcance BTCUSD/global; (c) defender causalmente una nueva familia CRT y obtener realmente nuevo OOS antes de estudiar resultados; (d) custodiar urgentemente Atlas12 #837. **No** realizar otra búsqueda in-sample aleatoria para satisfacer deseo de certificación inmediata.
+
+---
+
+## 12. Anexo de rutas, CI, artifacts y documentación de lectura obligatoria
+
+| Evidencia | URI / identificador |
+|---|---|
+| PR y coordinación | [PR #626](https://github.com/mezas3238-hue/qore-core/pull/626) |
+| Fuente Owner 3 | [directiva y refactor](VT08_CRT_OWNER_TRES_FUENTES_CAMBIO_MANDATO_2026-10-15.md) |
+| Documentación exhaustiva previa | [handoff integral 14-OCT](VT08_CRT_PURE_HANDOFF_MAESTRO_INTEGRAL_DOBLE_CERTIFICACION_2026-10-14.md) |
+| Original Atlas12 M5 | [Actions #35166210458](https://github.com/mezas3238-hue/qore-core/actions/runs/35166210458) |
+| Custodia vault P0 | [Issue #837](https://github.com/mezas3238-hue/qore-core/issues/837) |
+| 48 blind-neutral visual | [Actions #38706589343](https://github.com/mezas3238-hue/qore-core/actions/runs/38706589343), artifacts FIRST LOOK AUDUSD **11958423126**, USDJPY **11958537855** |
+| Histórico G-M1 Model1 | [Actions #38650459457](https://github.com/mezas3238-hue/qore-core/actions/runs/38650459457) |
+| V1 censo completo | [Actions #38710923324](https://github.com/mezas3238-hue/qore-core/actions/runs/38710923324) |
+| V2 censo, 745 source | [Actions #38711787794](https://github.com/mezas3238-hue/qore-core/actions/runs/38711787794), artifacts AUDUSD **11960992041**, USDJPY **11961650358** |
+| V2 745 price path | [Actions #38713036976](https://github.com/mezas3238-hue/qore-core/actions/runs/38713036976), artifacts AUDUSD **11961063948**, USDJPY **11961720910** |
+| V3 censo, 139 source | [Actions #38749028744](https://github.com/mezas3238-hue/qore-core/actions/runs/38749028744), artifacts AUDUSD **11981125345**, USDJPY **11979094305** |
+| V3 139 price path | [Actions #38749761117](https://github.com/mezas3238-hue/qore-core/actions/runs/38749761117), artifacts AUDUSD **11979699106**, USDJPY **11980476823** |
+| V3 G-M3 cognitiva 139 | [Actions #38750815066](https://github.com/mezas3238-hue/qore-core/actions/runs/38750815066), artifacts AUDUSD **11980952529**, USDJPY **11981706027** |
+| **V3 G-M4 end-to-end 139 / 134 / 5 FINAL** | [Actions #38763192649](https://github.com/mezas3238-hue/qore-core/actions/runs/38763192649), artifacts AUDUSD **11986482995**, USDJPY **11985714852** |
+| Baseline gate última documentación/HEAD verificado | [Cognitive Gate #38763492695](https://github.com/mezas3238-hue/qore-core/actions/runs/38763492695) SUCCESS |
+| Historial legacy con fallos BM y otros | [Handoff 13-OCT](VT08-CRT-PURE-MASTER-HANDOFF-2026-10-13.md) |
+| Generadores originales | src/qore/infrastructure/trader_lab/vt08_crt_three_source_v{1,2,3}_*.py, detalles arriba |
+| Modelo cognitivo / autoridad | src/qore/infrastructure/traders/crt_pure_{cognitive_state,cognitive_contract,three_source_methodology,methodological_certification,certification_readiness}.py |
+| Tests del método compuesto | tests/infrastructure/traders/test_crt_pure_three_source_methodology.py |
+| Test G-M4 final | tests/infrastructure/trader_lab/test_vt08_crt_three_source_v3_gm4_lifecycle.py |
+| Workflows vigentes | .github/workflows/vt08-crt-pure-cognitive-gate.yml; vt08-crt-pure-gm2-blind-casebook.yml; vt08-crt-three-source-v3-third-candle.yml; vt08-crt-three-source-v3-gm4-lifecycle.yml |
+
+**Nota sobre artifacts:** los IDs citados se verificaron en rondas anteriores y tienen vencimiento temporal. **La mera existencia del enlace no es garantía de permanencia ni autorización externa de acceso.** Revalidar en GitHub, SHA y custodia; no guardar datasets licenciados junto con el markdown.
+
+### Certificación / decisión de entrega
+
+- **Methodology / cognition:** G-M1…G-M4 = PARTIAL; G-M5 NOT ISSUED.
+- **Economic/GLOBAL:** no Profit Factor ni Sortino ni Drawdown patrimonial acreditados, no OOS intacto ni coste BID/ASK validado. GLOBAL NOT_CERTIFIED.
+- **Research conclusion:** V1 densidad 54; V2 densidad 745 con observación de precio adversa; V3 tercera vela 139 con observación de precio adversa; G-M3 y G-M4 garantizan varias invariantes de no-leak/fail-closed, no edge económico.
+- **Capital/operaciones:** ningún permiso, 0 sizing. PR #626 permanece DRAFT/unmerged.
+
+**REGLA FINAL PARA EL PRÓXIMO ARQUITECTO:** No abandones CRT por un subconjunto V2/V3 adverso, pero tampoco transformes una hipótesis falsada en certificado porque sus tests pasan. Usa las tres fuentes, crea mecanismos CRT completos causalmente justificados, conserva el histórico de falsaciones, consigue evaluación realmente independiente y datos ejecutables OOS nuevos, y exige **TODOS** los Gates; sin sizing de VT08. CIBO/Risk es autoridad separada. Si no hay evidencia suficiente, el único dictamen aceptable es **NOT_CERTIFIED**.
+
+
+---
+
+## Addendum 15-OCT — hardening anti-self-attestation y dossier G-M1 del sucesor
+
+**Nueva ronda después de takeover:** branch `agent/vt08-crt-pure-source-identity-001`, PR #626 permanece DRAFT, sin merge, sin órdenes ni sizing. Baseline inicial `a260abf13477a7a9e449c6088314e4f70da5e81c`. **Nueva evidencia de quality CI:** [run #38786465193](https://github.com/mezas3238-hue/qore-core/actions/runs/38786465193) **SUCCESS** sobre commit `839ba9d8687fa35eefdbc7f55dba8848fdce8f91` (Ruff/mypy/pytest de pipeline CRT). Los commits intermedios del primer intento fallaron Ruff por un docstring mal formateado, corregido en `cf97771a`; no atribuir sus fallos a error de estrategia.
+
+**Hallazgo P0 ratificado:** `CrtThreeSourceRuleContract.independent_adjudication_id`, `owner_approval_id` y `CrtPureMethodGateEvidence.independent_adjudicator` son cadenas proporcionables por llamador; el atributo `no_future_leak_attested` es un booleano. La implementación previa permitía a una **tupla hipotética de siete reglas** obtener `methodology_closed=True` al llenar esas cadenas, aunque `current_three_source_methodology()` permanecía OPEN. El gate G-M5 seguía cerrado en estado corriente, pero el evaluador hipotético podía confundir "declaraciones" con "aprobaciones".
+
+**Corrección implementada y auditada:**
+- `crt_pure_three_source_methodology.py`: `proposal_complete` mide si se han presentado propuestas de las siete reglas; **nunca** lo equipara a `methodology_closed`. Agrega blocker `METHODOLOGY_INDEPENDENT_APPROVAL_UNVERIFIED` sin un verificador independiente confiable. Las siete políticas reales continúan OPEN.
+- `crt_pure_methodological_certification.py`: todo PASS autodeclarado trae `G-Mx_PASS_ATTESTATION_UNVERIFIED`. Cuatro PASS sintéticos jamás emiten G-M5; no basta un ID/URL/booleano. **Esto es protección temporal fail-closed**, NO autenticación de review ya implementada.
+- Tests negativos añadidos en `test_crt_pure_three_source_methodology.py` y `test_crt_pure_methodological_certification.py`, junto con actualización de expectativa de cierre hipotético. CI `#38786170231` y `#38786465193` SUCCESS.
+- Nuevo [dossier G-M1 con siete reglas revisables](VT08_CRT_GM1_SEVEN_RULES_REVIEW_DOSSIER_2026-10-15.md): propuestas concretas y contrapruebas, con G2 multirreferencia y G7 rearm identificados como NO totalmente implementados/adjudicados. **Ninguna regla promovida a aprobada**; V3 adversa, no OOS.
+
+**Atlas12 urgencia revalidada con GitHub API:** los 13 artefactos de [run #35166210458](https://github.com/mezas3238-hue/qore-core/actions/runs/35166210458) aparecen `expired=false` con `expires_at=2026-12-16T00:21:18Z`, incluyendo originales AUDUSD `artifact_id=10475697610` y USDJPY `artifact_id=10475389415`. Existe **sólo retención temporal**; [issue #837](https://github.com/mezas3238-hue/qore-core/issues/837) OPEN. No exportación, vault o restore hecho en esta ronda. No copiar datos licenciados ni inventar backup.
+
+**Nueva cola inmediata:** (1) construir verificador de review GitHub independiente realmente autenticado, SHA/contract-digest-bound, anti-self-approval y anti-replay; no insertar parámetro `verified=True` inyectable; (2) revisor externo adjudica semántica de G1–G7 y los contraejemplos; (3) G-M2 blind, G-M3 discrepancias y G-M4 revisión formal de 5 UNKNOWN; (4) custodia aprobada de Atlas12 antes de diciembre; (5) Gates globales sobre nueva hipótesis/fuente BID/ASK/fresh OOS, DD sólo CIBO/Risk. **G-M1..G-M4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED**. No sizing, órdenes, broker, PR merge ni promoción a producción.
+
+
+---
+
+## Addendum 15-OCT R2 — G-M1 GitHub native attestation verifier, sin falsos PASS
+
+**Trabajo NUEVO completado sobre PR #626, sin merge:** módulo `src/qore/infrastructure/traders/crt_pure_gm1_external_review.py`; tests `tests/infrastructure/traders/test_crt_pure_gm1_external_review.py`; workflow `.github/workflows/vt08-crt-pure-cognitive-gate.yml` ampliado para Ruff/mypy/pytest. Documento técnico [G-M1 external review verifier R1](VT08_CRT_GM1_EXTERNAL_GITHUB_REVIEW_VERIFIER_R1_2026-10-15.md). Commits principales: `a16c1837` implementación; `c2cd5361` suite adversarial; `c6a2b546` comentario Owner inmutable y fechas; `1c93bfc` CI integrado; `92bb555c` binding base/head/repo/historia; `48ab2c8d` contraejemplos extra; `580d9ba3` documentación.
+
+**GitHub Actions prueba funcional confirmada:** [#38789302806](https://github.com/mezas3238-hue/qore-core/actions/runs/38789302806) **SUCCESS** sobre `48ab2c8d4559a93c5b616dd60bb38c2626c27bb8`; Ruff, mypy, pytest PASS. No demuestra revisión externa.
+
+**Mecanismo:** auditoría SOLO-LECTURA de GitHub API (PR, reviews, issue comments, commits y contenido exacto del dossier desde HEAD SHA). Requiere `GITHUB_TOKEN` y `VT08_TRUSTED_OWNER_ID` / `VT08_TRUSTED_REVIEWER_ID` entregados por un ambiente protegido EXTERNO a la rama. Reviewer nativo GitHub APPROVED sobre ese commit y exacto digest SHA256 del dossier, revisor distinto de Owner, autor de PR y contribuidores, seguido de comentario Owner inmutable con idéntico SHA/digest; no `CHANGES_REQUESTED` posterior; detectar retarget base/fork/rewrite/head move, hash equivocado, signoff anterior, identidades falsas. Tests positivos son **fixtures sintéticos** y no firmas reales. La lectura puede producir solo `authenticated_witness` diagnóstico: `gm1_pass=false`, `gm5_issued=false` y `capital_authorized=false` PERMANENTEMENTE en R1.
+
+**Bloqueo externo verificado:** PR #626 tenía **0 GitHub reviews** al inspeccionarlo esta ronda. No existe revisor independiente autenticado ni trust roots protegidos provisonados/verificados; [issue P0 #976](https://github.com/mezas3238-hue/qore-core/issues/976) debe permanecer OPEN. El mismo login del Owner no puede ser simultáneamente auditor independiente. No ejecutar código aún editable del PR con secretos elevados; primero proceso de review y runner protegido y control de permisos.
+
+**Pendientes sin recortar:** G-M1 siete contratos individualmente adjudicados (G2 multirreferencia/G7 rearm incompletos), G-M2 blind 48+, G-M3 verdad externa, G-M4 5 UNKNOWN, G-M5, protección vault #837, BTCUSD congelado, nuevos BID/ASK PIT + OOS realmente virgen, Gates PF/DD/Sharpe/Sortino/MC/stress bajo soberanía CIBO/Risk, sin sizing en VT08. Estado G-M1..G-M4 PARTIAL; G-M5 NOT ISSUED; GLOBAL NOT CERTIFIED; **NO MERGE/NO demo/live/órdenes/VPS**.
+
+
+---
+
+## Addendum R3 — corregida cobertura de CI y G2/G7 causal (15-OCT-2026)
+
+**Takeover de esta nueva ronda** sobre `agent/vt08-crt-pure-source-identity-001`, PR #626 abierto DRAFT, sin merge. HEAD inicial `7e6e4adc590b03d878fd475df1cba55340df44a4`.
+
+### Hallazgo de auditoría del CI histórico
+
+Aunque [CI #38789606238](https://github.com/mezas3238-hue/qore-core/actions/runs/38789606238) informaba 107 PASS, el workflow solo incluía `crt_pure_gm1_external_review.py` en Ruff; **no incluía la fuente en la invocación explícita de mypy ni el test adversarial en pytest**. El reporte anterior de 107 tests NO implica que los casos de verificador externo se hubiesen ejecutado. Se arregló el workflow (commit `c287f28a`), se halló además un error de tipado concreto `datetime | None` en `owner_comment`, corregido en `45df0c41`. Se preserva la prueba y el bug para auditoría, sin maquillar ejecuciones intermedias que fallaron.
+
+### Nuevos G2/G7 — semántica de investigación, no aprobación
+
+- **Módulo:** `src/qore/infrastructure/traders/crt_pure_gm1_g2_g7_causal_audit.py` ; suite adversarial `tests/infrastructure/traders/test_crt_pure_gm1_g2_g7_causal_audit.py`. Documento completo [G2/G7 R3](VT08_CRT_GM1_G2_G7_CAUSAL_AUDIT_R3_2026-10-15.md).
+- **G2 `multiple_reference_priority`:** exige market/parent/clock/identidad/digest de la fuente y una cobertura declarada. Inventario no completo = WAIT; dos o más referencias concurrentes incluso con igual dirección = ABSTAIN; no aprendizaje de prioridad por PnL ni selección retrospectiva. Una única candidata produce `PROVISIONAL`, jamás ejecución. Referencias después de decisión o de mercado equivocado: error fail-closed. **No autentica exhaustividad real del inventario; fuente sigue OPEN.**
+- **G7 `conflict_and_rearm`:** fuente, hypothesis y parent únicos por mercado; generación y tiempos estrictos; nuevo intento en mismo padre H4, source/hypothesis reutilizada o nueva fuente no posterior a la decisión previa = ABSTAIN. Historial mezclado, duplicado o futuro = error. Tras una generación distinta en parent distinto, exige además **terminación de TODAS las tesis anteriores observada ANTES de la nueva fuente**, o WAIT/invalidación de evidencia futura. Solo concede `PROVISIONAL`, con `grants_rearm_authority=False` y `grants_execution_authority=False`.
+- Ambos auditores son QORE ENGINEERING PROPUESTA, **no** han recibido una firma auténtica ni reemplazan los generadores congelados V1/V2/V3 (resultados adversos intactos). Las pruebas sintéticas no son G-M1, G-M3 ni G-M4 PASS; G2 no inventaría old CRTH y G7 no tiene ledger real con custodia autenticada.
+
+### Evidencia CI y pendientes
+
+- [CI #38799381145](https://github.com/mezas3238-hue/qore-core/actions/runs/38799381145) **SUCCESS, 151 tests**, después de incluir G2/G7 y las pruebas externas (Ruff + mypy + pytest).
+- [CI #38799639178](https://github.com/mezas3238-hue/qore-core/actions/runs/38799639178) **SUCCESS, 156 tests**, incluyendo nuevas protecciones de aislamiento de mercados e integridad de historial. Esta ronda añadió después tres pruebas de terminación previa; verificar último CI y actualizar resultado en comentario PR antes de considerarlo GREEN.
+- Sigue **P0:** llevar propuesta G2 a una detección PIT completa de *todas* las referencias legítimas, inventariar casos reales sin PnL; enlazar G7 a reloj terminal de M5 y ledger persistente verificable, con 5 UNKNOWN censurados; auditor metodológico independiente/Owner distinto firmado por SHA; 48 G-M2 blind adjudicados; G-M3 error real; G-M4 witness completo. La issue [#976](https://github.com/mezas3238-hue/qore-core/issues/976) sigue OPEN. BTCUSD frozen y política alcance pendiente. [Data Vault #837](https://github.com/mezas3238-hue/qore-core/issues/837) urgente por vencimiento temporal de Atlas.
+- **Gate truth:** G-M1…G-M4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED; PF/DD/Sharpe/Sortino/OOS no demostrados; capital patrimonial sólo CIBO/Risk. **VT08 jamás sizing** (ni lote ni R ficticia); no broker, órdenes, demo/live, VPS, merge o despliegue.
+
+
+---
+
+## Addendum R4 — reproduccion historica real de G2/G7, 15-OCT-2026
+
+**Este addendum registra trabajo ya EJECUTADO, no planes sin realizar.** Rama agent/vt08-crt-pure-source-identity-001; PR #626 DRAFT/no merge. Preregistro metodologico R4 publicado ANTES de ejecutar: [VT08_CRT_G2_G7_REAL_ATLAS_PIT_BRIDGE_PREREG](VT08_CRT_G2_G7_REAL_ATLAS_PIT_BRIDGE_PREREG_2026-10-15.md), commit a78e322e9a6f32c9d05d24388ddfd5ffadf3475c.
+
+**Implementación/CI:** nuevo adaptador de datos verificados **src/qore/infrastructure/trader_lab/vt08_crt_g2_g7_real_atlas_pit_bridge.py**; pruebas negativas **tests/infrastructure/trader_lab/test_vt08_crt_g2_g7_real_atlas_pit_bridge.py**; workflow dedicado **.github/workflows/vt08-crt-g2-g7-real-atlas-pit-audit.yml**. Recomputación de V3 y G-M4 en modo research sobre Atlas original; inspección de antigua H4 C0 y adyacente H4 C1 en prefijo C2, sin PnL, sin alterar los replay congelados; el G2 inventario acotado no puede declarar cobertura de todas las referencias. G7 utiliza generaciones ordinales de research y ledger anterior con testigos de terminal **censurados al reloj de decisión** para impedir que terminales futuros o cinco UNKNOWN habiliten rearm. El G2 sigue WAIT por ausencia de inventario exhaustivo; G7 jamás concede rearm ni capital.
+
+**Resultado real autenticado por GitHub Actions:** [#38802320161](https://github.com/mezas3238-hue/qore-core/actions/runs/38802320161) SUCCESS, commit de cálculo **2c23ddd72df6238e2ca3331ed3350e131ae4a5bb**: Ruff/mypy y **16 pytest PASS**, matrix AUDUSD y USDJPY real completados sin broker. **296,372 M5 verificadas** (AUDUSD 148,171 / USDJPY 148,201), **V3 139/139** reconciliados con sus GM4 (61/78). C0 competidora elegible **36** (16/20); **14 opuestas** (4/10), **22 misma dirección** (12/10); C0 incompleta **12** (6/6); G2 WAIT **139** por inventario incompleto, no porque 139 conflictos probados. G7 **31 PROVISIONAL** (18/13) y **108 WAIT** (43/65) debido a falta de prueba de que TODAS las tesis previas estén terminadas en reloj causal. GM4 UNKNOWN **5** (2/3) censurados intactos. Ninguna PROVISIONAL da ejecución. Ningún edge ni PnL/returns ha sido demostrado.
+
+**Archivo de resultados R4 completo:** [VT08_CRT_G2_G7_REAL_ATLAS_PIT_R4_VERIFIED_RESULTS_2026-10-15.md](VT08_CRT_G2_G7_REAL_ATLAS_PIT_R4_VERIFIED_RESULTS_2026-10-15.md). Artefactos GitHub run anterior: AUDUSD id **12005455369**, ZIP SHA256 **96f0766323ad6aae2d5c84e06b44c88f76da0bba0ee59a45f0dfdc44e1dd91eb**; USDJPY id **12005455361**, ZIP SHA256 **7a1dca533c9e75e6e513795a55ac316a21e9139c9fa82fec84d61bb6f0536f95**. Ambos expiran 2027-01-13 20:29:10Z; originales Atlas vencen antes, riesgo de vault #837 abierto.
+
+**Hallazgo técnico adversarial real:** la primera CI falló por import Ruff no usado y otra por un fixture C0 que cerraba EN el borde (el filtro original _direction exige estrictamente dentro), solucionado sólo en tests; después ambos jobs reales y calidad pasaron. No se alteraron las reglas V3 ni se intentó optimizar retrospectivamente.
+
+**Obstáculos principales para arquitecto sucesor:** (1) G2 inventario causal histórico integral de old CRT levels, no sólo dos últimas velas H4, y prioridad aprobada independiente; (2) G7 ledger de evento/generación real persistente, atribución e investigación de 108 WAIT, sin auto-desbloqueo por UNKNOWN; (3) revisor metodológico externo distinto de implementador y Owner, firma por cada uno de G1..G7 issue #976; (4) G-M2 visual blind 48 casos, G-M3 con verdad externa y G-M4 5 UNKNOWN sin fabricación; (5) custodia original #837 y nuevos datos BID/ASK/OOS virgen para PF/Sharpe/Sortino y DD que corresponde CIBO Risk. Nunca utilizar sizing en VT08 (ni 1 lot ni 1R hipotético); ni órdenes/demo/live/VPS/merge.
+
+**Gate truth se mantiene:** G-M1..G-M4 PARTIAL; G-M5 NOT ISSUED; GLOBAL NOT CERTIFIED. Todos los resultados R4 son seguridad causal/development sample, NO validación económica.
+
+
+---
+
+## Addendum R5/R6 — causa material de 108 WAIT y cinco UNKNOWN (15 OCT 2026)
+
+**Nueva evidencia ejecutada, no sólo planificación.** Documento esencial consolidado: [R5+R6 causas de fondo y pasos mínimos](VT08_CRT_R5_R6_ROOT_CAUSE_REAL_ATLAS_AND_CERTIFICATION_BLOCKERS_2026-10-15.md). PR #626 DRAFT sin merge; última versión base previamente R4.
+
+**R5 prereg commit 62e1706ec61b5becbd79c350dd797719290b47e7; CI R5 #38819759238 SUCCESS** commit c81dd07d7b04852094c5e7f04c7d7b695ed7df73. 20 tests de puente; read-only matrix AUDUSD+USDJPY original Atlas verified. 139 V3/G-M4 originales reconciliados (61/78), 296372 velas originales. 36 G2 C0 rivales reconstruidos (16 AUDUSD/20 USDJPY), 14 dirección opuesta, 22 misma, sin seleccionar ganador. Nuevos JSONL outcome-blind H4 C0/C1/C2 disponibles en artefactos con ID/SHA y 0 aprobación fingida.
+
+**Hallazgo causal R5:** **108/108 G7 WAIT** en los dos mercados están **asociados a uno o más GM4 UNKNOWN anteriores** (43 AUDUSD, 65 USDJPY), y **0** se explican únicamente por un terminal de precio que se observó después pero finalmente fue conocido. Política G7 ALL-PRIOR-TERMINAL provoca veto persistente. La suma 184 de instancias UNKNOWN-por-decision es **repetición de los mismos eventos entre timestamps**, no 184 incidencias independientes. 31 casos G7 provisional NO autorizan rearm ni trade. Primer UNKNOWN propagado por mercado: AUDUSD bfc66b2457f3e3ec93ae, USDJPY 9572d855b2dedc8fecb2. **La clasificación UNKNOWN vs eventually terminal es estrictamente ex-post en manifest separado, NUNCA se entrega a la decisión causal.** Si se cambia política G7, aprobar artículo G7 y fuentes ANTES de nueva OOS, jamás relajar por PnL.
+
+**R6 prereg commit baa36d32993ec51beb12ddc1d323f07a7732d790; CI R6 #38820419577 SUCCESS** commit 3c49b9ebe501475b80eb77dd2072c4eb95713f0f, strict Ruff/mypy/28 tests, 2 matrix Atlas reales green. **Causas concretas de cinco GM4 UNKNOWN** verificadas sin cambiar su estado: AUDUSD 1 + USDJPY 1 `UNKNOWN_ENTRY_ALREADY_BEYOND_BARRIER`, en ambos el M5 open del reloj decisión estaba **ya más allá de la invalidación**, no destino. AUDUSD 1 + USDJPY 2 `UNKNOWN_MISSING_M5_BEFORE_TERMINAL` por M5 original ausente; el R6 ubica primer gap y adyacentes en JSONL ex-post separado. Los **2+3 siguen UNKNOWN**; nunca inventar terminal, fill, capital. Posible candidato a adjudicación: incompatibilidad observada en la decisión = abstención/no viabilidad inmediata, siempre con firma metodológica externa; NO modificar V3/G-M4 ni afirmar que antes eran trades. Para los 3 gaps recuperar datos realmente certificables del mismo proveedor o dejarlos censurados, no interpolar.
+
+**Artifacts R6 SHA-bound:** AUDUSD artifact **12012303958**, ZIP SHA256 **2eefb39cb52edcb4949cee9d47d3240b4469c2e9b62cb0043b5d1229ea2e117b**; USDJPY artifact **12012024816**, ZIP SHA256 **bf063422553a4d4a25511e93aeafc9293c0a8eb34298fdf1a10b1e28307985f9**. Expiran nominalmente 2027-01-13T22:56:14Z. Caducidad originales Atlas 2026-12-16 y custodia #837 siguen urgentes. Todos los resultados de R5/R6 de muestra Atlas *ya vista*, no OOS virgen.
+
+**Gates y tareas NO cerradas:** (i) G2 inventario PIT exhaustivo old CRTH/CRTL, 36 choques y adjudicación independiente; (ii) G7 semántica de terminations y ledger runtime, política de origen NO guiada por rendimiento; (iii) G-M2 48 first-look, G-M3 verdad externa, G-M4 5 UNKNOWN + CIBO Risk, G-M1 siete contratos firmados por revisor independiente/Owner en GitHub (#976). G-M5 sólo si todos PASS legítimos. (iv) Global economía se mantiene sin PF/costes BID/ASK/OOS fresco/Sortino/Sharpe/MC/Drawdown patrimonial; resultados V3 adversos NO prueban edge rentable. **Sin sizing VT08 de ninguna clase, órdenes/demo/live/VPS ni merge. Estado exacto G-M1..4 PARTIAL; G-M5 NOT ISSUED; GLOBAL NOT CERTIFIED.**
+
+
+### R6-B — cinco relojes exactos recuperados, dos aparentes cierres semanales (evidencia, NO aprobación)
+
+[GitHub CI #38820840827](https://github.com/mezas3238-hue/qore-core/actions/runs/38820840827) SUCCESS sobre commit 829dc4dfb631ffe91db1721285ee359931e27177. Logs contienen `VT08_GM4_UNKNOWN_EXPOST_CASE_IDS_AND_CLOCKS` con 5 identidades verificadas. **AUDUSD:** `bfc66b2457f3e3ec93ae` decisión 2025-04-25 20:45Z -> M5 faltante **2025-04-25 21:00Z**, ninguna siguiente dentro de C3; `fa3965fd21bc149c2ce8` decisión 2026-08-06 21:00Z -> open más allá de invalidación. **USDJPY:** `9572d855b2dedc8fecb2` decisión 2024-12-26 23:00Z -> open más allá de invalidación; `11a7c3cdb30a9eabdbbe` decisión 2025-02-12 21:30Z -> falta **2025-02-12 22:30Z** y reaparece 22:35Z; `a63b7073af8d33e8963a` decisión 2026-06-19 20:45Z -> falta **2026-06-19 21:00Z**, ninguna siguiente dentro de C3.
+
+**P0 causación inmediata:** el missing viernes 21:00Z de AUDUSD 25-ABR-2025 y USDJPY 19-JUN-2026 es compatible con el cierre semanal FX bajo DST estadounidense, pero **falta verificar calendario histórico del símbolo y broker específico**. El missing miércoles USDJPY 12-FEB-2025 22:30Z con 22:35Z presente es una discontinuidad mucho más aislada. No asumir que reetiquetar cierre semanal resuelve terminal G-M4 sin contrato de fuente aprobado. Ver el **Anexo R6-B** del [Informe R5/R6](VT08_CRT_R5_R6_ROOT_CAUSE_REAL_ATLAS_AND_CERTIFICATION_BLOCKERS_2026-10-15.md). Artefactos run R6-B: AUDUSD 12012955576 SHA256 d6d62ade4b58329ddc079c8c91397085bea75a6d619373d242ec5b07c4c9ba78; USDJPY 12012508848 SHA256 7dc8829d2d86ec48b880fb8cf966d60177f8b463070f85fc870e5c6ab4aed5cf. Siguen **5 UNKNOWN, G-M4 PARTIAL, G-M5 NO, GLOBAL NO**.
+
+
+---
+
+## Addendum R7 — dos viernes 17 ET compatibles en 17 de 17 semanas (16 OCT 2026)
+
+**Continuación terminada y verificable, sin cambiar V3 ni G-M4.** [Informe R7](VT08_CRT_R7_FX_WEEKLY_CLOSE_REAL_ATLAS_VERIFIED_2026-10-16.md) y [pre-registro antes de inspección](VT08_CRT_R7_ORIGINAL_ATLAS_FX_WEEKLY_CLOSE_GAP_FORENSICS_PREREG_2026-10-16.md). Se creó auditor DST-aware `src/qore/infrastructure/trader_lab/vt08_crt_original_fx_weekly_close_forensics.py`, tests adversariales y workflow de dataset original en `.github/workflows/vt08-crt-g2-g7-real-atlas-pit-audit.yml`. Sólo diagnostica; se ejecuta en salida `R7_EMPIRICAL_FX_WEEKLY_CLOSE_BROKER_NOT_VERIFIED`, distinta de ledger decisional. **Run #38902464494 SUCCESS** commit `b196934584d5acf752e73b89e290eb8394d7471c`, **Ruff/mypy/35 tests PASS** y ambos mercados SHA-CIBO reales green.
+
+**Hallazgo nuevo real:** AUDUSD gap 2025-04-25T21:00Z y USDJPY gap 2026-06-19T21:00Z coinciden EXACTAMENTE con **viernes a las 17:00 America/New_York (EDT)** y, en cada mercado, **17/17 viernes** (ocho antes, el del caso y ocho después) exhiben última M5 a :55, sin M5 al cierre ni en la hora siguiente. Confirmada empíricamente consistencia con cierre FX convencional y con DST (hora 22Z en EST y 21Z en EDT). **NO** se obtuvo aún calendario histórico específico cTrader/servidor de estos símbolos y cuenta: no declarar broker-certified o terminal. **USDJPY 2025-02-12T22:30Z** miércoles 17:30 EST presenta vela 22:25 y 22:35, con 22:30 faltante; es **único M5 interior** demostrado con reanudación y merece solicitud de recuperación al mismo productor QORE Atlas.
+
+**Los CINCO UNKNOWN siguen UNKNOWN**: 2 entradas originales por encima de invalidación (necesitan una regla cognitiva previa de no viabilidad con firma) + 2 cierres semanales probables (necesitan schedule del proveedor y contrato expiración segura) + 1 gap aislado real (solo recuperación autêntica o censura). En G7 los 108 WAIT no se promueven; no se relaja historial ALL-PRIOR-TERMINAL por PnL. G2 mantiene 36 conflictos C0 vs C1 y falta inventario integral. G-M1..G-M4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED. Sin sizing VT08 (ni R/lot ficticios) y sin órdenes/demo/live/VPS/merge.
+
+**Artefactos R7 SHA GitHub:** AUDUSD id `12046397924` SHA256 `fc25417bd2e42994788658c3a5ebb0d18f7e15d08198c8307ea2a316172a57f2`; USDJPY id `12046911206` SHA256 `a81db8e9cc89904b5a614b1cec48fa2023fed8f6677a65cf04bccebfc03ef175`. Expiran temporalmente 2027-01-14T12:42:51Z; originales CIBO Atlas 2026-12-16, issue #837.
+
+**P0 próxima intervención:** elevar los dos viernes como **cierre de mercado observado**, NO falsos fallos M5, pero mantener terminal censurado hasta autenticar schedule. Recuperar e investigar la M5 USDJPY miércoles 2025-02-12 22:30Z desde mismo feed; completar 36 revisiones G2 y 48 G-M2 por revisor externo; G1–G7 autenticación doble (issue #976); G7 lineage/UNKNOWN aprobados; ejecutar posterior OOS verdaderamente nuevo y economic gates con QORE Risk/CIBO. No autoadjudicar certificación.
+
+
+---
+
+## Addendum R8 — reconciliacion SHA de los tres gaps originales (16 OCT 2026)
+
+**Nuevo resultado ejecutado y documentado:** [R8 original CIBO producer quality ledger](VT08_CRT_R8_ORIGINAL_PRODUCER_SHA_QUALITY_GAPS_VERIFIED_2026-10-16.md). Preregistro R8 antes de cálculos reales `e53084871793f9adb1b0f5584999f8f17288e6a5`. **GitHub Actions [#38975246782](https://github.com/mezas3238-hue/qore-core/actions/runs/38975246782) SUCCESS 3/3**, commit fuente probado `d345770ada8c4d2815866158f557483e031d7f6a`, **43 tests PASS**, Ruff/mypy, replay real AUDUSD/USDJPY SHA-validado. Implementación `src/qore/infrastructure/trader_lab/vt08_crt_original_atlas_quality_gap_custody.py`, tests adversariales, workflow original ampliado.
+
+**P0 aclarado:** el artefacto original 10y M5 de CIBO no sólo carece de esos 3 slots: su **DATA_QUALITY_LEDGER anual**, firmado contra PARTITION_MANIFEST SHA por el propio productor `ab782b8...`, contiene exactamente un `UNRESOLVED_CLOSURE_OR_MISSING_DATA` por cada hueco. Identidad, market, clocks, número de slots y hash concuerdan. **AUDUSD 2025-04-25 21:00Z**: 576 slots entre última barra 2025-04-25 20:55 y primera barra 2025-04-27 21:00 (domingo), `spans_weekend=true`. **USDJPY 2026-06-19 21:00Z**: igual, 576 slots hasta domingo 2026-06-21 21:00Z. **USDJPY miércoles 2025-02-12 22:30Z**: exactamente **1 sola M5 ausente** entre 22:25 y 22:35, `spans_weekend=false`. Todos los registros originales anotan `market_open_expected=null`: productor NO afirmó apertura/cierre del broker.
+
+**Las tres ausencias eran del ingreso original CIBO**: descartada hipótesis de bug de reconstrucción VT08 que omitió estas velas. R7 ya probó 17/17 viernes vecinos consistentes con 17 ET NY por mercado; R8 verifica registros reales originales con SHA, pero la **autenticación del schedule de cTrader** sigue pendiente. Imposible rescatar OHLC de USDJPY 22:30 desde un ledger que sólo indica la ausencia: requerir fuente original verificable o censura.
+
+**No-Gates:** G-M4 mantiene 5 UNKNOWN (2 `ALREADY_BEYOND_INVALIDATION`, 2 cierres semanales convencionales aún no metodológicamente expirados, 1 hueco M5 interior original). G7 mantiene 108 WAIT de política ALL PRIOR TERMINAL, sin rearm; G2 36 referencias rivales y full old-CRT inventory faltante. G-M1/2/3/4 PARTIAL; G-M5 NOT ISSUED; Global sin edge/costs/OOS. **No sizing VT08, jamás patrimonial/DD, órdenes/demo/live/VPS/merge.**
+
+**Artefactos R8 SHA:** AUDUSD id 12079270181, ZIP sha256 `f9702a394b52347b08a604e3bd1a6f9c4f91b4278edc48416ace7ec669f2b739`; USDJPY id 12079026049, ZIP sha256 `400da2be84fd0c8a05a660aebb5520d4b4aef85ea0ffbe4d332ecb7a9a4a8c31`; caducan nominalmente 2027-01-14T22:21:25Z. Fuente Atlas original id 10475697610 AUDUSD y 10475389415 USDJPY expira 2026-12-16T00:21:18Z (issue #837): prioridad no perder custodia.
+
+
+---
+
+## Addendum R9 — G2 ciego a etiquetas del motor: 36 casos SHA listos (17 OCT 2026)
+
+**Nueva investigación REAL finalizada.** Preregistro independiente publicado ANTES del run: [protocolo R9](VT08_CRT_R9_G2_INDEPENDENT_BLIND_36_REVIEW_PROTOCOL_PREREG_2026-10-17.md), commit `1e47a99143ed2a3e29d7f141dcc036b95e3cbdcc`. Evidencia [run GitHub Actions #39037416479](https://github.com/mezas3238-hue/qore-core/actions/runs/39037416479) **SUCCESS 3/3**, código probado `7e304bddf9721de62f838927e99f04d1edd8b5cd`, **56 tests PASS**, Ruff/mypy 5 fuentes, dos mercados originales 296372 M5 hash-backed.
+
+**Mejora real sobre R5–R8:** exportadores G2 anteriores mostraban `c0_direction`, `c1_direction`, `conflict_kind` incluso en "blind" packet: potencial sesgo del revisor. El nuevo `vt08_crt_g2_independent_blind_review.py` produce **reviewer-only** sin DIRECCIONES ni engine labels, sin IDs source/parent, sin C3/G-M4/outcomes, con H4 C0/C1/C2 únicamente cerrados y hash de integridad; separa **SEALED ENGINE** con etiquetas para adjudicación posterior, y plantilla NULL de firmas y decisiones. Original R5 36 casos conservados: AUDUSD 16 (4 opuestos, 12 iguales) y USDJPY 20 (10 opuestos, 10 iguales). Total 14 opuestos/22 iguales; **0 firmas humanas, 0 nuevas operaciones**. Los 139 G2 continúan WAIT por inventario old CRTH/CRTL no exhaustivo. Los 5 UNKNOWN y 108 G7 WAIT siguen intactos.
+
+**Artefactos review SOLO entregar estos al evaluador:** [AUDUSD `12102807181`](https://github.com/mezas3238-hue/qore-core/actions/runs/39037416479/artifacts/12102807181) SHA ZIP `afbd44369558e6b169c9b5599868c96b2407f1b2625632c03467cfba65b81fc8`; [USDJPY `12103140816`](https://github.com/mezas3238-hue/qore-core/actions/runs/39037416479/artifacts/12103140816) SHA ZIP `89646f07a159c8e3284fb20521c207bd4f836bae3c1d17ada7f3aa92ee9d5130`. **NO entregar SEALED**: AUDUSD `12102657747` SHA `6fddeb478dee6b0e5dbae96fe224245f9df9539b9aad10017b049d472237eb20`; USDJPY `12103245345` SHA `4e53cdd210b79ba3cf292fe814b2d3ad9d47fa165afcb024b206dbb99f5b4d31`. **Límite de independencia:** distintos ZIP NO son ACL o embargo real en GitHub; controlar permisos/screening del reviewer y revisar que nunca abriera el engine sealed previo a su respuesta. Artifacts expiran 2027-01-15T13:38:50Z, mientras los Atlas originales expiran 2026-12-16.
+
+**Documento de transferencia PRIORITARIO:** [R9 informe completo + tabla de decisión G7](VT08_CRT_R9_G2_G7_ADJUDICATION_READY_36_BLIND_REAL_ATLAS_2026-10-17.md). Es indispensable para nuevo arquitecto:
+
+- G2: revisor independiente debe responder 36 preguntas C0/C1/BOTH/NEITHER/INSUFFICIENT_SOURCE con localizador de fuente RomeroTPT / SpeculatorFL / TraderFlameseN, o etiquetar QORE_ENGINEERING. Owner firma exactamente la política final y auditor distinto valida. Nunca convertir `signed_review_received=false` en PASS por ingeniería.
+- G7: el código actual exige ALL-PRIOR-TERMINAL en mercado completo, no probado como regla universal de autores ni equivalente al dossier G7 una fuente/una hipótesis por padre. Deben **elegir ANTES de nuevo OOS** entre A global, B lineage-scoped (PROPUESTA NO AUTORIZADA, no sustituye code) y C WAIT bajo fuente insuficiente. No elegir B por densidad/PnL; cero rearm sin autenticación causal. Tres casos de gap R8 más dos invalidaciones siguen UNKNOWN congelados, 108 WAIT deben preservarse hasta contrato nuevo legítimo.
+- Certificación: G-M1..4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED. G-M2 first-look 48, G-M3 independencia, G-M4 source→risk/custodia, siete firmas reales, verdadero OOS/costes BID/ASK y Gates de PF, Sharpe, Sortino, DD patrimonial en CIBO Risk. **VT08 jamás hace sizing**, ni cantidades hipotéticas de lotes/R. PR #626 DRAFT/no merge, no orden DEMO/LIVE/VPS. Proteger Atlas original #837.
+
+
+---
+
+## Addendum R10 — auditor de respuestas de 36 casos G2 con SHA, no autopase (18 OCT 2026)
+
+**Pruebas en GitHub terminadas, no certificación:** [Informe R10 verificado](VT08_CRT_R10_36_BLIND_REVIEW_GUARD_REAL_ATLAS_VERIFIED_2026-10-18.md), preregistro [R10 pre](VT08_CRT_R10_G2_36_INDEPENDENT_RESPONSE_GM1_ATTESTATION_PREREG_2026-10-18.md) commit `de7bb5cc0808c0d0ce76561167f93f564db542e2`. [GitHub Actions #39096884947](https://github.com/mezas3238-hue/qore-core/actions/runs/39096884947) **SUCCESS 3/3**, código probado commit `506e1be614e94aa83343dafe5c9a85b523edbc91`. Ruff/mypy **6 módulos** + **77 tests PASS** y AUDUSD/USDJPY originales SHA. No modifica V1/V2/V3/G-M4 ni cambia G2/G7.
+
+**Trabajo implementado:** `vt08_crt_g2_human_response_guard.py` + adversariales `test_vt08_crt_g2_human_response_guard.py`; integrado en `vt08_crt_g2_g7_real_atlas_pit_bridge.py` y workflow original. La carpeta REVIEWER ONLY de cada mercado incluye `g2-independent-human-response-readiness-R10.json`: cada humano deberá contestar exactamente los 16 AUDUSD y 20 USDJPY cases originales, atando `reviewer_payload_sha256` y proponiendo decisión C0/C1/BOTH_AMBIGUOUS/NEITHER_VALID/INSUFFICIENT_SOURCE, cita tri-fuente o etiqueta QORE_ENGINEERING/SOURCE_GAP, argumento causal y contraejemplo. Duplicados, forged SHA, respuesta extra, falso PASS en JSON, alteración velas y cita insuficiente se rechazan o mantienen NO LISTO.
+
+**Resultado real innegociable:** **AUDUSD 16/16 SIN RESPONDER; USDJPY 20/20 SIN RESPONDER; 36/36 PENDIENTES**. Ambos informes informan `G_M1_PASS=false`, `G_M2_PASS=false`, `G_M5_ISSUED=false`, `GLOBAL_CERTIFIED=false` y ninguna identidad revisora/Owner autenticada. Un test sintético puede dar `structurally_complete_NOT_APPROVED=true` aun con 16 respuestas inventadas, pero **nunca** autentica ni emite G-M1/G-M5. Ya existe **verificador externo R1** `crt_pure_gm1_external_review.py` que toma GitHub PR reviews/comment HEAD+dossier SHA y trust roots fuera de PR; no duplicar ni burlar. PR #626 tenía **0 reviews nativas** al inicio de R10.
+
+**Paquetes para evaluación humana, NO entregar ENGINE:** AUDUSD REVIEWER ONLY artifact `12125231326` SHA256 `c3bef18cc39479ec87f18fc03facd3aa317b013d7078c23f6500c5b627ccdc31`, USDJPY `12124797767` SHA256 `583bdd6c11e94cd167535421ca5c537bd7c64b550c591c094d12ab249e5f4948`. ENGINE SEALED archivos separados AUDUSD `12125385879`, USDJPY `12125101905`. Artifacts expiran 2027-01-16T04:22:50Z. **Dos ZIP separados en el mismo repositorio no son embargo verdadero**: auditor debe estar procedimentalmente aislado del sealed labels y certificar ausencia de exposición; no fabricar independencia.
+
+**P0 de continuidad:** revisión de 36 casos con identidad humana real y 7 artículos firmados (issue #976), G7 decidir con tri-fuente política GLOBAL_ALL_PRIOR_TERMINAL vs lineage (alternativa teórica no autorizada) en #985; 5 GM4 UNKNOWN en #988; 48 G-M2, G-M3 y Risk/CIBO G-M4 externos; OOS nuevo y PF/Sharpe/Sortino/DD/costes originales bajo Risk, no VT08 sizing. Atlas originales expiración 2026-12-16 y custodia #837. **No generar nuevas operaciones, sizing/1R/lotes hipotéticos ni comprometer VPS/demo/live/merge.** G-M1..4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED.

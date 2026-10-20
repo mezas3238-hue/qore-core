@@ -1,0 +1,85 @@
+name: QORE VT08 CRT PURE R2-CE WAIT Cohort Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-r2ce-wait-cohort-audit.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2ce_wait_cohort_alignment.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_r2ce_wait_cohort_alignment.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Quality and pure accounting tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_r2ce_wait_cohort_alignment.py tests/infrastructure/trader_lab/test_vt08_crt_pure_r2ce_wait_cohort_alignment.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_r2ce_wait_cohort_alignment.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_r2ce_wait_cohort_alignment.py
+
+  historical_replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - market: AUDUSD
+            source_run: 36173116494
+            source_artifact: qore-vt08-crt-pure-r2cc-audusd-f0973808af1a6e342b71ba179ccecb1c43a7913c
+          - market: USDJPY
+            source_run: 36173125334
+            source_artifact: qore-vt08-crt-pure-r2cd-usdjpy-e49ed06db7e9fc5095e856491fcd68de7f61aca0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Download original frozen R2-CC/CD read-only artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.source_artifact }}
+          repository: ${{ github.repository }}
+          run-id: ${{ matrix.source_run }}
+          github-token: ${{ github.token }}
+          path: evidence
+      - name: Audit artifact provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s evidence/report.json
+          test -s evidence/delayed.jsonl
+          mkdir -p artifacts/${{ matrix.market }}
+          sha256sum evidence/report.json evidence/delayed.jsonl | tee artifacts/${{ matrix.market }}/evidence_sha256.txt
+      - name: Replay R2-CE from frozen ledgers only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_r2ce_wait_cohort_alignment \
+            artifacts/${{ matrix.market }} \
+            --market ${{ matrix.market }} \
+            --frozen-ledger evidence/delayed.jsonl \
+            --frozen-report evidence/report.json \
+            | tee artifacts/${{ matrix.market }}/stdout.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-r2ce-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/${{ matrix.market }}
+          if-no-files-found: warn
+          retention-days: 90

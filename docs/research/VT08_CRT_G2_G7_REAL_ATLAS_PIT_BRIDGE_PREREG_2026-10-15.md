@@ -1,0 +1,22 @@
+# VT08 CRT — preregistro R4 puente G2/G7 sobre Atlas M5 real (15 OCT 2026)
+
+**Pre-registro anterior a ejecución sobre datos**. Propósito: verificar riesgos causales sobre el corpus original ya consumido de AUDUSD + USDJPY, NO buscar nuevos parámetros rentables ni reclamar OOS. BTCUSD congelado. No modificar V1/V2/V3 ni G-M4. Prohibidos sizing, órdenes, brokers y capital.
+
+## Fuente congelada
+Productor CIBO Atlas run #35166210458: artifact AUDUSD 10475697610 (SHA256 ac72aaf...), USDJPY 10475389415 (SHA256 e3ac9a45...). Lectura mediante `vt08_crt_pure_original_atlas_reader.load_atlas_vt08_m5` con hashes originales comprobados. V3 source `full_utc_h4_v3_census` y G-M4 `replay_v3_gm4`, sin alterar ninguna de sus reglas. Reconciliar `source_event_id`, `market`, `decision_clock_utc` y `parent_c3_utc` exactamente; cualquier mismatch termina ejecución, no se repara.
+
+## G2 — caso testigo de doble referencia H4 ya cerrada (NO inventario completo old CRTH)
+Por cada caso V3 confirmado, C2 H4 empieza 4 horas antes de C3; referencias observables antes de cerrar C2: C1 inmediatamente anterior y C0, una vela H4 anterior a C1. Reconstruir los tres H4 desde 48 M5 originales, con OHLC y reloj completos. Testigo de referencia C1 cuando C2 hace barrido unilateral y reclaim (prerrequisito V3). C0 es *segunda referencia competidora sólo cuando* `_direction(C0,C2)` devuelve BULLISH o BEARISH, sin mirar el resultado C3. Si C0 incompleta, no se considera prueba de ausencia de conflictos; marcar prefijo incompleto. Si dirección C0 coincide o se opone a C1, registrar por separado. No hay ranking por PnL, amplitud, antigüedad ni acierto. Calcular identidad/digest SHA256 causal de market, parent, H4 C0/C1/C2 OHLC cerradas, C2 close time. Llamar auditor G2 con `inventory_complete=False` porque **no es** un inventario exhaustivo de old CRTH/CRTL: resultado siempre WAIT, aunque haya una sola C1; por separado registrar los conflictos de este ámbito limitado. Está prohibido afirmar G2 cerrado por no encontrar rival entre C0 y C1.
+
+## G7 — reconstrucción de fuente y terminación causal
+Ordenar exclusivamente V3 candidatos por reloj de decisión, un registro por par market/parent C3. Event id = source_event_id existente, hypothesis id de namespace determinista del event id, generación ordinal monotónica de esta vista de eventos (NO pretende conocer generaciones auténticas del motor runtime). El source se observa al cierre M15 de decisión, no antes.
+
+Emparejar G-M4 uno a uno mediante source id, market y decisión. La terminal G-M4 real conocida de una tesis previa sólo entra a un dictamen posterior si `terminal_observation_proven=True` y `terminal_observed_at_utc <= decision_at`. Cuando es UNKNOWN o terminal aún en el futuro respecto al dictamen, pasar `None`; jamás consultar ni divulgar el outcome posterior para autorizar una decisión pasada. `audit_g7_rearm` recibe historia íntegra de candidatos V3 previos del mismo mercado. Primer evento PROVISIONAL, posterior con terminal causal observado PROVISIONAL, evento previo sin terminal WAIT, reutilización de identidad ABSTAIN. Auditor no concede rearm o ejecución. Las cinco UNKNOWN de G-M4 no pueden convertirse en terminación por el mero transcurso temporal.
+
+## Métricas y fallos previstos
+Por mercado: M5 leídas y SHA de provenance, V3 source count y G-M4 matched, dual H4 complete/unknown, C0 extra elegible mismo sesgo/opuesto sesgo, G2 WAIT/ABSTAIN/PROVISIONAL, G7 WAIT/ABSTAIN/PROVISIONAL, censored unknown G-M4 count, event generations ordinales solo de research; artefacto JSON resumen y ledger SHA256; no precio resultado/G-M4 outcome en ledger de decisiones G2/G7. No aprobar G-M1/G-M4 en cualquier caso. Falta de identidad, clock/digest, H4 incompleta incoherente, fuente multiversión, SHAs rotas o un resultado de tipo EXECUTE/trade/capital abortarán CI.
+
+## Restricciones de interpretación
+Esta inspección en muestra previamente explorada NO prueba edge. El G2 construido con dos H4 no demuestra cobertura de todos los niveles antiguos. El G7 ordinal no es el ledger persistente de runtime y observa fuentes V3 reconocidas retrospectivamente; deben revisarse por auditor humano y reemplazarse por testimonios PIT autenticados. No transformar resultados en feature selection. El trabajo futuro sigue obligado por G-M1..G-M4 independientes, G-M5 y Global económico separado con CIBO Risk; no sizing de VT08.
+
+**Estado previo y estado invariable esperado:** G-M1..G-M4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED, sin merge/órdenes/VPS.

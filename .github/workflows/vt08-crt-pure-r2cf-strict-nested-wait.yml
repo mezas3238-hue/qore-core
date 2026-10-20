@@ -1,0 +1,81 @@
+name: QORE VT08 CRT PURE R2-CF Strict Nested WAIT
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-r2cf-strict-nested-wait.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2cf_strict_nested_wait_journal.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_r2cf_strict_nested_wait_journal.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Strict lint typing unit gate
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_r2cf_strict_nested_wait_journal.py tests/infrastructure/trader_lab/test_vt08_crt_pure_r2cf_strict_nested_wait_journal.py
+          mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_r2cf_strict_nested_wait_journal.py
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_r2cf_strict_nested_wait_journal.py tests/infrastructure/trader_lab/test_vt08_crt_pure_r2ce_wait_cohort_alignment.py
+
+  historical:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - market: AUDUSD
+            source_run: 36173116494
+            source_artifact: qore-vt08-crt-pure-r2cc-audusd-f0973808af1a6e342b71ba179ccecb1c43a7913c
+          - market: USDJPY
+            source_run: 36173125334
+            source_artifact: qore-vt08-crt-pure-r2cd-usdjpy-e49ed06db7e9fc5095e856491fcd68de7f61aca0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Download frozen original R2-CC/CD ledger and report
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.source_artifact }}
+          repository: ${{ github.repository }}
+          run-id: ${{ matrix.source_run }}
+          github-token: ${{ github.token }}
+          path: evidence
+      - name: Check frozen evidence and execute strictly chronological nested replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s evidence/delayed.jsonl
+          test -s evidence/report.json
+          mkdir -p artifacts/${{ matrix.market }}
+          sha256sum evidence/delayed.jsonl evidence/report.json | tee artifacts/${{ matrix.market }}/evidence_sha256.txt
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_r2cf_strict_nested_wait_journal \
+            artifacts/${{ matrix.market }} \
+            --market ${{ matrix.market }} \
+            --frozen-ledger evidence/delayed.jsonl \
+            --frozen-report evidence/report.json \
+            | tee artifacts/${{ matrix.market }}/stdout.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-r2cf-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/${{ matrix.market }}
+          if-no-files-found: warn
+          retention-days: 90
