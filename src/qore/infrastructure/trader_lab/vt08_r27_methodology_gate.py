@@ -3,6 +3,19 @@
 This gate does not infer TTrades validity from geometric candidates.
 """
 from __future__ import annotations
+from datetime import datetime, timezone
+from urllib.parse import urlparse
+
+
+def _instant(value):
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.astimezone(timezone.utc) if parsed.tzinfo else None
+
 
 REQUIRED = (
     "reference_swing",
@@ -22,6 +35,9 @@ def adjudicate(packet: dict) -> dict:
     identity = ("case_id_sha256", "market", "decision_as_of_utc", "source_sha256")
     if any(not isinstance(packet.get(k), str) or not packet[k] for k in identity):
         raise ValueError("R27 missing original case identity or causal cutoff")
+    cutoff = _instant(packet["decision_as_of_utc"])
+    if cutoff is None:
+        raise ValueError("R27 invalid causal cutoff")
     evidence = packet.get("rule_evidence")
     if not isinstance(evidence, dict):
         raise ValueError("R27 missing per-rule evidence")
@@ -31,16 +47,21 @@ def adjudicate(packet: dict) -> dict:
         if not isinstance(item, dict):
             missing.append(rule)
             continue
+        url = item.get("primary_author_url")
+        parsed_url = urlparse(url) if isinstance(url, str) else None
+        available = _instant(item.get("available_at_utc"))
         if (item.get("verdict") != "AUTHOR_SOURCE_VALIDATED"
                 or not isinstance(item.get("primary_author_url"), str)
-                or not item["primary_author_url"].startswith("https://ttrades.com/")
+                or parsed_url is None
+                or parsed_url.scheme != "https"
+                or parsed_url.hostname not in ("ttrades.com", "www.ttrades.com")
                 or not isinstance(item.get("author_section"), str)
                 or not item["author_section"].strip()
                 or not isinstance(item.get("source_bar_ids"), list)
                 or not item["source_bar_ids"]
                 or not all(isinstance(x, str) and x for x in item["source_bar_ids"])
-                or not isinstance(item.get("available_at_utc"), str)
-                or item["available_at_utc"] > packet["decision_as_of_utc"]):
+                or available is None
+                or available > cutoff):
             missing.append(rule)
     reviewers = packet.get("independent_reviews")
     signed = False
