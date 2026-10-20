@@ -1,4 +1,6 @@
 # QORE CORE — VT08 CRT DE TRES FUENTES
+
+> **ACTUALIZACIÓN DE RELEVO — 20-OCT-2026:** este documento conserva la investigación técnica histórica con anexos sucesivos. El **handoff maestro íntegro, independiente y prioritario R1–R10** se encuentra en [VT08_CRT_HANDOFF_MAESTRO_TOTAL_R1_R10_CERTIFICACION_2026-10-20.md](VT08_CRT_HANDOFF_MAESTRO_TOTAL_R1_R10_CERTIFICACION_2026-10-20.md) (371 líneas, 15 capítulos); usarlo como primer documento para el nuevo arquitecto. Estado G-M1…G-M4 PARTIAL, G-M5 NOT ISSUED, GLOBAL NOT CERTIFIED, sin sizing, ejecución o firma independiente.
 # HANDOFF MAESTRO DE TRANSFERENCIA INTEGRAL — 15 OCTUBRE 2026
 
 **DOCUMENTO DE RELEVO AUTÓNOMO.** La finalidad es que el próximo arquitecto pueda retomar el trabajo directamente desde GitHub sin reabrir debates, confundir candidatos con operaciones, volver a repetir ensayos falsados ni emitir certificaciones falsas.
