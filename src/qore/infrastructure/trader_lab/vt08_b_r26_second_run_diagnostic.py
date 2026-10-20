@@ -10,7 +10,10 @@ def inspect(bars, first_cisd_index, old_run_low):
             raise ValueError("invalid price")
         if lo > min(op, close) or hi < max(op, close):
             raise ValueError("invalid candle")
-    anchor = min(Decimal(str(old_run_low)), values[first_cisd_index-1][2])
+    old = Decimal(str(old_run_low))
+    if not old.is_finite() or old <= 0:
+        raise ValueError("invalid original low")
+    anchor = min(old, values[first_cisd_index-1][2])
     first = next((i for i in range(first_cisd_index, 10) if values[i][2] < anchor), None)
     runs = []
     if first is not None:
