@@ -1,3 +1,5 @@
+> **⚠️ PRIORIDAD DE CONTINUIDAD 20-OCT-2026:** ESTE HANDOFF ANTERIOR ES HISTÓRICO Y HA SIDO SUPERADO por [HANDOFF MAESTRO INTEGRAL 20-OCT-2026](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-methodology-source-20261010/docs/research/VT08_HANDOFF_MAESTRO_INTEGRAL_A_B_CERTIFICACION_2026-10-20.md), también duplicado en [la otra rama](https://github.com/mezas3238-hue/qore-core/blob/agent/vt08-5m-cognition-replay-20261010/docs/research/VT08_HANDOFF_MAESTRO_INTEGRAL_A_B_CERTIFICACION_2026-10-20.md). El nuevo handoff recoge **R1–R25**, R24 809 antiguos proxy reanclables, **R25 316 rupturas de ancla corregida, 301 recuperaciones del viejo nivel, 15 sin recuperaciones**, 107/107 sin firmas humanas, 23 problemas, soluciones y plan para siguiente arquitecto. **VT08 no certificado. QORE-alpha excluido.**
+
 # QORE CORE — VT08 | HANDOFF MAESTRO R8: Arquitecto A → próximo arquitecto
 ## Metodología TTrades, colaboración cognitiva B, fuentes reales, pruebas, problemas y ruta de certificación
 **Checkpoint oficial:** 15 de octubre de 2026 (America/Asuncion)
