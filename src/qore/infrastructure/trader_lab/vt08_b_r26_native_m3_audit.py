@@ -33,6 +33,8 @@ def audit_r26(frozen: dict, blind: dict, *, market: str, native_m3: Path) -> dic
     for case in cases:
         c2 = _instant(case["c2_opened_at_utc"])
         c3 = _instant(case["decision_at_utc"])
+        if c3 != c2 + 10 * M3 or case.get("market") != market:
+            raise ValueError("R26 cross-market or future-data C3 clock")
         cid = sha256(f"{market}|{c2.isoformat()}|{c3.isoformat()}".encode()).hexdigest()
         row = prior.pop(cid, None)
         if row is None:
@@ -45,7 +47,10 @@ def audit_r26(frozen: dict, blind: dict, *, market: str, native_m3: Path) -> dic
                         profile="M3", source_sha=sha, raw=raw)
             for i, rec in enumerate(receipts)
         ]
-        cisd_i = int((_instant(row["first_cisd_closed_at_utc"])-c2)//M3)
+        delta = _instant(row["first_cisd_closed_at_utc"]) - c2
+        if delta % M3 or not M3 <= delta <= 10 * M3:
+            raise ValueError("R26 noncausal CISD close clock")
+        cisd_i = delta // M3
         state = inspect(prices, cisd_i, row["original_run_low"])
         if str(state["anchor"]) != row["reanchored_as_of_cisd_closed_low"]:
             raise ValueError("R26 reanchor disagrees with R25")
