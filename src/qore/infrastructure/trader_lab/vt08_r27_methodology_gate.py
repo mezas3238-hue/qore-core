@@ -74,8 +74,9 @@ def adjudicate(packet: dict, *, trusted_reviewers: frozenset[str] = frozenset())
             and a["reviewer_id"] != b["reviewer_id"]
             and a["reviewer_id"] in trusted_reviewers
             and b["reviewer_id"] in trusted_reviewers
-            and all(x.get("signed_evidence") and
-                    x.get("verdict") == "PASS" for x in (a, b))
+            and all(isinstance(x.get("signed_evidence"), str)
+                    and x["signed_evidence"].strip()
+                    and x.get("verdict") == "PASS" for x in (a, b))
         )
     blocked = sorted(set(missing))
     if packet.get("unresolved_disagreements"):
@@ -84,6 +85,10 @@ def adjudicate(packet: dict, *, trusted_reviewers: frozenset[str] = frozenset())
         blocked.append("independent_A_B_signoffs")
     if not trusted_reviewers:
         blocked.append("trusted_reviewer_roster_missing")
+    # Identity/claimed signatures alone are not cryptographic verification.
+    # No authority is granted until a trusted verifier supplies a verified result.
+    if packet.get("cryptographic_review_verification") is not True:
+        blocked.append("cryptographic_review_verification_missing")
     return {
         "case_id_sha256": packet["case_id_sha256"],
         "methodology_gate": "PASS" if not blocked else "BLOCKED",
