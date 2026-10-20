@@ -1,0 +1,81 @@
+name: VT08 A H1 Basic Swing Pre-C2 Source Witness
+
+on:
+  push:
+    branches:
+      - agent/vt08-5m-methodology-source-20261010
+    paths:
+      - .github/workflows/vt08-a-h1-basic-swing-source-witness-v1.yml
+      - src/qore/infrastructure/trader_lab/vt08_a_pre_c2_h1_basic_swing_source_witness_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_a_pre_c2_h1_basic_swing_source_witness_v1.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  three-h1-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Strict bullish/bearish H1 pivot and no-source-complete adversarial
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_a_pre_c2_h1_basic_swing_source_witness_v1.py tests/infrastructure/trader_lab/test_vt08_a_pre_c2_h1_basic_swing_source_witness_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_a_pre_c2_h1_basic_swing_source_witness_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-b-market-catalog-${{ matrix.market }}-f61b5e7a931e2c057a0660f4702f11d55ebc58af
+          path: input/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38740699499
+      - name: Check three completed H1 pre-C2 physical pivot witnesses, not relevance
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_a_pre_c2_h1_basic_swing_source_witness_v1 import (
+              basic_swing_witnesses,
+          )
+          m=os.environ["MARKET"]
+          data=list(Path("input",m).rglob(m+"-A-to-B-canonical-source-catalog.json"))
+          if len(data)!=1:
+              raise SystemExit("missing physical A/B catalog")
+          a=json.loads(data[0].read_text(encoding="utf-8"))
+          report=basic_swing_witnesses(a)
+          expected={"EURJPY":538,"USDCHF":518,"NZDUSD":550,"CADJPY":516,"USDCAD":535}[m]
+          if report["input_contexts"]!=expected or report["source_complete"]:
+              raise SystemExit("fake source completeness or c2 count")
+          dest=Path("evidence",m+"-h1-basic-swing-source-witness.json")
+          blob=json.dumps(report,sort_keys=True,separators=(",",":"),allow_nan=False)
+          dest.write_text(blob,encoding="utf-8")
+          print(json.dumps({
+              "market":m,
+              "cases":report["input_contexts"],
+              "source_h1_missing":report["missing_pre_c2_h1_context"],
+              "physical_bullish_basic_pivot":report["strict_3h1_bullish_basic_pivot_count"],
+              "physical_bearish_basic_pivot":report["strict_3h1_bearish_basic_pivot_count"],
+              "middle_outside_bar_both":report["outside_h1_middle_bar_both_pivots"],
+              "author_relevance_proven":report["source_complete"],
+              "profit_factor":report["profit_factor"],
+              "sha256":hashlib.sha256(blob.encode("utf-8")).hexdigest(),
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-a-h1-basic-swing-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          if-no-files-found: error
+          retention-days: 30

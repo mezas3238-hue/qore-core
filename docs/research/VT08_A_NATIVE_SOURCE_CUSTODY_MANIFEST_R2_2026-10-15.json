@@ -1,0 +1,108 @@
+{
+  "schema": "qore.vt08.a.m30m3.native_source_custody.r2.20261015",
+  "research_only": true,
+  "source_file_census_run": "https://github.com/mezas3238-hue/qore-core/actions/runs/38709570234",
+  "source_code_commit": "a63fc1618e4cd8c3a3358aa8cd43a93e4fb06b23",
+  "policy": "VERIFY_ALL_NY_01_05_09_M30_FROM_10_M3_AND_2_M15; 24_TIME_STRATIFIED_RECEIPTS_PER_MARKET_NO_PNL",
+  "owner_anchor_observed": 11650,
+  "owner_anchor_complete": 11639,
+  "owner_anchor_incomplete": 11,
+  "complete_window_ohlc_mismatch": 0,
+  "author_fidelity_certified": false,
+  "cognitive_certified": false,
+  "economic_gates_evaluated": false,
+  "broker_bidask_authenticated": false,
+  "sealed_7y_accessed": false,
+  "sizing_used": false,
+  "markets": {
+    "EURJPY": {
+      "observed": 2330,
+      "complete": 2328,
+      "incomplete": 2,
+      "mismatch": 0,
+      "m3_sha256": "5d04a7606c3a91067b43425c215ae8df68aa4f3e59c2f7c54061d021a213d355",
+      "m15_sha256": "565c1f93f31ee100f07ec4aa5b058c4a2b6f1600bc7980989720589c198d5047"
+    },
+    "USDCHF": {
+      "observed": 2330,
+      "complete": 2328,
+      "incomplete": 2,
+      "mismatch": 0,
+      "m3_sha256": "b10a2393a0d4ac6cd8abc456d207e9a9e14bf4d218c83a08fe800c8d608ce7f9",
+      "m15_sha256": "1b8541c1dc8358200a1a0d77d6a6f3df97c86b9a2b3400e7425a59c6bb12f464"
+    },
+    "NZDUSD": {
+      "observed": 2330,
+      "complete": 2327,
+      "incomplete": 3,
+      "mismatch": 0,
+      "m3_sha256": "9692d8aa690d413b91a7603d7521261e6217c6b92c55647d25993e14f21e99c0",
+      "m15_sha256": "77a9c599f6f22c7353ded3a76ce18ced2bd2e3e5c8badfac6dfa4c3b228a99cb"
+    },
+    "CADJPY": {
+      "observed": 2330,
+      "complete": 2328,
+      "incomplete": 2,
+      "mismatch": 0,
+      "m3_sha256": "9ae504602cf342667e5e64be58365e4aa0b22c47b6ffba553e90d0167a7ac8cf",
+      "m15_sha256": "e598cab241aa183cd9661d6939978322b1f8a9959a82c6bb409d5e2c374d44f4"
+    },
+    "USDCAD": {
+      "observed": 2330,
+      "complete": 2328,
+      "incomplete": 2,
+      "mismatch": 0,
+      "m3_sha256": "7e934a106a4788e87ee05a1f04128ec1d9c8d34c308cb9c3e60758ec55e348e8",
+      "m15_sha256": "6a47a292f4eb3c7b35c5510602d37763edbf90b122e276a298379b2b4e53ea93"
+    }
+  },
+  "incomplete_anchor_groups_utc": [
+    {
+      "anchor": "2024-01-05T14:00:00+00:00",
+      "markets": [
+        "EURJPY",
+        "USDCHF",
+        "NZDUSD",
+        "CADJPY",
+        "USDCAD"
+      ],
+      "missing_or_unclosed_m3": [
+        "2024-01-05T14:09:00+00:00",
+        "2024-01-05T14:12:00+00:00"
+      ],
+      "missing_or_unclosed_m15": []
+    },
+    {
+      "anchor": "2024-03-29T13:00:00+00:00",
+      "markets": [
+        "NZDUSD"
+      ],
+      "missing_or_unclosed_m3": [
+        "2024-03-29T13:06:00+00:00"
+      ],
+      "missing_or_unclosed_m15": []
+    },
+    {
+      "anchor": "2026-06-15T09:00:00+00:00",
+      "markets": [
+        "EURJPY",
+        "USDCHF",
+        "NZDUSD",
+        "CADJPY",
+        "USDCAD"
+      ],
+      "missing_or_unclosed_m3": [
+        "2026-06-15T09:15:00+00:00",
+        "2026-06-15T09:18:00+00:00",
+        "2026-06-15T09:21:00+00:00",
+        "2026-06-15T09:24:00+00:00",
+        "2026-06-15T09:27:00+00:00"
+      ],
+      "missing_or_unclosed_m15": [
+        "2026-06-15T09:15:00+00:00"
+      ]
+    }
+  ],
+  "gate": "SOURCE_DATA_INTEGRITY_ONLY_NOT_CERTIFICATION",
+  "approved_a_b_manifest_sha256": null
+}

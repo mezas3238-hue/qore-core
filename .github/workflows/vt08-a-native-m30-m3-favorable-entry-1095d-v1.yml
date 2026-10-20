@@ -1,0 +1,88 @@
+name: VT08 A Native M30 M3 Favorable Entry 1095D V1
+
+on:
+  push:
+    branches:
+      - agent/vt08-5m-methodology-source-20261010
+    paths:
+      - .github/workflows/vt08-a-native-m30-m3-favorable-entry-1095d-v1.yml
+      - src/qore/infrastructure/trader_lab/vt08_5m_a_native_m30_m3_favorable_entry_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_5m_a_native_m30_m3_favorable_entry_v1.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  m30-m3:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Ruff and M30 M3 causal favorable execution tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_5m_a_native_m30_m3_favorable_entry_v1.py tests/infrastructure/trader_lab/test_vt08_5m_a_native_m30_m3_favorable_entry_v1.py
+          python -m compileall -q src/qore/infrastructure/trader_lab/vt08_5m_a_native_m30_m3_favorable_entry_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_5m_a_native_m30_m3_favorable_entry_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.symbol }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: base/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.symbol }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: native-m3/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Verified native M30 from M3 versus M15 and favorable M3 retest census
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_5m_a_native_m30_m3_favorable_entry_v1 import evaluate
+          market=os.environ["SYMBOL"]
+          m3_files=list(Path(f"native-m3/{market}").rglob("m3-evidence.json"))
+          if len(m3_files)!=1:
+              raise SystemExit("one real native cTrader M3 historical file per FX required")
+          data=evaluate(
+              Path(f"base/{market}/market-evidence-1095d.json"), m3_files[0],
+          )
+          Path(f"artifacts/{market}-M30M3-full.json").write_text(
+              json.dumps(data,sort_keys=True,separators=(",",":")),encoding="utf-8"
+          )
+          summary={k:data[k] for k in (
+              "schema","market","base_source_fingerprint","base_software_sha",
+              "m3_native_source_run","m15_base_source_run","counts",
+              "unique_ny_days_per_stage","per_year_counts",
+              "daily_retest_selection","cross_family_day_overlap",
+              "m30_m3_author_timeframe_pair_source_verified",
+              "m30_m3_setup_poi_source_adjudicated","gross_rr_only_no_bid_ask",
+              "zero_execution_or_pnl","broker_orders","fills",
+              "pnl_evaluated","cognitive_ready","sealed_7y_accessed",
+          )}
+          Path(f"artifacts/{market}-M30M3-summary.json").write_text(
+              json.dumps(summary,sort_keys=True,indent=2),encoding="utf-8"
+          )
+          print(json.dumps(summary,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-a-native-m30-m3-favorable-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 30

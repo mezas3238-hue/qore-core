@@ -1,0 +1,21 @@
+# VT08 A — RECTIFICACIÓN AUDITOR Y PRE-REGISTRO: AUTORIDAD STOP M30/M3, EQ SWING, POI
+
+**Fecha 2026-10-11.** Trabajo GitHub-only sobre PR #765 (A metodología), comunicación issue #762 / B #763. Pre-registrado **antes** de cualquier nueva medición. Artefactos nativos M3+M15 1095d existentes, sellado 7Y/VPS intactos.
+
+## Discrepancia probada en documento original, NO en video supuesto
+
+TTrades, [Timeframe Alignment: How to Align Higher and Lower Time Frames for Precision Entries](https://ttrades.com/timeframe-alignment-how-to-align-higher-and-lower-time-frames-for-precision-entries/), 30-jul-2025, sección **Example 1 – 30M to 3M Intraday Reversal**: *"3 minute CISD forms and a continuation sets up. Can take a positional entry at the open with my stop below the EQ of the 30 minute candle as well as below the breaker low"*. **A-AUTHOR-WRITTEN** para el **ejemplo bullish específico**; STOP PS-only del prototipo = **C-QORE** y NO réplica de ese ejemplo. El auditor marca D equivocadamente por no encontrar cita; proporcionar sección y enlace, no autoridad inventada para bearish ni generalización universal.
+
+TTrades [Trading Breaker Blocks for Continuations](https://ttrades.com/trading-breaker-blocks-for-continuations/) 03-ago-2025: **bullish breaker** se describe low→high→lower low→higher high. Geometría explícita A, pero selección de *breaker low* entre más de una secuencia, vela de confirmación y timming de price of breaker **D** sin atribución exacta a ejemplo. TTrades [Stop Loss Mastery](https://ttrades.com/stop-loss-mastery-using-protected-swings-for-precise-invalidations/) 07-ago-2025: PS stop high/low fuente A general, elección body vs wick tradeoff; **coexiste** con ejemplo específico stop EQ+breaker. No fusionar por max/min arbitrario.
+
+TTrades [POI priority](https://ttrades.com/the-only-points-of-interest-that-actually-matter-for-trading/) 18-jul-2026 **A escrito** para continuations: desde PS hacia rango actual, FVG primero, high/low después, retest CISD último. 'First POI encountered' dentro clase requiere criterio exacto. [Using EQ in Continuations](https://ttrades.com/using-equilibrium-in-continuations/) 02-ago-2025 menciona FVG, OB, protected H/L para continuaciones y confirma con reacción y CISD. OB categoría A, *selector exacto frente a jerarquía 3 POI* **D** (no inventar FVG obligatorio ni excluir OB).
+
+TTrades [Internal & External Liquidity](https://ttrades.com/internal-external-liquidity-using-the-ttrades-fractal-model/) 22-ago-2026: pivote externo = triple vela central estricta, solo confirmado cuando derecha CIERRA. **Este swing externo A geométrico NO demuestra swing de referencia C2 EQ**. [C2 EQ 10-oct-2026](https://ttrades.com/how-to-use-equilibrium-eq-ttrades-fractal-model/) exige swing válido y closure; su identidad respecto a C2 antes de C2.OPEN y orientación siguen **D**. No promover `(close+wick)/2` automáticamente.
+
+## Formalización verificable y resultados que NO debemos atribuir a la autoridad
+
+- Publicar `author_stop_requirements_m30m3_v1`, un contrato SOLO DE OBSERVACIÓN con status y fuentes verificadas; compara stop **estrictamente debajo** EQ/ breaker-low solo cuando ambas evidencias pre-decision autenticadas; sin conocimiento de breaker o EQ válidos => STOP_NOT_ADJUDICATED, no order ni señal.
+- Validar precondición de referencia (pivote confirmado antes de C2.open), pero si existe pre-C2 external pivot de H1 **NO** concluir EQ-C2-regime. Publicar reason code.
+- Detectar doble sweep M30 y H4 y marcar D (105 viejas geometrías H4 intocadas); sin selector por último CISD. Nunca sumar 600+1814 POI sensors; source-specific contexts no setups autorizados.
+- Publicar matriz de decisiones para todas las familias; diferenciar lista de POI escrita A de selección de POI significativo D. Confirmaciones CISD/PS fuente M3 closed dentro M30 C2 y no timestamp futuro. Demostrar contratest adversarial: breaker ausente, breaker futuro, stop=EQ o stop=breaker, stop debajo ambos, pivote confirmado después C2.open, solo PS, rollback, 2×sweep y POI ambiguity.
+- Los nuevos datos, si se regeneran, son únicamente `geometry_context_count`, con `candidate_events=0`, `cognitive_ready=0`, `fills=0`, `PF/DD=NA` **hasta que POI/eq-reference/breaker author complete** y se reconcilien físicamente BID/ASK y comisiones.
