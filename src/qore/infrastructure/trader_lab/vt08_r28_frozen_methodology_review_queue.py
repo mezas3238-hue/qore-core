@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from qore.infrastructure.trader_lab.vt08_b_r19_blind_dual_rater_poi_queue_v1 import (
     MARKET_EXPECTED,
+    SCHEMA as R19_SCHEMA,
+    SEED as R19_SEED,
     digest,
 )
 from qore.infrastructure.trader_lab.vt08_b_r23_signed_semantic_review_contract_v1 import (
@@ -19,13 +21,19 @@ def build_methodology_queue(blind: dict, *, market: str) -> dict:
         raise ValueError("R28 unauthorized market")
     expected_count, expected_r18 = MARKET_EXPECTED[market]
     if (
-        blind.get("market") != market
+        blind.get("schema") != R19_SCHEMA
+        or blind.get("seed") != R19_SEED
+        or blind.get("market") != market
         or digest(blind) != PINNED_R19_REPORT_DIGESTS[market]
         or blind.get("original_r18_sha256") != expected_r18
         or blind.get("original_r18_cases") != expected_count
         or blind.get("rater_A_signed") != 0
         or blind.get("rater_B_signed") != 0
         or blind.get("source_complete_entries") != 0
+        or blind.get("cognitive_admissions") != 0
+        or blind.get("broker_fills") != 0
+        or blind.get("holdout_7y_accessed") is not False
+        or blind.get("sizing_used") is not False
     ):
         raise ValueError("R28 R19 source review integrity drift")
     cases = blind.get("review_packets")
@@ -35,10 +43,20 @@ def build_methodology_queue(blind: dict, *, market: str) -> dict:
     seen = set()
     categories = {}
     for case in cases:
-        cid = case["case_id_sha256"]
-        if cid in seen or case["market"] != market:
+        if not isinstance(case, dict):
+            raise ValueError("R28 malformed source case")
+        cid = case.get("case_id_sha256")
+        if (not isinstance(cid, str) or len(cid) != 64
+                or any(c not in "0123456789abcdef" for c in cid)
+                or cid in seen or case.get("market") != market):
             raise ValueError("R28 duplicate or cross-market R19 case")
         seen.add(cid)
+        if (case.get("source_complete") is not False
+                or case.get("cognitive_ready") is not False
+                or case.get("orders_authorized") is not False
+                or case.get("human_rater_A_source_signoff") is not None
+                or case.get("human_rater_B_independent_signoff") is not None):
+            raise ValueError("R28 false original reviewer authority")
         category = case["category"]
         categories[category] = categories.get(category, 0) + 1
         packet = {
