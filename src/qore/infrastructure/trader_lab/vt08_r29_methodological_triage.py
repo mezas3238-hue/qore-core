@@ -7,6 +7,10 @@ from __future__ import annotations
 
 from collections import Counter
 
+from qore.infrastructure.trader_lab.vt08_b_r23_signed_semantic_review_contract_v1 import (
+    PINNED_R19_REPORT_DIGESTS,
+)
+
 QUESTIONS = (
     "reference_swing",
     "significant_poi",
@@ -19,6 +23,11 @@ def audit_review_readiness(r28: dict) -> dict:
         "qore.vt08.r28.frozen_r19_methodology_queue.v1"
     ):
         raise ValueError("R29 requires an original R28 methodological queue")
+    market = r28.get("market")
+    if market not in PINNED_R19_REPORT_DIGESTS or (
+        r28.get("original_r19_sha256") != PINNED_R19_REPORT_DIGESTS[market]
+    ):
+        raise ValueError("R29 unpinned R19 source lineage")
     cases = r28.get("methodology_cases")
     if not isinstance(cases, list) or len(cases) != r28.get("source_sample_count"):
         raise ValueError("R29 incomplete R28 denominator")
