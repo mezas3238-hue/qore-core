@@ -1,0 +1,95 @@
+name: VT08 B R7 Independent 88k Physical Catalog Audit
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_a_catalog_independent_verifier_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_a_catalog_independent_verifier_v1.py
+      - .github/workflows/vt08-b-r7-independent-market-catalog-replay.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  physical-source-catalog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: B standalone catalog audit static checks and synthetic attacks
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_a_catalog_independent_verifier_v1.py tests/infrastructure/trader_lab/test_vt08_b_a_catalog_independent_verifier_v1.py
+          mypy src/qore/infrastructure/trader_lab/vt08_b_a_catalog_independent_verifier_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_a_catalog_independent_verifier_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-b-market-catalog-${{ matrix.market }}-f61b5e7a931e2c057a0660f4702f11d55ebc58af
+          path: a-r4/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38740699499
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-frozen-m30m3-firstfail-${{ matrix.market }}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4
+          path: a-r3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38715560333
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.market }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: native-m15/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.market }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: native-m3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Re-hash ALL A-catalog physical bars independently against native M3 and M15
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_a_catalog_independent_verifier_v1 import (
+              verify_native_catalog, manifest_sha256
+          )
+          market = os.environ["MARKET"]
+          catalog_file = Path("a-r4", market, market+"-A-to-B-canonical-source-catalog.json")
+          r3_file = Path("a-r3", market, market+"-frozen-source-firstfail.json")
+          m15_file = Path("native-m15", market, "market-evidence-1095d.json")
+          m3_files = list(Path("native-m3", market).rglob("m3-evidence.json"))
+          if not catalog_file.is_file() or not r3_file.is_file() or not m15_file.is_file() or len(m3_files) != 1:
+              raise SystemExit("VT08 B requires four pinned original artifact sources")
+          catalog = json.loads(catalog_file.read_text(encoding="utf-8"))
+          r3 = json.loads(r3_file.read_text(encoding="utf-8"))
+          result = verify_native_catalog(
+              catalog, r3, m3_file=m3_files[0], m15_file=m15_file,
+          )
+          result["a_catalog_json_sha256"] = manifest_sha256(catalog)
+          result["a_r3_json_sha256"] = manifest_sha256(r3)
+          result["pinned_a_catalog_run_id"] = 38740699499
+          result["pinned_a_catalog_commit"] = "f61b5e7a931e2c057a0660f4702f11d55ebc58af"
+          dest = Path("evidence", market+"-B-R7-independently-verified.json")
+          dest.write_text(json.dumps(result, sort_keys=True, separators=(",",":")), encoding="utf-8")
+          print(json.dumps(result, sort_keys=True))
+          if result["author_semantics_certified"] or result["economic_gates_evaluated"]:
+              raise SystemExit("VT08 false promotion: raw market custody is not TTrades edge")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r7-independent-physical-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          retention-days: 30
+          if-no-files-found: error

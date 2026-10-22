@@ -1,0 +1,27 @@
+name: VT08 B R26 Second Run Diagnostic Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/vt08-5m-cognition-replay-20261010]
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r26_second_run_diagnostic.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r26_second_run_diagnostic.py
+      - .github/workflows/vt08-b-r26-second-run-tests.yml
+
+permissions:
+  contents: read
+
+jobs:
+  r26-unit-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r26_second_run_diagnostic.py tests/infrastructure/trader_lab/test_vt08_b_r26_second_run_diagnostic.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r26_second_run_diagnostic.py

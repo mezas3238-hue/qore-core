@@ -101,7 +101,8 @@ def cibo_market_memory_payload() -> dict[str, object]:
 
 
 def cibo_market_memory_runtime_view() -> dict[str, object]:
-    return _payload_cached()
+    """Return isolated context; consumers cannot poison frozen cached memory."""
+    return deepcopy(_payload_cached())
 
 
 @lru_cache(maxsize=1)

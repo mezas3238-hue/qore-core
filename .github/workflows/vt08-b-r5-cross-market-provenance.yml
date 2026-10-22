@@ -1,0 +1,26 @@
+name: VT08 B R5 Cross-Market Provenance
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_situation_field_source_audit_v1.py
+      - src/qore/infrastructure/trader_lab/vt08_cognitive_5m_consumed_gate_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_cross_market_raw_custody_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_situation_field_source_audit_v1.py
+      - .github/workflows/vt08-b-r5-cross-market-provenance.yml
+permissions:
+  contents: read
+jobs:
+  cross-market:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check src/qore/infrastructure/trader_lab/vt08_b_situation_field_source_audit_v1.py tests/infrastructure/trader_lab/test_vt08_b_situation_field_source_audit_v1.py tests/infrastructure/trader_lab/test_vt08_b_cross_market_raw_custody_v1.py
+      - run: mypy src/qore/infrastructure/trader_lab/vt08_b_situation_field_source_audit_v1.py
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_b_situation_field_source_audit_v1.py tests/infrastructure/trader_lab/test_vt08_b_cross_market_raw_custody_v1.py

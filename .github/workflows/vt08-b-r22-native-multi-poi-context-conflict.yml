@@ -1,0 +1,102 @@
+name: VT08 B R22 Native Competing POI Context
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r22_multi_poi_contradiction_join_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r22_multi_poi_contradiction_join_v1.py
+      - .github/workflows/vt08-b-r22-native-multi-poi-context-conflict.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  r22-reviewer-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Source-first three-branch join adversarial tests
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r22_multi_poi_contradiction_join_v1.py tests/infrastructure/trader_lab/test_vt08_b_r22_multi_poi_contradiction_join_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r22_multi_poi_contradiction_join_v1.py
+
+  r22-five-native-markets:
+    needs: r22-reviewer-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-b-r18-pre-cisd-poi-${{ matrix.market }}-9349cc84ee245c68291db60b4613411453061c94
+          path: r18/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38902918264
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-b-r19-blind-poi-${{ matrix.market }}-e999e127be84a1ebb9d3e8b1d13e110cfa2cb51a
+          path: r19/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38903529731
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-b-r21-intraday-context-${{ matrix.market }}-8c24c425810cb960f7a3384809a1a50a2eeb6516
+          path: r21/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38903207496
+      - name: Join all source context, retain full case universe, and enrich 107 sample packets
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r22_multi_poi_contradiction_join_v1 import join_competing_poi_contexts
+          m=os.environ["MARKET"]
+          a=list(Path("r18",m).rglob(m+"-VT08-B-R18-preCISD-H1-POI-source.json"))
+          b=list(Path("r19",m).rglob(m+"-VT08-R19-blind-POI-review-packet.json"))
+          c=list(Path("r21",m).rglob(m+"-r21-day-low-source-context.json"))
+          if len(a)!=1 or len(b)!=1 or len(c)!=1:
+              raise SystemExit("R22 requires exactly one immutable R18 R19 R21 artifact for market")
+          r18=json.loads(a[0].read_text(encoding="utf-8"))
+          r19=json.loads(b[0].read_text(encoding="utf-8"))
+          r21=json.loads(c[0].read_text(encoding="utf-8"))
+          out=join_competing_poi_contexts(r18,r19,r21,market=m)
+          required={"EURJPY":(538,21),"USDCHF":(518,21),"NZDUSD":(550,21),"CADJPY":(516,21),"USDCAD":(535,23)}
+          total, reviewed=required[m]
+          if out["all_original_case_count"]!=total or out["r19_blind_packets_enriched"]!=reviewed:
+              raise SystemExit("R22 original denominator/stratified review queue drift")
+          if sum(out["crossed_fvg_vs_ny_day_low_counts"].values())!=total:
+              raise SystemExit("R22 source class coverage changed")
+          if (out["source_author_complete"] or out["cognitive_admissions"] or
+              out["broker_fills"] or out["economic_gates_evaluated"] or
+              out["dual_source_human_reviews_completed"]):
+              raise SystemExit("R22 refuses fabricated author/cognitive trade authority")
+          path=Path("evidence",m+"-R22-competing-source-POI-and-blind-review.json")
+          path.write_text(json.dumps(out,sort_keys=True,separators=(",",":"),allow_nan=False))
+          print(json.dumps({k:v for k,v in out.items() if k not in ("entire_original_census","blind_rater_dossiers")},sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r22-competing-poi-context-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          retention-days: 30
+          if-no-files-found: error

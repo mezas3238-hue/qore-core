@@ -1,0 +1,80 @@
+name: VT08 B R11 Independent M3 CISD vs HTF Closure Chronology
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-5m-cognition-replay-20261010
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r11_cisd_after_htf_close_chronology_v1.py
+      - tests/infrastructure/trader_lab/test_vt08_b_r11_cisd_after_htf_close_chronology_v1.py
+      - .github/workflows/vt08-b-r11-independent-m3-cisd-htf-closure-chronology.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  b-r11-m3-source-asof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Ruff and adversarial causal-timing regression
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt08_b_r11_cisd_after_htf_close_chronology_v1.py tests/infrastructure/trader_lab/test_vt08_b_r11_cisd_after_htf_close_chronology_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_b_r11_cisd_after_htf_close_chronology_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-frozen-m30m3-firstfail-${{ matrix.market }}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4
+          path: frozen-r3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38715560333
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.market }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: original-m3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Independent native M3 confirm-time vs closed HTF candle identity
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r11_cisd_after_htf_close_chronology_v1 import (
+              audit_cisd_htf_sequence,
+          )
+          m=os.environ["MARKET"]
+          frozen=list(Path("frozen-r3",m).rglob(m+"-frozen-source-firstfail.json"))
+          natives=list(Path("original-m3",m).rglob("m3-evidence.json"))
+          if len(frozen)!=1 or len(natives)!=1:
+              raise SystemExit("R11 missing full frozen R3 or original cTrader M3")
+          data=json.loads(frozen[0].read_text(encoding="utf-8"))
+          result=audit_cisd_htf_sequence(data,expected_market=m,native_m3_file=natives[0])
+          expected={"EURJPY":538,"USDCHF":518,"NZDUSD":550,"CADJPY":516,"USDCAD":535}
+          if result["r3_unique_m3_proxy_source_cases"]!=expected[m]:
+              raise SystemExit("R11 original source positives changed")
+          if (result["source_author_complete_entries"] or
+              result["cognitive_admissions"] or result["broker_fills"]):
+              raise SystemExit("R11 tried to certify PS or cognition via physical timing")
+          dest=Path("evidence",m+"-B-R11-CISD-HTF-chronology.json")
+          dest.write_text(json.dumps(result,sort_keys=True,separators=(",",":"),allow_nan=False))
+          print(json.dumps(result,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r11-cisd-htf-source-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          if-no-files-found: error
+          retention-days: 30

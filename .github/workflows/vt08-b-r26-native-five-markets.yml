@@ -1,0 +1,79 @@
+name: VT08 B R26 Native M3 Five Market Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/vt08-5m-cognition-replay-20261010]
+    paths:
+      - src/qore/infrastructure/trader_lab/vt08_b_r26_native_m3_audit.py
+      - .github/workflows/vt08-b-r26-native-five-markets.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  native-r26:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-a-frozen-m30m3-firstfail-${{ matrix.market }}-394116f13449fc310d7fbc5f0b5f60aa1bb247d4
+          path: r3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38715560333
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.market }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: native-m3/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - uses: actions/download-artifact@v4
+        with:
+          name: vt08-b-r19-blind-poi-${{ matrix.market }}-e999e127be84a1ebb9d3e8b1d13e110cfa2cb51a
+          path: r19/${{ matrix.market }}
+          github-token: ${{ github.token }}
+          run-id: 38903529731
+      - name: Source-only second run audit, no orders
+        env:
+          MARKET: ${{ matrix.market }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt08_b_r26_native_m3_audit import audit_r26
+          m=os.environ["MARKET"]
+          def only(path,pattern):
+              matches=list(Path(path,m).rglob(pattern))
+              if len(matches)!=1:
+                  raise SystemExit(f"R26 missing or ambiguous original {path}/{m}: {len(matches)}")
+              return matches[0]
+          frozen=json.loads(only("r3",m,m+"-frozen-source-firstfail.json").read_text())
+          blind=json.loads(only("r19",m,m+"-VT08-R19-blind-POI-review-packet.json").read_text())
+          report=audit_r26(frozen,blind,market=m,native_m3=only("native-m3",m,"m3-evidence.json"))
+          expected={"EURJPY":(538,21),"USDCHF":(518,21),"NZDUSD":(550,21),"CADJPY":(516,21),"USDCAD":(535,23)}
+          if (report["original_candidate_census"],report["original_r19_source_review_cases"])!=expected[m]:
+              raise SystemExit("R26 original sample denominator drift")
+          if report["source_complete_entries"] or report["cognitive_admissions"] or report["broker_fills"] or report["trade_authorized"]:
+              raise SystemExit("R26 forbidden authority")
+          out=Path("evidence",m+"-r26-second-run-source-only.json")
+          out.write_text(json.dumps(report,sort_keys=True,allow_nan=False))
+          print("R26",m,report["histogram"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt08-b-r26-second-run-${{ matrix.market }}-${{ github.sha }}
+          path: evidence/*.json
+          retention-days: 30
+          if-no-files-found: error
