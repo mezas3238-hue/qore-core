@@ -53,9 +53,17 @@ def audit_review_readiness(r28: dict) -> dict:
         if (not isinstance(gate, dict)
                 or gate.get("methodology_gate") != "BLOCKED"
                 or gate.get("trade_authorized") is not False
+                or gate.get("cognitive_gate") not in (None, "NOT_EVALUATED")
+                or gate.get("economic_gate") not in (None, "NOT_EVALUATED")
                 or case.get("review_state") !=
                 "WAIT_FOR_INDEPENDENT_METHOD_AUTHOR_ADJUDICATION"):
             raise ValueError("R29 unverified methodological authority")
+        reasons = gate.get("blocked_reasons")
+        if reasons is not None and (
+            not isinstance(reasons, list)
+            or "external_signature_verifier_not_connected" not in reasons
+        ):
+            raise ValueError("R29 source gate lacks independent signature block")
         questions = case.get("questions")
         if not isinstance(questions, dict) or set(questions) != set(QUESTIONS):
             raise ValueError("R29 missing source-first methodological questions")
