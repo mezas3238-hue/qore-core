@@ -61,3 +61,17 @@ def test_rejects_forged_source_lineage():
     data["original_r19_sha256"] = "0" * 64
     with pytest.raises(ValueError, match="unpinned R19 source lineage"):
         audit_review_readiness(data)
+
+
+def test_rejects_removed_signature_verifier_block():
+    data = sample()
+    data["methodology_cases"][0]["gate"]["blocked_reasons"] = []
+    with pytest.raises(ValueError, match="signature block"):
+        audit_review_readiness(data)
+
+
+def test_rejects_premature_cognitive_approval():
+    data = sample()
+    data["methodology_cases"][0]["gate"]["cognitive_gate"] = "PASS"
+    with pytest.raises(ValueError, match="unverified methodological authority"):
+        audit_review_readiness(data)
