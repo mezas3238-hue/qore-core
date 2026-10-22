@@ -3,6 +3,7 @@ import pytest
 
 from qore.infrastructure.trader_lab.vt08_r29_methodological_triage import (
     audit_review_readiness,
+    PINNED_R19_REPORT_DIGESTS,
 )
 
 
@@ -15,7 +16,7 @@ def sample():
         "source_complete_entries": 0,
         "cognitive_admissions": 0,
         "verdict": "VT08_METHOD_NOT_CERTIFIED",
-        "original_r19_sha256": "b" * 64,
+        "original_r19_sha256": PINNED_R19_REPORT_DIGESTS["EURJPY"],
         "methodology_cases": [{
             "case_id_sha256": cid, "market": "EURJPY",
             "gate": {"methodology_gate": "BLOCKED", "trade_authorized": False},
@@ -52,4 +53,11 @@ def test_rejects_duplicate_source_case():
     data["methodology_cases"].append(dict(data["methodology_cases"][0]))
     data["source_sample_count"] = 2
     with pytest.raises(ValueError, match="duplicate source identity"):
+        audit_review_readiness(data)
+
+
+def test_rejects_forged_source_lineage():
+    data = sample()
+    data["original_r19_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="unpinned R19 source lineage"):
         audit_review_readiness(data)
