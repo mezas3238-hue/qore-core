@@ -1,0 +1,685 @@
+{
+  "schema": "qore.alpha.v1.frozen_96.registry_20261011",
+  "frozen_manifest_sha256": "4332e07f4a8fbdf1125ecd004a70c4216b8ea1a60e954847eedfe3b362184891",
+  "variants": [
+    {
+      "variant_id": "QALPHA-V001",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "PS",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V002",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "PS",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V003",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "PS",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V004",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "PS",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V005",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "EQ_M30",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V006",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "EQ_M30",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V007",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "EQ_M30",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V008",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "EQ_M30",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V009",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "BREAKER",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V010",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "BREAKER",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V011",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "BREAKER",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V012",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "BREAKER",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V013",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "ATR_X1",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V014",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "ATR_X1",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V015",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "ATR_X1",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V016",
+      "entry": "POSITIONAL_C3",
+      "session": "ASIA",
+      "stop": "ATR_X1",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V017",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "PS",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V018",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "PS",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V019",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "PS",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V020",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "PS",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V021",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "EQ_M30",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V022",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "EQ_M30",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V023",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "EQ_M30",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V024",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "EQ_M30",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V025",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "BREAKER",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V026",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "BREAKER",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V027",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "BREAKER",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V028",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "BREAKER",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V029",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "ATR_X1",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V030",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "ATR_X1",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V031",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "ATR_X1",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V032",
+      "entry": "POSITIONAL_C3",
+      "session": "LONDON",
+      "stop": "ATR_X1",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V033",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "PS",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V034",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "PS",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V035",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "PS",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V036",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "PS",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V037",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "EQ_M30",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V038",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "EQ_M30",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V039",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "EQ_M30",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V040",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "EQ_M30",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V041",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "BREAKER",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V042",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "BREAKER",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V043",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "BREAKER",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V044",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "BREAKER",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V045",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "ATR_X1",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V046",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "ATR_X1",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V047",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "ATR_X1",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V048",
+      "entry": "POSITIONAL_C3",
+      "session": "NEW_YORK",
+      "stop": "ATR_X1",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V049",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "PS",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V050",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "PS",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V051",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "PS",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V052",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "PS",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V053",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "EQ_M30",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V054",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "EQ_M30",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V055",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "EQ_M30",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V056",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "EQ_M30",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V057",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "BREAKER",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V058",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "BREAKER",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V059",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "BREAKER",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V060",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "BREAKER",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V061",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "ATR_X1",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V062",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "ATR_X1",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V063",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "ATR_X1",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V064",
+      "entry": "CISD_RETEST",
+      "session": "ASIA",
+      "stop": "ATR_X1",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V065",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "PS",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V066",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "PS",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V067",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "PS",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V068",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "PS",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V069",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "EQ_M30",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V070",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "EQ_M30",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V071",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "EQ_M30",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V072",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "EQ_M30",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V073",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "BREAKER",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V074",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "BREAKER",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V075",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "BREAKER",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V076",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "BREAKER",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V077",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "ATR_X1",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V078",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "ATR_X1",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V079",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "ATR_X1",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V080",
+      "entry": "CISD_RETEST",
+      "session": "LONDON",
+      "stop": "ATR_X1",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V081",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "PS",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V082",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "PS",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V083",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "PS",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V084",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "PS",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V085",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "EQ_M30",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V086",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "EQ_M30",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V087",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "EQ_M30",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V088",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "EQ_M30",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V089",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "BREAKER",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V090",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "BREAKER",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V091",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "BREAKER",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V092",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "BREAKER",
+      "target": "EXTERNAL_LIQUIDITY"
+    },
+    {
+      "variant_id": "QALPHA-V093",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "ATR_X1",
+      "target": "R1"
+    },
+    {
+      "variant_id": "QALPHA-V094",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "ATR_X1",
+      "target": "R2"
+    },
+    {
+      "variant_id": "QALPHA-V095",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "ATR_X1",
+      "target": "R3"
+    },
+    {
+      "variant_id": "QALPHA-V096",
+      "entry": "CISD_RETEST",
+      "session": "NEW_YORK",
+      "stop": "ATR_X1",
+      "target": "EXTERNAL_LIQUIDITY"
+    }
+  ],
+  "all_96_are_research_only": true,
+  "source_author_fidelity_required": false,
+  "training_window_exclusive_end": "2024-07-01",
+  "start": "2022-01-01",
+  "validation_end_exclusive": "2025-07-01",
+  "internal_end_exclusive": "2026-07-01",
+  "holdout": "SEALED_NOT_ACCESSIBLE"
+}

@@ -1,0 +1,129 @@
+name: QORE alpha Frozen96 Manifest and Historical Coverage P0
+
+on:
+  push:
+    branches:
+      - research/qore-alpha-96-frozen-20261011
+    paths:
+      - .github/workflows/qore-alpha-frozen96-source-coverage-v1.yml
+      - src/qore/infrastructure/trader_lab/qore_alpha_v1_frozen_96_decision_contract.py
+      - tests/infrastructure/trader_lab/test_qore_alpha_v1_frozen_96_decision_contract.py
+      - docs/research/QORE_ALPHA_V1_FROZEN96_VARIANT_REGISTRY_2026-10-11.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  frozen-manifest-and-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Validate fixed 96 space and hard anti-peeking stop rules
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/qore_alpha_v1_frozen_96_decision_contract.py tests/infrastructure/trader_lab/test_qore_alpha_v1_frozen_96_decision_contract.py
+          pytest -q tests/infrastructure/trader_lab/test_qore_alpha_v1_frozen_96_decision_contract.py
+      - name: Materialize immutable 96 manifest WITHOUT reading any PnL
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.qore_alpha_v1_frozen_96_decision_contract import frozen_manifest
+          manifest=frozen_manifest()
+          assert len(manifest["variants"])==96
+          Path("artifacts/qore-alpha-frozen96-manifest.json").write_text(
+              json.dumps(manifest,sort_keys=True,indent=2),encoding="utf-8"
+          )
+          print(json.dumps({
+              "schema":manifest["schema"],
+              "variants":len(manifest["variants"]),
+              "manifest_sha256":manifest["sha256"],
+              "market_pnl_read":False,
+              "holdout_7y_accessed":False,
+              "stage":"MANIFEST_FROZEN_NOT_BACKTESTED",
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-alpha-frozen96-prereg-manifest-${{ github.sha }}
+          path: artifacts/*
+          retention-days: 90
+
+  historical-source-coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.symbol }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: base/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.symbol }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: native-m3/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Confirm raw M3/M15 time extent BEFORE looking at alpha PnL
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from qore.infrastructure.trader_lab.vt08_cognitive_m3_fractal_density_recovery_v1 import _load_m3
+          from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import load_market_evidence
+          from qore.infrastructure.trader_lab.qore_alpha_v1_frozen_96_decision_contract import validate_source_coverage
+          sym=os.environ["SYMBOL"]
+          files=list(Path(f"native-m3/{sym}").rglob("m3-evidence.json"))
+          if len(files)!=1:
+              raise SystemExit("Missing/duplicate native M3 cTrader original")
+          m3=_load_m3(files[0],expected_symbol=sym)
+          _,market,_,_,m15=load_market_evidence(
+              Path(f"base/{sym}/market-evidence-1095d.json")
+          )
+          if market!=sym or not m3 or not m15:
+              raise SystemExit("M15/M3 source mismatch or empty")
+          ny=ZoneInfo("America/New_York")
+          months=frozenset(b.opened_at.astimezone(ny).strftime("%Y-%m") for b in m3)
+          receipt=validate_source_coverage(
+              market=sym,
+              first_m3_open=m3[0].opened_at,
+              last_m3_close=m3[-1].closed_at,
+              months_with_m3=months,
+              first_m15_open=m15[0].opened_at,
+              last_m15_close=m15[-1].closed_at,
+          )
+          receipt["native_m3_candles"]=len(m3)
+          receipt["independent_m15_candles"]=len(m15)
+          receipt["candidate_backtests_run"]=0
+          receipt["pnl_looked_at"]=False
+          Path(f"artifacts/{sym}-source-coverage.json").write_text(
+              json.dumps(receipt,sort_keys=True,indent=2),encoding="utf-8"
+          )
+          print(json.dumps(receipt,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-alpha-frozen96-native-coverage-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/*
+          retention-days: 90
