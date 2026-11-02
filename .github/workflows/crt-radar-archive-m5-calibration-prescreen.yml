@@ -1,0 +1,72 @@
+name: CRT RADAR — archived M5 calibration prescreen (EURCHF + SP500 only)
+
+on:
+  push:
+    branches:
+      - agent/crt-radar-trader-lab-34-preflight-20261101
+    paths:
+      - scripts/crt_radar_archived_m5_prescreen.py
+      - .github/workflows/crt-radar-archive-m5-calibration-prescreen.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  calibration-source-quality:
+    name: "M5 source calibration ${{ matrix.symbol }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - symbol: EURCHF
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            source_artifact: qore-native-icmarkets-10Y-provider-M5-EURCHF-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: SP500
+            family: index
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            source_artifact: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+    steps:
+      - name: Checkout isolated research branch
+        uses: actions/checkout@v4
+      - name: Configure Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download original artifact temporarily inside SAME QORE Core GitHub Actions
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.source_artifact }}
+          path: ${{ runner.temp }}/crt-source-readonly
+          repository: ${{ github.repository }}
+          run-id: ${{ matrix.run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify original 2026 partition sha256 and compute in-sample structural prescreen
+        shell: bash
+        env:
+          SOURCE_SYMBOL: ${{ matrix.symbol }}
+          SOURCE_FAMILY: ${{ matrix.family }}
+          SOURCE_COHORT: ${{ matrix.cohort }}
+          SOURCE_ROOT: ${{ runner.temp }}/crt-source-readonly
+        run: |
+          set -euo pipefail
+          python scripts/crt_radar_archived_m5_prescreen.py \
+            --root "$SOURCE_ROOT" \
+            --symbol "$SOURCE_SYMBOL" \
+            --family "$SOURCE_FAMILY" \
+            --cohort "$SOURCE_COHORT"
+          echo 'CRTDATA_MODE=CALIBRATION_ONLY' >> "$GITHUB_STEP_SUMMARY"
+          echo 'OOS_HOLDOUT=NOT_STARTED' >> "$GITHUB_STEP_SUMMARY"
+          echo 'OHLC_RAW=EPHEMERAL_NOT_PUBLISHED' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FULL_34_CERTIFICATION=NO' >> "$GITHUB_STEP_SUMMARY"
+      - name: Cleanup temporary source files before runner exit
+        if: always()
+        shell: bash
+        run: rm -rf "${{ runner.temp }}/crt-source-readonly"
