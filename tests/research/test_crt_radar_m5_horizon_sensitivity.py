@@ -2,12 +2,25 @@
 
 Synthetic bars only; never evidence of actual financial market skill.
 """
+from __future__ import annotations
+
+import importlib
+import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
-from scripts.crt_radar_archived_m5_prescreen import M5
-from scripts.crt_radar_m5_horizon_sensitivity import measure
+if TYPE_CHECKING:
+    from scripts.crt_radar_archived_m5_prescreen import M5
+    from scripts.crt_radar_m5_horizon_sensitivity import measure
+else:
+    # Existing QORE CI launches pytest as a console script, where the
+    # non-packaged research scripts directory is not an import root.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    M5 = importlib.import_module("scripts.crt_radar_archived_m5_prescreen").M5
+    measure = importlib.import_module("scripts.crt_radar_m5_horizon_sensitivity").measure
 
 START = datetime(2026, 10, 26, 5, tzinfo=UTC)
 M5_DELTA = timedelta(minutes=5)
