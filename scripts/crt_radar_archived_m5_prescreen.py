@@ -51,8 +51,11 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def native_to_bar(row: dict[str, object], symbol: str, provider_id: int) -> M5:
-    if row.get("canonical_symbol") != symbol or row.get("provider_symbol") != symbol:
+def native_to_bar(
+    row: dict[str, object], symbol: str, provider_symbol: str, provider_id: int
+) -> M5:
+    if (row.get("canonical_symbol") != symbol or
+        row.get("provider_symbol") != provider_symbol):
         raise ValueError("SYMBOL_PROVENANCE_MISMATCH")
     if type(row.get("provider_symbol_id")) is not int or row["provider_symbol_id"] != provider_id:
         raise ValueError("PROVIDER_ID_MISMATCH")
@@ -142,8 +145,16 @@ def inspect(source_root: Path, symbol: str, family: str, cohort: str) -> dict[st
     ):
         raise ValueError("UNSUPPORTED_SOURCE_FAMILY_OR_COHORT")
     raw_path, manifest = _verify_2026_partition(source_root)
-    if manifest.get("canonical_symbol") != symbol or manifest.get("provider_symbol") != symbol:
-        raise ValueError("MANIFEST_SYMBOL_DOES_NOT_MATCH_JOB")
+    # Atlas's historical canonical aliases are source evidence, NOT proof
+    # that the TradingView/IC/OANDA index CFDs have identical prices.
+    atlas_map = {"SP500": "US500", "NAS100": "USTEC"}
+    native_symbol = (
+        atlas_map.get(symbol, symbol)
+        if cohort == "ATLAS_DEMO_BROKER_UNVERIFIED" else symbol
+    )
+    if (manifest.get("canonical_symbol") != symbol or
+        manifest.get("provider_symbol") != native_symbol):
+        raise ValueError("MANIFEST_SYMBOL_OR_PROVIDER_ALIAS_MISMATCH")
     provider_id = manifest.get("provider_symbol_id")
     if type(provider_id) is not int or provider_id <= 0:
         raise ValueError("UNVERIFIED_PROVIDER_SYMBOL_ID")
@@ -199,7 +210,7 @@ def inspect(source_root: Path, symbol: str, family: str, cohort: str) -> dict[st
             if not line.strip():
                 continue
             row = json.loads(line)
-            b = native_to_bar(row, symbol, provider_id)
+            b = native_to_bar(row, symbol, native_symbol, provider_id)
             total += 1
             if last_time is not None and b.opened_at <= last_time:
                 raise ValueError("SOURCE_M5_NONMONOTONIC_OR_DUPLICATE")
@@ -220,6 +231,10 @@ def inspect(source_root: Path, symbol: str, family: str, cohort: str) -> dict[st
     return {
         "symbol": symbol,
         "cohort": cohort,
+        "historical_alias": (
+            f"{symbol}->{native_symbol}" if native_symbol != symbol else "EXACT"
+        ),
+        "provider_to_tradingview_parity_verified": False,
         "mode": "PREVIOUSLY_CONSUMED_CALIBRATION_ONLY",
         "original_partition_sha256": "VERIFIED",
         "original_m5_rows_examined": total,
