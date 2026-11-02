@@ -188,6 +188,15 @@ def inspect(source_root: Path, symbol: str, family: str, cohort: str) -> dict[st
             return
         if h4.c1_allowed:
             eligible_c1 += 1
+        # First resolve the C3 follow-up from the PREVIOUS 2C cycle.
+        # The same H4 may independently be C2 of a NEW C1, so never
+        # mask a valid follow-up due to precedence of a newer cycle.
+        if prev_candidate is not None:
+            c2, direction = prev_candidate
+            if (c2.closed_at == h4.opened_at and
+                (h4.close >= c2.low if direction == 1 else h4.close <= c2.high)):
+                structural_3c += 1
+        prev_candidate = None
         if valid_h4 is not None and h4.opened_at == valid_h4.closed_at:
             high_sweep = h4.high > valid_h4.high
             low_sweep = h4.low < valid_h4.low
@@ -195,14 +204,6 @@ def inspect(source_root: Path, symbol: str, family: str, cohort: str) -> dict[st
                 valid_h4.low <= h4.close <= valid_h4.high):
                 structural_2c += 1
                 prev_candidate = (h4, 1 if low_sweep else -1)
-            elif prev_candidate is not None:
-                c2, direction = prev_candidate
-                if (c2.closed_at == h4.opened_at and
-                    (h4.close >= c2.low if direction == 1 else h4.close <= c2.high)):
-                    structural_3c += 1
-                prev_candidate = None
-        else:
-            prev_candidate = None
         valid_h4 = h4
 
     with raw_path.open("r", encoding="utf-8") as handle:
@@ -239,7 +240,7 @@ def inspect(source_root: Path, symbol: str, family: str, cohort: str) -> dict[st
         "original_partition_sha256": "VERIFIED",
         "original_m5_rows_examined": total,
         "calibration_m5_rows": accepted,
-        "calibration_h4_complete": eligible_c1,
+        "eligible_closed_c1_h4": eligible_c1,
         "rejected_h4_blocks": partial_h4,
         "internal_m5_blocks": internal_m5,
         "crt2c_structural_occurrences": structural_2c,
