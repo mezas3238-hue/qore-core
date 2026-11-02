@@ -13,6 +13,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 from zoneinfo import ZoneInfo
 
 NY = ZoneInfo("America/New_York")
@@ -63,22 +64,22 @@ def native_to_bar(
             "delta_close", "open_relative", "high_relative", "close_relative")
     if any(type(row.get(key)) is not int for key in keys):
         raise ValueError("INVALID_NATIVE_INTEGER_FIELDS")
-    minute = int(row["utc_timestamp_in_minutes"])
+    minute = cast(int, row["utc_timestamp_in_minutes"])
     if minute % 5 != 0 or minute <= 0:
         raise ValueError("M5_TIMESTAMP_UNALIGNED")
     instant = datetime.fromtimestamp(minute * 60, UTC)
     opened = datetime.fromisoformat(str(row.get("opened_at", ""))).astimezone(UTC)
     if opened != instant:
         raise ValueError("M5_ISO_TIMESTAMP_MISMATCH")
-    low = int(row["low_relative"])
-    op = int(row["open_relative"])
-    high = int(row["high_relative"])
-    close = int(row["close_relative"])
-    if (low <= 0 or min(int(row["delta_open"]), int(row["delta_high"]),
-         int(row["delta_close"])) < 0 or
-        op != low + int(row["delta_open"]) or
-        high != low + int(row["delta_high"]) or
-        close != low + int(row["delta_close"]) or
+    low = cast(int, row["low_relative"])
+    op = cast(int, row["open_relative"])
+    high = cast(int, row["high_relative"])
+    close = cast(int, row["close_relative"])
+    if (low <= 0 or min(cast(int, row["delta_open"]), cast(int, row["delta_high"]),
+         cast(int, row["delta_close"])) < 0 or
+        op != low + cast(int, row["delta_open"]) or
+        high != low + cast(int, row["delta_high"]) or
+        close != low + cast(int, row["delta_close"]) or
         high < max(op, close)):
         raise ValueError("NATIVE_RELATIVE_OHLC_BROKEN")
     return M5(instant, op, high, low, close)
