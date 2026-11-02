@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: mezas3238-hue/qore-deepseek-reviewer
-          ref: 62ca5d89eeab61e44155010fe50d73f304815d12
+          ref: 64836b2c23d32302d91d29e514c1a73e2a464440
           path: radar
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -48,6 +48,8 @@ jobs:
           node-version: "22"
       - name: Verify 34-source manifest and reject fake holdout
         run: node --test radar/qore-crt-alerts/test/trader-lab-crt-34-preflight.test.mjs
+      - name: Verify real-source identity boundary and 34 synthetic native M5 to NY H4
+        run: node --test radar/qore-crt-alerts/test/trader-lab-raw-m5-34-causal.test.mjs
       - name: Emit fail-closed preflight verdict (expected BLOCKED)
         run: node radar/qore-crt-alerts/scripts/trader-lab-crt-34-preflight.mjs --expect-blocked
       - name: Never label this job real holdout or live qualification
