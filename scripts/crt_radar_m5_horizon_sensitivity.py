@@ -27,7 +27,7 @@ from scripts.crt_radar_archived_m5_prescreen import (
 SCOPE = "IN_SAMPLE_M5_WINDOW_STUDY_NOT_PINE_PARITY"
 
 
-def measure(closed_m5: list[M5], family: str) -> dict[str, int]:
+def measure(closed_m5: list[M5], family: str) -> dict[str, int | None]:
     """Only closed, contiguous NY-H4 and strict unilateral sweep+return."""
     if family not in C1_HOURS:
         raise ValueError("BAD_FAMILY")
@@ -126,7 +126,8 @@ def inspect_window(root: Path, symbol: str, family: str, cohort: str) -> dict[st
         "full": wide,
         "last_1500_m5": short,
         "historic_2c_lost_from_short_window":
-            wide["structural_2c_historical"] - short["structural_2c_historical"],
+            (wide["structural_2c_historical"] or 0) -
+            (short["structural_2c_historical"] or 0),
         "same_provider": True,
         "same_rules": True,
         "is_Pine_f_engine": False,
