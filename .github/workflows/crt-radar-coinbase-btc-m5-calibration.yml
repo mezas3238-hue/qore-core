@@ -1,0 +1,29 @@
+name: CRT RADAR — Coinbase BTC-USD public M5 calibration (34th source, NO HOLDOUT)
+
+on:
+  push:
+    branches:
+      - agent/crt-radar-trader-lab-34-preflight-20261101
+    paths:
+      - scripts/crt_radar_coinbase_btc_m5_prescreen.py
+      - .github/workflows/crt-radar-coinbase-btc-m5-calibration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-btc-read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Query only unauthenticated Coinbase Exchange public candles for 2026-08-01 → 2026-09-17
+        run: |
+          python -m scripts.crt_radar_coinbase_btc_m5_prescreen --mode calibration
+          echo 'PROVIDER=COINBASE_EXCHANGE_PUBLIC_BTCUSD' >> "$GITHUB_STEP_SUMMARY"
+          echo 'MODE=CALIBRATION_ONLY / NOT HOLDOUT / NOT PINE-PARITY' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NO_API_KEYS / NO_ORDERS / NO_PUSH / NO_RAW_UPLOADS' >> "$GITHUB_STEP_SUMMARY"
