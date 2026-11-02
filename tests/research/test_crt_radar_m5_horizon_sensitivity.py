@@ -24,7 +24,7 @@ def h4_group(index: int, high: int, low: int, close: int) -> list[M5]:
     return bars
 
 
-def test_synthetic_2c_single_sweep_and_unrelated_3c_not_trade():
+def test_synthetic_2c_single_sweep_and_unrelated_3c_not_trade() -> None:
     rows = h4_group(0, 110, 100, 105) + h4_group(1, 109, 98, 104)
     result = measure(rows, "forex")
     assert result["observed_m5"] == 96
@@ -34,7 +34,7 @@ def test_synthetic_2c_single_sweep_and_unrelated_3c_not_trade():
     assert result["structural_3c_followup"] == 0
 
 
-def test_double_sweep_rejected_and_m5_gap_never_stitched():
+def test_double_sweep_rejected_and_m5_gap_never_stitched() -> None:
     rows = h4_group(0, 110, 100, 105) + h4_group(1, 111, 98, 105)
     assert measure(rows, "forex")["structural_2c_historical"] == 0
     broken = rows[:60] + rows[61:]
@@ -43,7 +43,7 @@ def test_double_sweep_rejected_and_m5_gap_never_stitched():
     assert r["h4_internal_gap"] == 1
 
 
-def test_index_default_c1_differs_from_forex():
+def test_index_default_c1_differs_from_forex() -> None:
     # 06:00 NY C1 exists for index, but this 06:00 is not a Forex NY C1.
     start = datetime(2026, 10, 26, 10, tzinfo=UTC)
     rows = []
@@ -55,13 +55,13 @@ def test_index_default_c1_differs_from_forex():
     assert measure(rows, "forex")["structural_2c_historical"] == 0
 
 
-def test_empty_no_history_does_not_create_signal():
+def test_empty_no_history_does_not_create_signal() -> None:
     r = measure([], "forex")
     assert r["observed_m5"] == 0
     assert r["structural_2c_historical"] == 0
     assert r["last_c2_close_utc_ms"] is None
 
 
-def test_bad_family_fails_closed():
+def test_bad_family_fails_closed() -> None:
     with pytest.raises(ValueError, match="BAD_FAMILY"):
         measure([], "unknown")
