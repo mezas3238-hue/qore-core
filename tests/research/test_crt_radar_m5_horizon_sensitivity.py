@@ -37,7 +37,7 @@ def test_synthetic_2c_single_sweep_and_unrelated_3c_not_trade():
 def test_double_sweep_rejected_and_m5_gap_never_stitched():
     rows = h4_group(0, 110, 100, 105) + h4_group(1, 111, 98, 105)
     assert measure(rows, "forex")["structural_2c_historical"] == 0
-    broken = rows[:48] + rows[49:]
+    broken = rows[:60] + rows[61:]
     r = measure(broken, "forex")
     assert r["structural_2c_historical"] == 0
     assert r["h4_internal_gap"] == 1
