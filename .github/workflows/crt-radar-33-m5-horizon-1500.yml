@@ -218,7 +218,7 @@ jobs:
           run-id: ${{ matrix.run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/crt-raw-internal
-      - name: Verify original partition SHA and compare same-source 1500 M5 to full window
+      - name: Verify same-origin SHA and compare last 1500 M5 against 47-day calibration
         shell: bash
         env:
           SOURCE_ROOT: ${{ runner.temp }}/crt-raw-internal
