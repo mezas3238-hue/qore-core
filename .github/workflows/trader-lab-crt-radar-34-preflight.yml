@@ -1,0 +1,58 @@
+name: QORE Trader Lab CRT RADAR 34 — source preflight (NO REAL HOLDOUT)
+
+on:
+  push:
+    branches:
+      - agent/crt-radar-trader-lab-34-preflight-20261101
+    paths:
+      - .github/workflows/trader-lab-crt-radar-34-preflight.yml
+      - docs/research/trader-lab/CRT-RADAR-34-PREFLIGHT-2026-11-01.md
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/trader-lab-crt-radar-34-preflight.yml
+      - docs/research/trader-lab/CRT-RADAR-34-PREFLIGHT-2026-11-01.md
+
+permissions:
+  contents: read
+
+jobs:
+  native-trader-lab-contract-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install existing QORE Trader Lab contracts
+        run: pip install -e ".[dev]"
+      - name: Existing native Trader Lab evidence / lifecycle guards
+        run: |
+          pytest -q             tests/infrastructure/trader_lab/test_candidate_and_stage_evidence.py             tests/infrastructure/trader_lab/test_lifecycle_and_promotion.py
+
+  crt-34-source-inventory-and-causal-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact CRT RADAR preflight candidate (read-only)
+        uses: actions/checkout@v4
+        with:
+          repository: mezas3238-hue/qore-deepseek-reviewer
+          ref: 62ca5d89eeab61e44155010fe50d73f304815d12
+          path: radar
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify 34-source manifest and reject fake holdout
+        run: node --test radar/qore-crt-alerts/test/trader-lab-crt-34-preflight.test.mjs
+      - name: Emit fail-closed preflight verdict (expected BLOCKED)
+        run: node radar/qore-crt-alerts/scripts/trader-lab-crt-34-preflight.mjs --expect-blocked
+      - name: Never label this job real holdout or live qualification
+        run: |
+          echo 'VERDICT=SOURCE_PREFLIGHT_ONLY'
+          echo 'REAL_OHLC_HOLDOUT_RUNS=0'
+          echo 'CRT34_RELEASE_CERTIFIED=NO'
+          echo 'NO_LIVE=YES'
