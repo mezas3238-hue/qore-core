@@ -27,7 +27,7 @@ jobs:
           python-version: "3.12"
       - name: Run synthetic horizon, NY clock and double-sweep rejection tests
         run: |
-          python -m pip install pytest
+          python -m pip install pytest pytest-cov
           python -m pytest -q tests/research/test_crt_radar_m5_horizon_sensitivity.py
 
   read-only-source-calibration:
