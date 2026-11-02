@@ -7,7 +7,7 @@ The owner asked to test CRT RADAR PRO across 34 instruments in the existing GitH
 
 ## Reused code and coverage
 - Native QORE Trader Lab contract tests: `tests/infrastructure/trader_lab/test_candidate_and_stage_evidence.py`, `test_lifecycle_and_promotion.py`. They prevent fake promotion/evidence transfer, not market-quality validation.
-- The read-only, pinned CRT adapter from `mezas3238-hue/qore-deepseek-reviewer` commit `62ca5d89eeab61e44155010fe50d73f304815d12`, under `qore-crt-alerts/src/trader-lab-crt-34-gate.mjs`. The preflight checks source coverage and closed-H4 causal smoke on **synthetic** 34 sources. This stage never reports actual holdout successes.
+- The read-only, pinned CRT adapter from `mezas3238-hue/qore-deepseek-reviewer` commit `64836b2c23d32302d91d29e514c1a73e2a464440`, under `qore-crt-alerts/src/trader-lab-crt-34-gate.mjs`. The preflight checks source coverage and closed-H4 causal smoke on **synthetic** 34 sources. This stage never reports actual holdout successes.
 - 33 original M5 source artifacts (not the raw data themselves) exist on QORE Core Actions runs `35166210458` (12, expires **2026-12-16T00:21:18Z**) and `38193802541` (21, expires **2027-01-10T01:56:00Z**). These are original IC Markets cTrader DEMO sources from the Native/Atlas research streams, not TradingView-certified data.
 - Mapping of all **33/33 non-BTC** symbols in the radar catalog is 1:1. `NAS100USD` is the TradingView alias of archival `NAS100`; `US500` is archival `SP500`. Exact calendar/provider parity still needs evidence.
 - **BTCUSD is source #34 and has no archived cTrader M5 source in those runs.** BTC on screenshots came from Coinbase; no approved historical Coinbase 5M artifact is verified. Do not import unmatched BTC prices.
@@ -30,3 +30,11 @@ The owner asked to test CRT RADAR PRO across 34 instruments in the existing GitH
 6. Validate Pine in TradingView with only those symbols whose provider parity is established. Enable no Android notifications until after real end-to-end push testing.
 
 Evidence: QORE Core issue [#837](https://github.com/mezas3238-hue/qore-core/issues/837), [#812](https://github.com/mezas3238-hue/qore-core/issues/812), [QORE Trader Lab contract](https://github.com/mezas3238-hue/qore-core/blob/main/docs/architecture/QORE-TRADER-LAB-001.md), CRT 34 candidate research [PR #69](https://github.com/mezas3238-hue/qore-deepseek-reviewer/pull/69).
+
+## 2026-11-02: Provenance correction and first causal M5 bridge
+Pinned CRT candidate now includes [PR #70](https://github.com/mezas3238-hue/qore-deepseek-reviewer/pull/70):
+- Origin is **12 cTrader Atlas DEMO broker-UNVERIFIED** and **21 IC Markets DEMO source-catalog-confirmed**, rather than falsely treating all 33 as proven identical IC Markets sources.
+- Every archived ZIP has an exact `sha256:` digest reported by GitHub Actions, original capture head SHA, source run ID and expiration. ZIP digests are **not** verified uncompressed OHLC checksums.
+- Reconstructs closed New York H4 from 48 contiguous native M5 (no implicit price scaling), with independent index 02/06/22 NY vs Forex/crypto 01/05/21 NY and strict validation of DST local close.
+- Synthetic 34-source tests confirm candidate path and negative rejection of 36/60 DST blocks, 48-bar fall-back prefixes, partial candles, gaps, provider/identity mismatches and future candles.
+- This stage is **not** historical holdout, no broker account privileges, no original raw price access, no production/FCM rights.
