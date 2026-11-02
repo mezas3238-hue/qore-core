@@ -227,7 +227,7 @@ jobs:
           SOURCE_COHORT: ${{ matrix.cohort }}
         run: |
           set -euo pipefail
-          python scripts/crt_radar_m5_horizon_sensitivity.py \
+          python -m scripts.crt_radar_m5_horizon_sensitivity \
             --root "$SOURCE_ROOT" \
             --symbol "$SOURCE_SYMBOL" \
             --family "$SOURCE_FAMILY" \
