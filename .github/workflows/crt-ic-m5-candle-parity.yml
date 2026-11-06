@@ -1,0 +1,30 @@
+name: CRT IC M5 candle parity (offline only)
+
+on:
+  push:
+    branches:
+      - "research/crt-ic-tv-ctrader-m5-parity-20261105"
+    paths:
+      - "tools/crt_feed_parity/**"
+      - "tests/research/test_crt_ic_m5_parity.py"
+      - ".github/workflows/crt-ic-m5-candle-parity.yml"
+  pull_request:
+    paths:
+      - "tools/crt_feed_parity/**"
+      - "tests/research/test_crt_ic_m5_parity.py"
+      - ".github/workflows/crt-ic-m5-candle-parity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  offline-only:
+    name: Strict UTC/OHLC comparison contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline tests (no credentials, no trading and no real feed)
+        run: python -m unittest discover -s tests/research -p 'test_crt_ic_m5_parity.py' -v
