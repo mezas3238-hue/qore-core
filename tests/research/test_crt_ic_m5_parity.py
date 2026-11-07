@@ -1,12 +1,16 @@
 """Pure offline tests: no network, trading, credentials or market signals."""
 import csv
+import unittest
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unittest
 
 from tools.crt_feed_parity.compare_ic_m5 import (
-    HEADER, CandleParityError, SCHEMA, compare, read_closed_m5_csv,
+    HEADER,
+    SCHEMA,
+    CandleParityError,
+    compare,
+    read_closed_m5_csv,
 )
 
 BASE = datetime(2026, 11, 5, 0, 0, tzinfo=UTC)
