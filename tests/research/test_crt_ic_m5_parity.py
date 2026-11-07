@@ -16,8 +16,11 @@ from tools.crt_feed_parity.compare_ic_m5 import (
 BASE = datetime(2026, 11, 5, 0, 0, tzinfo=UTC)
 
 
-def make_rows(origin, *, n=600, shift_min=0, price_offset=0, symbol="EURUSD",
-              server="feed-1"):
+def make_rows(
+    origin: str, *, n: int = 600, shift_min: int = 0,
+    price_offset: float = 0.0, symbol: str = "EURUSD",
+    server: str = "feed-1",
+) -> list[dict[str, str]]:
     rows = []
     for i in range(n):
         at = BASE + timedelta(minutes=5 * i + shift_min)
@@ -37,7 +40,7 @@ def make_rows(origin, *, n=600, shift_min=0, price_offset=0, symbol="EURUSD",
     return rows
 
 
-def write(path, rows):
+def write(path: Path, rows: list[dict[str, str]]) -> None:
     with open(path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=HEADER)
         writer.writeheader()
@@ -45,20 +48,24 @@ def write(path, rows):
 
 
 class CandleParityTests(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.tvfile = Path(self.tmp.name) / "tv.csv"
         self.ctfile = Path(self.tmp.name) / "ctrader.csv"
 
-    def load(self, tv_rows=None, ct_rows=None):
+    def load(
+        self,
+        tv_rows: list[dict[str, str]] | None = None,
+        ct_rows: list[dict[str, str]] | None = None,
+    ) -> dict[str, object]:
         write(self.tvfile, make_rows("TRADINGVIEW_IC") if tv_rows is None else tv_rows)
         write(self.ctfile, make_rows("CTRADER_IC_DEMO") if ct_rows is None else ct_rows)
         a, ta = read_closed_m5_csv(self.tvfile, source="TRADINGVIEW_IC", symbol="EURUSD")
         b, cb = read_closed_m5_csv(self.ctfile, source="CTRADER_IC_DEMO", symbol="EURUSD")
         return compare(a, b, symbol="EURUSD", tv_server=ta, ctrader_server=cb)
 
-    def test_exact_600_is_only_sample_match_not_signal_certification(self):
+    def test_exact_600_is_only_sample_match_not_signal_certification(self) -> None:
         report = self.load()
         self.assertEqual(report["schema"], SCHEMA)
         self.assertEqual(report["status"], "SAMPLE_MATCH_ONLY")
@@ -67,40 +74,40 @@ class CandleParityTests(unittest.TestCase):
         self.assertFalse(report["crt_mss_fvg_parity_checked"])
         self.assertFalse(report["authorized_to_emit_v34_12x_alerts"])
 
-    def test_one_price_change_blocks_equivalence(self):
+    def test_one_price_change_blocks_equivalence(self) -> None:
         ct = make_rows("CTRADER_IC_DEMO", price_offset=.00001)
         r = self.load(ct_rows=ct)
         self.assertEqual(r["status"], "DIVERGENT")
         self.assertEqual(r["different_ohlc"], 600)
         self.assertTrue(r["different_ohlc_examples"])
 
-    def test_one_minute_native_phase_shift_is_not_silently_aligned(self):
+    def test_one_minute_native_phase_shift_is_not_silently_aligned(self) -> None:
         r = self.load(ct_rows=make_rows("CTRADER_IC_DEMO", shift_min=1))
         self.assertEqual(r["status"], "INSUFFICIENT")
         self.assertEqual(r["common_open_timestamps"], 0)
         self.assertEqual(r["tv_phase_minutes"], [0])
         self.assertEqual(r["ctrader_phase_minutes"], [1])
 
-    def test_25_or_300_bars_are_insufficient_for_default_600(self):
+    def test_25_or_300_bars_are_insufficient_for_default_600(self) -> None:
         r = self.load(ct_rows=make_rows("CTRADER_IC_DEMO", n=300))
         self.assertEqual(r["status"], "INSUFFICIENT")
         self.assertEqual(r["common_open_timestamps"], 300)
         self.assertEqual(r["only_tradingview_times"], 300)
 
-    def test_missing_bar_rejected_even_with_600_common(self):
+    def test_missing_bar_rejected_even_with_600_common(self) -> None:
         r = self.load(tv_rows=make_rows("TRADINGVIEW_IC", n=601),
                       ct_rows=make_rows("CTRADER_IC_DEMO", n=600))
         self.assertEqual(r["status"], "DIVERGENT")
         self.assertEqual(r["only_tradingview_times"], 1)
 
-    def test_different_server_within_same_export_rejected(self):
+    def test_different_server_within_same_export_rejected(self) -> None:
         rows = make_rows("TRADINGVIEW_IC")
         rows[-1]["server"] = "other-server"
         write(self.tvfile, rows)
         with self.assertRaisesRegex(CandleParityError, "mix servers"):
             read_closed_m5_csv(self.tvfile, source="TRADINGVIEW_IC", symbol="EURUSD")
 
-    def test_wrong_source_and_symbol_rejected(self):
+    def test_wrong_source_and_symbol_rejected(self) -> None:
         write(self.tvfile, make_rows("CTRADER_IC_DEMO"))
         with self.assertRaisesRegex(CandleParityError, "wrong data origin"):
             read_closed_m5_csv(self.tvfile, source="TRADINGVIEW_IC", symbol="EURUSD")
@@ -108,7 +115,7 @@ class CandleParityTests(unittest.TestCase):
         with self.assertRaisesRegex(CandleParityError, "source ticker mismatch"):
             read_closed_m5_csv(self.tvfile, source="TRADINGVIEW_IC", symbol="EURUSD")
 
-    def test_unclosed_and_naive_dates_rejected(self):
+    def test_unclosed_and_naive_dates_rejected(self) -> None:
         rows = make_rows("TRADINGVIEW_IC")
         rows[0]["closed"] = "false"
         write(self.tvfile, rows)
@@ -120,7 +127,7 @@ class CandleParityTests(unittest.TestCase):
         with self.assertRaisesRegex(CandleParityError, "UTC offset"):
             read_closed_m5_csv(self.tvfile, source="TRADINGVIEW_IC", symbol="EURUSD")
 
-    def test_duplicate_timestamp_and_impossible_ohlc_rejected(self):
+    def test_duplicate_timestamp_and_impossible_ohlc_rejected(self) -> None:
         rows = make_rows("TRADINGVIEW_IC")
         rows[1]["open_time_utc"] = rows[0]["open_time_utc"]
         write(self.tvfile, rows)
@@ -132,7 +139,7 @@ class CandleParityTests(unittest.TestCase):
         with self.assertRaisesRegex(CandleParityError, "impossible OHLC"):
             read_closed_m5_csv(self.tvfile, source="TRADINGVIEW_IC", symbol="EURUSD")
 
-    def test_wrong_broker_rejected(self):
+    def test_wrong_broker_rejected(self) -> None:
         rows = make_rows("TRADINGVIEW_IC")
         rows[0]["broker"] = "OTHER"
         write(self.tvfile, rows)
