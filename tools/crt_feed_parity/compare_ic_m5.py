@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
-import json
 from pathlib import Path
 
 SCHEMA = "QORE_CRT_IC_M5_CANDLE_PARITY_QA_V1"
@@ -104,10 +104,16 @@ def read_closed_m5_csv(
             at = _timestamp(row["open_time_utc"])
             if at in result:
                 raise CandleParityError(f"line {index}: duplicate open timestamp")
-            o, h, l, c = (_price(row, key) for key in ("open", "high", "low", "close"))
-            if l > min(o, c) or h < max(o, c) or l > h:
+            price_open, price_high, price_low, price_close = (
+                _price(row, key) for key in ("open", "high", "low", "close")
+            )
+            if (price_low > min(price_open, price_close) or
+                    price_high < max(price_open, price_close) or price_low > price_high):
                 raise CandleParityError(f"line {index}: impossible OHLC")
-            result[at] = Candle(opened_at=at, open=o, high=h, low=l, close=c)
+            result[at] = Candle(
+                opened_at=at, open=price_open, high=price_high,
+                low=price_low, close=price_close,
+            )
     if not result:
         raise CandleParityError("empty CSV")
     return result, server or ""
