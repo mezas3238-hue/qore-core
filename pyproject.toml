@@ -35,5 +35,7 @@ python_version = "3.12"
 strict = true
 
 [tool.pytest.ini_options]
+# Allow pytest CLI to import the offline tooling namespace from repo root.
+pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "--cov=src/qore --cov-report=term-missing"
