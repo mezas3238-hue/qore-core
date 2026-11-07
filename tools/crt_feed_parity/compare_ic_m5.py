@@ -141,7 +141,7 @@ def compare(
         a, b = tv[at].values(), ctrader[at].values()
         if a != b:
             mismatch_count += 1
-            deltas = tuple(abs(x - y) for x, y in zip(a, b))
+            deltas = tuple(abs(x - y) for x, y in zip(a, b, strict=True))
             max_delta = max(max_delta, *deltas)
             if len(price_mismatches) < max_examples:
                 price_mismatches.append({
