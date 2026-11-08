@@ -105,13 +105,14 @@ def test_native_roundtrip_reconstructs_true_ohlc_and_m15(
 )
 def test_fail_closed_on_provider_errors(case: str, expected: str) -> None:
     provider = source()
-    kwargs: dict[str, object] = {}
+    expected_id = 123
+    observed: datetime | None = None
     if case == "wrong_id":
-        kwargs["expected_id"] = 124
+        expected_id = 124
     elif case == "wrong_clock":
-        kwargs["observed"] = datetime(2026, 11, 5, 15, 0)
+        observed = datetime(2026, 11, 5, 15, 0)
     elif case == "future_bar":
-        kwargs["observed"] = at() - timedelta(minutes=2)
+        observed = at() - timedelta(minutes=2)
     elif case == "duplicate":
         provider = source(minutes=(0, 5, 10, 10, 20, 25))
     elif case == "reversed":
@@ -121,7 +122,7 @@ def test_fail_closed_on_provider_errors(case: str, expected: str) -> None:
     elif case == "missing":
         provider = source(minutes=())
     with pytest.raises(SMTExportError, match=expected):
-        encode(provider, **kwargs)
+        encode(provider, observed=observed, expected_id=expected_id)
 
 
 def test_missing_m5_stays_missing_after_provider_roundtrip(
