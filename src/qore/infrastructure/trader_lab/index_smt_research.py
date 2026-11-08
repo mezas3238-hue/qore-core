@@ -106,6 +106,7 @@ class CRT:
     confirmed_at: datetime
     family: str
     valid: bool
+    expires_at: datetime | None = None
 
     def usable(self, observed_at: datetime) -> bool:
         return (
@@ -114,7 +115,9 @@ class CRT:
             and self.direction in ("BULLISH", "BEARISH")
             and bool(self.family.strip())
             and _utc(self.confirmed_at)
-            and self.confirmed_at <= observed_at
+            and self.expires_at is not None
+            and _utc(self.expires_at)
+            and self.confirmed_at <= observed_at < self.expires_at
         )
 
 
@@ -220,7 +223,9 @@ def qualify_research_opportunities(
     # If the same symbol has both SMT directions at once, it is ambiguous.
     direction_sets: dict[Symbol, set[Side]] = {s: set() for s in SYMBOLS}
     for candidate in candidates:
-        if candidate.observed_at <= evaluated_at:
+        if _utc(candidate.observed_at) and (
+            timedelta(0) <= evaluated_at - candidate.observed_at <= max_age
+        ):
             for symbol in candidate.pair:
                 direction_sets[symbol].add(candidate.direction)
     opportunities: list[ResearchOpportunity] = []
@@ -239,7 +244,9 @@ def qualify_research_opportunities(
             mss = mss_by_symbol.get(symbol)
             if mss is None or mss.symbol != symbol or mss.direction != candidate.direction:
                 continue
-            if not mss.valid() or mss.confirmed_at > evaluated_at:
+            if not mss.valid() or not (
+                timedelta(0) <= evaluated_at - mss.confirmed_at <= max_age
+            ):
                 continue
             if abs(mss.confirmed_at - candidate.observed_at) > max_age:
                 continue
