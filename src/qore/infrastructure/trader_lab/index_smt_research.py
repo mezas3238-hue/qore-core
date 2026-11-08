@@ -7,10 +7,11 @@ author-certified ICT/SMT rule. All candles are completed M15 bars in UTC.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from decimal import Decimal
-from typing import Literal, Mapping, Sequence
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 Symbol = Literal["SPX500", "NDX100", "US30"]
@@ -141,11 +142,11 @@ def _validate_bars(
     snapshots = [bars[s][-lookback - 1:] for s in SYMBOLS]
     common_times = tuple(c.closed_at for c in snapshots[0])
     if any((b.closed_at - a.closed_at) != BAR for a, b in zip(
-        snapshots[0], snapshots[0][1:]
+        snapshots[0], snapshots[0][1:], strict=False
     )):
         raise ValueError("missing M15 bars; no synthetic bars permitted")
-    feeds = set()
-    for symbol, seq in zip(SYMBOLS, snapshots):
+    feeds: set[str] = set()
+    for symbol, seq in zip(SYMBOLS, snapshots, strict=True):
         feeds.update(c.feed_id for c in seq)
         if any(c.symbol != symbol for c in seq):
             raise ValueError("symbol mismatched to feed")
