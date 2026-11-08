@@ -129,7 +129,8 @@ def test_crt_confirmation_route_and_pair_deduplication() -> None:
         candidates=detect_smt(candles()),
         mss_by_symbol={"SPX500": confirmed()},
         crt_by_symbol={"SPX500": CRT(
-            "SPX500", "BEARISH", CLOSE_TIME - timedelta(hours=1), "CRT_H4_FAMILY", True
+            "SPX500", "BEARISH", CLOSE_TIME - timedelta(hours=1), "CRT_H4_FAMILY", True,
+            expires_at=CLOSE_TIME + timedelta(hours=4),
         )},
         evaluated_at=observed,
     )
@@ -192,10 +193,41 @@ def test_opposite_crt_blocks_opportunistic_no_crt_fallback() -> None:
         mss_by_symbol={"SPX500": confirmed()},
         crt_by_symbol={"SPX500": CRT(
             "SPX500", "BULLISH", CLOSE_TIME, "OTHER_CRT", True,
+            expires_at=CLOSE_TIME + timedelta(hours=4),
         )},
         evaluated_at=CLOSE_TIME + timedelta(minutes=5),
     )
     assert not result
+
+
+def test_expired_crt_cannot_qualify_as_crt_route() -> None:
+    opportunities = qualify_research_opportunities(
+        candidates=detect_smt(candles()),
+        mss_by_symbol={"SPX500": confirmed()},
+        crt_by_symbol={"SPX500": CRT(
+            "SPX500", "BEARISH", CLOSE_TIME - timedelta(hours=4),
+            "OLD_CRT", True, expires_at=CLOSE_TIME,
+        )},
+        evaluated_at=CLOSE_TIME + timedelta(minutes=5),
+    )
+    assert len(opportunities) == 1
+    assert opportunities[0].route == "SMT_MSS_NO_CRT"
+
+
+def test_crt_without_expiry_is_not_active_and_old_mss_is_rejected() -> None:
+    now = CLOSE_TIME + timedelta(minutes=5)
+    crt = CRT("SPX500", "BEARISH", CLOSE_TIME, "CRT", True)
+    assert not crt.usable(now)
+    old_mss = MSS(
+        "SPX500", "BEARISH", CLOSE_TIME - timedelta(hours=2),
+        d("101"), d("99"),
+    )
+    assert not qualify_research_opportunities(
+        candidates=detect_smt(candles()),
+        mss_by_symbol={"SPX500": old_mss},
+        crt_by_symbol={},
+        evaluated_at=now,
+    )
 
 
 def test_outside_ny_window_and_stale_candidates_fail_closed() -> None:
