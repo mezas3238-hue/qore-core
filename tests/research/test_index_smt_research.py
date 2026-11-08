@@ -9,10 +9,10 @@ import pytest
 
 from qore.infrastructure.trader_lab.index_smt_research import (
     CRT,
-    CRTAbsenceEvidence,
     MSS,
     SYMBOLS,
     Candle,
+    CRTAbsenceEvidence,
     Side,
     Symbol,
     detect_smt,
