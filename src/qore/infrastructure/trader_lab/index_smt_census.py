@@ -149,9 +149,9 @@ def load_ctrader_m5_export(
         raise SMTExportError("M5 data rows missing")
     feed_id = f"{ORIGIN}:{BROKER}:{ENVIRONMENT}:{server}"
     buckets: dict[datetime, dict[datetime, RawM5]] = {}
-    for row in raws:
-        start = _m15_bucket(row.opened_at)
-        buckets.setdefault(start, {})[row.opened_at] = row
+    for raw_bar in raws:
+        start = _m15_bucket(raw_bar.opened_at)
+        buckets.setdefault(start, {})[raw_bar.opened_at] = raw_bar
     aggregated: list[Candle] = []
     incomplete = 0
     for start, bucket in sorted(buckets.items()):
