@@ -25,6 +25,6 @@ jobs:
       - name: Lint and types
         run: |
           ruff check src/qore/infrastructure/trader_lab/index_smt_research.py src/qore/infrastructure/trader_lab/index_smt_census.py src/qore/infrastructure/trader_lab/index_smt_ctrader_bridge.py tests/research/test_index_smt_research.py tests/research/test_index_smt_census.py tests/research/test_index_smt_ctrader_bridge.py
-          mypy src/qore/infrastructure/trader_lab/index_smt_research.py src/qore/infrastructure/trader_lab/index_smt_census.py tests/research/test_index_smt_research.py tests/research/test_index_smt_census.py tests/research/test_index_smt_ctrader_bridge.py
+          mypy src/qore/infrastructure/trader_lab/index_smt_research.py src/qore/infrastructure/trader_lab/index_smt_census.py src/qore/infrastructure/trader_lab/index_smt_ctrader_bridge.py tests/research/test_index_smt_research.py tests/research/test_index_smt_census.py tests/research/test_index_smt_ctrader_bridge.py
       - name: Focused no-lookahead / dual-route tests
-        run: pytest -q -o addopts='' tests/research/test_index_smt_research.py tests/research/test_index_smt_census.py
+        run: pytest -q -o addopts='' tests/research/test_index_smt_research.py tests/research/test_index_smt_census.py tests/research/test_index_smt_ctrader_bridge.py
