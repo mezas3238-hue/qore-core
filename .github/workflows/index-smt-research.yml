@@ -1,0 +1,26 @@
+name: Index SMT Research Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/qore/infrastructure/trader_lab/index_smt_research.py"
+      - "tests/research/test_index_smt_research.py"
+      - ".github/workflows/index-smt-research.yml"
+
+jobs:
+  smt-research-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install testing tools
+        run: python -m pip install -e ".[dev]"
+      - name: Lint and types
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/index_smt_research.py tests/research/test_index_smt_research.py
+          mypy src/qore/infrastructure/trader_lab/index_smt_research.py tests/research/test_index_smt_research.py
+      - name: Focused no-lookahead / dual-route tests
+        run: pytest -q -o addopts='' tests/research/test_index_smt_research.py
