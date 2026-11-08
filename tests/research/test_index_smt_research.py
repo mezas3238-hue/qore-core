@@ -9,6 +9,7 @@ import pytest
 
 from qore.infrastructure.trader_lab.index_smt_research import (
     CRT,
+    CRTAbsenceEvidence,
     MSS,
     SYMBOLS,
     Candle,
@@ -67,6 +68,19 @@ def confirmed(symbol: Symbol = "SPX500", side: Side = "BEARISH") -> MSS:
         confirmed_at=CLOSE_TIME + timedelta(minutes=5),
         protected_swing=d("101" if side == "BEARISH" else "99"),
         confirming_close=d("99" if side == "BEARISH" else "101"),
+    )
+
+
+def absence(
+    symbol: Symbol = "SPX500",
+    scanned_at: datetime = CLOSE_TIME + timedelta(minutes=5),
+) -> CRTAbsenceEvidence:
+    # Synthetic detector labels only; not an assertion of canonical CRT identities.
+    return CRTAbsenceEvidence(
+        symbol=symbol,
+        scanned_at=scanned_at,
+        detector_id="CRT_RESEARCH_SYNTHETIC",
+        scanned_families=tuple(f"F{i}" for i in range(1, 8)),
     )
 
 
@@ -149,6 +163,7 @@ def test_independent_route_when_crt_is_absent() -> None:
         )},
         crt_by_symbol={},
         evaluated_at=CLOSE_TIME + timedelta(minutes=5),
+        crt_absence_by_symbol={"NDX100": absence("NDX100")},
     )
     assert len(opportunities) == 1
     assert opportunities[0].instrument == "NDX100"
@@ -209,6 +224,7 @@ def test_expired_crt_cannot_qualify_as_crt_route() -> None:
             "OLD_CRT", True, expires_at=CLOSE_TIME,
         )},
         evaluated_at=CLOSE_TIME + timedelta(minutes=5),
+        crt_absence_by_symbol={"SPX500": absence()},
     )
     assert len(opportunities) == 1
     assert opportunities[0].route == "SMT_MSS_NO_CRT"
@@ -228,6 +244,63 @@ def test_crt_without_expiry_is_not_active_and_old_mss_is_rejected() -> None:
         crt_by_symbol={},
         evaluated_at=now,
     )
+
+
+def test_missing_crt_is_unknown_not_proof_of_absence() -> None:
+    result = qualify_research_opportunities(
+        candidates=detect_smt(candles()),
+        mss_by_symbol={"SPX500": confirmed()},
+        crt_by_symbol={},
+        evaluated_at=CLOSE_TIME + timedelta(minutes=5),
+    )
+    assert not result
+
+
+def test_incomplete_or_stale_seven_family_absence_is_rejected() -> None:
+    incomplete = CRTAbsenceEvidence(
+        symbol="SPX500", scanned_at=CLOSE_TIME + timedelta(minutes=5),
+        detector_id="INCOMPLETE", scanned_families=("F1", "F2", "F3"),
+    )
+    for evidence in (incomplete, absence(scanned_at=CLOSE_TIME - timedelta(minutes=1))):
+        result = qualify_research_opportunities(
+            candidates=detect_smt(candles()),
+            mss_by_symbol={"SPX500": confirmed()},
+            crt_by_symbol={},
+            evaluated_at=CLOSE_TIME + timedelta(minutes=5),
+            crt_absence_by_symbol={"SPX500": evidence},
+        )
+        assert not result
+
+
+def test_active_crt_and_absence_proof_conflict_blocks_both_routes() -> None:
+    result = qualify_research_opportunities(
+        candidates=detect_smt(candles()),
+        mss_by_symbol={"SPX500": confirmed()},
+        crt_by_symbol={"SPX500": CRT(
+            "SPX500", "BEARISH", CLOSE_TIME,
+            "CRT", True, expires_at=CLOSE_TIME + timedelta(hours=1),
+        )},
+        evaluated_at=CLOSE_TIME + timedelta(minutes=5),
+        crt_absence_by_symbol={"SPX500": absence()},
+    )
+    assert not result
+
+
+def test_mss_that_precedes_smt_is_not_new_confirmation() -> None:
+    before = MSS(
+        "SPX500", "BEARISH", CLOSE_TIME - timedelta(minutes=5),
+        d("101"), d("99"),
+    )
+    result = qualify_research_opportunities(
+        candidates=detect_smt(candles()),
+        mss_by_symbol={"SPX500": before},
+        crt_by_symbol={"SPX500": CRT(
+            "SPX500", "BEARISH", CLOSE_TIME - timedelta(hours=1),
+            "CRT", True, expires_at=CLOSE_TIME + timedelta(hours=1),
+        )},
+        evaluated_at=CLOSE_TIME + timedelta(minutes=5),
+    )
+    assert not result
 
 
 def test_outside_ny_window_and_stale_candidates_fail_closed() -> None:
