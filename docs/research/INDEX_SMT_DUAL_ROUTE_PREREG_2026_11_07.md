@@ -220,3 +220,23 @@ not a connected historical extraction service.
 
 All tests use intentionally synthetic trendbars and establish only
 deterministic serialization/validation. No real feed was read or analyzed.
+
+## R2 integration control — full synthetic pipeline
+
+The focused QA also contains
+`tests/research/test_index_smt_pipeline.py`, which drives *all three*
+synthetic cTrader-native M5 read results through:
+`encode_sanitized_ctrader_m5` -> actual CSV serialization ->
+`load_ctrader_m5_export` -> 3× M5 aggregation -> M15 SMT census.
+
+A deliberate SPX500 high sweep against unconfirmed NDX100 and US30 produces
+two pairwise **research candidates**, not two independent trades.
+A deliberately shifted index series must not produce any candidate.
+The test outputs always keep `authorized_to_trade=false` and
+`authorized_to_emit_alerts=false`. No historical market data was provided.
+
+**Next real integration gate:** obtain actual closed historical M5 cTrader
+read results for all 3 broker symbol IDs from the same authorized DEMO
+server, reconcile request coverage/market schedules and source timestamps,
+verify the tick-value/contract metadata independently, and only then run
+a documented 3-index census. Do not supply secrets in GitHub.
