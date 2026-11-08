@@ -122,6 +122,34 @@ class CRT:
 
 
 @dataclass(frozen=True, slots=True)
+class CRTAbsenceEvidence:
+    """Explicit completed seven-family CRT scan with no currently active CRT.
+
+    A missing CRT event is UNKNOWN, not absence. The authoritative CRT adapter
+    must supply this evidence only after an actual complete, causal scan.
+    """
+
+    symbol: Symbol
+    scanned_at: datetime
+    detector_id: str
+    scanned_families: tuple[str, ...]
+
+    def usable(
+        self, *, at: datetime, after: datetime, max_age: timedelta
+    ) -> bool:
+        return (
+            self.symbol in SYMBOLS
+            and _utc(self.scanned_at)
+            and bool(self.detector_id.strip())
+            and len(self.scanned_families) == 7
+            and len(set(self.scanned_families)) == 7
+            and all(family.strip() for family in self.scanned_families)
+            and after <= self.scanned_at <= at
+            and at - self.scanned_at <= max_age
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ResearchOpportunity:
     instrument: Symbol
     route: Route
@@ -206,6 +234,7 @@ def qualify_research_opportunities(
     crt_by_symbol: Mapping[Symbol, CRT],
     evaluated_at: datetime,
     max_age: timedelta = timedelta(minutes=60),
+    crt_absence_by_symbol: Mapping[Symbol, CRTAbsenceEvidence] | None = None,
 ) -> tuple[ResearchOpportunity, ...]:
     """Evaluate either route only after corroborating closed MSS evidence.
 
@@ -218,7 +247,12 @@ def qualify_research_opportunities(
     local_time = evaluated_at.astimezone(NY)
     if local_time.weekday() >= 5 or not WINDOW_START <= local_time.time() < WINDOW_END:
         return ()
-    if set(mss_by_symbol) - set(SYMBOLS) or set(crt_by_symbol) - set(SYMBOLS):
+    absence = crt_absence_by_symbol if crt_absence_by_symbol is not None else {}
+    if (
+        set(mss_by_symbol) - set(SYMBOLS)
+        or set(crt_by_symbol) - set(SYMBOLS)
+        or set(absence) - set(SYMBOLS)
+    ):
         raise ValueError("unsupported evidence symbol")
     # If the same symbol has both SMT directions at once, it is ambiguous.
     direction_sets: dict[Symbol, set[Side]] = {s: set() for s in SYMBOLS}
@@ -248,16 +282,28 @@ def qualify_research_opportunities(
                 timedelta(0) <= evaluated_at - mss.confirmed_at <= max_age
             ):
                 continue
-            if abs(mss.confirmed_at - candidate.observed_at) > max_age:
+            if not candidate.observed_at <= mss.confirmed_at <= evaluated_at:
                 continue
             crt = crt_by_symbol.get(symbol)
             if crt is not None and crt.usable(evaluated_at):
-                if crt.direction != candidate.direction:
+                # Active CRT and an asserted absence are contradictory inputs.
+                if symbol in absence or crt.direction != candidate.direction:
                     continue
                 route: Route = "CRT_SMT_MSS"
                 family: str | None = crt.family
             else:
-                # An invalid/old CRT is not a validated CRT condition.
+                proof = absence.get(symbol)
+                if proof is None or proof.symbol != symbol:
+                    continue
+                if not proof.usable(
+                    at=evaluated_at, after=candidate.observed_at, max_age=max_age
+                ):
+                    continue
+                if crt is not None and crt.expires_at is not None:
+                    if not _utc(crt.expires_at) or proof.scanned_at < crt.expires_at:
+                        continue
+                # No CRT records means UNKNOWN unless an authoritative scan
+                # explicitly proves all 7 families were checked and none active.
                 route = "SMT_MSS_NO_CRT"
                 family = None
             opportunities.append(ResearchOpportunity(
