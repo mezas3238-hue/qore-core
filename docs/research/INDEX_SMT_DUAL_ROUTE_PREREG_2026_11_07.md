@@ -177,3 +177,46 @@ cannot be retrospectively attached to a new divergence.
 
 Existing historical candidate census remains usable independently: it reports
 SMT divergence observations and does not claim to be an executable strategy.
+
+## R2: reuse existing cTrader DEMO trendbar decoding (2026-11-08)
+
+New pure bridge:
+`src/qore/infrastructure/trader_lab/index_smt_ctrader_bridge.py`
+
+The upstream QORE runtime already offers `CTraderTrendbarReadResult` and
+`CTraderTrendbar` in `ctrader_demo_market_data.py`. The bridge accepts one
+of these **sanitized pre-fetched read results** without owning API credentials,
+network connections, account operations or filesystem privileges.
+
+It requires the caller to supply:
+- canonical research index and the QORE runtime instrument;
+- broker symbol, positive cTrader symbol ID and digits;
+- explicit cTrader DEMO server identity;
+- UTC `observed_at` as the only permitted closed-candle cutoff.
+
+Checks:
+- exact provider symbol ID and digits against caller-supplied mapping;
+- native M5 period, nonempty batch and `has_more=false`;
+- ascending unique provider `utcTimestampInMinutes`, five-minute alignment;
+- no trendbar whose full five-minute interval ends later than `observed_at`;
+- cTrader `low + deltaOpen/deltaHigh/deltaClose` relative prices, divisor
+  100000, digit quantization matching existing QORE decoder;
+- exact 12-column CSV, preserving all raw M5 timestamps without gap-fill;
+- roundtrip via independent M5 CSV validator and M15 aggregation.
+
+**Important provider limitation:** existing `CTraderOpenApiMarketDataClient`
+currently creates `CTraderTrendbarReadResult` without propagating a provider
+pagination/truncation marker; `has_more` defaults to false. Therefore the
+bridge's `has_more=false` check **alone cannot establish that a historical
+response is complete**. Before historical certification, implement and audit
+request-interval reconciliation against a server schedule and explicit source
+symbol identity. Do not label source authenticity verified solely because
+a CSV came from this bridge.
+
+The current demo `read_external_ohlc` adapter is optimized for an exact
+single M5 interval and rejects multi-bar replies. It is **not** yet a
+three-year bulk downloader. This work creates a compatible offline bridge,
+not a connected historical extraction service.
+
+All tests use intentionally synthetic trendbars and establish only
+deterministic serialization/validation. No real feed was read or analyzed.
