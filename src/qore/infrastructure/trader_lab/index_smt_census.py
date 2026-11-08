@@ -19,11 +19,11 @@ from typing import Any
 
 from qore.infrastructure.trader_lab.index_smt_research import (
     NY,
+    SMT,
     SYMBOLS,
     WINDOW_END,
     WINDOW_START,
     Candle,
-    SMT,
     Symbol,
     detect_smt,
 )
