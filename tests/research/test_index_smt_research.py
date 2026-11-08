@@ -2,21 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
 
 from qore.infrastructure.trader_lab.index_smt_research import (
-    SYMBOLS,
     CRT,
     MSS,
+    SYMBOLS,
     Candle,
+    Side,
+    Symbol,
     detect_smt,
     qualify_research_opportunities,
 )
 
-UTC = timezone.utc
 CLOSE_TIME = datetime(2026, 11, 5, 15, 0, tzinfo=UTC)
 
 
@@ -26,12 +27,12 @@ def d(value: str) -> Decimal:
 
 def candles(
     *,
-    sweep: str = "SPX500",
-    side: str = "BEARISH",
+    sweep: Symbol = "SPX500",
+    side: Side = "BEARISH",
     same_side_break: bool = False,
     reclaim: bool = True,
-) -> dict:
-    bars = {}
+) -> dict[Symbol, list[Candle]]:
+    bars: dict[Symbol, list[Candle]] = {}
     for symbol in SYMBOLS:
         base = {"SPX500": d("100"), "NDX100": d("200"), "US30": d("300")}[symbol]
         seq = []
@@ -59,7 +60,7 @@ def candles(
     return bars
 
 
-def confirmed(symbol: str = "SPX500", side: str = "BEARISH") -> MSS:
+def confirmed(symbol: Symbol = "SPX500", side: Side = "BEARISH") -> MSS:
     return MSS(
         symbol=symbol,
         direction=side,
@@ -155,25 +156,33 @@ def test_independent_route_when_crt_is_absent() -> None:
 
 
 def test_mss_required_no_unconfirmed_structure() -> None:
-    kwargs = {
-        "candidates": detect_smt(candles()),
-        "crt_by_symbol": {},
-        "evaluated_at": CLOSE_TIME + timedelta(minutes=5),
-    }
-    assert not qualify_research_opportunities(mss_by_symbol={}, **kwargs)
+    candidates = detect_smt(candles())
+    observed = CLOSE_TIME + timedelta(minutes=5)
+    assert not qualify_research_opportunities(
+        candidates=candidates,
+        mss_by_symbol={},
+        crt_by_symbol={},
+        evaluated_at=observed,
+    )
     future = MSS(
         "SPX500", "BEARISH", CLOSE_TIME + timedelta(minutes=15),
         d("101"), d("99"),
     )
     assert not qualify_research_opportunities(
-        mss_by_symbol={"SPX500": future}, **kwargs
+        candidates=candidates,
+        mss_by_symbol={"SPX500": future},
+        crt_by_symbol={},
+        evaluated_at=observed,
     )
     wrong_close = MSS(
         "SPX500", "BEARISH", CLOSE_TIME + timedelta(minutes=5),
         d("99"), d("100"),
     )
     assert not qualify_research_opportunities(
-        mss_by_symbol={"SPX500": wrong_close}, **kwargs
+        candidates=candidates,
+        mss_by_symbol={"SPX500": wrong_close},
+        crt_by_symbol={},
+        evaluated_at=observed,
     )
 
 
