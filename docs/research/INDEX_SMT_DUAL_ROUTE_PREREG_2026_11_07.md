@@ -87,3 +87,75 @@ MUST be cross-checked by the integration gate before any external notification.
 
 **No real SMT signal is asserted for the November 5 screenshots**; the price
 axis visual estimates and unsynchronized chart layouts cannot certify SMT.
+
+## R1 — OFFLINE cTrader DEMO M5-to-M15 historical candidate census
+
+Added read-only code:
+- `src/qore/infrastructure/trader_lab/index_smt_census.py`
+- `tests/research/test_index_smt_census.py`
+- isolated index SMT CI gate.
+
+**No historical candles were downloaded or authenticated by this change.**
+R1 is an ingestion/chronological-census implementation, not realized
+backtesting or P&L. R1 does not create MSS or CRT signals.
+
+### Mandatory input contract
+
+Supply **three separate CSV exports**, one per canonical symbol SPX500, NDX100,
+US30, sourced from the same explicitly named IC Markets cTrader DEMO server.
+Header order must be exact:
+
+```csv
+origin,broker,environment,server,canonical_symbol,broker_symbol,open_time_utc,open,high,low,close,closed
+```
+
+For each row:
+- `origin=CTRADER_IC_DEMO`, `broker=IC MARKETS`, `environment=DEMO`;
+- `server` is nonempty and identical across all three datasets;
+- `canonical_symbol` must exactly match the independently selected research
+  instrument and `broker_symbol` must match the **explicit** caller-provided
+  ticker; no silent instrument aliasing is allowed;
+- `open_time_utc` must carry a UTC offset or Z and align to an exact M5 open;
+- OHLC must be finite and internally consistent; `closed=true`;
+- timestamps strictly ascend with no duplicates, synthetic bars or forward fill.
+
+An accepted row is **structured input**, not proof that the file was actually
+issued by the broker. Source authenticity remains a separate gate. BLAKE? No:
+SHA-256 is recorded for every supplied file, together with row coverage.
+
+### Causal aggregation, census and output
+- Three adjacent M5 opens at 00,05,10 / 15,20,25 / 30,35,40 / 45,50,55
+  aggregate into exactly one closed M15. An incomplete group is skipped.
+- For each M15 close in the 09:30–11:30 NY weekday observation window,
+  a full strictly contiguous nine-M15-bar history **in all three symbols**
+  must exist before a prior-eight-bar SMT candidate can be considered.
+- Historical candle closes are timestamped as `open_time_utc + 15 min`.
+- All detected pair/sweep/direction events retain price references and
+  UTC confirmation time, even when multiple pairs overlap; they are
+  **observations**, not entry signals or independent trades.
+- Report distinguishes missing current-market bars from insufficient
+  historical lookback; missing data always abstains.
+- Timestamp conversion uses `America/New_York` to handle DST.
+
+Run only after the authorized real CSVs are provided and reviewed:
+
+```bash
+python -m qore.infrastructure.trader_lab.index_smt_census \
+  --spx500-csv /path/SPX500.csv --spx500-broker-symbol US500 \
+  --ndx100-csv /path/NDX100.csv --ndx100-broker-symbol USTEC \
+  --us30-csv /path/US30.csv --us30-broker-symbol US30 \
+  --out /path/smt_candidate_census.json
+```
+
+Tickers in the command are **examples based on previous IC Markets research**,
+not a confirmed symbol mapping for the user's specific cTrader account.
+Verify broker metadata before executing. The output contains
+`authorized_to_trade=false`, `authorized_to_emit_alerts=false`,
+`data_source_authenticity_verified=false` and `economic_edge_certified=false`.
+
+### Still blocked
+No actual synchronized real M5 exports for all three instruments are present in
+this research PR. No verified historical CRT or MSS event ledger has been
+integrated. No baseline A/B/C/D market-outcome replay has been executed.
+All gates G1–G6 remain open. No operational alert, account or broker connector
+was activated.
