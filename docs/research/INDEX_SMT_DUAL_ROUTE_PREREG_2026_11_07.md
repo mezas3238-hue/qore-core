@@ -39,21 +39,24 @@ Output: `ResearchOpportunity(status="RESEARCH_ONLY")`, **not** an alert or order
 At observation clock t:
 1. A candidate SMT must already exist, closed at or before t, age <=60m.
 2. Closed MSS evidence for the instrument must be direction-aligned; its
-   confirming close must cross its specified protected swing by price,
-   with time at or before t. Both SMT and MSS must be no older than 60m
-   at evaluation; their timestamps must also be within 60m of each other.
+   confirming close must cross its specified protected swing by price.
+   The MSS must close **at or after SMT observation**, not before, and
+   both SMT and MSS must be no older than 60m at evaluation.
 3. Default research evaluation window is 09:30 inclusive to 11:30 exclusive
    **America/New_York**, with zone-aware DST and weekdays only.
 4. Existing **valid, direction-aligned CRT** selects Route A only when
    its source supplies an explicit expiry timestamp and the observation is
    strictly before that expiry. Missing expiry fails closed.
-5. No currently valid CRT selects Route B. An active CRT in the opposing direction
-   explicitly **blocks**, rather than being mislabeled "no CRT".
+5. Route B requires **explicit recent CRT-absence evidence** from a detector
+   that evaluated **all seven families** and reported no active CRT, timestamped
+   at or after the SMT candidate. A missing CRT record is UNKNOWN, never proof
+   of absence. An active CRT in the opposing direction **blocks** both routes.
+   Contradictory active-CRT and no-CRT evidence also blocks.
 6. Opposite simultaneous SMT directions for one index abstain.
 7. If one data/feed/time/MSS requirement is absent, the engine abstains.
 
-CRT and MSS evidences are presently **independent input contracts** supplied by
-a future verified adapter. They are not invented or rebuilt from this module.
+CRT, certified seven-family CRT-absence and MSS evidences are presently
+**independent input contracts** supplied by a future verified adapter. They are not invented or rebuilt from this module.
 The `MSS` verifier checks timestamp/direction/price-vs-protected-level only;
 actual source M5 candles, true protected-swing ownership and feed/phase parity
 MUST be cross-checked by the integration gate before any external notification.
@@ -159,3 +162,18 @@ this research PR. No verified historical CRT or MSS event ledger has been
 integrated. No baseline A/B/C/D market-outcome replay has been executed.
 All gates G1–G6 remain open. No operational alert, account or broker connector
 was activated.
+
+## R1 safety correction: no-CRT is not the same as unobserved CRT
+
+The no-CRT route explicitly requires a `CRTAbsenceEvidence` object for the
+instrument. It must contain unique identities for all seven evaluated families,
+a nonempty detector ID, and a recent scan time not earlier than the SMT event.
+This is **only a research evidence contract**, not a certification of the
+currently incomplete seven-family indicator. If the adapter cannot prove all
+families were evaluated, independent opportunities abstain.
+
+MSS confirmation must also occur no earlier than the SMT candidate; old MSS
+cannot be retrospectively attached to a new divergence.
+
+Existing historical candidate census remains usable independently: it reports
+SMT divergence observations and does not claim to be an executable strategy.
