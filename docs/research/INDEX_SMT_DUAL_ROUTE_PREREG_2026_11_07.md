@@ -40,11 +40,14 @@ At observation clock t:
 1. A candidate SMT must already exist, closed at or before t, age <=60m.
 2. Closed MSS evidence for the instrument must be direction-aligned; its
    confirming close must cross its specified protected swing by price,
-   with time at or before t. The event and MSS timestamps must be within 60m.
+   with time at or before t. Both SMT and MSS must be no older than 60m
+   at evaluation; their timestamps must also be within 60m of each other.
 3. Default research evaluation window is 09:30 inclusive to 11:30 exclusive
    **America/New_York**, with zone-aware DST and weekdays only.
-4. Existing **valid, direction-aligned CRT** selects Route A.
-5. No valid CRT selects Route B. An active CRT in the opposing direction
+4. Existing **valid, direction-aligned CRT** selects Route A only when
+   its source supplies an explicit expiry timestamp and the observation is
+   strictly before that expiry. Missing expiry fails closed.
+5. No currently valid CRT selects Route B. An active CRT in the opposing direction
    explicitly **blocks**, rather than being mislabeled "no CRT".
 6. Opposite simultaneous SMT directions for one index abstain.
 7. If one data/feed/time/MSS requirement is absent, the engine abstains.
