@@ -98,7 +98,8 @@ def test_end_to_end_misaligned_source_is_not_converted_to_signal(
     report = run_pipeline(tmp_path, shift_ndx=True)
     assert report["complete_windows"] == 0
     assert report["candidate_count"] == 0
-    assert (
-        report["windows_missing_instrument"] > 0
-        or report["windows_missing_prior_m15"] > 0
-    )
+    missing_instrument = report["windows_missing_instrument"]
+    missing_prior_m15 = report["windows_missing_prior_m15"]
+    assert isinstance(missing_instrument, int)
+    assert isinstance(missing_prior_m15, int)
+    assert missing_instrument > 0 or missing_prior_m15 > 0
