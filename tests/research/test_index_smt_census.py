@@ -14,6 +14,7 @@ import pytest
 from qore.infrastructure.trader_lab.index_smt_census import (
     CSV_FIELDS,
     SMTExportError,
+    VerifiedExport,
     census_smt_candidates,
     load_ctrader_m5_export,
 )
@@ -67,7 +68,7 @@ def export(
     tmp_path: Path,
     symbol: Symbol,
     data: list[dict[str, str]] | None = None,
-):
+) -> VerifiedExport:
     path = tmp_path / f"{symbol}.csv"
     save(path, rows(symbol) if data is None else data)
     return load_ctrader_m5_export(
