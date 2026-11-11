@@ -127,7 +127,8 @@ class AggregationContract(unittest.TestCase):
             aggregate(self.root)
 
     def test_10_reject_missing_model(self) -> None:
-        self.replace("EURUSD", two_hypotheses={MODELS[0]: fixture("EURUSD")["two_hypotheses"][MODELS[0]]})
+        only_a = fixture("EURUSD")["two_hypotheses"][MODELS[0]]
+        self.replace("EURUSD", two_hypotheses={MODELS[0]: only_a})
         with self.assertRaisesRegex(ValueError, "model missing"):
             aggregate(self.root)
 
