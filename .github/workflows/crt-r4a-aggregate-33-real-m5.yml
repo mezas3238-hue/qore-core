@@ -1,7 +1,9 @@
 name: CRT R4-A compile genuine 2024-25 M5 proxy reports (33 markets, NOT CERTIFIED)
 
 on:
-  pull_request:
+  push:
+    branches:
+      - research/crt-r4a-34-holdout-2y-20261111
     paths:
       - ".github/workflows/crt-r4a-aggregate-33-real-m5.yml"
       - "research/crt_r4a_holdout/aggregate_archived_proxy.py"
