@@ -21,6 +21,11 @@ from research.crt_r4a_holdout.pine_h4_geometry import (
     true_three_c,
     two_c_return,
 )
+from research.crt_r4a_holdout.seven_family_contract import (
+    Family,
+    research_family_from_base_event,
+)
+
 from research.crt_r4a_holdout.pine_swing_primitives import (
     Bar,
     M5Swings,
@@ -372,8 +377,24 @@ class CausalCRTM5:
         return self.evidence[old_count:]
 
     def readout(self) -> dict[str, object]:
+        # Seven distinct strategy research IDs; the first three are the
+        # only ones this original A/B causal detector produces today.
+        # Zero for remaining four is NOT evidence they never occur.
+        family_counts = {family.value: 0 for family in Family}
+        for event in self.evidence:
+            family = research_family_from_base_event(
+                model=event.model, mss_at=event.mss_at,
+                ratified_at=event.ratified_at
+            )
+            family_counts[family.value] += 1
+        if sum(family_counts.values()) != len(self.evidence):
+            raise ValueError("seven-family event reconciliation failed")
         return {
             "symbol": self.symbol,
+            "seven_family_research_event_counts": family_counts,
+            "seven_families_registered": len(Family),
+            "family_signals_integrated": 3,
+            "family_only_geometry_until_own_mss": 4,
             "family": self.family,
             "m5_phase": self.phase,
             "stats": dict(self.stats),
