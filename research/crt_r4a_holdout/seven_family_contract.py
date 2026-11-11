@@ -82,7 +82,7 @@ FAMILY_SPECS = (
         8, "C1/C2 strict inside; terminal H4 single sweep of C2, returns",
         "Own pre-sweep M5 or M15 confirmed pivot; not copied from base CRT",
         "Terminal inside-return H4 ratification plus own MSS close",
-        Readiness.NOT_IMPLEMENTED,
+        Readiness.DETECTOR_RESEARCH_ONLY,
     ),
     FamilySpecification(
         Family.MULTI4,
@@ -90,7 +90,7 @@ FAMILY_SPECS = (
         32, "C1 / C2a / C2b / C3 distributed reversal, 4 closed H4",
         "Own C2a pre-sweep M5/M15 pivot and owned close crossover",
         "C3 H4 close plus independent owned confirmation",
-        Readiness.NOT_IMPLEMENTED,
+        Readiness.DETECTOR_RESEARCH_ONLY,
     ),
     FamilySpecification(
         Family.MULTIN,
@@ -98,7 +98,7 @@ FAMILY_SPECS = (
         32, "C1, 2–5 strict-inside consolidation H4, terminal one-sided sweep",
         "Own terminal sweep and independent M5/M15 pivot/crossover",
         "Terminal H4 close plus independent owned confirmation",
-        Readiness.NOT_IMPLEMENTED,
+        Readiness.DETECTOR_RESEARCH_ONLY,
     ),
     FamilySpecification(
         Family.M15_RETEST,
@@ -106,7 +106,7 @@ FAMILY_SPECS = (
         64, "Previously ratified 2C CRT with own M15 MSS; retest in <=4h",
         "Same CRT id, source MSS timestamp and source M15 pivot",
         "Closed complete M15 retest after source MSS",
-        Readiness.NOT_IMPLEMENTED,
+        Readiness.DETECTOR_RESEARCH_ONLY,
     ),
 )
 
