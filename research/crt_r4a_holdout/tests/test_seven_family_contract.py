@@ -95,18 +95,15 @@ class SevenResearchFamilies(unittest.TestCase):
             self.assertTrue(spec.requires_original_pine_parity)
             self.assertTrue(spec.requires_net_cost_testing)
 
-    def test_13_only_first_three_have_research_event_detector(self) -> None:
-        already = {
-            s.family for s in FAMILY_SPECS
-            if s.readiness == Readiness.DETECTOR_RESEARCH_ONLY
+    def test_13_all_seven_have_unapproved_research_event_paths(self) -> None:
+        research = {
+            spec.family for spec in FAMILY_SPECS
+            if spec.readiness == Readiness.DETECTOR_RESEARCH_ONLY
         }
+        self.assertEqual(research, set(Family))
         self.assertEqual(
-            already,
-            {Family.TWO_C_MSS_C2, Family.TWO_C_MSS_C3, Family.TRUE_3C},
-        )
-        self.assertEqual(
-            len([s for s in FAMILY_SPECS
-                 if s.readiness == Readiness.NOT_IMPLEMENTED]), 4
+            len([spec for spec in FAMILY_SPECS
+                 if spec.readiness == Readiness.NOT_IMPLEMENTED]), 0
         )
 
     def test_14_default_no_order_permission_for_all(self) -> None:
