@@ -21,11 +21,6 @@ from research.crt_r4a_holdout.pine_h4_geometry import (
     true_three_c,
     two_c_return,
 )
-from research.crt_r4a_holdout.seven_family_contract import (
-    Family,
-    research_family_from_base_event,
-)
-
 from research.crt_r4a_holdout.pine_swing_primitives import (
     Bar,
     M5Swings,
@@ -36,6 +31,10 @@ from research.crt_r4a_holdout.pine_swing_primitives import (
     freeze_pre_sweep,
     mss5_cross,
     mss15_cross,
+)
+from research.crt_r4a_holdout.seven_family_contract import (
+    Family,
+    research_family_from_base_event,
 )
 
 NY = ZoneInfo("America/New_York")
