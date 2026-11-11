@@ -1,0 +1,52 @@
+name: CRT R4-A 34 - 2Y holdout research QA
+
+on:
+  pull_request:
+    paths:
+      - "research/crt_r4a_holdout/**"
+      - ".github/workflows/crt-r4a-holdout-2y-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-qa-and-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout immutable research branch
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests (synthetic fixtures ONLY - not a holdout)
+        run: |
+          python -m unittest discover -s research/crt_r4a_holdout/tests -p 'test_*.py' -v
+      - name: Preflight 34 instruments x 24 months
+        run: |
+          python research/crt_r4a_holdout/runner.py preflight \
+            --root research/crt_r4a_holdout/data \
+            --out qa-reports/crt_r4a_2y_preflight.json
+      - name: Assert no synthetic profitability reported or gate bypass
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("qa-reports/crt_r4a_2y_preflight.json")
+          r = json.loads(p.read_text(encoding="utf-8"))
+          assert r["status"] == "BLOCKED", "This workflow never authorizes holdout execution"
+          assert r["symbols_required"] == 34
+          assert r["holdout_start"] == "2024-01-01T00:00:00+00:00"
+          assert r["holdout_end_exclusive"] == "2026-01-01T00:00:00+00:00"
+          assert len(r["issues"]) > 0
+          print("HOLDOUT BLOCKED: missing external market/parity/holdout evidence")
+          print("Missing gates:", len(r["issues"]))
+          PY
+      - name: Upload readiness evidence (not a performance report)
+        uses: actions/upload-artifact@v4
+        with:
+          name: crt-r4a-34-holdout-preflight-blocked
+          path: qa-reports/crt_r4a_2y_preflight.json
+          retention-days: 14
