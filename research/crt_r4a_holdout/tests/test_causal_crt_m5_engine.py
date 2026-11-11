@@ -159,6 +159,29 @@ class IntegratedEngine(unittest.TestCase):
         self.assertEqual(row["available_at"], row["ratified_at"])
         self.assertTrue(row["mss_pivot"])
 
+    def test_16_two_c_MSS_in_C2_routed_to_separate_family(self) -> None:
+        e = run("A_C2_MSS")
+        out = e.readout()
+        families = out["seven_family_research_event_counts"]
+        self.assertEqual(families["CRT_2C_RETURN_MSS15_IN_C2"], 1)
+        self.assertEqual(families["CRT_2C_RETURN_MSS15_IN_C3"], 0)
+        self.assertEqual(out["seven_families_registered"], 7)
+
+    def test_17_two_c_MSS_in_C3_routed_to_separate_family(self) -> None:
+        e = run("A_C3_MSS")
+        out = e.readout()
+        families = out["seven_family_research_event_counts"]
+        self.assertEqual(families["CRT_2C_RETURN_MSS15_IN_C2"], 0)
+        self.assertEqual(families["CRT_2C_RETURN_MSS15_IN_C3"], 1)
+
+    def test_18_true3c_does_not_inherit_two_c_family(self) -> None:
+        e = run("B_VALID")
+        out = e.readout()
+        families = out["seven_family_research_event_counts"]
+        self.assertEqual(families["CRT_TRUE3C_MSS5"], 1)
+        self.assertEqual(sum(families.values()), out["events_total"])
+        self.assertEqual(out["family_only_geometry_until_own_mss"], 4)
+
     def test_15_new_c1_clock_not_restricted_to_legacy_three(self) -> None:
         engine = CausalCRTM5("EURUSD", "forex")
         for c in generated("A_C2_MSS"):
