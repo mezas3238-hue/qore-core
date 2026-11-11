@@ -49,5 +49,12 @@
     "GBPCHF": null,
     "GBPNZD": null,
     "NZDCAD": null
+  },
+  "window_consumed_for_crt_research": true,
+  "window_consumption_evidence": {
+    "run_id": 43094233453,
+    "source_commit": "74092c66710449baed2ebcbbee8e7448e5ca54e3",
+    "description": "33 original M5 markets were replayed with CRT A/B approximations and gross R performance inspected; NOT a fresh untouched holdout",
+    "run_url": "https://github.com/mezas3238-hue/qore-core/actions/runs/43094233453"
   }
 }
