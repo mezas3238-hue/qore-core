@@ -10,6 +10,9 @@ from research.crt_r4a_holdout.runner import SYMBOLS
 
 MODELS = ("A_2C_MSS15_PROXY", "B_TRUE3C_MSS5_PROXY")
 SOURCE_RUN = 43094233453
+# Only hypothetical price-equivalent costs expressed as R per closed trade.
+# These are NOT broker spreads/commission/slippage or a net backtest.
+COST_STRESS_R = (0.0, 0.02, 0.05, 0.10, 0.20)
 
 
 def fmt(x: float | None, n: int = 2) -> str:
@@ -66,6 +69,16 @@ def aggregate(root: Path) -> tuple[dict[str, Any], str]:
             "markets_positive": sum(x["gross_net_R_unscaled"] > 0 for x in sub),
             "markets_negative": sum(x["gross_net_R_unscaled"] < 0 for x in sub),
             "markets_no_trades": sum(x["closed_trades"] == 0 for x in sub),
+            "gross_break_even_cost_R_per_closed_trade": (
+                max(0.0, gross_r / trades) if trades else None
+            ),
+            "hypothetical_cost_stress_not_broker_net": {
+                f"{cost:.2f}R": {
+                    "hypothetical_mean_R": gross_r / trades - cost if trades else None,
+                    "hypothetical_sum_R_not_capital": gross_r - trades * cost,
+                }
+                for cost in COST_STRESS_R
+            },
         }
     totals = {
         "native_M5": sum(r["native_M5_rows"] for r in rows),
@@ -96,6 +109,8 @@ def aggregate(root: Path) -> tuple[dict[str, Any], str]:
         "sources": {"atlas_broker_unverified": atlas, "ic_demo": ic},
         "totals": totals,
         "pooled": pooled,
+        "cost_sensitivity_is_hypothetical_only": True,
+        "cost_stress_R_per_trade": COST_STRESS_R,
         "by_symbol": rows,
     }
     notes = [
@@ -125,6 +140,28 @@ def aggregate(root: Path) -> tuple[dict[str, Any], str]:
             f"{fmt(a['gross_mean_r'], 4)} R | "
             f"{fmt(a['gross_r_sum_not_portfolio'])} R | "
             f"{a['markets_positive']}/{a['markets_negative']} |"
+        )
+    notes.extend([
+        "",
+        "## Falsación por costos hipotéticos (NO cotizaciones broker)",
+        "",
+        "Esta prueba resta 0.02R, 0.05R, 0.10R o 0.20R por operación "
+        "cerrada. No afirma que estos sean costos reales ni representa "
+        "un backtest neto. Los resultados brutos ya usan OHLC mid/proxy.",
+        "",
+        "| Modelo | Media bruta R | Media con -0.02R | "
+        "Media con -0.05R | Media con -0.10R | Coste máximo bruto para empate |",
+        "|---|---:|---:|---:|---:|---:|",
+    ])
+    for model in MODELS:
+        a = pooled[model]
+        stress = a["hypothetical_cost_stress_not_broker_net"]
+        notes.append(
+            f"| {model} | {fmt(a['gross_mean_r'], 4)} | "
+            f"{fmt(stress['0.02R']['hypothetical_mean_R'], 4)} | "
+            f"{fmt(stress['0.05R']['hypothetical_mean_R'], 4)} | "
+            f"{fmt(stress['0.10R']['hypothetical_mean_R'], 4)} | "
+            f"{fmt(a['gross_break_even_cost_R_per_closed_trade'], 4)} |"
         )
     notes.extend([
         "",
