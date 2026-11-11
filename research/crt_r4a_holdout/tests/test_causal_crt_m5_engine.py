@@ -180,7 +180,8 @@ class IntegratedEngine(unittest.TestCase):
         families = out["seven_family_research_event_counts"]
         self.assertEqual(families["CRT_TRUE3C_MSS5"], 1)
         self.assertEqual(sum(families.values()), out["events_total"])
-        self.assertEqual(out["family_only_geometry_until_own_mss"], 4)
+        self.assertEqual(out["family_only_geometry_until_own_mss"], 0)
+        self.assertEqual(out["family_signals_integrated"], 7)
 
     def test_15_new_c1_clock_not_restricted_to_legacy_three(self) -> None:
         engine = CausalCRTM5("EURUSD", "forex")
