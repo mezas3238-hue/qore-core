@@ -37,7 +37,7 @@ jobs:
           merge-multiple: false
       - name: Aggregate gross R, all 33 markets and both strategies, NO profitability claim
         run: |
-          python research/crt_r4a_holdout/aggregate_archived_proxy.py \
+          python -m research.crt_r4a_holdout.aggregate_archived_proxy \
             --root "${{ runner.temp }}/crt-r4a-33-reports" \
             --outdir reports/real-m5-proxy-33
           echo "MODE=REAL_M5_PROXY_GROSS_R_NO_COSTS" >> "$GITHUB_STEP_SUMMARY"
