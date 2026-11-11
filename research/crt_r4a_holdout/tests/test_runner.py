@@ -346,6 +346,24 @@ class HoldoutGateTests(unittest.TestCase):
             self.assertEqual(out["status"], "BLOCKED")
             self.assertTrue(any("missing declared sha256" in x for x in out["issues"]))
 
+    def test_37_burned_2024_2025_unconditionally_blocked(self):
+        root = Path(__file__).resolve().parents[1] / "data"
+        report = readiness(root)
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertTrue(any("BURNED" in x for x in report["issues"]))
+
+    def test_38_burned_even_when_unseen_flag_forged(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            original = Path(__file__).resolve().parents[1] / "data" / "manifest.json"
+            m = json.loads(original.read_text(encoding="utf-8"))
+            m["holdout_unseen_attested"] = True
+            m["holdout_attestation_ref"] = "fabricated-certification"
+            (root / "manifest.json").write_text(json.dumps(m), encoding="utf-8")
+            report = readiness(root)
+            self.assertEqual(report["status"], "BLOCKED")
+            self.assertTrue(any("BURNED" in x for x in report["issues"]))
+
     def test_34_manifest_incorrect_time_window_fails(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
