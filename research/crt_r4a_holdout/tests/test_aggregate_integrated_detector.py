@@ -134,8 +134,34 @@ class AggregateCausal(unittest.TestCase):
 
     def test_11_index_alias_cannot_fake_ic_provider(self) -> None:
         self.replace("USTEC", provider_cohort="ICMARKETS_DEMO_CONFIRMED")
-        with self.assertRaisesRegex(ValueError, "impersonation"):
+        with self.assertRaisesRegex(ValueError, "cohort mismatch"):
             aggregate(self.root)
+
+    def test_13_original_artifacts_missing_cohort_use_pinned_matrix(self) -> None:
+        for symbol in ("USTEC", "USDCHF"):
+            source = ALIASES.get(symbol, symbol)
+            path = (
+                self.root / f"qore-crt-r4a-integrated-{source}"
+                / "integrated.json"
+            )
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data.pop("provider_cohort")
+            path.write_text(json.dumps(data), encoding="utf-8")
+        report, _ = aggregate(self.root)
+        by_symbol = {r["canonical_symbol"]: r for r in report["by_symbol"]}
+        for symbol in ("USTEC", "USDCHF"):
+            self.assertEqual(
+                by_symbol[symbol]["provider_cohort_evidence"],
+                "PINNED_GITHUB_ACTIONS_SOURCE_MATRIX",
+            )
+        self.assertEqual(
+            by_symbol["USTEC"]["provider_cohort"],
+            "ATLAS_DEMO_BROKER_UNVERIFIED",
+        )
+        self.assertEqual(
+            by_symbol["USDCHF"]["provider_cohort"],
+            "ICMARKETS_DEMO_CONFIRMED",
+        )
 
     def test_12_forged_data_sha_rejected(self) -> None:
         self.replace("USDCHF", year_2024_2025_SHA256_verified=False)
