@@ -26,10 +26,17 @@ def aggregate(root: Path) -> tuple[dict[str, Any], str]:
     rows: list[dict[str, Any]] = []
     for path in paths:
         r = json.loads(path.read_text(encoding="utf-8"))
-        if r.get("symbol") not in SYMBOLS or r.get("symbol") == "BTCUSD":
+        source_symbol = r.get("symbol")
+        aliases = {"NAS100": "USTEC", "SP500": "US500"}
+        canonical_symbol = aliases.get(source_symbol, source_symbol)
+        if canonical_symbol not in SYMBOLS or canonical_symbol == "BTCUSD":
             raise ValueError("unexpected non-IC-market or missing symbol")
-        if path.parent.name != f"crt-r4a-proxy-summary-{r['symbol']}":
+        if path.parent.name != f"crt-r4a-proxy-summary-{source_symbol}":
             raise ValueError("artifact name does not match source symbol")
+        if source_symbol in aliases and r.get("cohort") != "ATLAS_DEMO_BROKER_UNVERIFIED":
+            raise ValueError("index alias requires original Atlas source provenance")
+        r["source_symbol"] = source_symbol
+        r["symbol"] = canonical_symbol
         if r.get("period") != "2024-01-01/2025-12-31":
             raise ValueError("unsupported research period")
         if r.get("native_M5_rows", 0) < 50_000:
@@ -174,6 +181,8 @@ def aggregate(root: Path) -> tuple[dict[str, Any], str]:
     for r in rows:
         a, b = (r["two_hypotheses"][model] for model in MODELS)
         cohort = "Atlas unverified" if "ATLAS" in r["cohort"] else "IC DEMO"
+        if r["source_symbol"] != r["symbol"]:
+            cohort += f" ({r['source_symbol']})"
         notes.append(
             f"| {r['symbol']} | {cohort} | {a['closed_trades']} | "
             f"{fmt(a['gross_profit_factor'])} | {fmt(a['gross_net_R_unscaled'])} | "
