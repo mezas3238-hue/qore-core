@@ -276,7 +276,7 @@ class ExecutionTests(unittest.TestCase):
         self.assertIsNone(r["win_rate"])
         self.assertEqual(r["trades"], 0)
 
-    def test_35_entry_and_target_same_M5_never_credit_win(self):
+    def test_35_entry_and_target_same_m5_never_credit_win(self):
         status, trade = simulate_event(
             example_event(), [q(t())],
             commission_price=0, slippage_price=0,
@@ -284,7 +284,7 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(status, "AMBIGUOUS_ENTRY_AND_TARGET_SAME_M5")
         self.assertIsNone(trade)
 
-    def test_36_short_entry_target_same_M5_never_credit_win(self):
+    def test_36_short_entry_target_same_m5_never_credit_win(self):
         bar = q(
             t(), bo=98, bh=99, bl=89, bc=94,
             ao=98.2, ah=99.2, al=89.2, ac=94.2,
