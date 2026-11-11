@@ -17,6 +17,10 @@ jobs:
     steps:
       - name: Checkout immutable research branch
         uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Fetch read-only original QORE CRT RADAR R4-A Pine for exact SHA verification
         uses: actions/checkout@v4
         with:
@@ -29,10 +33,6 @@ jobs:
           python research/crt_r4a_holdout/verify_pine_source.py \
             --pine external-r4a-pine/crt-radar-pro/qa-integrated-34/QORE_CRT_34_R4_AB_400_M5_AUTO_BUFFER_QA.pine \
             --out qa-reports/pine_r4a_exact_source.json
-      - name: Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
       - name: Unit tests (synthetic fixtures ONLY - not a holdout)
         run: |
           python -m unittest discover -s research/crt_r4a_holdout/tests -p 'test_*.py' -v
