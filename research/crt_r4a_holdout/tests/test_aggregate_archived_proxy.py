@@ -116,7 +116,7 @@ class AggregationContract(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "false certification"):
             aggregate(self.root)
 
-    def test_08_reject_wrong_original_SHA_status(self) -> None:
+    def test_08_reject_wrong_original_sha_status(self) -> None:
         self.replace("EURUSD", source_sha256="UNVERIFIED")
         with self.assertRaisesRegex(ValueError, "integrity"):
             aggregate(self.root)
