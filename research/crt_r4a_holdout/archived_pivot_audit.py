@@ -11,13 +11,14 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from scripts.crt_radar_archived_m5_prescreen import native_to_bar
+
 from research.crt_r4a_holdout.native_archive_2y_probe import inspect
 from research.crt_r4a_holdout.pine_swing_primitives import (
     Bar,
     M5Swings,
     M15Swings,
 )
-from scripts.crt_radar_archived_m5_prescreen import native_to_bar
 
 
 def analyze_archive(root: Path, symbol: str, cohort: str) -> dict[str, object]:
