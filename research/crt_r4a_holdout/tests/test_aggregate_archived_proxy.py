@@ -165,6 +165,32 @@ class AggregationContract(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "false certification"):
             aggregate(self.root)
 
+    def test_15_original_atlas_indices_map_without_losing_provenance(self) -> None:
+        for canonical, source in (("USTEC", "NAS100"), ("US500", "SP500")):
+            original = self.root / f"crt-r4a-proxy-summary-{canonical}"
+            target = self.root / f"crt-r4a-proxy-summary-{source}"
+            original.rename(target)
+            path = target / "crt-proxy-summary.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["symbol"] = source
+            path.write_text(json.dumps(data), encoding="utf-8")
+        result, _ = aggregate(self.root)
+        by_symbol = {item["symbol"]: item for item in result["by_symbol"]}
+        self.assertEqual(by_symbol["USTEC"]["source_symbol"], "NAS100")
+        self.assertEqual(by_symbol["US500"]["source_symbol"], "SP500")
+
+    def test_16_atlas_alias_must_not_impersonate_ic_provider(self) -> None:
+        original = self.root / "crt-r4a-proxy-summary-USTEC"
+        target = self.root / "crt-r4a-proxy-summary-NAS100"
+        original.rename(target)
+        path = target / "crt-proxy-summary.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["symbol"] = "NAS100"
+        data["cohort"] = "ICMARKETS_DEMO_CONFIRMED"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "Atlas source provenance"):
+            aggregate(self.root)
+
     def test_12_reject_wrong_provider_cohort(self) -> None:
         self.replace("EURUSD", cohort="ICMARKETS_DEMO_CONFIRMED")
         with self.assertRaisesRegex(ValueError, "cohorts mismatch"):
