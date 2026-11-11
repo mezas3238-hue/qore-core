@@ -73,6 +73,28 @@ python research/crt_r4a_holdout/runner.py run \
 
 Si falta una precondición, `run` sale con código 2 y produce `BLOCKED`, nunca cifras.
 
+## Verificador causal de paridad (`parity_gate.py`)
+
+Hay una prueba nueva que no reinterpreta los resultados históricos del proxy. Se exige una cinta CSV de **eventos reales del Pine R4-A original** y otra del replay independiente, calculadas sobre el **mismo OHLC/proveedor/reloj** y con identidad del mismo ciclo C1.
+
+Columnas requeridas en ambas cintas:
+`event_id,symbol,model,side,c1_at,sweep_at,ratified_at,mss_at,available_at,c1_high,c1_low,sweep_high,sweep_low,mss_pivot`.
+
+```bash
+python research/crt_r4a_holdout/parity_gate.py \
+  --pine evidence/pine_r4a_events.csv \
+  --replay evidence/replay_r4a_events.csv \
+  --out reports/pine_replay_event_parity.json
+```
+
+- Se exige coincidencia **evento por evento**, sin tolerancia artificial por conteos; incluye nivel de pivote en decimal exacto y timestamp UTC normalizado.
+- Un MSS posterior al cierre C3 en TRUE 3C es inválido en esta hipótesis; para 2C RETURN el MSS M15 puede ratificarse después de C2 si causal.
+- La propia cinta Pine debe ser producida por instrumentación específica en QA. **R4-A `f_engine_snapshot()` sólo exporta un estado de última barra; no genera un ledger histórico**, así que el reporte de paridad todavía no existe. No fabricar CSV de Pine copiando los resultados del proxy.
+- Incluso el estado `PASS_EVENT_PARITY_ONLY` no es certificación de ejecución, fuente, BTCUSD, holdout intacto o ganancias.
+- 16 pruebas sintéticas automatizadas verifican falsación de dirección, identidad, niveles, diferencias temporales, precios y ausencia de lookahead.
+
+**Consolidación de los 33 resultados reales anteriores:** [Run 43094233453](https://github.com/mezas3238-hue/qore-core/actions/runs/43094233453) dejó 33 artefactos JSON pequeños, uno por mercado, sin OHLC crudas. `aggregate_archived_proxy.py` produce una tabla de **todos** los mercados y dos modelos, y 12 pruebas sintéticas hacen fallar el proceso si falta un mercado, se cambia su identidad o se afirma paridad/holdout sin permiso. Su workflow debe finalizar realmente para declarar un reporte consolidado ejecutado; un estado QUEUED no equivale a PASS.
+
 ## Estado de aceptación
 
 - **Programa de trader / simulador de ejecución**: implementado en investigación; tests synthetic no equivalen a rendimiento.
