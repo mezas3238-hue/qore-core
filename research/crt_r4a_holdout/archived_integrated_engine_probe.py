@@ -44,6 +44,7 @@ def analyze(root: Path, symbol: str, family: str, cohort: str) -> dict:
         raise ValueError("duplicate CRT cycle identity")
     report = engine.readout()
     report.update({
+        "provider_cohort": cohort,
         "source_m5_rows": verified["total_m5"],
         "last_native_m5_time": latest.opened_at.isoformat() if latest else None,
         "events_per_year_model": dict(events_per_year),
