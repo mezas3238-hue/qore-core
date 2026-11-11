@@ -15,7 +15,7 @@ event-for-event platform verification; no assumption of certification.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 FIVE = timedelta(minutes=5)
 FIFTEEN = timedelta(minutes=15)
