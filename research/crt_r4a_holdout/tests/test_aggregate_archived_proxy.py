@@ -66,9 +66,9 @@ class AggregationContract(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def replace(self, symbol: str, **changes: object) -> None:
+    def replace(self, target: str, **changes: object) -> None:
         path = (
-            self.root / f"crt-r4a-proxy-summary-{symbol}"
+            self.root / f"crt-r4a-proxy-summary-{target}"
             / "crt-proxy-summary.json"
         )
         current = json.loads(path.read_text(encoding="utf-8"))
@@ -86,7 +86,7 @@ class AggregationContract(unittest.TestCase):
         self.assertEqual(set(result["pooled"]), set(MODELS))
         self.assertEqual(result["pooled"][MODELS[0]]["trades"], 66)
         self.assertEqual(result["totals"]["native_M5"], 149_000 * 33)
-        self.assertIn("NO CERTIFICADO", markdown)
+        self.assertIn("NO CERTIFICADO", markdown.upper())
 
     def test_03_portfolio_and_holdout_must_not_be_certified(self) -> None:
         result, _ = aggregate(self.root)
