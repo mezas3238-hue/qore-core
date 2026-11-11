@@ -187,6 +187,11 @@ jobs:
             artifact: qore-native-icmarkets-10Y-provider-M5-NZDCAD-e0ca5a13c866a19d8505c68cffc473598984b340
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout source-validated archived CRT decoder pinned to PR #1004
+        uses: actions/checkout@v4
+        with:
+          ref: fe9de467102e86dbd355c09c5099830af28a694c
+          path: legacy-crt-lab
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -211,6 +216,23 @@ jobs:
           echo "ARCHIVE_READONLY=TRUE" >> "$GITHUB_STEP_SUMMARY"
           echo "PINE_PARITY=NOT_CERTIFIED" >> "$GITHUB_STEP_SUMMARY"
           echo "HOLDOUT=NOT_OPENED; NO_TRADING" >> "$GITHUB_STEP_SUMMARY"
+      - name: Execute 2024-2025 native M5 A/B strategy GROSS-R proxy (not Pine parity)
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ runner.temp }}/qore-m5-private
+          SYMBOL: ${{ matrix.symbol }}
+          FAMILY: ${{ matrix.family }}
+          COHORT: ${{ matrix.cohort }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/legacy-crt-lab:$GITHUB_WORKSPACE"           python research/crt_r4a_holdout/archived_2y_strategy_proxy.py             --root "$SOURCE_ROOT" --symbol "$SYMBOL"             --family "$FAMILY" --cohort "$COHORT" | tee "$RUNNER_TEMP/crt-proxy-summary.json"
+          echo "STATUS=EXPLORATORY_2024_2025_GROSS_R_NO_COSTS" >> "$GITHUB_STEP_SUMMARY"
+          echo "PINE_ENGINE_PARITY=NOT_CERTIFIED; HOLDOUT_UNSEEN=UNKNOWN" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crt-r4a-proxy-summary-${{ matrix.symbol }}
+          path: ${{ runner.temp }}/crt-proxy-summary.json
+          retention-days: 14
       - name: Wipe raw M5 source after verification
         if: always()
         run: rm -rf "${{ runner.temp }}/qore-m5-private"
