@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/crt-r4a-aggregate-33-real-m5.yml"
       - "research/crt_r4a_holdout/aggregate_archived_proxy.py"
+      - "research/crt_r4a_holdout/tests/test_aggregate_archived_proxy.py"
   workflow_dispatch:
 
 permissions:
@@ -20,6 +21,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Validate 12 synthetic fail-closed aggregation controls
+        run: |
+          python -m unittest research.crt_r4a_holdout.tests.test_aggregate_archived_proxy -v
       - name: Retrieve 33 sanitized reports from immutable original GitHub run (no raw prices)
         uses: actions/download-artifact@v4
         with:
