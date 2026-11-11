@@ -29,8 +29,8 @@ from research.crt_r4a_holdout.pine_swing_primitives import (
     Pivot,
     SwingSnapshot,
     freeze_pre_sweep,
-    mss15_cross,
     mss5_cross,
+    mss15_cross,
 )
 
 NY = ZoneInfo("America/New_York")
@@ -79,6 +79,11 @@ class Pending:
     swept: ClosedH4 | None = None
     ratified_at: datetime | None = None
     emitted: bool = False
+    original_start: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if self.original_start is None:
+            self.original_start = self.target_start
 
 
 @dataclass(frozen=True)
@@ -190,7 +195,7 @@ class CausalCRTM5:
         identity = (
             f"{self.symbol}|{pending.model}|"
             f"{pending.c1.opened_at.isoformat()}|"
-            f"{pending.target_start.isoformat()}"
+            f"{pending.original_start.isoformat()}"
         )
         self.evidence.append(Evidence(
             identity, self.symbol, pending.model,
@@ -330,7 +335,9 @@ class CausalCRTM5:
         self._on_m15(closed15)
         bucket = self._bucket_for(candle.opened_at)
         if self._bucket is not None and bucket != self._bucket:
-            self._finish_period(self._closed_h4())
+            # A source gap cannot retroactively publish a previously closed
+            # H4 as though its next opening M5 was continuously observed.
+            self._finish_period(self._closed_h4() if continuous else None)
             self._group.clear()
         if self._bucket is None or bucket != self._bucket:
             self._bucket = bucket
