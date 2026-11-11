@@ -32,6 +32,9 @@ from research.crt_r4a_holdout.pine_swing_primitives import (
     mss5_cross,
     mss15_cross,
 )
+from research.crt_r4a_holdout.secondary_family_observer import (
+    SecondaryGeometryObserver,
+)
 from research.crt_r4a_holdout.seven_family_contract import (
     Family,
     research_family_from_base_event,
@@ -145,6 +148,7 @@ class CausalCRTM5:
         self._a_c3: Pending | None = None
         self._b_c3: Pending | None = None
         self.evidence: list[Evidence] = []
+        self.secondary = SecondaryGeometryObserver(family)
         self.stats: dict[str, int] = {}
 
     def _count(self, key: str) -> None:
@@ -337,11 +341,14 @@ class CausalCRTM5:
         before5, continuous = self.m5.before_closed_bar(now)
         closed15 = self.m15.on_closed_m5(now)
         self._on_m15(closed15)
+        self.secondary.on_m15_retest(closed15, self.evidence)
         bucket = self._bucket_for(candle.opened_at)
         if self._bucket is not None and bucket != self._bucket:
             # A source gap cannot retroactively publish a previously closed
             # H4 as though its next opening M5 was continuously observed.
-            self._finish_period(self._closed_h4() if continuous else None)
+            old_h4 = self._closed_h4() if continuous else None
+            self._finish_period(old_h4)
+            self.secondary.on_closed_h4(old_h4)
             self._group.clear()
         if self._bucket is None or bucket != self._bucket:
             self._bucket = bucket
@@ -351,6 +358,7 @@ class CausalCRTM5:
             self._a_c2 = self._a_c3 = self._b_c3 = None
             self._closed.clear()
             self._group.clear()
+            self.secondary.on_closed_h4(None)
             self._count("feed_gaps")
         before15 = self.m15.snapshot()
         self._sweep(self._a_c2, candle, before5, before15)
@@ -394,6 +402,7 @@ class CausalCRTM5:
             "seven_families_registered": len(Family),
             "family_signals_integrated": 3,
             "family_only_geometry_until_own_mss": 4,
+            "secondary_family_geometry_audit": self.secondary.readout(),
             "family": self.family,
             "m5_phase": self.phase,
             "stats": dict(self.stats),
