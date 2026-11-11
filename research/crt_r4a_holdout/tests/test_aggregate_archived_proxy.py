@@ -137,6 +137,34 @@ class AggregationContract(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "insufficient"):
             aggregate(self.root)
 
+    def test_13_hypothetical_cost_grid_is_not_broker_net(self) -> None:
+        result, markdown = aggregate(self.root)
+        self.assertIs(result["cost_sensitivity_is_hypothetical_only"], True)
+        self.assertEqual(
+            tuple(result["cost_stress_R_per_trade"]),
+            (0.0, 0.02, 0.05, 0.10, 0.20),
+        )
+        for model in MODELS:
+            rec = result["pooled"][model]
+            self.assertEqual(rec["trades"], 66)
+            self.assertAlmostEqual(rec["gross_mean_r"], -0.15)
+            stress = rec["hypothetical_cost_stress_not_broker_net"]
+            self.assertAlmostEqual(
+                stress["0.05R"]["hypothetical_mean_R"], -0.20
+            )
+            self.assertAlmostEqual(
+                stress["0.20R"]["hypothetical_sum_R_not_capital"], -23.1
+            )
+            self.assertEqual(
+                rec["gross_break_even_cost_R_per_closed_trade"], 0.0
+            )
+        self.assertIn("NO cotizaciones broker", markdown)
+
+    def test_14_reject_fabricated_net_cost_flag(self) -> None:
+        self.replace("EURUSD", costs_included=True)
+        with self.assertRaisesRegex(ValueError, "false certification"):
+            aggregate(self.root)
+
     def test_12_reject_wrong_provider_cohort(self) -> None:
         self.replace("EURUSD", cohort="ICMARKETS_DEMO_CONFIRMED")
         with self.assertRaisesRegex(ValueError, "cohorts mismatch"):
