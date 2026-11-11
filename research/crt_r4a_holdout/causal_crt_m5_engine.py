@@ -404,7 +404,22 @@ class CausalCRTM5:
                 ratified_at=event.ratified_at
             )
             family_counts[family.value] += 1
+        known_structures = {
+            (g.family, g.c1_at, g.ratified_at)
+            for g in self.secondary.events
+        }
         for event in self.secondary_mss.events:
+            if (
+                event.family, event.c1_at, event.ratified_at
+            ) not in known_structures:
+                raise ValueError(
+                    "owned MSS signal has no independently matched H4 geometry"
+                )
+            if not (
+                event.own_pivot_at < event.sweep_at < event.own_mss15_at
+                <= event.available_at
+            ):
+                raise ValueError("secondary family causality breach")
             family_counts[event.family.value] += 1
         retest = sum(
             event.family == Family.M15_RETEST
