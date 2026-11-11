@@ -172,7 +172,10 @@ class ContractTests(unittest.TestCase):
 class ExecutionTests(unittest.TestCase):
     def test_19_long_tp_with_bid_and_costs(self):
         status, trade = simulate_event(
-            example_event(), [q(t())],
+            example_event(), [
+                q(t(), bh=106, bl=100, bc=104, ah=106.2, al=102.2, ac=104.2),
+                q(t(8, 5)),
+            ],
             commission_price=0.3, slippage_price=0.2,
         )
         self.assertEqual(status, "TRADE")
@@ -182,7 +185,11 @@ class ExecutionTests(unittest.TestCase):
 
     def test_20_skip_last_bar_before_available(self):
         status, trade = simulate_event(
-            example_event(), [q(t(7, 55)), q(t())],
+            example_event(), [
+                q(t(7, 55)),
+                q(t(), bh=106, bl=100, bc=104, ah=106.2, al=102.2, ac=104.2),
+                q(t(8, 5)),
+            ],
             commission_price=0, slippage_price=0,
         )
         self.assertEqual(status, "TRADE")
@@ -218,7 +225,12 @@ class ExecutionTests(unittest.TestCase):
             ao=98.2, ah=99.2, al=89.2, ac=94.2,
         )
         status, trade = simulate_event(
-            example_event("SHORT"), [bar],
+            example_event("SHORT"), [
+                q(t(), bo=98, bh=99, bl=94, bc=95,
+                  ao=98.2, ah=99.2, al=94.2, ac=95.2),
+                bar.__class__(t(8, 5), bar.bo, bar.bh, bar.bl,
+                              bar.bc, bar.ao, bar.ah, bar.al, bar.ac),
+            ],
             commission_price=0.2, slippage_price=0.1,
         )
         self.assertEqual(status, "TRADE")
@@ -263,6 +275,26 @@ class ExecutionTests(unittest.TestCase):
         self.assertIsNone(r["profit_factor"])
         self.assertIsNone(r["win_rate"])
         self.assertEqual(r["trades"], 0)
+
+    def test_35_entry_and_target_same_M5_never_credit_win(self):
+        status, trade = simulate_event(
+            example_event(), [q(t())],
+            commission_price=0, slippage_price=0,
+        )
+        self.assertEqual(status, "AMBIGUOUS_ENTRY_AND_TARGET_SAME_M5")
+        self.assertIsNone(trade)
+
+    def test_36_short_entry_target_same_M5_never_credit_win(self):
+        bar = q(
+            t(), bo=98, bh=99, bl=89, bc=94,
+            ao=98.2, ah=99.2, al=89.2, ac=94.2,
+        )
+        status, trade = simulate_event(
+            example_event("SHORT"), [bar],
+            commission_price=0, slippage_price=0,
+        )
+        self.assertEqual(status, "AMBIGUOUS_ENTRY_AND_TARGET_SAME_M5")
+        self.assertIsNone(trade)
 
     def test_28_reject_negative_slippage_costs(self):
         with self.assertRaises(ValueError):
