@@ -14,13 +14,13 @@ No broker/API/MT5/cTrader live or demo order capability in this file.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
-from typing import Iterable
+from enum import StrEnum
 
 
-class Family(str, Enum):
+class Family(StrEnum):
     TWO_C_MSS_C2 = "CRT_2C_RETURN_MSS15_IN_C2"
     TWO_C_MSS_C3 = "CRT_2C_RETURN_MSS15_IN_C3"
     TRUE_3C = "CRT_TRUE3C_MSS5"
@@ -30,7 +30,7 @@ class Family(str, Enum):
     M15_RETEST = "CRT_M15_RETEST"
 
 
-class Readiness(str, Enum):
+class Readiness(StrEnum):
     # Explicitly separate usable QA events from permission to place orders.
     NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
     DETECTOR_RESEARCH_ONLY = "DETECTOR_RESEARCH_ONLY"
