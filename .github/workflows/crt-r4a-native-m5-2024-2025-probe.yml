@@ -1,0 +1,59 @@
+name: CRT R4-A native original M5 2024-2025 integrity research (NO TRADES)
+
+on:
+  pull_request:
+    paths:
+      - "research/crt_r4a_holdout/native_archive_2y_probe.py"
+      - ".github/workflows/crt-r4a-native-m5-2024-2025-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  source-2024-2025-original:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - symbol: EURUSD
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-EURUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: USDCHF
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-USDCHF-e0ca5a13c866a19d8505c68cffc473598984b340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch archived cTrader M5 privately in ephemeral runner only
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          repository: ${{ github.repository }}
+          run-id: ${{ matrix.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/qore-m5-private
+      - name: Verify original 2024 and 2025 partitions SHA256 and provenance
+        shell: bash
+        env:
+          SRC: ${{ runner.temp }}/qore-m5-private
+          SYMBOL: ${{ matrix.symbol }}
+          COHORT: ${{ matrix.cohort }}
+        run: |
+          set -euo pipefail
+          python research/crt_r4a_holdout/native_archive_2y_probe.py \
+            --root "$SRC" --symbol "$SYMBOL" --cohort "$COHORT"
+          echo "ARCHIVE_READONLY=TRUE" >> "$GITHUB_STEP_SUMMARY"
+          echo "PINE_PARITY=NOT_CERTIFIED" >> "$GITHUB_STEP_SUMMARY"
+          echo "HOLDOUT=NOT_OPENED; NO_TRADING" >> "$GITHUB_STEP_SUMMARY"
+      - name: Wipe raw M5 source after verification
+        if: always()
+        run: rm -rf "${{ runner.temp }}/qore-m5-private"
