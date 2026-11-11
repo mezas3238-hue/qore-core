@@ -239,6 +239,7 @@ def simulate_event(
     entered: datetime | None = None
     start_i = bisect_left(quotes, e.available_at, key=lambda q: q.opened)
     for q in islice(quotes, start_i, None):
+        filled_this_bar = False
         if entered is None:
             if q.opened >= deadline:
                 return "LIMIT_EXPIRED", None
@@ -248,11 +249,17 @@ def simulate_event(
             if not fill:
                 continue
             entered = q.opened
+            filled_this_bar = True
         if e.side == "LONG":
             sl_hit = q.bl <= stop
             tp_hit = q.bh >= target
+            if filled_this_bar and tp_hit:
+                return "AMBIGUOUS_ENTRY_AND_TARGET_SAME_M5", None
             if sl_hit or tp_hit:
-                exit_price = min(stop - slippage_price, q.bo) if sl_hit else target - slippage_price
+                exit_price = (
+                    min(stop - slippage_price, q.bo)
+                    if sl_hit else target - slippage_price
+                )
                 r = (exit_price - entry - commission_price) / distance
                 return "TRADE", Trade(
                     e.identity, e.symbol, e.model, e.side, entered, q.opened,
@@ -261,8 +268,13 @@ def simulate_event(
         else:
             sl_hit = q.ah >= stop
             tp_hit = q.al <= target
+            if filled_this_bar and tp_hit:
+                return "AMBIGUOUS_ENTRY_AND_TARGET_SAME_M5", None
             if sl_hit or tp_hit:
-                exit_price = max(stop + slippage_price, q.ao) if sl_hit else target + slippage_price
+                exit_price = (
+                    max(stop + slippage_price, q.ao)
+                    if sl_hit else target + slippage_price
+                )
                 r = (entry - exit_price - commission_price) / distance
                 return "TRADE", Trade(
                     e.identity, e.symbol, e.model, e.side, entered, q.opened,
