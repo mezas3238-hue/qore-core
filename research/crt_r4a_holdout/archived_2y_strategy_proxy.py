@@ -16,7 +16,6 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
-from research.crt_r4a_holdout.native_archive_2y_probe import inspect as verify
 from scripts.crt_radar_archived_m5_prescreen import (
     H4,
     M5,
@@ -24,6 +23,8 @@ from scripts.crt_radar_archived_m5_prescreen import (
     frozen_bucket,
     native_to_bar,
 )
+
+from research.crt_r4a_holdout.native_archive_2y_probe import inspect as verify
 
 MODELS = ("A_2C_MSS15_PROXY", "B_TRUE3C_MSS5_PROXY")
 YEARS = (2024, 2025)
