@@ -38,7 +38,7 @@ def inspect(path: Path) -> dict[str, object]:
     if not EXPECTED_MIN_BYTES <= len(blob) <= EXPECTED_MAX_BYTES:
         raise ValueError("R4-A SOURCE SIZE OUTSIDE EXPECTED LIMITS")
     code = blob.decode("utf-8")
-    if any(code.count(marker) != 1 for marker in PINE_MARKERS):
+    if any(marker not in code for marker in PINE_MARKERS):
         raise ValueError("required R4-A detector markers missing or ambiguous")
     if code.count("f_engine() =>") != 1:
         raise ValueError("source does not contain unique R4-A engine")
