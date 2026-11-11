@@ -47,7 +47,6 @@ def inside_return(
     if not (
         _chain(bars) and c1_allowed(c1.opened_at, family)
         and c1.low < c2.low and c2.high < c1.high
-        and c2.low < c2.close < c2.high
     ):
         return None
     lower = terminal.low < c2.low
@@ -137,7 +136,6 @@ def retest_m15(
         or not closed_m15.previous_continuous
         or closed_m15.closed_at <= source.own_mss15_at
         or closed_m15.closed_at > source.own_mss15_at + FOUR_HOURS
-        or closed_m15.closed_at < source.parent_crt_ratified_at
         or closed_m15.closed_at.minute % 15 != closed_m15.source_phase_min
         or closed_m15.closed_at.second != 0
     ):
@@ -156,5 +154,6 @@ def retest_m15(
         return None
     return Geometry(
         "M15_RETEST", source.direction,
-        source.c1_at, closed_m15.closed_at
+        source.c1_at,
+        max(source.parent_crt_ratified_at, closed_m15.closed_at)
     )
