@@ -1,0 +1,47 @@
+name: CRT R4-A reuse 33 original integrated event reports (NO NEW M5 SCAN)
+
+on:
+  push:
+    branches:
+      - research/crt-r4a-34-holdout-2y-20261111
+    paths:
+      - ".github/workflows/crt-r4a-aggregate-integrated-33-existing.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  aggregate-33-immutable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reject false historical/parity certification (synthetic fixture QA)
+        run: |
+          python -m unittest research.crt_r4a_holdout.tests.test_aggregate_integrated_detector -v
+      - name: Download 33 existing SHA-verified original M5-derived event reports, not source candles
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-crt-r4a-integrated-*
+          repository: ${{ github.repository }}
+          run-id: 43109506089
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/all-33-integrated-reports
+          merge-multiple: false
+      - name: Aggregate A 2C/MSS15 and B TRUE3C/MSS5 event counts with original provider matrix
+        run: |
+          python -m research.crt_r4a_holdout.aggregate_integrated_detector \
+            --root "${{ runner.temp }}/all-33-integrated-reports" \
+            --outdir reports/crt-r4a-integrated-33
+          echo "REPLAY=33_REAL_NATIVE_M5_EVENT_ONLY_NO_PROFIT" >> "$GITHUB_STEP_SUMMARY"
+          echo "PINE_EVENT_PARITY=NOT_CERTIFIED; HOLDOUT=PREVIOUSLY_CONSUMED" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-r4a-integrated-33-2024-2025-event-audit-no-pnl
+          path: reports/crt-r4a-integrated-33/
+          retention-days: 30
