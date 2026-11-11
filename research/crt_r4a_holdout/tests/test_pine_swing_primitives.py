@@ -23,7 +23,7 @@ T = datetime(2024, 1, 2, tzinfo=UTC)
 
 
 def bar(mins: int, hi: float, low: float = 1, close: float = 2) -> Bar:
-    return Bar(T + timedelta(minutes=mins), hi, low, close)
+    return Bar(T + timedelta(minutes=mins), hi, low, min(close, hi))
 
 
 def pivot(kind: str = "HIGH", level: float = 10) -> Pivot:
