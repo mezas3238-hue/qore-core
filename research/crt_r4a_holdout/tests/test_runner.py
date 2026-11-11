@@ -5,17 +5,28 @@ import csv
 import json
 import tempfile
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from research.crt_r4a_holdout.runner import (
-    END, MODELS, PINE_BLOB, START, SYMBOLS, Event, Quote, read_events,
-    read_quotes, readiness, report_trades, simulate_event, timestamp,
+    END,
+    MODELS,
+    PINE_BLOB,
+    START,
+    SYMBOLS,
+    Event,
+    Quote,
+    read_events,
+    read_quotes,
+    readiness,
+    report_trades,
+    simulate_event,
+    timestamp,
 )
 
 
 def t(hour: int = 8, minute: int = 0) -> datetime:
-    return datetime(2024, 2, 1, hour, minute, tzinfo=timezone.utc)
+    return datetime(2024, 2, 1, hour, minute, tzinfo=UTC)
 
 
 def example_event(side: str = "LONG", model: str = "B_TRUE3C_MSS5") -> Event:
