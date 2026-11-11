@@ -1,10 +1,19 @@
 name: CRT R4-A 33 original M5 2Y integrated causal CRT MSS (NO TRADES)
 
+# Only start 33 heavy market jobs when this workflow itself is updated,
+# or explicitly dispatched. Do not repeat the full historical scan for every
+# PR sync, as the same SHA-verified 2024-25 market sources are immutable.
 on:
-  pull_request:
+  push:
+    branches:
+      - research/crt-r4a-34-holdout-2y-20261111
     paths:
       - ".github/workflows/crt-r4a-integrated-33-causal-m5-2024-25.yml"
   workflow_dispatch:
+
+concurrency:
+  group: crt-r4a-33-causal-native-archive-once
+  cancel-in-progress: true
 
 permissions:
   contents: read
