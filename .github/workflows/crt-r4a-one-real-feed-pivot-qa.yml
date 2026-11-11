@@ -5,6 +5,9 @@ on:
     paths:
       - "research/crt_r4a_holdout/pine_swing_primitives.py"
       - "research/crt_r4a_holdout/archived_pivot_audit.py"
+      - "research/crt_r4a_holdout/causal_crt_m5_engine.py"
+      - "research/crt_r4a_holdout/archived_integrated_engine_probe.py"
+      - "research/crt_r4a_holdout/tests/test_causal_crt_m5_engine.py"
       - "research/crt_r4a_holdout/archived_h4_clock_probe.py"
       - "research/crt_r4a_holdout/pine_h4_geometry.py"
       - "research/crt_r4a_holdout/tests/test_pine_h4_geometry.py"
@@ -63,12 +66,22 @@ jobs:
               tee "$RUNNER_TEMP/usdchf-h4-clock-qa.json"
           echo "CLOCK_CORRECTION=PINE_SIX_NY_H4_ANCHORS" >> "$GITHUB_STEP_SUMMARY"
           echo "HOLDOUT_2024_25=ALREADY_USED_FOR_RESEARCH" >> "$GITHUB_STEP_SUMMARY"
+      - name: Unified causal CRT2C-MSS15 and TRUE3C-MSS5 detector on ORIGINAL USDCHF 2024-25
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ runner.temp }}/ic-archive
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/legacy-crt-lab:$GITHUB_WORKSPACE"             python -m research.crt_r4a_holdout.archived_integrated_engine_probe               --root "$SOURCE_ROOT" --symbol USDCHF --family forex               --cohort ICMARKETS_DEMO_CONFIRMED |
+              tee "$RUNNER_TEMP/usdchf-integrated-crt-mss-qa.json"
+          echo "INTEGRATED_CRT_MSS=RESEARCH_EVENT_QA_ONLY_NO_PINE_PARITY" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: qore-crt-r4a-usdchf-causal-pivot-real-m5-qa
           path: |
             ${{ runner.temp }}/usdchf-pivot-qa.json
             ${{ runner.temp }}/usdchf-h4-clock-qa.json
+            ${{ runner.temp }}/usdchf-integrated-crt-mss-qa.json
           retention-days: 14
       - name: Delete original source after QA
         if: always()
