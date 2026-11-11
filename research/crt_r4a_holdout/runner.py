@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+from bisect import bisect_left
+from itertools import islice
 import hashlib
 import json
 import math
@@ -73,7 +75,18 @@ def readiness(root: Path) -> dict[str, Any]:
         issues.append("quotes manifest must contain exactly 34 immutable IC symbols")
     for sym in SYMBOLS:
         entry = q.get(sym, {})
-        _confirmed_hash(entry, root / "quotes" / f"IC_{sym}.csv", f"IC:{sym}", issues)
+        path = root / "quotes" / f"IC_{sym}.csv"
+        before = len(issues)
+        _confirmed_hash(entry, path, f"IC:{sym}", issues)
+        if before == len(issues):
+            try:
+                bars = read_quotes(path)
+                if (len(bars) < 50_000 or
+                        bars[0].opened > START - timedelta(days=10) or
+                        bars[-1].opened < END - timedelta(days=10)):
+                    issues.append(f"IC:{sym}: inadequate 2-year M5 coverage or warmup")
+            except (ValueError, OSError, KeyError) as exc:
+                issues.append(f"IC:{sym}: invalid M5 candles: {exc}")
     for field, filename in (("events", "events.csv"), ("costs", "costs.json")):
         _confirmed_hash(m.get(field), root / filename, field, issues)
     return {"status": "BLOCKED" if issues else "READY", "issues": issues,
@@ -151,6 +164,8 @@ class Event:
                 e.ratified_at <= e.available_at and
                 e.c1_low < e.c1_high and e.sweep_low <= e.sweep_high):
             raise ValueError("event chronology or levels inconsistent")
+        if e.model == "B_TRUE3C_MSS5" and e.mss_at > e.ratified_at:
+            raise ValueError("TRUE 3C MSS5 must occur during C3 before ratification")
         if not all(math.isfinite(x) and x > 0 for x in (
             e.c1_high, e.c1_low, e.body_open, e.body_close,
             e.sweep_high, e.sweep_low, e.atr_h4
@@ -222,9 +237,8 @@ def simulate_event(
     # if the unfilled stop is hit at an ambiguous intrabar moment.
     deadline = e.available_at + timedelta(hours=expiry_hours)
     entered: datetime | None = None
-    for q in quotes:
-        if q.opened < e.available_at:
-            continue
+    start_i = bisect_left(quotes, e.available_at, key=lambda q: q.opened)
+    for q in islice(quotes, start_i, None):
         if entered is None:
             if q.opened >= deadline:
                 return "LIMIT_EXPIRED", None
@@ -306,6 +320,8 @@ def execute(root: Path) -> dict[str, Any]:
             slippage_price=float(c["slippage_price"]),
         )
         reasons[reason] = reasons.get(reason, 0) + 1
+        if reason == "OPEN_AT_END_OF_DATA":
+            raise ValueError("open position unresolved; quote evidence or exit policy missing")
         if trade:
             trades.append(trade)
             busy_until[e.symbol] = trade.exited
