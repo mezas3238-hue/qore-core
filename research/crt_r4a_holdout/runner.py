@@ -8,19 +8,19 @@ from __future__ import annotations
 
 import argparse
 import csv
-from bisect import bisect_left
-from itertools import islice
 import hashlib
 import json
 import math
+from bisect import bisect_left
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from itertools import islice
 from pathlib import Path
 from typing import Any
 
 PINE_BLOB = "693e3f49719e86e2ea0702f7b355af33bd0c4c7c"
-START = datetime(2024, 1, 1, tzinfo=timezone.utc)
-END = datetime(2026, 1, 1, tzinfo=timezone.utc)  # exclusive: exactly 24 months
+START = datetime(2024, 1, 1, tzinfo=UTC)
+END = datetime(2026, 1, 1, tzinfo=UTC)  # exclusive: exactly 24 months
 SYMBOLS = (
     "AUDJPY", "GBPUSD", "GBPJPY", "XAUUSD", "USTEC", "US500", "US30",
     "BTCUSD", "AUDUSD", "USDCAD", "USDJPY", "EURUSD", "USDCHF",
@@ -36,7 +36,7 @@ def timestamp(s: str) -> datetime:
     x = datetime.fromisoformat(s.replace("Z", "+00:00"))
     if x.tzinfo is None:
         raise ValueError("timestamps must have timezone")
-    return x.astimezone(timezone.utc)
+    return x.astimezone(UTC)
 
 
 def sha256(path: Path) -> str:
@@ -179,7 +179,7 @@ class Event:
 def read_quotes(path: Path) -> list[Quote]:
     with path.open(newline="", encoding="utf-8") as f:
         bars = [Quote.parse(r) for r in csv.DictReader(f)]
-    if not bars or any(a.opened >= b.opened for a, b in zip(bars, bars[1:])):
+    if not bars or any(a.opened >= b.opened for a, b in zip(bars, bars[1:], strict=True)):
         raise ValueError("missing, duplicate or unordered quotes")
     return bars
 
@@ -337,7 +337,10 @@ def execute(root: Path) -> dict[str, Any]:
         "by_symbol": by_symbol,
         "by_model_pooled_r_only": by_model,
         "portfolio_certified": False,
-        "warning": "No position sizing, margin, correlation, complete OHLC continuity certification, or Pine detector port.",
+        "warning": (
+            "No position sizing, margin, correlation, complete OHLC "
+            "continuity certification, or Pine detector port."
+        ),
     }
 
 
