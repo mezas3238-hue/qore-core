@@ -12,6 +12,12 @@ from typing import Any
 from research.crt_r4a_holdout.runner import SYMBOLS
 
 ALIASES = {"NAS100": "USTEC", "SP500": "US500"}
+# Immutable original-source cohorts from GH Actions #35166210458/#38193802541
+# and the pinned 33-source matrix; NEVER infer verified IC parity for Atlas.
+ATLAS_SYMBOLS = frozenset((
+    "AUDJPY", "GBPUSD", "GBPJPY", "XAUUSD", "USTEC", "US500",
+    "US30", "AUDUSD", "USDCAD", "USDJPY", "EURUSD", "XAGUSD",
+))
 SOURCE_STATUS = "INTEGRATED_RESEARCH_DETECTOR_NOT_PINE_PARITY"
 
 
@@ -58,6 +64,21 @@ def aggregate(root: Path) -> tuple[dict[str, Any], str]:
             raise ValueError("signal outside prior research period")
         if sum(years.values()) != row["events_total"]:
             raise ValueError("year/model event mismatch")
+        cohort_expected = (
+            "ATLAS_DEMO_BROKER_UNVERIFIED"
+            if canonical in ATLAS_SYMBOLS else "ICMARKETS_DEMO_CONFIRMED"
+        )
+        supplied = row.get("provider_cohort")
+        if supplied is not None and supplied != cohort_expected:
+            raise ValueError("original workflow source cohort mismatch")
+        # The original 33 event-only artifacts omitted this metadata.
+        # Reattach from the immutable workflow matrix (not an invented
+        # IC-Market equivalence), avoiding a 4.9M-bar rerun to relabel JSON.
+        row["provider_cohort"] = cohort_expected
+        row["provider_cohort_evidence"] = (
+            "PINNED_GITHUB_ACTIONS_SOURCE_MATRIX"
+            if supplied is None else "PER_SYMBOL_SOURCE_REPORT"
+        )
         if (
             canonical != original
             and row["provider_cohort"] != "ATLAS_DEMO_BROKER_UNVERIFIED"
