@@ -8,7 +8,9 @@ from zoneinfo import ZoneInfo
 
 from research.crt_r4a_holdout.pine_h4_geometry import ClosedH4
 from research.crt_r4a_holdout.pine_swing_primitives import (
-    M15Close, Pivot, SwingSnapshot,
+    M15Close,
+    Pivot,
+    SwingSnapshot,
 )
 from research.crt_r4a_holdout.secondary_family_mss import AuxiliaryOwnedMss
 from research.crt_r4a_holdout.seven_family_contract import Family
@@ -136,9 +138,16 @@ class OwnedResearchMSS(unittest.TestCase):
         e.on_closed_h4(h4(0, 100, 120, 110))
         e.on_closed_h4(h4(1, 105, 115, 110))
         e.on_closed_h4(h4(2, 104, 116, 109))
+        # The pre-sweep confirmed swing must be fresh (<720m), not
+        # the 12h25 old C1 pivot from the other test fixtures.
+        fresh = T + timedelta(hours=11)
+        own = SwingSnapshot(
+            Pivot("HIGH", 108, fresh, fresh + timedelta(minutes=30), fresh),
+            None, fresh
+        )
         sweep(
             e, start=T + timedelta(hours=12, minutes=5),
-            low=99, high=118
+            low=99, high=118, before=own
         )
         e.on_closed_m15(m15_cross(T + timedelta(hours=12, minutes=30)))
         e.on_closed_h4(h4(3, 99, 118, 108))
@@ -179,7 +188,10 @@ class OwnedResearchMSS(unittest.TestCase):
         e.on_closed_h4(h4(0, 100, 120, 110))
         e.on_closed_h4(None)
         e.on_closed_h4(h4(1, 105, 115, 110))
-        self.assertEqual(len(e.pending), 0)
+        self.assertTrue(all(
+            p.c1.opened_at == h4(1, 105, 115, 110).opened_at
+            for p in e.pending
+        ))
 
     def test_10_no_signal_before_mss15_bar_closes(self) -> None:
         e = AuxiliaryOwnedMss("EURUSD", "forex")
