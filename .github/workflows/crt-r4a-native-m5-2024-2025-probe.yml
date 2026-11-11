@@ -1,10 +1,9 @@
 name: CRT R4-A native original M5 2024-2025 integrity research (NO TRADES)
 
+# Deliberately manual only: 33 original archives are immutable, verified by
+# run #43093782824 (SHA) and run #43094233453 (exploratory proxy).
+# Auto PR synchronization would rerun 33 large jobs on every change.
 on:
-  pull_request:
-    paths:
-      - "research/crt_r4a_holdout/native_archive_2y_probe.py"
-      - ".github/workflows/crt-r4a-native-m5-2024-2025-probe.yml"
   workflow_dispatch:
 
 permissions:
