@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from research.crt_r4a_holdout.runner import SYMBOLS
+
 MODELS = ("A_2C_MSS15_PROXY", "B_TRUE3C_MSS5_PROXY")
 SOURCE_RUN = 43094233453
 
@@ -21,6 +23,14 @@ def aggregate(root: Path) -> tuple[dict[str, Any], str]:
     rows: list[dict[str, Any]] = []
     for path in paths:
         r = json.loads(path.read_text(encoding="utf-8"))
+        if r.get("symbol") not in SYMBOLS or r.get("symbol") == "BTCUSD":
+            raise ValueError("unexpected non-IC-market or missing symbol")
+        if path.parent.name != f"crt-r4a-proxy-summary-{r['symbol']}":
+            raise ValueError("artifact name does not match source symbol")
+        if r.get("period") != "2024-01-01/2025-12-31":
+            raise ValueError("unsupported research period")
+        if r.get("native_M5_rows", 0) < 50_000:
+            raise ValueError("insufficient two-year native M5 source")
         if r["status"] != "REAL_OHLC_EXPLORATORY_PROXY_ONLY":
             raise ValueError("unsupported source status")
         for key in ("is_Pine_parity_100pct", "costs_included",
@@ -34,8 +44,8 @@ def aggregate(root: Path) -> tuple[dict[str, Any], str]:
         rows.append(r)
     rows.sort(key=lambda r: r["symbol"])
     syms = [r["symbol"] for r in rows]
-    if len(set(syms)) != 33 or "BTCUSD" in syms:
-        raise ValueError("incorrect source universe")
+    if set(syms) != set(SYMBOLS) - {"BTCUSD"}:
+        raise ValueError("incorrect full 33-symbol source universe")
     atlas = sum("ATLAS" in r["cohort"] for r in rows)
     ic = sum(r["cohort"] == "ICMARKETS_DEMO_CONFIRMED" for r in rows)
     if atlas != 12 or ic != 21:
@@ -81,6 +91,8 @@ def aggregate(root: Path) -> tuple[dict[str, Any], str]:
         "certified_holdout": False,
         "certified_pine_parity": False,
         "costs_included": False,
+        "engine": "INDEPENDENT_APPROXIMATION_NOT_PINNED_R4_A",
+        "unseen_holdout_proven": False,
         "sources": {"atlas_broker_unverified": atlas, "ic_demo": ic},
         "totals": totals,
         "pooled": pooled,
