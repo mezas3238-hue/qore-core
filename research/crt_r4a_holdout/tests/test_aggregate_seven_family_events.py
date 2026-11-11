@@ -143,7 +143,7 @@ class SevenAggregate(unittest.TestCase):
 
     def test_07_base_2c_c2_c3_sum_required(self) -> None:
         self.replace("USDCHF", events_a=99)
-        with self.assertRaisesRegex(ValueError, "base event ownership"):
+        with self.assertRaisesRegex(ValueError, "source count mismatch"):
             aggregate(self.root)
 
     def test_08_owned_multi_mss_cannot_borrow_other_cycle(self) -> None:
