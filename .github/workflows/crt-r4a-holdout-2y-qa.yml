@@ -17,6 +17,18 @@ jobs:
     steps:
       - name: Checkout immutable research branch
         uses: actions/checkout@v4
+      - name: Fetch read-only original QORE CRT RADAR R4-A Pine for exact SHA verification
+        uses: actions/checkout@v4
+        with:
+          repository: mezas3238-hue/qore-deepseek-reviewer
+          ref: qa/crt-34-v34-12x-integration-ci-20261109
+          path: external-r4a-pine
+          persist-credentials: false
+      - name: Verify the exact immutable R4-A source git blob; reject R5 or edits
+        run: |
+          python research/crt_r4a_holdout/verify_pine_source.py \
+            --pine external-r4a-pine/crt-radar-pro/qa-integrated-34/QORE_CRT_34_R4_AB_400_M5_AUTO_BUFFER_QA.pine \
+            --out qa-reports/pine_r4a_exact_source.json
       - name: Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -48,5 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: crt-r4a-34-holdout-preflight-blocked
-          path: qa-reports/crt_r4a_2y_preflight.json
+          path: |
+            qa-reports/crt_r4a_2y_preflight.json
+            qa-reports/pine_r4a_exact_source.json
           retention-days: 14
