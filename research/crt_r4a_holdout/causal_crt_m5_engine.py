@@ -32,6 +32,7 @@ from research.crt_r4a_holdout.pine_swing_primitives import (
     mss5_cross,
     mss15_cross,
 )
+from research.crt_r4a_holdout.secondary_family_mss import AuxiliaryOwnedMss
 from research.crt_r4a_holdout.secondary_family_observer import (
     SecondaryGeometryObserver,
 )
@@ -149,6 +150,7 @@ class CausalCRTM5:
         self._b_c3: Pending | None = None
         self.evidence: list[Evidence] = []
         self.secondary = SecondaryGeometryObserver(family)
+        self.secondary_mss = AuxiliaryOwnedMss(symbol, family)
         self.stats: dict[str, int] = {}
 
     def _count(self, key: str) -> None:
@@ -341,6 +343,7 @@ class CausalCRTM5:
         before5, continuous = self.m5.before_closed_bar(now)
         closed15 = self.m15.on_closed_m5(now)
         self._on_m15(closed15)
+        self.secondary_mss.on_closed_m15(closed15)
         self.secondary.on_m15_retest(closed15, self.evidence)
         bucket = self._bucket_for(candle.opened_at)
         if self._bucket is not None and bucket != self._bucket:
@@ -349,6 +352,7 @@ class CausalCRTM5:
             old_h4 = self._closed_h4() if continuous else None
             self._finish_period(old_h4)
             self.secondary.on_closed_h4(old_h4)
+            self.secondary_mss.on_closed_h4(old_h4)
             self._group.clear()
         if self._bucket is None or bucket != self._bucket:
             self._bucket = bucket
@@ -359,10 +363,16 @@ class CausalCRTM5:
             self._closed.clear()
             self._group.clear()
             self.secondary.on_closed_h4(None)
+            self.secondary_mss.on_closed_h4(None)
             self._count("feed_gaps")
         before15 = self.m15.snapshot()
         self._sweep(self._a_c2, candle, before5, before15)
         self._sweep(self._b_c3, candle, before5, before15)
+        self.secondary_mss.on_closed_m5(
+            candle, before5=before5, before15=before15,
+            previous_close=self._last.close if self._last else None,
+            previous_continuous=continuous
+        )
         p = self._b_c3
         if (
             p is not None and p.sweep_at is not None
@@ -394,15 +404,26 @@ class CausalCRTM5:
                 ratified_at=event.ratified_at
             )
             family_counts[family.value] += 1
-        if sum(family_counts.values()) != len(self.evidence):
+        for event in self.secondary_mss.events:
+            family_counts[event.family.value] += 1
+        retest = sum(
+            event.family == Family.M15_RETEST
+            for event in self.secondary.events
+        )
+        family_counts[Family.M15_RETEST.value] += retest
+        expected = len(self.evidence) + len(self.secondary_mss.events) + retest
+        if sum(family_counts.values()) != expected:
             raise ValueError("seven-family event reconciliation failed")
         return {
             "symbol": self.symbol,
             "seven_family_research_event_counts": family_counts,
             "seven_families_registered": len(Family),
-            "family_signals_integrated": 3,
-            "family_only_geometry_until_own_mss": 4,
+            "family_signals_integrated": 7,
+            "family_own_mss15_research_paths": 3,
+            "family_retest_parent_mss_research_path": 1,
+            "family_only_geometry_until_own_mss": 0,
             "secondary_family_geometry_audit": self.secondary.readout(),
+            "secondary_family_own_mss_audit": self.secondary_mss.readout(),
             "family": self.family,
             "m5_phase": self.phase,
             "stats": dict(self.stats),
