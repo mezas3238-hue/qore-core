@@ -68,7 +68,7 @@ class SevenPaperHypotheses(unittest.TestCase):
         self.assertEqual(result.take_profit_price, D("120"))
         self.assertEqual(result.risk_price_distance, D("11.5"))
 
-    def test_05_short_uses_opposite_C1_endpoint(self) -> None:
+    def test_05_short_uses_opposite_c1_endpoint(self) -> None:
         result = plan(
             Family.MULTIN, direction=-1,
             geometry=MarketGeometry(
@@ -109,7 +109,7 @@ class SevenPaperHypotheses(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "too far"):
             plan(Family.MULTI4, geometry=g)
 
-    def test_11_retest_requires_M15_own_high_low(self) -> None:
+    def test_11_retest_requires_m15_own_high_low(self) -> None:
         g = MarketGeometry(
             D("120"), D("100"), D("109"), D("110"),
             D("116"), D("99"),
