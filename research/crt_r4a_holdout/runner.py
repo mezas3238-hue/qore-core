@@ -62,6 +62,11 @@ def readiness(root: Path) -> dict[str, Any]:
         issues.append("Pine R4-A blob identity not pinned")
     if m.get("start") != START.isoformat() or m.get("end_exclusive") != END.isoformat():
         issues.append("holdout must be exactly 2024-01-01 through 2025-12-31 UTC")
+    if m.get("window_consumed_for_crt_research") is True:
+        issues.append(
+            "2024-2025 BURNED: QORE CRT 33-market historical proxy replay "
+            "run 43094233453 already inspected strategy outcomes"
+        )
     if m.get("holdout_unseen_attested") is not True or not m.get("holdout_attestation_ref"):
         issues.append("24-month holdout virginity not independently attested")
     if m.get("parity_verified") is not True or not m.get("parity_evidence_ref"):
