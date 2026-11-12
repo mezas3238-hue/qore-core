@@ -12,7 +12,7 @@ from bisect import bisect_left
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from itertools import islice
+from itertools import groupby, islice
 
 from research.crt_r4a_holdout.paper_quote_execution import (
     BidAskM5,
@@ -36,6 +36,7 @@ ALLOWED_COHORTS = frozenset((
     "SYNTHETIC_TEST_ONLY",
 ))
 LOCKED = datetime.max.replace(tzinfo=UTC)
+FAMILY_PRIORITY = {family: index for index, family in enumerate(Family)}
 
 
 @dataclass(frozen=True)
@@ -213,12 +214,15 @@ def replay_symbol(
     *,
     quantity: Decimal,
 ) -> ResearchReplay:
-    """Replay one symbol and prevent overlapping active positions.
+    """Replay one symbol with strictly conservative hypothetical order ownership.
 
-    The policy is deterministic by (available_at, family, event_id), never
-    optimized to maximize PnL. A pending limit does not lock the portfolio.
-    Open/unresolved positions lock future entries rather than inventing exits.
-    Cross-symbol FX conversions/risk-budgeting remain a separate blocked gate.
+    Order-policy frozen before economics: one active submitted order OR pending
+    limit per symbol, until its expiry/closed exit. On opposing SAME-M5 signal
+    directions, no arbitrary long/short choice is permitted: block every event.
+    On same-side ties use registered Family enum order, then source identity.
+    Any gap with unresolved order locks following signals until tape end.
+    This is a QA policy hypothesis, NOT source Pine's execution specification.
+    Cross-symbol FX/risk-budgeting remains a separate blocked gate.
     """
     if not isinstance(quantity, Decimal) or not quantity.is_finite() or quantity <= 0:
         raise ValueError("quantity must be positive finite Decimal")
@@ -231,51 +235,75 @@ def replay_symbol(
             raise ValueError("duplicated event identity: reject, not double count")
         seen.add(key)
     ordered = sorted(
-        signals, key=lambda x: (x.available_at, x.family.value, x.source_event_id)
+        signals, key=lambda x: (
+            x.available_at, FAMILY_PRIORITY[x.family], x.source_event_id
+        )
     )
     # One index build replaces per-signal scanning over 100k+ old M5 bars.
     # Quote samples remain original (no re-bucketing or synthesized spreads).
     quote_opens = tuple(bar.opened_at for bar in quotes.bars)
     locked_until: datetime | None = None
     rows: list[ReplayObservation] = []
-    for event in ordered:
-        if locked_until is not None and event.available_at < locked_until:
-            rows.append(ReplayObservation(
-                event.family, event.source_event_id, event.available_at,
-                "BLOCKED_OVERLAPPING_EXPOSURE",
-            ))
-            continue
-        try:
-            plan = plan_research_order(
-                event.family,
-                direction=event.direction,
-                source_event_id=event.source_event_id,
-                geometry=event.geometry,
-                available_at=event.available_at,
-                mss_at=event.mss_at,
-                ratified_at=event.ratified_at,
-                atr_h4=event.atr_h4,
-                price_tick=event.price_tick,
+    for _, candidates in groupby(ordered, key=lambda e: e.available_at):
+        same_time = tuple(candidates)
+        # Block contradictory family recommendations on the same source M5.
+        # Choosing one would introduce a hidden discretionary side preference.
+        if len({event.direction for event in same_time}) > 1:
+            rows.extend(
+                ReplayObservation(
+                    event.family, event.source_event_id, event.available_at,
+                    "BLOCKED_OPPOSING_SAME_BAR",
+                )
+                for event in same_time
             )
-        except ValueError as exc:
+            continue
+        for event in same_time:
+            if locked_until is not None and event.available_at < locked_until:
+                rows.append(ReplayObservation(
+                    event.family, event.source_event_id, event.available_at,
+                    "BLOCKED_OVERLAPPING_EXPOSURE",
+                ))
+                continue
+            try:
+                plan = plan_research_order(
+                    event.family,
+                    direction=event.direction,
+                    source_event_id=event.source_event_id,
+                    geometry=event.geometry,
+                    available_at=event.available_at,
+                    mss_at=event.mss_at,
+                    ratified_at=event.ratified_at,
+                    atr_h4=event.atr_h4,
+                    price_tick=event.price_tick,
+                )
+            except ValueError as exc:
+                rows.append(ReplayObservation(
+                    event.family, event.source_event_id, event.available_at,
+                    "REJECTED_INVALID_STRATEGY_PLAN", reason=str(exc),
+                ))
+                continue
+            first_eligible = bisect_left(quote_opens, event.available_at)
+            result = simulate_single(
+                plan, islice(quotes.bars, first_eligible, None),
+                quantity=quantity,
+                costs=quotes.cost_assumptions,
+                swap_debits=quotes.swaps,
+            )
             rows.append(ReplayObservation(
                 event.family, event.source_event_id, event.available_at,
-                "REJECTED_INVALID_STRATEGY_PLAN", reason=str(exc),
+                result.status, result=result,
             ))
-            continue
-        first_eligible = bisect_left(quote_opens, event.available_at)
-        result = simulate_single(
-            plan, islice(quotes.bars, first_eligible, None),
-            quantity=quantity,
-            costs=quotes.cost_assumptions,
-            swap_debits=quotes.swaps,
-        )
-        rows.append(ReplayObservation(
-            event.family, event.source_event_id, event.available_at,
-            result.status, result=result,
-        ))
-        if result.entry_at is not None:
-            locked_until = result.exit_at if result.exit_at is not None else LOCKED
+            if result.status == "BLOCKED_QUOTE_GAP":
+                # Missing prices make order lifecycle unresolvable.
+                locked_until = LOCKED
+            elif result.entry_at is not None:
+                locked_until = (
+                    result.exit_at if result.exit_at is not None else LOCKED
+                )
+            else:
+                # A submitted pending limit reserves the single-order slot
+                # while waiting; no second family may quietly queue one.
+                locked_until = plan.expiry_at
     observations = tuple(rows)
     by_family = {
         family.value: summarize(tuple(x for x in observations if x.family == family))
