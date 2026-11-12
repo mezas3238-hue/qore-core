@@ -347,3 +347,91 @@ def test_query_response_decode_rejects_mismatched_order_ref() -> None:
         ),
     )
     assert isinstance(result, Failure)
+
+
+def test_opt_in_protected_market_bracket_canonical_fields() -> None:
+    submission = _submission(suffix=101)
+    base = build_ctrader_demo_order_create_plan(_configuration(), submission)
+    assert isinstance(base, Success)
+    assert base.value.relative_stop_loss is None
+    assert base.value.relative_take_profit is None
+    body = json.loads(base.value.body_json)
+    body["relativeStopLoss"] = 700
+    body["relativeTakeProfit"] = 1700
+    protected = replace(
+        base.value,
+        relative_stop_loss=700,
+        relative_take_profit=1700,
+        body_json=json.dumps(body, sort_keys=True, separators=(",", ":")),
+    )
+    assert protected.relative_stop_loss == 700
+    assert protected.relative_take_profit == 1700
+    assert protected.order_type is OrderType.MARKET
+    assert len(protected.logical_values()) > len(base.value.logical_values())
+    assert "relativeStopLoss" in protected.body_json
+
+
+def test_protected_market_needs_both_native_levels() -> None:
+    submission = _submission(suffix=102)
+    base = build_ctrader_demo_order_create_plan(_configuration(), submission)
+    assert isinstance(base, Success)
+    for only in (
+        {"relative_stop_loss": 700},
+        {"relative_take_profit": 1700},
+    ):
+        try:
+            replace(base.value, **only)
+            assert False, "missing paired protection was accepted"
+        except CTraderDemoExecutionValidationError:
+            pass
+
+
+def test_native_market_levels_reject_zero_negative_bool() -> None:
+    base = build_ctrader_demo_order_create_plan(_configuration(), _submission(suffix=103))
+    assert isinstance(base, Success)
+    for invalid in (0, -1, True, 2**63):
+        try:
+            replace(
+                base.value,
+                relative_stop_loss=invalid,
+                relative_take_profit=100,
+            )
+            assert False, "invalid native SL was accepted"
+        except CTraderDemoExecutionValidationError:
+            pass
+
+
+def test_protected_market_json_cannot_omit_levels_or_tamper() -> None:
+    base = build_ctrader_demo_order_create_plan(_configuration(), _submission(suffix=104))
+    assert isinstance(base, Success)
+    for raw in (
+        base.value.body_json,
+        json.dumps({"relativeStopLoss": 700, "relativeTakeProfit": 1700}),
+    ):
+        try:
+            replace(
+                base.value,
+                relative_stop_loss=700,
+                relative_take_profit=1700,
+                body_json=raw,
+            )
+            assert False, "mismatched cTrader payload was accepted"
+        except CTraderDemoExecutionValidationError:
+            pass
+
+
+def test_protected_relative_market_rejected_for_limit_type() -> None:
+    base = build_ctrader_demo_order_create_plan(
+        _configuration(),
+        _submission(suffix=105, order_type=OrderType.LIMIT, limit_price="1.10200"),
+    )
+    assert isinstance(base, Success)
+    try:
+        replace(
+            base.value,
+            relative_stop_loss=700,
+            relative_take_profit=1700,
+        )
+        assert False, "relative MARKET protection applied to a LIMIT order"
+    except CTraderDemoExecutionValidationError:
+        pass
