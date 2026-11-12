@@ -8,9 +8,11 @@ NO broker API, NO LIVE, NO VPS, NO certification.
 """
 from __future__ import annotations
 
+from bisect import bisect_left
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from itertools import islice
 
 from research.crt_r4a_holdout.paper_quote_execution import (
     BidAskM5,
@@ -231,6 +233,9 @@ def replay_symbol(
     ordered = sorted(
         signals, key=lambda x: (x.available_at, x.family.value, x.source_event_id)
     )
+    # One index build replaces per-signal scanning over 100k+ old M5 bars.
+    # Quote samples remain original (no re-bucketing or synthesized spreads).
+    quote_opens = tuple(bar.opened_at for bar in quotes.bars)
     locked_until: datetime | None = None
     rows: list[ReplayObservation] = []
     for event in ordered:
@@ -258,8 +263,9 @@ def replay_symbol(
                 "REJECTED_INVALID_STRATEGY_PLAN", reason=str(exc),
             ))
             continue
+        first_eligible = bisect_left(quote_opens, event.available_at)
         result = simulate_single(
-            plan, quotes.bars,
+            plan, islice(quotes.bars, first_eligible, None),
             quantity=quantity,
             costs=quotes.cost_assumptions,
             swap_debits=quotes.swaps,
