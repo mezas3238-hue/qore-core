@@ -108,7 +108,6 @@ class PineR1SourceQA(unittest.TestCase):
                 self.assertIn(marker, self.adapter)
 
     def test_05_no_repainting_shortcuts_or_intrabar_fills(self) -> None:
-        declaration = self.script.split("\n", 15)[7]
         # Use whole declaration line in case future header comments change.
         match = re.search(r'^strategy\("QORE CRT TRADER R1[^\n]+', self.script, re.M)
         self.assertIsNotNone(match)
