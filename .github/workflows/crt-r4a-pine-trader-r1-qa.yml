@@ -1,0 +1,44 @@
+name: QORE CRT Trader R1 - original Pine strategy package QA (NO TRADING)
+
+on:
+  push:
+    branches:
+      - research/crt-r4a-34-holdout-2y-20261111
+    paths:
+      - ".github/workflows/crt-r4a-pine-trader-r1-qa.yml"
+      - "research/crt_r4a_holdout/pine/QORE_CRT_TRADER_R1_V34_12X_ORIGINAL_ENGINE_QA.pine"
+      - "research/crt_r4a_holdout/tests/test_pine_strategy_r1.py"
+      - "research/crt_r4a_holdout/PINE_CRT_TRADER_R1_CONVERSION_ORIGINAL_34_2026-11-12.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-pine-strategy-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pinned original engine source and seven-family strategy static checks
+        run: |
+          python -m unittest research.crt_r4a_holdout.tests.test_pine_strategy_r1 -v
+          test -s research/crt_r4a_holdout/pine/QORE_CRT_TRADER_R1_V34_12X_ORIGINAL_ENGINE_QA.pine
+      - name: SHA256 provenance of the generated Pine (not a Pine compilation)
+        run: |
+          sha256sum research/crt_r4a_holdout/pine/QORE_CRT_TRADER_R1_V34_12X_ORIGINAL_ENGINE_QA.pine | tee pine-r1.sha256
+          echo "STATIC_QA_ONLY=TRUE" >> "$GITHUB_STEP_SUMMARY"
+          echo "TRADINGVIEW_PINE_COMPILATION=NOT_TESTED" >> "$GITHUB_STEP_SUMMARY"
+          echo "BROKER_ORDERS=0; LIVE=PROHIBITED; MERGE=PROHIBITED" >> "$GITHUB_STEP_SUMMARY"
+      - name: Export Android copy/paste Pine strategy QA package
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-crt-trader-r1-34-ic-original-pine-no-live
+          path: |
+            research/crt_r4a_holdout/pine/QORE_CRT_TRADER_R1_V34_12X_ORIGINAL_ENGINE_QA.pine
+            research/crt_r4a_holdout/PINE_CRT_TRADER_R1_CONVERSION_ORIGINAL_34_2026-11-12.md
+            pine-r1.sha256
+          retention-days: 30
