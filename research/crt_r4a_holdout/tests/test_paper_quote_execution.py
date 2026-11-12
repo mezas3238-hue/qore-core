@@ -142,5 +142,40 @@ class QuoteExecutionQA(unittest.TestCase):
         self.assertEqual(r.broker_orders_executed, 0)
 
 
+    def test_13_contiguous_quotes_do_not_block_long_pending_limit(self) -> None:
+        bars = [
+            q(i, bo="102", bh="103", bl="101", bc="102",
+              ao="102.2", ah="103.2", al="101.2", ac="102.2")
+            for i in range(4)
+        ]
+        r = simulate_single(Plan(), bars, quantity=D("1"), costs=C0)
+        self.assertEqual(r.status, "NO_FILL_TAPE_END")
+        self.assertIsNone(r.net_r)
+
+    def test_14_missing_first_tradable_m5_blocks_economic_claim(self) -> None:
+        r = simulate_single(
+            Plan(), [q(2)], quantity=D("1"), costs=C0
+        )
+        self.assertEqual(r.status, "BLOCKED_QUOTE_GAP")
+
+    def test_15_expired_order_not_misreported_as_quote_gap(self) -> None:
+        p = Plan(expiry_at=T + timedelta(minutes=5))
+        r = simulate_single(p, [q(2)], quantity=D("1"), costs=C0)
+        self.assertEqual(r.status, "EXPIRED_NO_FILL")
+
+    def test_16_limit_can_fill_after_continuous_wait_then_close(self) -> None:
+        waiting = [
+            q(i, bo="102", bh="103", bl="101", bc="102",
+              ao="102.2", ah="103.2", al="101.2", ac="102.2")
+            for i in range(3)
+        ]
+        bars = waiting + [q(3, al="99.2"), q(4, bh="112", ah="112.2")]
+        r = simulate_single(Plan(), bars, quantity=D("1"), costs=C0)
+        self.assertEqual(r.status, "CLOSED_TARGET")
+        self.assertEqual(r.entry_fill, D("100"))
+        self.assertEqual(r.exit_fill, D("110"))
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
