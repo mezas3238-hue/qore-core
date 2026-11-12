@@ -51,3 +51,22 @@ Ejemplos **solo de decodificación de unidades**, NO precios para operaciones ni
 7. Holdout verdaderamente nuevo de 24 meses, posterior al congelamiento del modelo: **2024–2025 ya consumido para desarrollo**.
 
 **Conclusión científica:** se completó el registro auditado de 23.919 eventos causales en 33 fuentes. **Cero operaciones históricas económicas certificadas, cero órdenes broker, PF neto/DD/PnL no disponibles, 24 meses OOS no examinados.** El artefacto es una base reproducible para preparar los insumos de simulación, no evidencia de rentabilidad.
+
+
+## Hallazgo posterior: superposición temporal (NO PNL)
+
+Agrupando las 23.919 observaciones por `(símbolo, available_at)`:
+
+- **22.964** grupos de instante/símbolo.
+- **22.229** grupos de una señal; **527** de dos; **196** de tres; **12** de cuatro.
+- **735** grupos con simultaneidad de dos o más estrategias; **1.690** eventos involucrados.
+- **14** grupos contienen tanto LONG como SHORT en el mismo instrumento/instante (**28** eventos).
+
+La política de simulación experimental en `economic_replay.py` fue endurecida en los commits `c4b469d6`, `83550a43`, `ed2e251e`:
+
+1. Dos lados opuestos en el mismo M5: `BLOCKED_OPPOSING_SAME_BAR` para todos; no se decide arbitrariamente cuál operar.
+2. Mismo lado: desempate congelado en el orden de `Family`; una sola orden pendiente o posición abierta por instrumento.
+3. La orden límite mantiene reservado el slot hasta cierre/vencimiento. Datos faltantes con orden irresuelta bloquean el resto.
+4. Se corrigió una falsa discontinuidad: una orden sin fill durante varias velas contiguas NO significa que falten velas M5.
+
+Los controles pasaron **336 pruebas sintéticas** [Actions #43134549543](https://github.com/mezas3238-hue/qore-core/actions/runs/43134549543). Esta política de cartera es **una hipótesis científica fija** y no un contrato de ejecución original del Pine; no genera ganancias históricas certificadas.

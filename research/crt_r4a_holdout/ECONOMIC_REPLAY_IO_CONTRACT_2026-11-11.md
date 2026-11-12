@@ -43,3 +43,6 @@ python -m research.crt_r4a_holdout.economic_replay_io \
 5. Cartera multiactivo con límites de exposición/riesgo, separación TRAIN/OOS y holdout nuevo de 24 meses nunca examinado. **2024-2025 está BURNED y solo puede usarse como investigación retrospectiva.**
 
 No transformar las 23.919 detecciones en trades sin los campos y archivos anteriores. El motor se detiene ante ausencia o discrepancia de datos, no convierte dependencias en ganancias simuladas.
+
+
+**Política de conflictos experimental:** señales opuestas simultáneas se bloquean; una orden límite pendiente reserva slot por símbolo hasta su expiración; posiciones abiertas hasta salida; empates mismo lado siguen orden fijo de `Family`. La política no es una instrucción broker ni certifica Pine.
