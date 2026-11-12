@@ -7,6 +7,9 @@ on:
       - research/crt-r4a-34-holdout-2y-20261111
     paths:
       - ".github/workflows/crt-r4a-seven-family-33-original-m5-2024-25.yml"
+      - "research/crt_r4a_holdout/secondary_family_mss.py"
+      - "research/crt_r4a_holdout/causal_crt_m5_engine.py"
+      - "research/crt_r4a_holdout/tests/test_secondary_family_mss.py"
   workflow_dispatch:
 
 permissions:

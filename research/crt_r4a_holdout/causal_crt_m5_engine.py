@@ -405,15 +405,26 @@ class CausalCRTM5:
             )
             family_counts[family.value] += 1
         known_structures = {
-            (g.family, g.c1_at, g.ratified_at)
+            (g.family, g.c1_at, g.ratified_at, g.direction)
             for g in self.secondary.events
         }
         for event in self.secondary_mss.events:
+            direction = 1 if event.side == "LONG" else -1
             if (
-                event.family, event.c1_at, event.ratified_at
+                event.family, event.c1_at, event.ratified_at, direction
             ) not in known_structures:
+                same_terminal = sorted(
+                    (g.c1_at.isoformat(), g.direction)
+                    for g in self.secondary.events
+                    if g.family == event.family
+                    and g.ratified_at == event.ratified_at
+                )
                 raise ValueError(
-                    "owned MSS signal has no independently matched H4 geometry"
+                    "owned MSS signal has no independently matched H4 geometry: "
+                    f"symbol={self.symbol} family={event.family.value} "
+                    f"c1={event.c1_at.isoformat()} "
+                    f"terminal={event.ratified_at.isoformat()} "
+                    f"side={event.side} observed_terminal_owners={same_terminal}"
                 )
             if not (
                 event.own_pivot_at < event.sweep_at < event.own_mss15_at

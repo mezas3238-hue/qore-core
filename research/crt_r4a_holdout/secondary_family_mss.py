@@ -151,7 +151,13 @@ class AuxiliaryOwnedMss:
             (p for p in self.pending if p.terminal_end == closed.closed_at),
             key=lambda p: p.c1.opened_at, reverse=True
         )
+        # The H4 observer selects the first valid (shortest) Multi-N
+        # geometry, regardless of whether its owner has an own MSS.
+        # Never fall back to an older C1 solely to obtain a signal.
+        multi_n_geometry_selected = False
         for p in due:
+            if p.family == Family.MULTIN and multi_n_geometry_selected:
+                continue
             g: Geometry | None = None
             if p.family == Family.INSIDE_RETURN and p.inside_c2:
                 g = inside_return(
@@ -168,6 +174,10 @@ class AuxiliaryOwnedMss:
                         g = multi_n(bars, self.family)
                         break
             if g is not None:
+                if p.family == Family.MULTIN:
+                    # Geometry-first ownership matches SecondaryGeometryObserver.
+                    # A missing MSS on this owner means NO signal, not fallback.
+                    multi_n_geometry_selected = True
                 self._count("geometry_" + p.family.value)
                 self._emit(p, g)
         self.pending = [

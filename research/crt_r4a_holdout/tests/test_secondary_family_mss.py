@@ -13,6 +13,7 @@ from research.crt_r4a_holdout.pine_swing_primitives import (
     SwingSnapshot,
 )
 from research.crt_r4a_holdout.secondary_family_mss import AuxiliaryOwnedMss
+from research.crt_r4a_holdout.secondary_family_observer import SecondaryGeometryObserver
 from research.crt_r4a_holdout.seven_family_contract import Family
 
 T = datetime(2024, 2, 1, 1, tzinfo=ZoneInfo("America/New_York"))
@@ -215,6 +216,80 @@ class OwnedResearchMSS(unittest.TestCase):
         self.assertEqual(x["trades_executed"], 0)
         self.assertIs(x["not_identical_pine_f_engine"], True)
         self.assertIs(x["unseen_holdout"], False)
+
+
+    def test_13_multi_n_geometry_owner_precedes_optional_mss(self) -> None:
+        # Two valid C1s for one terminal. The geometric observer selects
+        # the most recent C1; MSS on the older C1 MUST NOT create a signal.
+        own = AuxiliaryOwnedMss("EURUSD", "forex")
+        geometry = SecondaryGeometryObserver("forex")
+        candles = (
+            h4(0, 100, 120, 110),
+            h4(1, 104, 116, 110),
+            h4(2, 106, 114, 110),
+            h4(3, 107, 113, 110),
+        )
+        terminal = h4(4, 99, 115, 110)
+        for candle in candles:
+            own.on_closed_h4(candle)
+            geometry.on_closed_h4(candle)
+        due = [
+            p for p in own.pending
+            if p.family == Family.MULTIN
+            and p.terminal_end == terminal.closed_at
+        ]
+        self.assertEqual(
+            {p.c1.opened_at for p in due},
+            {candles[0].opened_at, candles[1].opened_at}
+        )
+        older = next(p for p in due if p.c1.opened_at == candles[0].opened_at)
+        older.direction = 1
+        older.sweep_at = T + timedelta(hours=16, minutes=10)
+        older.own_pivot15 = Pivot(
+            "HIGH", 108, T + timedelta(hours=15),
+            T + timedelta(hours=15, minutes=10),
+            T + timedelta(hours=15)
+        )
+        older.own_mss15_at = T + timedelta(hours=16, minutes=30)
+        own.on_closed_h4(terminal)
+        geometry.on_closed_h4(terminal)
+        confirmed = [
+            g for g in geometry.events
+            if g.family == Family.MULTIN
+            and g.ratified_at == terminal.closed_at
+        ]
+        self.assertEqual(len(confirmed), 1)
+        self.assertEqual(confirmed[0].c1_at, candles[1].opened_at)
+        # Old implementation emitted an older, unobserved C1 here.
+        self.assertEqual(own.events, [])
+
+    def test_14_multi_n_own_mss_on_selected_geometry_is_allowed(self) -> None:
+        own = AuxiliaryOwnedMss("EURUSD", "forex")
+        candles = (
+            h4(0, 100, 120, 110), h4(1, 104, 116, 110),
+            h4(2, 106, 114, 110), h4(3, 107, 113, 110)
+        )
+        terminal = h4(4, 99, 115, 110)
+        for candle in candles:
+            own.on_closed_h4(candle)
+        due = [
+            p for p in own.pending
+            if p.family == Family.MULTIN
+            and p.terminal_end == terminal.closed_at
+        ]
+        for p in due:
+            p.direction = 1
+            p.sweep_at = T + timedelta(hours=16, minutes=10)
+            p.own_pivot15 = Pivot(
+                "HIGH", 108, T + timedelta(hours=15),
+                T + timedelta(hours=15, minutes=10),
+                T + timedelta(hours=15)
+            )
+            p.own_mss15_at = T + timedelta(hours=16, minutes=30)
+        own.on_closed_h4(terminal)
+        signals = [x for x in own.events if x.family == Family.MULTIN]
+        self.assertEqual(len(signals), 1)
+        self.assertEqual(signals[0].c1_at, candles[1].opened_at)
 
 
 if __name__ == "__main__":
