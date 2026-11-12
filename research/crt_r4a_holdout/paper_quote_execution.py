@@ -166,6 +166,7 @@ def simulate_single(
     previous: datetime | None = None
     last_end: datetime | None = None
     market = plan.planned_entry_type == "HYPOTHETICAL_M15_CLOSE"
+    first_tradable_seen = False
 
     for bar in quotes:
         if not isinstance(bar, BidAskM5):
@@ -187,10 +188,13 @@ def simulate_single(
         # it cannot be misclassified as a missing-market-data profit.
         if entry is None and bar.opened_at >= plan.expiry_at:
             return PaperResult("EXPIRED_NO_FILL", **ref)
-        # The first tradable M5 must exist within one full candle of signal
-        # availability. Reject an apparently profitable fill after missing M5.
-        if entry is None and bar.opened_at - plan.available_at >= M5:
-            return PaperResult("BLOCKED_QUOTE_GAP", **ref)
+        # Check the FIRST eligible quote only. A legitimately unfilled limit
+        # can remain pending for hours while contiguous quotes keep arriving.
+        # Re-applying this guard to every later bar fakes a feed interruption.
+        if not first_tradable_seen:
+            if bar.opened_at - plan.available_at >= M5:
+                return PaperResult("BLOCKED_QUOTE_GAP", **ref)
+            first_tradable_seen = True
         just_filled = False
         if entry is None:
             if bar.opened_at >= plan.expiry_at:
