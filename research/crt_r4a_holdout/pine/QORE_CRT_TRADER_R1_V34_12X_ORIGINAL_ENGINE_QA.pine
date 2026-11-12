@@ -2306,6 +2306,7 @@ trQty = input.float(1.0, "Cantidad fija hipotetica (NO lotes verificados)", minv
 trSLBuffer = input.float(0.15, "Buffer SL / rango C1", minval=0.01, maxval=2.0, step=0.01, group=trGrp)
 trMinRR = input.float(1.0, "R:R minimo antes de aceptar operacion", minval=0.1, maxval=10, step=0.1, group=trGrp)
 trMaxRiskPercent = input.float(5.0, "Riesgo precio maximo relativo a entrada (%)", minval=0.05, maxval=30, step=0.05, group=trGrp)
+trMaxHoldM5 = input.int(144, "Permanencia maxima de una posicion (velas M5)", minval=1, maxval=2880, group=trGrp, tooltip="Salida hipotetica al agotarse el tiempo; la orden de cierre se llena en la siguiente vela, salvo gaps.")
 trPlot = input.bool(true, "Dibujar entradas hipoteticas", group=trGrp)
 trStrict = input.bool(true, "Exigir H4 NY fase 0 del proveedor", group=trGrp, tooltip="La reconstruccion H4 con fase +1/+2m continua en QA; desactivar NO certifica paridad de proveedor.")
 
@@ -2342,6 +2343,9 @@ var int trSignalsSeen = 0
 var int trRejectedRisk = 0
 var int trConflicts = 0
 var int trSubmitted = 0
+var int trRejectedStale = 0
+var int trTimeStops = 0
+var int trLastEntryBar = na
 bool trPlaced = false
 string trPlacedName = "NONE"
 int trCountNow = 0
@@ -2358,13 +2362,21 @@ for j = 0 to 6
     if j == 6
         on := trF7
     bool selected = trModel == "ALL | 7 familias (conflictos bloqueados)" or (j == 0 and trModel == "F1 | CRT 2C MSS15 C2") or (j == 1 and trModel == "F2 | CRT 2C MSS15 C3") or (j == 2 and trModel == "F3 | TRUE 3C MSS5") or (j == 3 and trModel == "F4 | INSIDE MSS15") or (j == 4 and trModel == "F5 | MULTI4 MSS15") or (j == 5 and trModel == "F6 | MULTI-N MSS15") or (j == 6 and trModel == "F7 | RETEST M15")
-    int eventAt = j == 0 ? tr.entryConfirmedAt : j == 1 ? tr.entryConfirmedAt : j == 6 ? tr.retest15At : tr.extraFamilyRatifiedAt
+    // No fechar el MSS propio con la hora anterior de ratificacion H4.
+    // Disponibilidad economica = max(ratificacion H4, MSS de esa MISMA familia).
+    int eventAt = j < 2 ? tr.entryConfirmedAt : j == 6 ? tr.retest15At : j == 2 ? math.max(tr.extraFamilyRatifiedAt, tr.extraFamilyM5At) : math.max(tr.extraFamilyRatifiedAt, tr.extraFamilyM15At)
     int eventC1 = j < 2 or j == 6 ? tr.c1Start : tr.extraFamilyC1
     int eventDir = j < 2 or j == 6 ? tr.direction : tr.extraFamilyDirection
     string eventKey = str.tostring(eventC1) + "|" + str.tostring(eventAt)
-    bool newEvent = on and selected and not na(eventAt) and eventAt <= trEndClosed and not na(eventC1) and array.get(trSeen, j) != eventKey
-    if newEvent
+    bool unprocessedEvent = on and selected and not na(eventAt) and eventAt <= trEndClosed and not na(eventC1) and array.get(trSeen, j) != eventKey
+    // Sin entradas retroactivas: una confirmacion perdida durante un gap
+    // u observada demasiado tarde se registra pero no se comercia.
+    bool newEvent = unprocessedEvent and eventAt > trEndClosed - MIN5
+    if unprocessedEvent
         array.set(trSeen, j, eventKey)
+    if unprocessedEvent and not newEvent
+        trRejectedStale += 1
+    if newEvent
         trSignalsSeen += 1
         trCountNow += 1
         trOnlyIndex := j
@@ -2398,10 +2410,21 @@ else if trCountNow == 1 and trIsFlat
             strategy.entry("QORE-S", strategy.short, qty=trQty, comment=familyName)
             strategy.exit("QORE-SX", from_entry="QORE-S", stop=stopPx, limit=targetPx, comment="R1_SLTP")
         trSubmitted += 1
+        trLastEntryBar := bar_index
         trPlaced := true
         trPlacedName := familyName
     else
         trRejectedRisk += 1
+
+// Una salida temporal experimental evita exponer posiciones perpetuas que
+// sesgarian un estudio de SL/TP. No reemplaza un stop real ni un broker.
+if strategy.position_size != 0 and not na(trLastEntryBar) and bar_index - trLastEntryBar >= trMaxHoldM5
+    if strategy.position_size > 0
+        strategy.close("QORE-L", comment="QA_TIME_STOP")
+    else
+        strategy.close("QORE-S", comment="QA_TIME_STOP")
+    trTimeStops += 1
+    trLastEntryBar := na
 
 plotshape(trPlot and trPlaced and trOnlyDirection == 1, title="QA BUY simulado", style=shape.triangleup, location=location.belowbar, size=size.tiny, color=color.teal, text="QA L")
 plotshape(trPlot and trPlaced and trOnlyDirection == -1, title="QA SELL simulado", style=shape.triangledown, location=location.abovebar, size=size.tiny, color=color.orange, text="QA S")
@@ -2409,6 +2432,8 @@ plot(trKnown and trIsM5 ? trSignalsSeen : na, title="QA eventos familiares", dis
 plot(trSubmitted, title="QA ordenes hipoteticas enviadas al emulador", display=display.data_window)
 plot(trConflicts, title="QA grupos simultaneos bloqueados", display=display.data_window)
 plot(trRejectedRisk, title="QA señales rechazadas por SL/TP/R:R", display=display.data_window)
+plot(trRejectedStale, title="QA eventos antiguos rechazados (no lookback entry)", display=display.data_window)
+plot(trTimeStops, title="QA cierres por maximo de barras", display=display.data_window)
 
 var table trBoard = table.new(position.bottom_right, 1, 5, border_width=1)
 if barstate.islast
