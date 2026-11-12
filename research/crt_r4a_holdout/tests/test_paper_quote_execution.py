@@ -1,13 +1,16 @@
 """Synthetic quote execution tests only; no historical profit certification."""
 from __future__ import annotations
 
+import unittest
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-import unittest
 
 from research.crt_r4a_holdout.paper_quote_execution import (
-    BidAskM5, CostAssumptions, SwapDebit, simulate_single,
+    BidAskM5,
+    CostAssumptions,
+    SwapDebit,
+    simulate_single,
 )
 
 D = Decimal

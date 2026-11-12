@@ -10,7 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Iterable, Protocol
+from collections.abc import Iterable
+from typing import Protocol
 
 M5 = timedelta(minutes=5)
 D0 = Decimal("0")
