@@ -7,10 +7,10 @@ No portfolio-level netting or multi-asset currency conversion is implemented.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
-from collections.abc import Iterable
 from typing import Protocol
 
 M5 = timedelta(minutes=5)
