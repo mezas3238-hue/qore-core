@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -225,6 +226,77 @@ class SevenFamilyBridgeQA(unittest.TestCase):
                 ratified_at=T, available_at=T + timedelta(minutes=5),
                 geometry=G, atr_h4=D("4"), price_tick=D("0.1"),
             )
+
+
+    def test_21_pending_order_without_fill_still_reserves_slot(self) -> None:
+        result = replay_symbol(
+            (ticket(name="first"), ticket(name="next", at=T + timedelta(minutes=5))),
+            tape(no_fill_bar(0)), quantity=D("1"),
+        )
+        self.assertEqual(result.all_families.closed, 0)
+        self.assertEqual(result.all_families.blocked, 1)
+        self.assertEqual(
+            [x.status for x in result.observations],
+            ["NO_FILL_TAPE_END", "BLOCKED_OVERLAPPING_EXPOSURE"],
+        )
+
+    def test_22_expired_pending_limit_releases_new_slot(self) -> None:
+        bars = tuple(no_fill_bar(i) for i in range(144)) + (
+            bar(144, al="109.2"),
+            bar(145, bh="121", ah="121.2"),
+        )
+        signals = (
+            ticket(name="expired"),
+            ticket(name="after-expiry", at=T + timedelta(hours=12)),
+        )
+        result = replay_symbol(signals, tape(*bars), quantity=D("1"))
+        self.assertEqual(
+            [x.status for x in result.observations],
+            ["EXPIRED_NO_FILL", "CLOSED_TARGET"],
+        )
+        self.assertEqual(result.all_families.closed, 1)
+
+    def test_23_opposing_same_bar_blocks_both_directions(self) -> None:
+        buy = ticket(Family.TWO_C_MSS_C2, name="long")
+        sell = replace(ticket(Family.MULTI4, name="short"), direction=-1)
+        result = replay_symbol(
+            (sell, buy), tape(bar(0, al="109.2")), quantity=D("1")
+        )
+        self.assertEqual(result.all_families.closed, 0)
+        self.assertEqual(result.all_families.blocked, 2)
+        self.assertEqual(
+            [x.status for x in result.observations],
+            ["BLOCKED_OPPOSING_SAME_BAR", "BLOCKED_OPPOSING_SAME_BAR"],
+        )
+
+    def test_24_same_direction_same_bar_uses_fixed_family_priority(self) -> None:
+        later_priority = ticket(Family.TRUE_3C, name="third")
+        first_priority = ticket(Family.TWO_C_MSS_C2, name="first")
+        result = replay_symbol(
+            (later_priority, first_priority),
+            tape(no_fill_bar(0)), quantity=D("1")
+        )
+        self.assertEqual(
+            [x.source_event_id for x in result.observations],
+            ["first", "third"],
+        )
+        self.assertEqual(
+            result.observations[1].status, "BLOCKED_OVERLAPPING_EXPOSURE"
+        )
+
+    def test_25_unresolved_quote_gap_blocks_following_signals(self) -> None:
+        result = replay_symbol(
+            (
+                ticket(name="first"),
+                ticket(name="later", at=T + timedelta(minutes=25)),
+            ),
+            tape(bar(0, al="109.2"), bar(4, bh="121", ah="121.2")),
+            quantity=D("1"),
+        )
+        self.assertEqual(
+            [x.status for x in result.observations],
+            ["BLOCKED_QUOTE_GAP", "BLOCKED_OVERLAPPING_EXPOSURE"],
+        )
 
 
 if __name__ == "__main__":
