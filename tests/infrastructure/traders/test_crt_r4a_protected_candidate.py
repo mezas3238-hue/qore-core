@@ -142,12 +142,10 @@ class TestCRTR4AProtectedCandidate(unittest.TestCase):
             replace(self.quote, broker="COINBASE")
 
     def test_08_rejects_mismatched_symbols_or_provider_symbol_id(self) -> None:
-        for changes in (
-            {"symbol": "AUDJPY"},
-            {"symbol_id": 999},
-        ):
-            with self.subTest(changes=changes), self.assertRaises(CRTCandidateError):
-                self.propose(quote=replace(self.quote, **changes))
+        with self.assertRaises(CRTCandidateError):
+            self.propose(quote=replace(self.quote, symbol="AUDJPY"))
+        with self.assertRaises(CRTCandidateError):
+            self.propose(quote=replace(self.quote, symbol_id=999))
 
     def test_09_rejects_unaligned_prices(self) -> None:
         with self.assertRaisesRegex(CRTCandidateError, "tick"):
