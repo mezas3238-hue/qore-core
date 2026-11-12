@@ -186,5 +186,80 @@ class PineR1SourceQA(unittest.TestCase):
         self.assertIn("NO LIVE", self.script)
 
 
+    def test_13_secondary_family_own_mss_is_entry_availability(self) -> None:
+        self.assertIn(
+            "j == 2 ? math.max(tr.extraFamilyRatifiedAt, tr.extraFamilyM5At)",
+            self.adapter,
+        )
+        self.assertIn(
+            "math.max(tr.extraFamilyRatifiedAt, tr.extraFamilyM15At)",
+            self.adapter,
+        )
+        self.assertIn(
+            "tr.extraFamilyM15At <= trEndClosed",
+            self.adapter,
+        )
+        self.assertNotIn(
+            "j == 6 ? tr.retest15At : tr.extraFamilyRatifiedAt",
+            self.adapter,
+        )
+
+    def test_14_stale_event_is_consumed_but_cannot_trade_later(self) -> None:
+        self.assertIn(
+            "bool newEvent = unprocessedEvent and eventAt > trEndClosed - MIN5",
+            self.adapter,
+        )
+        self.assertIn(
+            "if unprocessedEvent\n        array.set(trSeen, j, eventKey)",
+            self.adapter,
+        )
+        self.assertIn("trRejectedStale += 1", self.adapter)
+        self.assertIn(
+            "QA eventos antiguos rechazados (no lookback entry)",
+            self.adapter,
+        )
+
+    def test_15_exits_are_bounded_for_historical_positions(self) -> None:
+        self.assertIn(
+            "trMaxHoldM5 = input.int(144",
+            self.adapter,
+        )
+        self.assertIn(
+            "bar_index - trLastEntryBar >= trMaxHoldM5",
+            self.adapter,
+        )
+        self.assertIn(
+            'strategy.close("QORE-L", comment="QA_TIME_STOP")',
+            self.adapter,
+        )
+        self.assertIn(
+            'strategy.close("QORE-S", comment="QA_TIME_STOP")',
+            self.adapter,
+        )
+        self.assertIn(
+            "trLastEntryBar := na",
+            self.adapter,
+        )
+        self.assertIn(
+            "QA cierres por maximo de barras",
+            self.adapter,
+        )
+
+    def test_16_pending_mss_does_not_take_family_h4_time(self) -> None:
+        # All seven family indices are present, including the retest lane.
+        self.assertIn(
+            "j == 6 ? tr.retest15At",
+            self.adapter,
+        )
+        self.assertIn(
+            "tr.extraFamilyRatifiedAt + H4MS",
+            self.adapter,
+        )
+        self.assertIn(
+            "if trCountNow > 1",
+            self.adapter,
+        )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
