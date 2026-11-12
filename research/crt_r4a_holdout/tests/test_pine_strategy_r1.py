@@ -166,7 +166,7 @@ class PineR1SourceQA(unittest.TestCase):
             "slippage=2",
         ):
             self.assertIn(marker, self.script)
-        self.assertIn("PINE COMPILACION Y PARIDAD PENDIENTES", self.adapter)
+        self.assertIn("NO PINE PARITY", self.adapter)
         self.assertIn("NO LIVE", self.script)
 
     def test_10_no_double_count_for_same_family_cycle(self) -> None:
