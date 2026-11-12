@@ -28,6 +28,8 @@ class MarketGeometry:
     sweep_low: Decimal
     retest_high: Decimal | None = None
     retest_low: Decimal | None = None
+    retest_close: Decimal | None = None
+    retest_closed_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if any(
@@ -76,7 +78,8 @@ def plan_research_order(
     """Make non-executable SL/TP hypothesis with causal timestamp guards.
 
     Non-retest: limit 50% of family-owned H4 setup candle body.
-    Retest: M15 post-close paper market entry (not actual broker market).
+    Retest: use the OWN M15 retest close as a REFERENCE PRICE only.
+    A market fill can occur no earlier than the following tradable quote.
     Buffers widen AWAY from trade direction; tick rounding conservative.
     """
     if not isinstance(family, Family):
@@ -109,12 +112,22 @@ def plan_research_order(
     is_retest = family is Family.M15_RETEST
     if is_retest and (
         geometry.retest_high is None or geometry.retest_low is None
+        or geometry.retest_close is None
+        or geometry.retest_closed_at is None
+        or geometry.retest_closed_at.tzinfo is None
+        or not geometry.retest_close.is_finite()
         or geometry.retest_low <= 0
         or geometry.retest_high <= geometry.retest_low
+        or not geometry.retest_low <= geometry.retest_close <= geometry.retest_high
+        or geometry.retest_closed_at <= mss_at
+        or geometry.retest_closed_at > available_at
     ):
-        raise ValueError("M15 retest requires OWN closed M15 OHLC")
+        raise ValueError(
+            "M15 retest requires OWN closed M15 OHLC/time, strictly "
+            "after MSS and not after order availability"
+        )
     midpoint = (geometry.setup_open + geometry.setup_close) / 2
-    base_entry = geometry.setup_close if is_retest else midpoint
+    base_entry = geometry.retest_close if is_retest else midpoint
     tick_entry = _tick(
         base_entry, price_tick, ROUND_FLOOR if direction == 1
         else ROUND_CEILING

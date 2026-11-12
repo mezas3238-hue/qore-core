@@ -21,6 +21,7 @@ def geometry() -> MarketGeometry:
         setup_open=D("109"), setup_close=D("110"),
         sweep_high=D("116"), sweep_low=D("99"),
         retest_high=D("112"), retest_low=D("106"),
+        retest_close=D("111"), retest_closed_at=T,
     )
 
 
@@ -58,7 +59,8 @@ class SevenPaperHypotheses(unittest.TestCase):
 
     def test_03_retest_uses_own_m15_close_not_h4_midpoint(self) -> None:
         result = plan(Family.M15_RETEST)
-        self.assertEqual(result.entry_price, D("110"))
+        self.assertEqual(result.entry_price, D("111"))
+        self.assertNotEqual(result.entry_price, geometry().setup_close)
         self.assertEqual(result.stop_price, D("105"))
         self.assertEqual(result.planned_entry_type, "HYPOTHETICAL_M15_CLOSE")
 
@@ -160,6 +162,35 @@ class SevenPaperHypotheses(unittest.TestCase):
                 Family.TRUE_3C,
                 available_at=datetime(2024, 2, 1, 8),
             )
+
+    def test_20_retest_m15_close_cannot_be_missing(self) -> None:
+        g = MarketGeometry(
+            D("120"), D("100"), D("109"), D("110"),
+            D("116"), D("99"), retest_high=D("112"),
+            retest_low=D("106"), retest_closed_at=T,
+        )
+        with self.assertRaisesRegex(ValueError, "OWN closed M15"):
+            plan(Family.M15_RETEST, geometry=g)
+
+    def test_21_retest_m15_must_close_before_signal_availability(self) -> None:
+        g = MarketGeometry(
+            D("120"), D("100"), D("109"), D("110"),
+            D("116"), D("99"), retest_high=D("112"),
+            retest_low=D("106"), retest_close=D("111"),
+            retest_closed_at=T + timedelta(minutes=15),
+        )
+        with self.assertRaisesRegex(ValueError, "OWN closed M15"):
+            plan(Family.M15_RETEST, geometry=g)
+
+    def test_22_retest_close_must_be_inside_its_own_m15_range(self) -> None:
+        g = MarketGeometry(
+            D("120"), D("100"), D("109"), D("110"),
+            D("116"), D("99"), retest_high=D("112"),
+            retest_low=D("106"), retest_close=D("113"),
+            retest_closed_at=T,
+        )
+        with self.assertRaisesRegex(ValueError, "OWN closed M15"):
+            plan(Family.M15_RETEST, geometry=g)
 
 
 if __name__ == "__main__":
