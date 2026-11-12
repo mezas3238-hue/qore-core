@@ -9,6 +9,10 @@ on:
       - ".github/workflows/crt-r4a-seven-family-33-original-m5-2024-25.yml"
       - "research/crt_r4a_holdout/secondary_family_mss.py"
       - "research/crt_r4a_holdout/causal_crt_m5_engine.py"
+      - "research/crt_r4a_holdout/secondary_family_observer.py"
+      - "research/crt_r4a_holdout/seven_family_event_tape.py"
+      - "research/crt_r4a_holdout/archived_integrated_engine_probe.py"
+      - "research/crt_r4a_holdout/aggregate_seven_family_events.py"
       - "research/crt_r4a_holdout/tests/test_secondary_family_mss.py"
   workflow_dispatch:
 
@@ -225,14 +229,17 @@ jobs:
           PYTHONPATH="$GITHUB_WORKSPACE/legacy-crt-lab:$GITHUB_WORKSPACE" \
             python -m research.crt_r4a_holdout.archived_integrated_engine_probe \
               --root "$SOURCE_ROOT" --symbol "$SYMBOL" \
-              --family "$FAMILY" --cohort "$COHORT" |
+              --family "$FAMILY" --cohort "$COHORT" \
+              --event-tape "$RUNNER_TEMP/events.jsonl" |
               tee "$RUNNER_TEMP/integrated.json"
           echo "7_FAMILY_EVENT_ROUTES=RESEARCH_ONLY" >> "$GITHUB_STEP_SUMMARY"
           echo "2024_25=CONSUMED; PINE_PARITY=NO; ORDERS=0" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: qore-crt-r4a-seven-${{ matrix.symbol }}
-          path: ${{ runner.temp }}/integrated.json
+          path: |
+            ${{ runner.temp }}/integrated.json
+            ${{ runner.temp }}/events.jsonl
           retention-days: 21
       - name: Delete raw broker source
         if: always()
@@ -259,7 +266,8 @@ jobs:
         run: |
           python -m research.crt_r4a_holdout.aggregate_seven_family_events \
             --root "${{ runner.temp }}/seven-family-reports" \
-            --outdir reports/r4a-seven-family-33-2024-25
+            --outdir reports/r4a-seven-family-33-2024-25 \
+            --require-event-tape
           echo "MODEL_COUNT=7; MARKET_COUNT=33; ALL_NO_TRADES" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:

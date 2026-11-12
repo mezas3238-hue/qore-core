@@ -12,9 +12,13 @@ from pathlib import Path
 
 from research.crt_r4a_holdout.archived_2y_strategy_proxy import source_m5
 from research.crt_r4a_holdout.causal_crt_m5_engine import Candle, CausalCRTM5
+from research.crt_r4a_holdout.seven_family_event_tape import write_event_tape
 
 
-def analyze(root: Path, symbol: str, family: str, cohort: str) -> dict:
+def analyze(
+    root: Path, symbol: str, family: str, cohort: str,
+    event_tape_out: Path | None = None,
+) -> dict:
     if family not in ("forex", "index"):
         raise ValueError("BTC original source not supplied")
     bars, verified = source_m5(root, symbol, cohort)
@@ -43,6 +47,10 @@ def analyze(root: Path, symbol: str, family: str, cohort: str) -> dict:
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate CRT cycle identity")
     report = engine.readout()
+    if event_tape_out is not None:
+        report["source_event_tape"] = write_event_tape(
+            event_tape_out, engine=engine, provider_cohort=cohort
+        )
     report.update({
         "provider_cohort": cohort,
         "source_m5_rows": verified["total_m5"],
@@ -65,9 +73,13 @@ def main() -> None:
     parser.add_argument("--symbol", required=True)
     parser.add_argument("--family", choices=("forex", "index"), required=True)
     parser.add_argument("--cohort", required=True)
+    parser.add_argument("--event-tape", type=Path)
     args = parser.parse_args()
     print(json.dumps(
-        analyze(args.root, args.symbol, args.family, args.cohort), sort_keys=True
+        analyze(
+            args.root, args.symbol, args.family, args.cohort,
+            event_tape_out=args.event_tape,
+        ), sort_keys=True
     ))
 
 
