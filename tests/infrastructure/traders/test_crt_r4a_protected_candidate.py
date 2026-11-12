@@ -75,13 +75,21 @@ class TestCRTR4AProtectedCandidate(unittest.TestCase):
             daily_loss_fraction=Decimal("0"),
         )
 
-    def propose(self, **kwargs: object) -> CRTProtectedProposal:
+    def propose(
+        self,
+        *,
+        signal: CRTClosedSignal | None = None,
+        quote: CRTBrokerQuote | None = None,
+        contract: CRTBrokerContract | None = None,
+        risk: CRTDemoAccountRisk | None = None,
+        at: datetime | None = None,
+    ) -> CRTProtectedProposal:
         return plan_crt_protected_candidate(
-            kwargs.get("signal", self.signal),
-            kwargs.get("quote", self.quote),
-            kwargs.get("contract", self.contract),
-            kwargs.get("risk", self.risk),
-            evaluated_at=kwargs.get("at", self.at),
+            signal if signal is not None else self.signal,
+            quote if quote is not None else self.quote,
+            contract if contract is not None else self.contract,
+            risk if risk is not None else self.risk,
+            evaluated_at=at if at is not None else self.at,
         )
 
     def test_01_exact_34_symbols_including_btc(self) -> None:
