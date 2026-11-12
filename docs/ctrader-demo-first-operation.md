@@ -64,9 +64,10 @@ resubmission and reconcile the original order.
 ## CRT Trader certification-specific safety (2026-11-12)
 
 The existing generic first-operation canary instructions do **not** authorize
-the CRT Trader. The current `CTraderOrderCreatePlan` and
-`CTraderOpenApiExecutionTransport.submit_order()` do not carry provider-native
-stop loss / take profit. QORE CRT must NOT issue even a DEMO canary unless
+the CRT Trader. The canonical `build_ctrader_demo_order_create_plan()` continues to create
+unprotected requests by default, even though the plan and Protobuf transport
+now accept opt-in native relative protective fields. No CRT-specific approved
+end-to-end gateway wiring or provider SL/TP reconciliation exists yet. QORE CRT must NOT issue even a DEMO canary unless
 both native protections can be attached atomically to the opening order,
 their presence is verified on the resulting position, and the pretrade
 Risk/CIBO and independent certification gates have passed.

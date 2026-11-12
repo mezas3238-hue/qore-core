@@ -30,9 +30,12 @@ con firma/evidencia auditada, podrá solicitar a QORE Risk una autorización tem
 `ExecutionSafetySwitchSnapshot` y el gateway original conservan la autoridad de veto.
 
 ## Bloqueo concreto de protección en cTrader
-El `CTraderOrderCreatePlan` actual se construye desde `OrderIntent` sin SL/TP y
-`CTraderOpenApiExecutionTransport.submit_order()` solo envía ID, lado, tipo, volumen y
-opcionalmente precio límite. **No envía un Stop Loss nativo ni Take Profit.**
+El `CTraderOrderCreatePlan` ahora admite los campos **opt-in** `relative_stop_loss` y
+`relative_take_profit`, y `CTraderOpenApiExecutionTransport.submit_order()` los puede
+codificar como `relativeStopLoss`/`relativeTakeProfit` de MARKET. **Sin embargo, el
+constructor canónico `build_ctrader_demo_order_create_plan()` y el gateway existente
+siguen creando planes SIN ambos campos.** Por tanto el CRT no dispone aún de una ruta
+segura y certificada para abrir una operación protegida.
 
 El protocolo oficial cTrader **no permite SL/TP absolutos en MARKET**. Para MARKET dispone
 de `relativeStopLoss` y `relativeTakeProfit`, enteros en unidades 1/100000 del precio.
