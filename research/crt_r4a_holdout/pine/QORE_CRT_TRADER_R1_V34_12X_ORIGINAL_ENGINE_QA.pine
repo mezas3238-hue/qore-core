@@ -2308,6 +2308,7 @@ trMinRR = input.float(1.0, "R:R minimo antes de aceptar operacion", minval=0.1, 
 trMaxRiskPercent = input.float(5.0, "Riesgo precio maximo relativo a entrada (%)", minval=0.05, maxval=30, step=0.05, group=trGrp)
 trMaxHoldM5 = input.int(144, "Permanencia maxima de una posicion (velas M5)", minval=1, maxval=2880, group=trGrp, tooltip="Salida hipotetica al agotarse el tiempo; la orden de cierre se llena en la siguiente vela, salvo gaps.")
 trPlot = input.bool(true, "Dibujar entradas hipoteticas", group=trGrp)
+trShowFamilyStats = input.bool(true, "Mostrar tabla de siete familias (PNL emulador)", group=trGrp)
 trStrict = input.bool(true, "Exigir H4 NY fase 0 del proveedor", group=trGrp, tooltip="La reconstruccion H4 con fase +1/+2m continua en QA; desactivar NO certifica paridad de proveedor.")
 
 // Mismo catalogo de 34 feeds IC, extraido del Pine fuente inmovil.
@@ -2346,6 +2347,16 @@ var int trSubmitted = 0
 var int trRejectedStale = 0
 var int trTimeStops = 0
 var int trLastEntryBar = na
+// Las metricas son SOLO de la familia realmente expuesta por Signal.
+var array<int> trEventsByFam = array.new_int(7, 0)
+var array<int> trOrdersByFam = array.new_int(7, 0)
+var array<int> trClosedByFam = array.new_int(7, 0)
+var array<int> trWinsByFam = array.new_int(7, 0)
+var array<float> trGrossWinsByFam = array.new_float(7, 0.0)
+var array<float> trGrossLossesByFam = array.new_float(7, 0.0)
+var array<float> trPnlByFam = array.new_float(7, 0.0)
+var int trProcessedClosed = 0
+var int trUnknownAttribution = 0
 bool trPlaced = false
 string trPlacedName = "NONE"
 int trCountNow = 0
@@ -2378,6 +2389,7 @@ for j = 0 to 6
         trRejectedStale += 1
     if newEvent
         trSignalsSeen += 1
+        array.set(trEventsByFam, j, array.get(trEventsByFam, j) + 1)
         trCountNow += 1
         trOnlyIndex := j
         trOnlyDirection := eventDir
@@ -2410,6 +2422,7 @@ else if trCountNow == 1 and trIsFlat
             strategy.entry("QORE-S", strategy.short, qty=trQty, comment=familyName)
             strategy.exit("QORE-SX", from_entry="QORE-S", stop=stopPx, limit=targetPx, comment="R1_SLTP")
         trSubmitted += 1
+        array.set(trOrdersByFam, trOnlyIndex, array.get(trOrdersByFam, trOnlyIndex) + 1)
         trLastEntryBar := bar_index
         trPlaced := true
         trPlacedName := familyName
@@ -2426,6 +2439,26 @@ if strategy.position_size != 0 and not na(trLastEntryBar) and bar_index - trLast
     trTimeStops += 1
     trLastEntryBar := na
 
+// Clasificacion ECONOMICA de cierres simulados segun comentario original
+// de la orden. No inventa tags ni reparte PnL entre señales superpuestas.
+// Pine closedtrades.* devuelve solo el resultado del broker EMULADOR.
+if strategy.closedtrades > trProcessedClosed
+    for tradeNum = trProcessedClosed to strategy.closedtrades - 1
+        string sourceFam = strategy.closedtrades.entry_comment(tradeNum)
+        int familyNum = sourceFam == "F1_C2" ? 0 : sourceFam == "F2_C3" ? 1 : sourceFam == "F3_TRUE3C" ? 2 : sourceFam == "F4_INSIDE" ? 3 : sourceFam == "F5_MULTI4" ? 4 : sourceFam == "F6_MULTIN" ? 5 : sourceFam == "F7_RETEST" ? 6 : -1
+        float pl = strategy.closedtrades.profit(tradeNum)
+        if familyNum >= 0 and not na(pl)
+            array.set(trClosedByFam, familyNum, array.get(trClosedByFam, familyNum) + 1)
+            array.set(trPnlByFam, familyNum, array.get(trPnlByFam, familyNum) + pl)
+            if pl > 0
+                array.set(trWinsByFam, familyNum, array.get(trWinsByFam, familyNum) + 1)
+                array.set(trGrossWinsByFam, familyNum, array.get(trGrossWinsByFam, familyNum) + pl)
+            else if pl < 0
+                array.set(trGrossLossesByFam, familyNum, array.get(trGrossLossesByFam, familyNum) + math.abs(pl))
+        else
+            trUnknownAttribution += 1
+    trProcessedClosed := strategy.closedtrades
+
 plotshape(trPlot and trPlaced and trOnlyDirection == 1, title="QA BUY simulado", style=shape.triangleup, location=location.belowbar, size=size.tiny, color=color.teal, text="QA L")
 plotshape(trPlot and trPlaced and trOnlyDirection == -1, title="QA SELL simulado", style=shape.triangledown, location=location.abovebar, size=size.tiny, color=color.orange, text="QA S")
 plot(trKnown and trIsM5 ? trSignalsSeen : na, title="QA eventos familiares", display=display.data_window)
@@ -2435,11 +2468,43 @@ plot(trRejectedRisk, title="QA señales rechazadas por SL/TP/R:R", display=displ
 plot(trRejectedStale, title="QA eventos antiguos rechazados (no lookback entry)", display=display.data_window)
 plot(trTimeStops, title="QA cierres por maximo de barras", display=display.data_window)
 
-var table trBoard = table.new(position.bottom_right, 1, 5, border_width=1)
-if barstate.islast
+// Tabla de autoria y PnL del EMULADOR, no certificado broker.
+var table trBoard = table.new(position.bottom_right, 6, 11, border_width=1)
+if barstate.islast and trShowFamilyStats
     string trStatus = not trKnown ? "BLOQUEADO: fuera de 34 IC" : not trIsM5 ? "BLOQUEADO: abrir M5" : not chart.is_standard ? "BLOQUEADO: grafico no estandar" : not trEnable ? "QA SIN ENTRADAS: activar simulacion" : trStrict and (not trPhaseOK or tr.qaSourcePhaseMin != 0) ? "QA FASE 0 NO VERIFICADA" : "QA ESTRATEGIA EXPERIMENTAL"
-    table.cell(trBoard, 0, 0, "QORE CRT TRADER R1 | NO LIVE", text_color=color.white, bgcolor=color.rgb(22, 38, 54))
-    table.cell(trBoard, 0, 1, trStatus, text_color=color.orange, bgcolor=color.new(color.black, 40))
-    table.cell(trBoard, 0, 2, "34 MERCADOS UNO POR GRAFICO", text_color=color.white, bgcolor=color.new(color.black, 40))
-    table.cell(trBoard, 0, 3, "Eventos: " + str.tostring(trSignalsSeen) + " | Ordenes QA: " + str.tostring(trSubmitted), text_color=color.white, bgcolor=color.new(color.black, 40))
-    table.cell(trBoard, 0, 4, "PINE COMPILACION Y PARIDAD PENDIENTES", text_color=color.orange, bgcolor=color.new(color.black, 40))
+    color trHead = color.rgb(22, 38, 54)
+    color trShade = color.new(color.black, 40)
+    table.cell(trBoard, 0, 0, "CRT TRADER R1", text_color=color.white, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 1, 0, trTicker, text_color=color.white, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 2, 0, "M5", text_color=color.white, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 3, 0, trModel == "ALL | 7 familias (conflictos bloqueados)" ? "ALL QA" : "1 FAM", text_color=color.white, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 4, 0, "NO LIVE", text_color=color.orange, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 5, 0, "NO PINE PARITY", text_color=color.orange, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 0, 1, "ESTADO", text_color=color.white, bgcolor=trShade, text_size=size.tiny)
+    table.cell(trBoard, 1, 1, trStatus, text_color=color.orange, bgcolor=trShade, text_size=size.tiny)
+    table.cell(trBoard, 2, 1, "SIM", text_color=color.orange, bgcolor=trShade, text_size=size.tiny)
+    table.cell(trBoard, 3, 1, "C:" + str.tostring(trConflicts), text_color=color.white, bgcolor=trShade, text_size=size.tiny)
+    table.cell(trBoard, 4, 1, "ANT:" + str.tostring(trRejectedStale), text_color=color.white, bgcolor=trShade, text_size=size.tiny)
+    table.cell(trBoard, 5, 1, "T:" + str.tostring(trTimeStops), text_color=color.white, bgcolor=trShade, text_size=size.tiny)
+    string[] trColumns = array.from("FAMILIA", "EVENTOS", "ORD QA", "CERR QA", "PF QA", "PNL QA")
+    for k = 0 to 5
+        table.cell(trBoard, k, 2, array.get(trColumns, k), text_color=color.white, bgcolor=trHead, text_size=size.tiny)
+    for k = 0 to 6
+        int closed = array.get(trClosedByFam, k)
+        float grossWon = array.get(trGrossWinsByFam, k)
+        float grossLost = array.get(trGrossLossesByFam, k)
+        string pfString = closed > 0 and grossLost > 0 ? str.tostring(grossWon / grossLost, "#.###") : "N/D"
+        string name = k == 0 ? "F1 C2" : k == 1 ? "F2 C3" : k == 2 ? "F3 3C" : k == 3 ? "F4 INS" : k == 4 ? "F5 M4" : k == 5 ? "F6 MN" : "F7 RET"
+        color shade = k % 2 == 0 ? trShade : color.new(color.black, 60)
+        table.cell(trBoard, 0, k + 3, name, text_color=color.white, bgcolor=shade, text_size=size.tiny)
+        table.cell(trBoard, 1, k + 3, str.tostring(array.get(trEventsByFam, k)), text_color=color.white, bgcolor=shade, text_size=size.tiny)
+        table.cell(trBoard, 2, k + 3, str.tostring(array.get(trOrdersByFam, k)), text_color=color.white, bgcolor=shade, text_size=size.tiny)
+        table.cell(trBoard, 3, k + 3, str.tostring(closed), text_color=color.white, bgcolor=shade, text_size=size.tiny)
+        table.cell(trBoard, 4, k + 3, pfString, text_color=color.orange, bgcolor=shade, text_size=size.tiny)
+        table.cell(trBoard, 5, k + 3, str.tostring(array.get(trPnlByFam, k), "#.##"), text_color=color.white, bgcolor=shade, text_size=size.tiny)
+    table.cell(trBoard, 0, 10, "QA ONLY", text_color=color.orange, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 1, 10, "NO BID/ASK", text_color=color.orange, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 2, 10, "SIN SWAP", text_color=color.orange, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 3, 10, "AUD:" + str.tostring(trUnknownAttribution), text_color=color.orange, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 4, 10, "RIES:" + str.tostring(trRejectedRisk), text_color=color.white, bgcolor=trHead, text_size=size.tiny)
+    table.cell(trBoard, 5, 10, "NO CERT", text_color=color.orange, bgcolor=trHead, text_size=size.tiny)
