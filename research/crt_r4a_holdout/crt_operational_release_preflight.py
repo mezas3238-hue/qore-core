@@ -105,7 +105,9 @@ def evaluate(repo_root: Path) -> ReleaseReport:
             "05_NATIVE_SERVER_SLTP_ORDER", "PASS_STATIC_ONLY"
             if broker_protection else "BLOCKED",
             "Codec and transport static presence is not broker confirmation"
-            if broker_protection else "Existing canonical gateway sends no native SL/TP in new orders",
+            if broker_protection else (
+                "Existing canonical gateway sends no native SL/TP in new orders"
+            ),
         ),
         ReleaseCheck(
             "06_BROKER_CONTRACT_COSTS", "BLOCKED",
