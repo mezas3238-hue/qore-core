@@ -254,6 +254,9 @@ class CTraderOrderCreatePlan:
     limit_price: str | None
     timeout: ExternalTransportTimeout
     body_json: str
+    # Optional protected MARKET leg; generic legacy create plans stay unchanged.
+    relative_stop_loss: int | None = None
+    relative_take_profit: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.account, MarketTestAccountIdentity):
@@ -310,6 +313,20 @@ class CTraderOrderCreatePlan:
             raise CTraderDemoExecutionValidationError(
                 "order-create plan requires ExternalTransportTimeout"
             )
+        protected = self.relative_stop_loss is not None or self.relative_take_profit is not None
+        if protected:
+            if self.order_type is not OrderType.MARKET:
+                raise CTraderDemoExecutionValidationError(
+                    "native relative SL/TP plan currently requires MARKET order type"
+                )
+            for name, value in (
+                ("relative_stop_loss", self.relative_stop_loss),
+                ("relative_take_profit", self.relative_take_profit),
+            ):
+                if type(value) is not int or not (0 < value < 2**63):
+                    raise CTraderDemoExecutionValidationError(
+                        f"protected order requires positive native int64 {name}"
+                    )
         expected_body: dict[str, object] = {
             "clientMsgId": self.client_msg_id,
             "symbolId": self.symbol_id,
@@ -319,6 +336,9 @@ class CTraderOrderCreatePlan:
         }
         if self.order_type is OrderType.LIMIT:
             expected_body["limitPrice"] = self.limit_price
+        if protected:
+            expected_body["relativeStopLoss"] = self.relative_stop_loss
+            expected_body["relativeTakeProfit"] = self.relative_take_profit
         try:
             decoded_body: object = json.loads(self.body_json)
         except (TypeError, json.JSONDecodeError) as error:
@@ -351,6 +371,9 @@ class CTraderOrderCreatePlan:
             self.limit_price,
             self.timeout.logical_values(),
             self.body_json,
+        ) + (
+            (self.relative_stop_loss, self.relative_take_profit)
+            if self.relative_stop_loss is not None else ()
         )
 
     def sanitized_values(self) -> tuple[object, ...]:
@@ -368,6 +391,9 @@ class CTraderOrderCreatePlan:
             self.limit_price,
             self.timeout.logical_values(),
             self.body_json,
+        ) + (
+            (self.relative_stop_loss, self.relative_take_profit)
+            if self.relative_stop_loss is not None else ()
         )
 
 

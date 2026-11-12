@@ -249,6 +249,9 @@ class CTraderOpenApiExecutionTransport:
         }
         if plan.limit_price is not None:
             fields["limitPrice"] = float(plan.limit_price)
+        if plan.relative_stop_loss is not None and plan.relative_take_profit is not None:
+            fields["relativeStopLoss"] = plan.relative_stop_loss
+            fields["relativeTakeProfit"] = plan.relative_take_profit
         response = self._client.request(
             "ProtoOANewOrderReq",
             fields,

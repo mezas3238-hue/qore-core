@@ -1,0 +1,50 @@
+name: CRT R4-A compile genuine 2024-25 M5 proxy reports (33 markets, NOT CERTIFIED)
+
+on:
+  push:
+    branches:
+      - research/crt-r4a-34-holdout-2y-20261111
+    paths:
+      - ".github/workflows/crt-r4a-aggregate-33-real-m5.yml"
+      - "research/crt_r4a_holdout/aggregate_archived_proxy.py"
+      - "research/crt_r4a_holdout/tests/test_aggregate_archived_proxy.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  aggregate-readonly-summary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate 12 synthetic fail-closed aggregation controls
+        run: |
+          python -m unittest research.crt_r4a_holdout.tests.test_aggregate_archived_proxy -v
+      - name: Retrieve 33 sanitized reports from immutable original GitHub run (no raw prices)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: crt-r4a-proxy-summary-*
+          repository: ${{ github.repository }}
+          run-id: 43094233453
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/crt-r4a-33-reports
+          merge-multiple: false
+      - name: Aggregate gross R, all 33 markets and both strategies, NO profitability claim
+        run: |
+          python -m research.crt_r4a_holdout.aggregate_archived_proxy \
+            --root "${{ runner.temp }}/crt-r4a-33-reports" \
+            --outdir reports/real-m5-proxy-33
+          echo "MODE=REAL_M5_PROXY_GROSS_R_NO_COSTS" >> "$GITHUB_STEP_SUMMARY"
+          echo "HOLDOUT_CERTIFIED=NO; PINE_ENGINE_PARITY=NO; LIVE=NO" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload complete results for user audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-crt-r4a-2024-2025-real-m5-33-proxy-report
+          path: reports/real-m5-proxy-33/
+          retention-days: 30

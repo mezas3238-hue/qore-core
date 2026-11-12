@@ -1,0 +1,237 @@
+name: CRT R4-A native original M5 2024-2025 integrity research (NO TRADES)
+
+# Deliberately manual only: 33 original archives are immutable, verified by
+# run #43093782824 (SHA) and run #43094233453 (exploratory proxy).
+# Auto PR synchronization would rerun 33 large jobs on every change.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  source-2024-2025-original:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - symbol: AUDJPY
+            family: forex
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-AUDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: GBPUSD
+            family: forex
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-GBPUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: GBPJPY
+            family: forex
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-GBPJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: XAUUSD
+            family: forex
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: NAS100
+            family: index
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: SP500
+            family: index
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: US30
+            family: index
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: AUDUSD
+            family: forex
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-AUDUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: USDCAD
+            family: forex
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-USDCAD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: USDJPY
+            family: forex
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-USDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: EURUSD
+            family: forex
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-EURUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: USDCHF
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-USDCHF-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: NZDUSD
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-NZDUSD-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: NZDJPY
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-NZDJPY-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: NZDCHF
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-NZDCHF-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: XAGUSD
+            family: forex
+            cohort: ATLAS_DEMO_BROKER_UNVERIFIED
+            run_id: 35166210458
+            artifact: qore-cibo-market-atlas-10y-windowed-XAGUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          - symbol: AUDCAD
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-AUDCAD-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: AUDCHF
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-AUDCHF-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: AUDNZD
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-AUDNZD-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: CADCHF
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-CADCHF-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: CADJPY
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-CADJPY-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: CHFJPY
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-CHFJPY-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: EURAUD
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-EURAUD-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: EURCAD
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-EURCAD-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: EURCHF
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-EURCHF-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: EURGBP
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-EURGBP-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: EURJPY
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-EURJPY-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: EURNZD
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-EURNZD-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: GBPAUD
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-GBPAUD-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: GBPCAD
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-GBPCAD-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: GBPCHF
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-GBPCHF-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: GBPNZD
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-GBPNZD-e0ca5a13c866a19d8505c68cffc473598984b340
+          - symbol: NZDCAD
+            family: forex
+            cohort: ICMARKETS_DEMO_CONFIRMED
+            run_id: 38193802541
+            artifact: qore-native-icmarkets-10Y-provider-M5-NZDCAD-e0ca5a13c866a19d8505c68cffc473598984b340
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout source-validated archived CRT decoder pinned to PR #1004
+        uses: actions/checkout@v4
+        with:
+          ref: fe9de467102e86dbd355c09c5099830af28a694c
+          path: legacy-crt-lab
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch archived cTrader M5 privately in ephemeral runner only
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          repository: ${{ github.repository }}
+          run-id: ${{ matrix.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/qore-m5-private
+      - name: Verify original 2024 and 2025 partitions SHA256 and provenance
+        shell: bash
+        env:
+          SRC: ${{ runner.temp }}/qore-m5-private
+          SYMBOL: ${{ matrix.symbol }}
+          COHORT: ${{ matrix.cohort }}
+        run: |
+          set -euo pipefail
+          python research/crt_r4a_holdout/native_archive_2y_probe.py \
+            --root "$SRC" --symbol "$SYMBOL" --cohort "$COHORT"
+          echo "ARCHIVE_READONLY=TRUE" >> "$GITHUB_STEP_SUMMARY"
+          echo "PINE_PARITY=NOT_CERTIFIED" >> "$GITHUB_STEP_SUMMARY"
+          echo "HOLDOUT=NOT_OPENED; NO_TRADING" >> "$GITHUB_STEP_SUMMARY"
+      - name: Execute 2024-2025 native M5 A/B strategy GROSS-R proxy (not Pine parity)
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ runner.temp }}/qore-m5-private
+          SYMBOL: ${{ matrix.symbol }}
+          FAMILY: ${{ matrix.family }}
+          COHORT: ${{ matrix.cohort }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/legacy-crt-lab:$GITHUB_WORKSPACE"           python research/crt_r4a_holdout/archived_2y_strategy_proxy.py             --root "$SOURCE_ROOT" --symbol "$SYMBOL"             --family "$FAMILY" --cohort "$COHORT" | tee "$RUNNER_TEMP/crt-proxy-summary.json"
+          echo "STATUS=EXPLORATORY_2024_2025_GROSS_R_NO_COSTS" >> "$GITHUB_STEP_SUMMARY"
+          echo "PINE_ENGINE_PARITY=NOT_CERTIFIED; HOLDOUT_UNSEEN=UNKNOWN" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crt-r4a-proxy-summary-${{ matrix.symbol }}
+          path: ${{ runner.temp }}/crt-proxy-summary.json
+          retention-days: 14
+      - name: Wipe raw M5 source after verification
+        if: always()
+        run: rm -rf "${{ runner.temp }}/qore-m5-private"

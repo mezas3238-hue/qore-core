@@ -1,0 +1,88 @@
+name: CRT R4-A causal M5/M15 original-market pilot QA (NO TRADING)
+
+on:
+  pull_request:
+    paths:
+      - "research/crt_r4a_holdout/pine_swing_primitives.py"
+      - "research/crt_r4a_holdout/archived_pivot_audit.py"
+      - "research/crt_r4a_holdout/causal_crt_m5_engine.py"
+      - "research/crt_r4a_holdout/archived_integrated_engine_probe.py"
+      - "research/crt_r4a_holdout/tests/test_causal_crt_m5_engine.py"
+      - "research/crt_r4a_holdout/archived_h4_clock_probe.py"
+      - "research/crt_r4a_holdout/pine_h4_geometry.py"
+      - "research/crt_r4a_holdout/tests/test_pine_h4_geometry.py"
+      - "research/crt_r4a_holdout/tests/test_pine_swing_primitives.py"
+      - ".github/workflows/crt-r4a-one-real-feed-pivot-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  one-original-ic-feed-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout historical native-source decoder pinned to CRT Lab PR 1004
+        uses: actions/checkout@v4
+        with:
+          ref: fe9de467102e86dbd355c09c5099830af28a694c
+          path: legacy-crt-lab
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch original 10Y IC Markets DEMO USDCHF M5 privately in ephemeral runner
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-native-icmarkets-10Y-provider-M5-USDCHF-e0ca5a13c866a19d8505c68cffc473598984b340
+          repository: ${{ github.repository }}
+          run-id: 38193802541
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/ic-archive
+      - name: Audit original 2024+2025 SHA then scan causal pivots on all M5
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ runner.temp }}/ic-archive
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/legacy-crt-lab:$GITHUB_WORKSPACE" \
+            python -m research.crt_r4a_holdout.archived_pivot_audit \
+              --root "$SOURCE_ROOT" --symbol USDCHF \
+              --cohort ICMARKETS_DEMO_CONFIRMED |
+              tee "$RUNNER_TEMP/usdchf-pivot-qa.json"
+          echo "DATA_REAL_SOURCE_SHA256=VERIFIED" >> "$GITHUB_STEP_SUMMARY"
+          echo "PINE_EVENT_PARITY=NOT_CERTIFIED" >> "$GITHUB_STEP_SUMMARY"
+          echo "TRADES=NONE; NOT_A_HOLDOUT" >> "$GITHUB_STEP_SUMMARY"
+      - name: Quantify original R4-A six H4 windows vs older incomplete three
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ runner.temp }}/ic-archive
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/legacy-crt-lab:$GITHUB_WORKSPACE"             python -m research.crt_r4a_holdout.archived_h4_clock_probe               --root "$SOURCE_ROOT" --symbol USDCHF --family forex               --cohort ICMARKETS_DEMO_CONFIRMED |
+              tee "$RUNNER_TEMP/usdchf-h4-clock-qa.json"
+          echo "CLOCK_CORRECTION=PINE_SIX_NY_H4_ANCHORS" >> "$GITHUB_STEP_SUMMARY"
+          echo "HOLDOUT_2024_25=ALREADY_USED_FOR_RESEARCH" >> "$GITHUB_STEP_SUMMARY"
+      - name: Unified causal CRT2C-MSS15 and TRUE3C-MSS5 detector on ORIGINAL USDCHF 2024-25
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ runner.temp }}/ic-archive
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/legacy-crt-lab:$GITHUB_WORKSPACE"             python -m research.crt_r4a_holdout.archived_integrated_engine_probe               --root "$SOURCE_ROOT" --symbol USDCHF --family forex               --cohort ICMARKETS_DEMO_CONFIRMED |
+              tee "$RUNNER_TEMP/usdchf-integrated-crt-mss-qa.json"
+          echo "INTEGRATED_CRT_MSS=RESEARCH_EVENT_QA_ONLY_NO_PINE_PARITY" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-crt-r4a-usdchf-causal-pivot-real-m5-qa
+          path: |
+            ${{ runner.temp }}/usdchf-pivot-qa.json
+            ${{ runner.temp }}/usdchf-h4-clock-qa.json
+            ${{ runner.temp }}/usdchf-integrated-crt-mss-qa.json
+          retention-days: 14
+      - name: Delete original source after QA
+        if: always()
+        run: rm -rf "${{ runner.temp }}/ic-archive"
