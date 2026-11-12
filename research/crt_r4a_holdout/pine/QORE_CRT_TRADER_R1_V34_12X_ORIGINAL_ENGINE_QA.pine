@@ -1,0 +1,2420 @@
+//@version=6
+// QORE CRT TRADER R1 — COPIA LABORATORIO, NO LIVE, NO AUTOTRADING
+// Origen INMUTABLE: qore-deepseek-reviewer Pine blob 693e3f49719e86e2ea0702f7b355af33bd0c4c7c.
+// El f_engine() se conserva; SOLO se quitan dos guardas barstate.islast
+// para recuperar la serie historica del mismo grafico, en vez del snapshot.
+// No modifica ni despliega el indicador original; sin alert()/webhook/broker.
+strategy("QORE CRT TRADER R1 | 34 IC QA", shorttitle="QORE CRT Trader R1", overlay=true, pyramiding=0, initial_capital=10000, default_qty_type=strategy.fixed, default_qty_value=1, commission_type=strategy.commission.percent, commission_value=0.02, slippage=2, process_orders_on_close=false, calc_on_order_fills=false, calc_on_every_tick=false, dynamic_requests=false, max_lines_count=8, max_labels_count=12, max_boxes_count=5)
+
+// MODULO 5B CANDIDATO V34.10b NO INTEGRADO: manejo conservador de pausas de sesion. Requiere auditoria TradingView.
+// MODULO 5A INTEGRADO (AUTORIZADO): deteccion interna FVG H1/H4. Validacion TradingView pendiente.
+// MODULO 4B INTEGRADO (AUTORIZADO): estado PDH/PDL, primera barrida y dashboard 6 columnas.
+// MODULO 4A AUTORIZADO: PDH/PDL NY usando M5 cerradas; niveles internos, sin senales.
+// MODULO 3B.3B AUTORIZADO: expiracion y prioridad Inside Bar, sin cambiar MSS/dashboard.
+// MODULO 2B AUTORIZADO: CRT_2C_RETURN estructural y CRT_2C_EXPANSION solo diagnostico.
+// MODULO 1 APROBADO: CONTROL DE CONTINUIDAD DE VELAS M5 EN H4.
+// V34.1 AUDITORIA: correcciones de invalidacion C3 H4 y prioridad de candidatos.
+// PARCHE ESTATICO. Compilacion/ejecucion TradingView pendiente.
+// V34 - CAMBIO CRITICO: TODAS LAS H4 del ciclo NY se analizan como C1.
+// No se filtra por tres inicios predefinidos: FX 01/05/09/13/17/21,
+// indices 02/06/10/14/18/22. Sigue existiendo modo estricto opcional.
+// CRT provisional en C2, ratificado SOLO con cierre H4 de C2 dentro C1.
+// MSS M5 y M15 independientes y asociados a la barrida del mismo ciclo.
+// Analizar cada vela H4 no equivale a validar cualquier vela como CRT.
+// V34 no ha sido compilada dentro de Pine Editor: validacion real pendiente.
+// V32 30-OCT-2026: reparar visibilidad del activo abierto y CRT H4
+// Detectar durante C2, diferenciar provisional (*) de ratificado y
+// conservar el ultimo CRT confirmado por ventana parametrizable.
+// El grafico abierto va primero si el proveedor/ticker coincide exactamente con un feed.
+// IMPORTANTE: motor independiente. No copia el Pine cerrado de GoldForexDoc.
+// V31: SCAN de 34 simbolos configurables + grafico abierto independiente.
+// Todos usan el MISMO f_engine() y la MISMA fuente M5; sin exclusiones de pares.
+// Dashboard seleccionable: solo CRT o auditoria de todos los simbolos por pagina.
+// NO garantiza vigilar todo el universo TradingView: los limites de peticiones aplican.
+// V30: motor original implementado a partir de las REGLAS PUBLICADAS, NO es una copia
+// exacta de los codigos de GoldForexDoc ni swordNshield.
+// UN motor por simbolo en M5: agrega C1/C2/C3 H4 y MSS M15, preservando MSS M5.
+// V34: se observan TODAS las H4 del ciclo NY; 3 origenes es modo opcional.
+// C2 barre UN limite de C1; regresa a C1 y debe CERRAR dentro. C3 expande.
+// MSS = cierre que cruza swing confirmado ANTES de la barrida C2.
+// Las confirmaciones M5/M15 del mismo CRT y direccion quedan latched.
+// No usa barstate.isconfirmed dentro de request.security: analiza M5 [1] CERRADA.
+// RADAR A: monitor de 34 mercados; CHART B: dibujos CRH/CRL y MSS del grafico.
+// En M15 y H4, request.security(..., "5") entrega un ESTADO calculado en M5
+// pero el refresco/reconciliacion intrabar requiere comprobarlo en TradingView.
+
+
+// QA V34.12I / MEMORIA: RADAR consulta 34 feeds por defecto (experimental).
+// BTCUSD solo es modo manual de diagnostico; snapshot no certifica memoria
+// ni resuelve por si solo "Memory limits exceeded" en TradingView/Android.
+// Esta version NO autoriza enviar alertas a Android o trading live.
+// El candidato V34.10b oficial de comparacion permanece inalterado.
+
+string TZ = "America/New_York"
+int MIN5 = 300000
+int MIN15 = 900000
+int H4MS = 14400000
+
+string grp = "01 / Logica CRT"
+idxList = input.string("USTEC,NAS100USD,US500,US30,US100,SPX500,US2000,DE40,GER40,UK100,JP225,HK50,NAS100,SPX,NDX,DJI,ES1!,NQ1!,YM1!", "Indices por ticker (CSV)", group=grp)
+// V34.12R: unico escaneo: las SEIS velas H4 de cada ciclo de 24 horas.
+allowTouches = input.bool(true, "Considerar toque CRH/CRL como candidato", group=grp, tooltip="Los toques exactos se muestran PROVISIONALES; el cierre H4 de C2 dentro de C1 es obligatorio para ratificar. Desactivar para exigir barrida estricta.")
+// V34.11k: C1/C2/C3/Inside require a CLOSED 48-M5 contiguous H4.
+// No minimum-bar override: a partially observed four-hour candle
+// must NEVER enter the sovereign CRT or an Inside validation.
+showCandidate = input.bool(true, "Mostrar CRT C2 provisional (con *)", group=grp)
+showAtSweep = input.bool(true, "Mostrar barrida C2 antes del retorno (provisional *)", group=grp, tooltip="El toque del rango H4 no es confirmacion CRT; se identifica con * y no se le asignan MSS futuros. Debe retornar al rango para ratificarse.")
+keepLastCRT = input.bool(false, "Conservar ultimo CRT ratificado (HISTORICO QA)", group=grp, tooltip="Memoria visual de maximo 48 horas por defecto, separada del CRT vigente; la etiqueta indica HIST y nunca confirma una nueva entrada.")
+keepHours = input.int(48, "Memoria ultimo CRT (horas)", minval=4, maxval=120, group=grp)
+// M3B.3B: vigencia en H4 de negociacion cerradas y verificadas.
+maxH4Life = input.int(3, "Vida Inside Bar (H4 cerradas)", minval=1, maxval=10, group=grp)
+
+// QA: detectar varias familias de CRT NO autoriza entradas automaticamente.
+string grp2 = "02 / MSS M5 y M15"
+left5 = input.int(2, "M5 swing izquierdo", minval=1, maxval=7, group=grp2)
+right5 = input.int(2, "M5 swing derecho", minval=1, maxval=7, group=grp2)
+left15 = input.int(2, "M15 swing izquierdo", minval=1, maxval=7, group=grp2)
+right15 = input.int(2, "M15 swing derecho", minval=1, maxval=7, group=grp2)
+maxPivotAge = input.int(720, "Max edad del swing antes de barrida (min)", minval=15, maxval=1440, group=grp2)
+
+// R2 QA: contrato Owner: los 34 mercados son OBLIGATORIOS.
+// No existe selector BTC-only: 34 request.security() sobre los 34 IC M5.
+// Que un feed responda o produzca geometria QA NO equivale a certificarlo.
+const bool scanAll = true
+string grp3 = "03 / Dashboard y auditoria QA"
+showDashboard = input.bool(true, "Mostrar dashboard", group=grp3)
+expandFull34 = input.bool(false, "Ver los 34 instrumentos (expandir)", group=grp3, tooltip="En TradingView Pine las celdas no reciben toques. Abre Ajustes del indicador > 03 / Dashboard y activa esto. Vista compacta: solo CRT centrales ratificados, priorizando MSS M15; ampliada: los 34 feeds, con o sin señal, 4 por pagina.")
+compactPriorityRows = input.int(6, "Monitor CRT: filas prioritarias (2-6)", minval=2, maxval=6, group=grp3, tooltip="Solo para el monitor CRT + MSS compacto. Ordena primero los mercados con ambos MSS, despues M15, M5 y otros CRT. No altera los 34 feeds ni activa alertas.")
+showCatalog7 = input.bool(false, "Ampliado: inspeccionar 7 categorias CRT (QA)", group=grp3, tooltip="Solo tiene efecto en modo ampliado: 3C+MSS15, 2C candidata, expansion rechazada, Inside retorno, Inside continuacion no aprobada, Multi-Candle QA y retest M15 QA. No crea entradas ni alertas.")
+qaFamilyHistoryView = input.bool(false, "QA: historial 2C/3C/Inside/Multi por mercado", group=grp3, tooltip="Pantalla separada del monitor: 34 fuentes / 4 paginas con ultimo evento historico por familia en DD/MM UTC. Nunca presenta historico como CRT actual ni como MSS confirmado. Usa QA: numero de instrumento (1-34) para UTCmin exacto.")
+qaHistoryFollowChart = input.bool(true, "QA historial: seguir el simbolo del grafico (mismo broker)", group=grp3, tooltip="Para el detalle de UTCmin toma el simbolo exacto del grafico solo si ticker.standard coincide en proveedor y simbolo con uno de los 34 feeds. Si no coincide: SIN SLOT. Desactiva para elegir el numero de instrumento manualmente.")
+showNonBtcCohortQA = input.bool(false, "QA: auditar los 33 instrumentos sin BTC", group=grp3, tooltip="Muestra 33 feeds sin BTCUSD, por 4 por pagina: H4 evaluadas/incompletas, C1 validas y estados. BTC mantiene motor independiente y no participa en estadistica.")
+qa33RootView = input.bool(true, "QA 33: mostrar causas H4 (inicio/fin/conteo)", group=grp3, tooltip="En la auditoria 33 alterna al desglose POR instrumento: bloques con inicio de NY distinto, fin diferente y cantidad M5 distinta de 48. No modifica reglas CRT.")
+qaPhase1NonBtc = input.bool(true, "QA: fase M5 por feed 0..4m (SIN ALERTAS)", group=grp3, tooltip="Solo QA: utiliza la fase M5 cerrada 0,1,2,3,4 minutos del propio proveedor para reconstruir H4, H1 y M15 de cada feed NO BTC. Exige 48 M5 contiguas y pivote MSS15 propio. Nunca certifica H4 NY original, no muestra senales operativas ni permite alertas.")
+showSlotEventAudit = input.bool(false, "QA: ver tiempos CRT/MSS de 1 instrumento", group=grp3, tooltip="Esta vista desplaza temporalmente el catalogo 34: muestra solo el evento actual. Para el ultimo evento historico, activar la opcion inferior; no autoriza trading.")
+qaHistoricLast = input.bool(false, "QA: ver ultimo evento historico por categoria", group=grp3, tooltip="En la vista de tiempos, reemplaza los contadores inferiores por las marcas de tiempo mas recientes de 2C provisional, 2C ratificada, expansion rechazada, 3C, Inside retorno/continuacion, Multi4/Multi-N y retest M15. Nunca reconstruye ni inventa MSS15. No es certificado.")
+qaReadableUtc = input.bool(true, "QA: mostrar fechas UTC (DD/MM HH:mm)", group=grp3, tooltip="Solo cambia la presentacion: ON = fecha UTC legible para Android; OFF = minutos Unix UTC exactos de V34.11L para reconciliacion con Trader Lab. Sin cambios de motor, velas, MSS o alertas.")
+qaFollowChart = input.bool(true, "QA: seguir grafico solo si proveedor coincide", group=grp3, tooltip="Solo cambia el slot QA automaticamente si el ticker estandar con proveedor coincide exactamente con un feed del escaner. Nunca mezcla proveedores con el mismo nombre de mercado.")
+qaEventSlot = input.int(1, "QA: numero de instrumento (1-34)", minval=1, maxval=34, group=grp3)
+page = input.int(1, "Pagina si hay mas senales", minval=1, maxval=34, group=grp3)
+
+// V34.12K QA: Chart B integrado en el MISMO indicador (plan Basic, un script).
+// Dibuja solo el mercado abierto si coincide ticker + proveedor con un slot.
+string grpChart = "04 / Chart integrado (QA, mercado abierto)"
+showIntegratedChart = input.bool(true, "Dibujar CRT y MSS en el grafico abierto", group=grpChart, tooltip="Reutiliza el Signal del mismo slot entre los 34 feeds. Sin coincidencia exacta de proveedor/ticker, NO dibuja para evitar atribucion falsa.")
+showLevels = input.bool(true, "CRH/CRL del C1 validado (QA)", group=grpChart)
+showMssLines = input.bool(true, "Lineas MSS M5 y M15 propias", group=grpChart, tooltip="MSS solo del mismo modelo, con pivote previo a barrida. M15 naranja si el nivel esta pendiente y azul tras cierre M15 confirmado.")
+
+// V34.12O: referencia grafica PDH/PDL = 1D PREVIA CONFIRMADA,
+// exactamente el diario del ticker que el Owner compara en TradingView.
+// La antigua referencia RTH/17 NY queda SOLO interna al motor CRT.
+// No altera C1/C2/C3, ni MSS, ni agregados del dashboard.
+showChartPDHPDL = input.bool(true, "PDH/PDL = 1D anterior confirmada (QA)", group=grpChart, tooltip="En H4 usa HIGH/LOW del 1D confirmado ANTERIOR del mismo ticker/proveedor, NO reconstruccion RTH/NY con M5; compara con la vela 1D visible en TradingView. No altera la liquidez interna del CRT.")
+showChartH4Fvg = input.bool(true, "Mostrar FVG H4 CERCANOS al precio (QA)", group=grpChart, tooltip="FVG nativos del ticker abierto, solo 3 H4 cerradas consecutivas, ordenados por distancia al precio. Si el precio se aleja, el FVG pierde relevancia en pantalla.")
+chartFvgLookbackH4 = input.int(24, "FVG H4: buscar entre ultimas H4 CERRADAS", minval=3, maxval=40, group=grpChart)
+chartFvgMaxZones = input.int(1, "FVG H4: zonas cercanas visibles (1 a 3)", minval=1, maxval=3, group=grpChart)
+chartFvgMaxAtr = input.float(1.5, "FVG H4: maxima distancia ATR", minval=0.25, maxval=5.0, step=0.25, group=grpChart, tooltip="Excluir FVG lejanos; la distancia se mide en ATR H4 confirmado del ticker, no en el rango CRT.")
+
+// V34.12X: paleta SOLO DE DIBUJO. No modifica f_engine, C1, MSS
+// ni las fuentes IC Markets. input.color se muestra en Entradas de datos
+// (los objetos line/box/label dinamicos no usan controles de Estilo).
+string grpChartColors = "04B / Colores de Chart (personalizables)"
+chartCrhQAColor = input.color(color.orange, "CRH · CRT provisional QA", inline="crqa", group=grpChartColors)
+chartCrlQAColor = input.color(color.orange, "CRL · CRT provisional QA", inline="crqa", group=grpChartColors)
+chartCrhRatColor = input.color(color.rgb(168,65,115), "CRH · ratificado", inline="crrat", group=grpChartColors)
+chartCrlRatColor = input.color(color.rgb(168,65,115), "CRL · ratificado", inline="crrat", group=grpChartColors)
+chartCrtHistColor = input.color(color.gray, "CRH/CRL · historico QA", group=grpChartColors)
+chartM5Color = input.color(color.teal, "MSS M5 · propio", inline="m5", group=grpChartColors)
+chartM5ExtraColor = input.color(color.orange, "MSS M5 · familia extra QA", inline="m5", group=grpChartColors)
+chartM15WaitColor = input.color(color.orange, "MSS M15 · pendiente", inline="m15", group=grpChartColors)
+chartM15DoneColor = input.color(color.blue, "MSS M15 · confirmado", inline="m15", group=grpChartColors)
+chartPdhIntactColor = input.color(color.aqua, "PDH · INTACTO", inline="pdh", group=grpChartColors)
+chartPdhTakenColor = input.color(color.orange, "PDH · TOMADO", inline="pdh", group=grpChartColors)
+chartPdlIntactColor = input.color(color.fuchsia, "PDL · INTACTO", inline="pdl", group=grpChartColors)
+chartPdlTakenColor = input.color(color.orange, "PDL · TOMADO", inline="pdl", group=grpChartColors)
+chartFvgBullColor = input.color(color.teal, "FVG H4 · ALCISTA", inline="fvg", group=grpChartColors)
+chartFvgBearColor = input.color(color.rgb(192,82,64), "FVG H4 · BAJISTA", inline="fvg", group=grpChartColors)
+chartFvgFillOpacity = input.int(83, "FVG H4 · transparencia zona (0 a 100)", minval=0,maxval=100,group=grpChartColors,
+     tooltip="0 = solido, 100 = invisible. Una zona parcialmente mitigada se muestra 5 puntos mas transparente.")
+
+
+
+
+// M4A PDH/PDL, diagnostico interno. NO dibuja niveles ni cambia senales.
+string grpPdh = "05 / PDH y PDL"
+useExtIdx = input.bool(false, "Indices: 17:00-17:00 NY (alternativa a RTH)", group=grpPdh, tooltip="RTH predeterminado 09:30-16:00 NY. El horario extendido real puede diferir segun el indice/proveedor.")
+
+f_index() =>
+    string name = str.upper(syminfo.ticker)
+    string csv = "," + str.upper(str.replace_all(idxList, " ", "")) + ","
+    bool listed = str.contains(csv, "," + name + ",")
+    bool typical = str.contains(name, "USTEC") or str.contains(name, "NAS100") or str.contains(name,"US100") or str.contains(name,"US500") or str.contains(name,"SPX500") or str.contains(name,"US30") or str.contains(name,"US2000") or str.contains(name,"DE40") or str.contains(name,"GER40") or str.contains(name,"UK100") or str.contains(name,"JP225") or str.contains(name,"HK50")
+    syminfo.type == "index" or listed or typical
+
+f_allowed(int hh, bool indexFamily) =>
+    // Ancla horaria NY NO equivale a operar solo la SESION de Nueva York.
+    // Todos los 6 bloques H4 del ciclo de 24h son elegibles por defecto,
+    // incluyendo Asia, Londres y NY; el motor siempre valida 48 M5
+    // contiguas, CRH/CRL y C2 cerrada por separado.
+    // Solo 6/6 H4, incluye Asia/Londres/NY. Sin selector de 3 ventanas.
+    indexFamily ? (hh == 2 or hh == 6 or hh == 10 or hh == 14 or hh == 18 or hh == 22) : (hh == 1 or hh == 5 or hh == 9 or hh == 13 or hh == 17 or hh == 21)
+
+// BTC: construir H4 desde la HORA LOCAL NY de CADA M5, nunca
+// desde time("240", "0100-0100...") que en la salida DST puede
+// anclar a 00/04/08 y saltarse C1 01/05/09. Anclas validas de
+// cualquier dia: 01/05/09/13/17/21. De 00:00 a 00:59 corresponde
+// al bloque 21:00 del DIA NY ANTERIOR.
+// En el retroceso DST, 01:00 ocurre dos veces; las M5 del bloque
+// excederan 48 y las puertas de C1/C2/C3 bloquearan el CRT.
+f_btc_crt_h4_ny(int t) =>
+    int hr = hour(t, TZ)
+    int bucketHr = hr >= 21 ? 21 : hr >= 17 ? 17 : hr >= 13 ? 13 : hr >= 9 ? 9 : hr >= 5 ? 5 : hr >= 1 ? 1 : 21
+    // Solo 00 NY pertenece al dia previo; -12 horas garantiza
+    // fecha NY anterior aun en transiciones DST.
+    int dateRef = hr == 0 ? t - 12 * 3600000 : t
+    timestamp(TZ, year(dateRef, TZ), month(dateRef, TZ), dayofmonth(dateRef, TZ), bucketHr, 0)
+
+// V34.11f: NON-BTC markets have a dedicated NY anchoring function.
+// Forex and metals are checked independently from BTCUSD; the latter
+// keeps its original clock and validation. Trading session coverage for
+// XAU/XAG is NOT assumed equivalent to liquid Forex.
+f_forex_metal_crt_h4_ny(int t) =>
+    int hr = hour(t, TZ)
+    int bucketHr = hr >= 21 ? 21 : hr >= 17 ? 17 : hr >= 13 ? 13 : hr >= 9 ? 9 : hr >= 5 ? 5 : hr >= 1 ? 1 : 21
+    int dateRef = hr == 0 ? t - 12 * 3600000 : t
+    timestamp(TZ, year(dateRef, TZ), month(dateRef, TZ), dayofmonth(dateRef, TZ), bucketHr, 0)
+
+// V34.11e: deterministic index H4 alignment on NY 02/06/10/14/18/22.
+// 00:00-01:59 NY belongs to yesterday's 22:00 H4.
+// A nonexistent NY 02:00 DST spring anchor cannot be made a valid C1
+// by relaxing the 48-M5-contiguous candle gate.
+f_index_crt_h4_ny(int t) =>
+    int hr = hour(t, TZ)
+    int bucketHr = hr >= 22 ? 22 : hr >= 18 ? 18 : hr >= 14 ? 14 : hr >= 10 ? 10 : hr >= 6 ? 6 : hr >= 2 ? 2 : 22
+    int dateRef = hr < 2 ? t - 12 * 3600000 : t
+    timestamp(TZ, year(dateRef, TZ), month(dateRef, TZ), dayofmonth(dateRef, TZ), bucketHr, 0)
+
+// Un campo = un estado de un solo CRT. Esta UDT elude el limite de 127
+// elementos que impediria empaquetar 34 tuplas grandes por separado.
+// One extra nested object in the security Signal. Its OHLC always
+// belongs to the selected family's own C1, never the unrelated 2C C1.
+type FamilyVisual
+    int c1Start
+    float c1High
+    float c1Low
+    int eventClosedAt
+    int direction
+    string kind
+    bool structuralQA
+
+type Signal
+    int phase        // 0 sin CRT, 1 C2 provisional, 2 C3 ratificado, 3 ultimo ratificado
+    int direction    // +1 bullish, -1 bearish
+    int c1Start
+    float crh
+    float crl
+    int sweepAt
+    int m5At
+    int m15At
+    float m5Level
+    float m15Level
+    int m5PivotAt
+    int m15PivotAt
+    string modelKind        // PENDING, CRT_2C_RETURN, CRT_2C_EXPANSION, NONE
+    bool isPatternValid    // Independiente de MSS M5/M15
+    // M4B: campos de liquidez calculados en el mismo feed M5.
+    string pdhStatus       // N/D / INTACTO / TAKEN
+    string pdlStatus
+    int pdhSweepAt        // Fin de la primera vela M5 que tomo la referencia
+    int pdlSweepAt
+    int pdhSweepStage     // 0=sin CRT asignable; 2=C2; 3=C3
+    int pdlSweepStage
+    int pdhSweepC1        // Identidad C1 congelada durante primera barrida
+    int pdlSweepC1
+    int crtC2Start        // Inicio real de C2 para distinguir PRE de C2
+    int crtRatifiedAt     // Inicio C3 cuando la C2 H4 fue ratificada; base temporal de alertas
+    int liquidityRefAt    // Timestamp de cierre de la sesion de referencia
+    bool pdhSweptDuringCRT
+    bool pdlSweptDuringCRT
+    // QA-only payload del ultimo FVG H1/H4.
+    int fvgH1Count
+    int fvgH1StateCode
+    float fvgH1Top
+    float fvgH1Bottom
+    float fvgH1Pen
+    int fvgH1FormAt
+    int fvgH1GapAt
+    int fvgH4Count
+    int fvgH4StateCode
+    float fvgH4Top
+    float fvgH4Bottom
+    float fvgH4Pen
+    int fvgH4FormAt
+    int fvgH4GapAt
+    // QA BTC: inicio UNIX del bloque NY y numero de M5 cerradas.
+    int nyH4Start
+    int nyH4M5Count
+    // Valores BTC NY de referencia, mismos M5 del proveedor.
+    float nyPDH
+    float nyPDL
+    int nyPDHReferenceAt
+    // Estado corriente del día del PROVEEDOR 1D a partir de M5 cerradas.
+    // Este es independiente de la sesión NY usada para CRT H4.
+    int chartDStart
+    float chartDayHighM5
+    float chartDayLowM5
+    bool chartDayContinuous
+    // Solo observabilidad BTC: no convierten una barrida en senal.
+    int qaC1Ready
+    int qaC2Ratified
+    string qaLastC2Gate
+    int qaCurrentH4Hour
+    // La ultima vela M15 COMPLETA y CERRADA, independiente del MSS M5.
+    int qaLastClosedM15At
+    // Modelo actual unicamente: diagnostico != entrada confirmada.
+    string entryFamily
+    string entryStage
+    int entryConfirmedAt
+    string insideFamilyDiag
+    string insideStageDiag
+    string multi4Kind
+    int multi4DetectedAt
+    string retest15State
+    int retest15At
+    float retest15High
+    float retest15Low
+    float retest15Close
+    float retest15Pivot
+    // QA: morfologias extra H4 cerradas; NO autoriza MSS ni alertas.
+    string extraFamilyKind
+    bool extraFamilyValid
+    int extraFamilyC1
+    int extraFamilyDirection
+    int extraFamilyRatifiedAt
+    string multiNKind
+    int multiNAt
+    // MSS15 propio de la familia seleccionada: no heredar 2C/3C.
+    int extraFamilySweepAt
+    float extraFamilyM15Pivot
+    int extraFamilyM15PivotAt
+    int extraFamilyM15At
+    int extraFamilyM15C1
+    // Conteos historicos por CONTEXTO del feed M5 realmente cargado,
+    // no 34 señales ni certificacion de todos los mercados.
+    int audit2C
+    int audit3C
+    int auditInside
+    int auditM4
+    int auditMN
+    int auditC2Data
+    int auditC2Double
+    int auditC2NoSweep
+    int auditC2Outside
+    int auditC2Hour
+    int auditC3Invalid
+    int auditInsideData
+    int auditInsideDouble
+    int auditInsideOther
+    int auditInsideExpire
+    int auditMNNoTerminal
+    int auditMNDouble
+    int auditMNOutside
+    int auditH4Incomplete
+    int auditH4DST
+    int auditH4Session
+    int auditH4Internal
+    // QA solo: un motivo excluyente por H4 que inicia a hora C1.
+    int auditC1H4Closed
+    int auditC1HourCandidates
+    int auditC1BadClock
+    int auditC1BadData
+    int auditC1BadRange
+    // V34.11Q: bit 1=TRUE 3C C3 sweep QA (not C2 sweep active C3); 2=2C provisional; 4=expansion rejected;
+    // 8=Inside Return QA; 16=Inside Continuation rejected; 32=Multi QA;
+    // 64=M15 Retest QA. Diagnostic only, not seven independently
+    // certified entry detectors; all use the SAME source M5 context.
+    int qaCatalogMask
+    // V34.11g additional evidence for the 33 non-BTC H4 blocks.
+    // Counts can overlap (one block may violate start and count), so
+    // these are NOT mutually exclusive and must not be summed as H4 BAD.
+    int qaH4BadStart
+    int qaH4BadEnd
+    int qaH4BadBars
+    int qaH4LastBars
+    int qaH4LastStartOffsetMin
+    int qaH4LastEndOffsetMin
+    int qaLastM5PhaseMin
+    int qaSourcePhaseMin
+    // V34.11L historical breadcrumbs from this SAME M5 source. These are
+    // last observed timestamps, not saved CRT/MSS event certificates.
+    int qaLastCandidate2CAt
+    int qaLastRatified2CAt
+    int qaLastRejectedExpansionAt
+    int qaLastConfirmed3CAt
+    int qaLastInsideReturnAt
+    int qaLastInsideContinuationAt
+    int qaLastMulti4At
+    int qaLastMultiNAt
+    int qaLastRetest15At
+    int qaLastCandidate2CCycle
+    // Signed last closed C3 H4: +eventAt bullish, -eventAt bearish.
+    // Last observed ONLY; not an MSS event or independently certified CRT.
+    int qaTrue3CSignedAt
+    FamilyVisual familyVisual
+    // Independent QA M5 proof of selected Inside/Multi-N ONLY.
+    // Multi4 / true3C remain N/V pending own swing evidence.
+    float extraFamilyM5Pivot
+    int extraFamilyM5PivotAt
+    int extraFamilyM5At
+    int extraFamilyM5C1
+
+// M3B.2 INTEGRADO (AUTORIZADO): barridas Inside M5 y clasificacion H4 aislada.
+// M3B.1: registro pasivo de Inside Bar H4, no genera senales ni entradas.
+type InsideCandidate
+    string id
+    int c1Start
+    float c1High
+    float c1Low
+    float c2High
+    float c2Low
+    int c2End
+    int sweepAt          // Cierre de la primera M5 que observo la barrida
+    int sweepH4Start     // H4 que contiene la primera barrida observada
+    int sweepDir         // +1: minimo C2, -1: maximo C2; 0: doble
+    bool sweptLow        // Conserva barridas ocurridas en distintas M5 de la misma H4
+    bool sweptHigh
+    string state        // SEEKING/SWEPT/AMBIGUOUS/RATIFIED/CONTINUATION/UNRESOLVED/DATA_GAP
+    string modelKind    // Modelo diagnostico: Inside Return/Continuation
+    bool isPatternValid // Solo RATIFIED representa retorno estructuralmente valido
+    int h4Life          // H4 validas cerradas DESPUES de C2; no horas de reloj.
+    // Congelacion causal en la PRIMERA M5 de barrida propia.
+    float pivot15
+    int pivot15At
+    int mss15At
+    float pivot5
+    int pivot5At
+    int mss5At
+
+// Candidato Multi-N por C1/H4 terminal. Maximo 4 (N=2..5).
+type MultiNMssCandidate
+    int c1Start
+    int terminalH4Start
+    int direction
+    int sweepAt
+    float pivot15
+    int pivot15At
+    int mss15At
+    bool doubleSweep
+    float pivot5
+    int pivot5At
+    int mss5At
+
+// 3C TRUE QA: solo esta C1 y esta C3 son dueñas de sus pivotes.
+// La observacion solo se publicara si C3 completa ratifica su geometria.
+type True3CMssCandidate
+    int c1Start
+    int c3Start
+    float c1High
+    float c1Low
+    int direction
+    int sweepAt
+    float pivot5
+    int pivot5At
+    int mss5At
+    float pivot15
+    int pivot15At
+    int mss15At
+    bool doubleSweep
+
+// MULTI4 QA MSS M5/M15: C1 y C2a propios, vigencia hasta C3 (cuarta H4).
+type Multi4MssCandidate
+    int c1Start
+    int c2aStart
+    float c1High
+    float c1Low
+    int direction
+    int sweepAt
+    float pivot5
+    int pivot5At
+    int mss5At
+    float pivot15
+    int pivot15At
+    int mss15At
+    bool doubleSweep
+
+// M5A INTEGRADO: FVG H4/H1 de contexto, sin salidas ni dibujos.
+// Barras TF completas guardadas con tiempo y validez para no cruzar sesiones.
+// QA multi-candle: solo OHLC de 4 velas H4 CERRADAS.
+// No altera la validacion obligatoria del CRT principal de 3 velas.
+type MultiH4
+    int startAt
+    int endAt
+    float hi
+    float lo
+    float cl
+    bool valid
+
+type FvgBar
+    int startAt
+    int endAt
+    float hi
+    float lo
+    bool valid
+
+type FvgContext
+    string id
+    string tf
+    int dir
+    float top
+    float bottom
+    int formedAt
+    string state
+    int linkedCrt
+    // M5B candidato: seguimiento solo sobre M5 cerradas posteriores a formedAt.
+    int firstTouchAt
+    float maxPenetration  // Proporcion [0.0, 1.0], no porcentaje sin convertir.
+    bool dataGap         // Se interrumpio continuidad observada; estado conservador.
+    int lastEvaluatedEnd // Cierre de la ultima M5 procesada; evita duplicados.
+    int gapObservedAt    // Primera M5 de discontinuidad no explicada.
+    bool lastSessionBar // El cierre ultimo M5 evaluado fue fin de sesion segun proveedor.
+
+// Funciones Pine deben definirse en el ambito global.
+f_add_context_fvg(array<FvgContext> store, string tf, int dir, float top, float bottom, int formedAt, bool endSessionOnFormation) =>
+    string k = syminfo.tickerid + "|" + tf + "|" + str.tostring(formedAt) + "|" + str.tostring(dir)
+    bool exists = false
+    if array.size(store) > 0
+        for z = 0 to array.size(store) - 1
+            if array.get(store, z).id == k
+                exists := true
+                break
+    if not exists
+        array.push(store, FvgContext.new(k, tf, dir, top, bottom, formedAt, "INTACTO", na, na, 0.0, false, formedAt, na, endSessionOnFormation))
+        if array.size(store) > 10
+            array.shift(store)
+    not exists
+
+// M5B CANDIDATO NO INTEGRADO: actualizar un FVG con la M5 cerrada.
+// Un corte de observabilidad (incluidos cierres de mercado no clasificados)
+// congela el estado, NO inventa mitigacion en barras que faltan.
+f_update_context_fvg(FvgContext f, int start5, int end5, float lo5, float hi5, float close5, bool firstSession5, bool lastSession5) =>
+    bool eligible = not na(start5) and not na(end5) and start5 >= f.formedAt and not na(f.lastEvaluatedEnd) and end5 > f.lastEvaluatedEnd
+    if eligible and f.state != "INVALIDADO" and f.state != "DATOS_INCOMPLETOS"
+        // Solo el par ultimo-barra-sesion / primer-barra-sesion justifica
+        // tratar la pausa como no-trading. NO saltar huecos por dayofweek.
+        bool knownClosedSession = start5 > f.lastEvaluatedEnd and f.lastSessionBar and firstSession5
+        bool discontinuity = (start5 != f.lastEvaluatedEnd and not knownClosedSession) or end5 - start5 != MIN5 or na(lo5) or na(hi5) or na(close5)
+        if discontinuity
+            f.dataGap := true
+            f.gapObservedAt := start5
+            f.state := "DATOS_INCOMPLETOS"
+        else
+            float width = f.top - f.bottom
+            if width > 0.0 and (f.dir == 1 or f.dir == -1)
+                bool touched = f.dir == 1 ? lo5 <= f.top : hi5 >= f.bottom
+                if touched and na(f.firstTouchAt)
+                    f.firstTouchAt := end5
+                if touched
+                    float rawPen = f.dir == 1 ? (f.top - lo5) / width : (hi5 - f.bottom) / width
+                    f.maxPenetration := math.max(f.maxPenetration, math.min(1.0, math.max(0.0, rawPen)))
+                bool broken = f.dir == 1 ? close5 < f.bottom : close5 > f.top
+                if broken
+                    f.state := "INVALIDADO"
+                else if f.maxPenetration >= 1.0
+                    f.state := "LLENADO_TOTAL"
+                else if not na(f.firstTouchAt)
+                    // Contacto justo en el borde conserva penetracion 0%.
+                    f.state := "PARCIAL"
+                else
+                    f.state := "INTACTO"
+            else
+                f.dataGap := true
+                f.gapObservedAt := start5
+                f.state := "DATOS_INCOMPLETOS"
+        f.lastEvaluatedEnd := end5
+        f.lastSessionBar := lastSession5
+    // Modifica los campos del UDT por referencia; sin reasignar f.
+    f.state
+
+// QA: -1=no existe, 0 intacto, 1 parcial, 2 lleno, 3 invalidado, 4 datos incompletos.
+f_fvg_code(string st) =>
+    st == "INTACTO" ? 0 : st == "PARCIAL" ? 1 : st == "LLENADO_TOTAL" ? 2 : st == "INVALIDADO" ? 3 : st == "DATOS_INCOMPLETOS" ? 4 : -2
+
+// Every M15 candidate must close on this provider's own native phase.
+// 0..4 are exact minute offsets, not M5->M15 substitutions.
+f_m15_phase_ok(int closedAt, int sourcePhaseMin) =>
+    not na(closedAt) and sourcePhaseMin >= 0 and sourcePhaseMin <= 4 and closedAt % MIN15 == sourcePhaseMin * 60000
+
+// En M5 reconstruimos tambien las velas M15 completas, de modo que se usa
+// UNA peticion request.security por activo en vez de tres peticiones.
+f_engine() =>
+    var bool isIndex = f_index()
+    var bool isBTC = str.upper(syminfo.ticker) == "BTCUSD"
+    int barT = time[1]
+    int barEnd = time_close[1]
+    float bH = high[1]
+    float bL = low[1]
+    float bC = close[1]
+    float prevClose = close[2]
+    // Datos de sesiones del MISMO ticker M5 dentro del request.security.
+    bool firstSession5 = session.isfirstbar[1]
+    bool lastSession5 = session.islastbar[1]
+    bool previousSessionLast5 = session.islastbar[2]
+    int previousBarEnd = time_close[2]
+    // QA: la M5 previa debe finalizar exactamente donde inicia la actual.
+    // Pine [2] recorre barras, no garantiza ausencia de huecos temporales.
+    bool previousM5Continuous = not na(barT) and not na(previousBarEnd) and barT == previousBarEnd
+
+    // La frontera diaria del proveedor se obtiene en el MISMO ticker M5.
+    // time("D")[1] identifica la vela diaria a la que pertenece M5[1].
+    // Nunca se acepta una sesión cuyo comienzo se perdió en el historial.
+    var int currentChartDay = na
+    var float currentChartHigh = na
+    var float currentChartLow = na
+    var bool currentChartContinuous = false
+    int chartDayId = time("D")[1]
+    if isBTC and not na(barT) and not na(barEnd) and not na(chartDayId)
+        if na(currentChartDay) or chartDayId != currentChartDay
+            currentChartDay := chartDayId
+            currentChartHigh := bH
+            currentChartLow := bL
+            currentChartContinuous := barT == chartDayId
+        else
+            currentChartContinuous := currentChartContinuous and previousM5Continuous
+            currentChartHigh := math.max(currentChartHigh, bH)
+            currentChartLow := math.min(currentChartLow, bL)
+
+    // M4A: PDH/PDL calculados en la misma secuencia M5 cerrada.
+    // prev_valid solo significa que la ULTIMA sesion finalizada paso control
+    // de calidad; no se reutiliza silenciosamente un nivel de hace dias.
+    var float curr_H = na
+    var float curr_L = na
+    var int curr_sess_id = na
+    var int curr_m5_count = 0
+    var int curr_firstT = na
+    var int curr_lastEnd = na
+    var bool curr_continuous = true
+    var float prev_PDH = na
+    var float prev_PDL = na
+    var bool prev_valid = false
+    var int prev_timestamp = na
+    var int prev_sess_id = na
+    // M4B: el ID del nivel es su fecha de confirmacion 4A.
+    // No se consulta curr_sess_id[1] ni se reevalua una vela incompleta.
+    var int liquidityRefAt = na
+    var bool pdhTaken = false
+    var bool pdlTaken = false
+    var int pdhSweepAt = na
+    var int pdlSweepAt = na
+    var int pdhSweepStage = 0
+    var int pdlSweepStage = 0
+    var int pdhSweepC1 = na
+    var int pdlSweepC1 = na
+
+    // BTCUSD no hereda sesiones de Forex: PDH/PDL del dia civil NY
+    // completo (00:00-00:00), 7 dias. Cierre M5 [1] confirmado.
+    // En DST NY el dia completo tiene 23, 24 o 25 horas.
+    var bool pdhRth = isIndex and not useExtIdx
+    var string pdhSession = isBTC ? "0000-0000:1234567" : pdhRth ? "0930-1600:23456" : "1700-1700:23456"
+    bool pdhInSession = not na(time("5", pdhSession, TZ)[1])
+    if isBTC
+        if pdhInSession and not na(barT) and not na(barEnd) and not na(bH) and not na(bL)
+            int startNY = timestamp(TZ, year(barT, TZ), month(barT, TZ), dayofmonth(barT, TZ), 0, 0)
+            int endNY = timestamp(TZ, year(barEnd, TZ), month(barEnd, TZ), dayofmonth(barEnd, TZ), 0, 0)
+            int dayKey = year(barT, TZ) * 10000 + month(barT, TZ) * 100 + dayofmonth(barT, TZ)
+            // Si faltó un día completo de mercado, no comparar contra
+            // un PDH viejo (debe ser EXACTAMENTE el día NY anterior).
+            if prev_valid and not na(prev_timestamp)
+                int refDayKey = year(prev_timestamp, TZ) * 10000 + month(prev_timestamp, TZ) * 100 + dayofmonth(prev_timestamp, TZ)
+                if refDayKey != dayKey
+                    prev_valid := false
+            if na(curr_sess_id) or curr_sess_id != dayKey
+                if not na(curr_sess_id)
+                    prev_valid := false
+                curr_sess_id := dayKey
+                curr_H := bH
+                curr_L := bL
+                curr_m5_count := 1
+                curr_firstT := barT
+                curr_lastEnd := barEnd
+                curr_continuous := true
+            else
+                curr_continuous := curr_continuous and barT == curr_lastEnd
+                curr_H := math.max(curr_H, bH)
+                curr_L := math.min(curr_L, bL)
+                curr_m5_count += 1
+                curr_lastEnd := barEnd
+            bool closedNYDay = endNY > startNY and barEnd == endNY
+            if closedNYDay
+                int expectedM5 = int((endNY - startNY) / MIN5)
+                bool fullNYDay = curr_continuous and curr_firstT == startNY and curr_lastEnd == endNY and curr_m5_count == expectedM5 and (expectedM5 == 276 or expectedM5 == 288 or expectedM5 == 300)
+                prev_valid := fullNYDay
+                if fullNYDay
+                    prev_PDH := curr_H
+                    prev_PDL := curr_L
+                    prev_timestamp := endNY
+                    prev_sess_id := curr_sess_id
+                curr_sess_id := na
+                curr_H := na
+                curr_L := na
+                curr_m5_count := 0
+                curr_firstT := na
+                curr_lastEnd := na
+                curr_continuous := true
+    else
+        // Sesiones originales de Forex e indices: no alterarlas.
+        if not na(barT) and not na(barEnd) and not na(bH) and not na(bL)
+            // Identidad calendario local del INICIO de sesion; segura en DST.
+            // Mediodia menos 24h identifica el DIA ANTERIOR incluso si DST
+            // cambio el desfase UTC una hora durante la madrugada.
+            int pdhNoon = timestamp(TZ, year(barT, TZ), month(barT, TZ), dayofmonth(barT, TZ), 12, 0)
+            int pdhAnchor = pdhRth or hour(barT, TZ) >= 17 ? pdhNoon : pdhNoon - 86400000
+            int pdhKey = year(pdhAnchor, TZ) * 10000 + month(pdhAnchor, TZ) * 100 + dayofmonth(pdhAnchor, TZ)
+            if pdhInSession
+                if na(curr_sess_id) or pdhKey != curr_sess_id
+                    // Si un dia termino sin vela de cierre, NO publicar parcial.
+                    if not na(curr_sess_id)
+                        prev_valid := false
+                    curr_sess_id := pdhKey
+                    curr_H := bH
+                    curr_L := bL
+                    curr_m5_count := 1
+                    curr_firstT := barT
+                    curr_lastEnd := barEnd
+                    curr_continuous := true
+                else
+                    curr_continuous := curr_continuous and barT == curr_lastEnd
+                    curr_H := math.max(curr_H, bH)
+                    curr_L := math.min(curr_L, bL)
+                    curr_m5_count += 1
+                    curr_lastEnd := barEnd
+                // Con la ultima M5 (15:55-16 o 16:55-17) se cierra
+                // la sesion, aunque el proveedor no tenga velas posteriores.
+                int endHour = pdhRth ? 16 : 17
+                bool sessClosed = hour(barEnd, TZ) == endHour and minute(barEnd, TZ) == 0
+                if sessClosed
+                    int firstHour = pdhRth ? 9 : 17
+                    int firstMinute = minute(curr_firstT, TZ)
+                    bool startedOnTime = hour(curr_firstT, TZ) == firstHour and (pdhRth ? firstMinute == 30 : firstMinute <= 5)
+                    bool complete = curr_continuous and startedOnTime and curr_m5_count >= (pdhRth ? 78 : 280)
+                    prev_valid := complete
+                    if complete
+                        prev_PDH := curr_H
+                        prev_PDL := curr_L
+                        prev_timestamp := barEnd
+                        prev_sess_id := curr_sess_id
+                    // Valores historicos se conservan con prev_valid=false.
+                    curr_sess_id := na
+                    curr_H := na
+                    curr_L := na
+                    curr_m5_count := 0
+                    curr_firstT := na
+                    curr_lastEnd := na
+                    curr_continuous := true
+            else if not na(curr_sess_id)
+                // Fin de sesion sin M5 de cierre: no falsificar PDH/PDL.
+                prev_valid := false
+                curr_sess_id := na
+                curr_m5_count := 0
+                curr_H := na
+                curr_L := na
+                curr_firstT := na
+                curr_lastEnd := na
+                curr_continuous := true
+    // Pivot M5: calculo en la barra cerrada [1]; nunca es una barra futura.
+    float pH5 = ta.pivothigh(high, left5, right5)[1]
+    float pL5 = ta.pivotlow(low, left5, right5)[1]
+    var float lastHigh5 = na
+    var float lastLow5 = na
+    var int lastHigh5At = na
+    var int lastLow5At = na
+    // M5 continuity barrier for auxiliary-family frozen pivots.
+    var int qaExtraM5SegmentStart = na
+
+    // Acumulador M15 sobre barras M5 completas.
+    var int m15Bucket = na
+    var float m15High = na
+    var float m15Low = na
+    var float m15Close = na
+    var int m15Count = 0
+    var int m15LastEnd = na
+    var int m15Start = na
+    var array<float> highs15 = array.new_float()
+    var array<float> lows15 = array.new_float()
+    var array<int> times15 = array.new_int()
+    var float lastHigh15 = na
+    var float lastLow15 = na
+    var int lastHigh15At = na
+    var int lastLow15At = na
+    var float prev15Close = na
+    // QA: solo comparar cierres M15 consecutivos completos (no saltar sesiones).
+    var int prev15End = na
+    var int lastCompleteM15CloseAt = na
+
+    // H4 reconstruida desde datos de M5 del mismo proveedor.
+    var int h4Bucket = na
+    var float h4High = na
+    var float h4Low = na
+    var float h4Close = na
+    var int h4Count = 0
+    var int h4FirstT = na
+    var int h4LastEnd = na
+    // Modulo 1 aprobado: rechaza H4 con huecos M5 internos.
+    var bool h4Continuous = true
+
+    // M5A: Reconstruccion H1 desde M5 cerradas y memoria de 3 barras TF.
+    var int h1Bucket = na
+    var int h1FirstT = na
+    var int h1LastEnd = na
+    var float h1High = na
+    var float h1Low = na
+    var int h1Count = 0
+    var bool h1Continuous = true
+    var FvgBar h1Prev = na
+    var FvgBar h1Prev2 = na
+    var FvgBar h4Prev = na
+    var FvgBar h4Prev2 = na
+    // Maximo cuatro H4 completas en el mismo feed, memoria O(4).
+    var array<MultiH4> qaFourH4 = array.new<MultiH4>()
+    var string qaMulti4Kind = "SIN 4H4"
+    var int qaMulti4At = na
+    var int qaMulti4C1 = na
+    var array<Multi4MssCandidate> qaMulti4MssCandidates = array.new<Multi4MssCandidate>()
+    var int qaMulti4SweepAt = na
+    var float qaMulti4Pivot5 = na
+    var int qaMulti4Pivot5At = na
+    var int qaMulti4Mss5At = na
+    var float qaMulti4Pivot15 = na
+    var int qaMulti4Pivot15At = na
+    var int qaMulti4Mss15At = na
+    // QA Multi-N: C1 + 2..5 H4 de consolidacion estricta + H4
+    // final que barre un solo extremo y cierra DENTRO de la C1.
+    // HIPOTESIS DEEPSEEK, independiente del MULTI4 distribuido.
+    // Hasta 7 H4 cerradas del mismo proveedor (O(7) por símbolo).
+    var array<MultiH4> qaMultiNHistory = array.new<MultiH4>()
+    var string qaMultiNKind = "MULTI-N ESP"
+    var int qaMultiNAt = na
+    var int qaMultiNC1 = na
+    var int qaMultiNDir = 0
+    var array<MultiNMssCandidate> qaMultiNMssCandidates = array.new<MultiNMssCandidate>()
+    var int qaMultiNSweepAt = na
+    var float qaMultiNPivot15 = na
+    var int qaMultiNPivot15At = na
+    var int qaMultiNMss15At = na
+    var float qaMultiNPivot5 = na
+    var int qaMultiNPivot5At = na
+    var int qaMultiNMss5At = na
+    // Retest: cierre M15 propio POSTERIOR al MSS15 del mismo C1.
+    var string qaRetest15State = "SIN MSS15"
+    var int qaRetest15At = na
+    // OHLC cerrado de LA vela M15 del retest; no del último M15 visible.
+    var float qaRetest15High = na
+    var float qaRetest15Low = na
+    var float qaRetest15Close = na
+    var float qaRetest15Pivot = na
+    var int qaRetestCycleC1 = na
+    var int qaRetestSourceMssAt = na
+    var array<FvgContext> fvgsH1 = array.new<FvgContext>()
+    var array<FvgContext> fvgsH4 = array.new<FvgContext>()
+
+    // C2 actual: puede coexistir con la C3 del CRT anterior.
+    // M3B.1: memoria independiente por contexto de simbolo (maximo 10).
+    var array<InsideCandidate> insideCandidates = array.new<InsideCandidate>()
+
+    var bool c2Active = false
+    var int c2Start = na
+    var int c1Start2 = na
+    var float c1High2 = na
+    var float c1Low2 = na
+    var int c2Dir = 0
+    var bool c2StrictSweep = false
+    var bool c2Double = false
+    var bool c2Returned = false
+    var int c2SweepEnd = na
+    var float c2Pivot5 = na
+    var float c2Pivot15 = na
+    var int c2Pivot5At = na
+    var int c2Pivot15At = na
+    var int c2M5At = na
+    var int c2M15At = na
+
+    // C3 ratificada: los MSS de C2 se heredan, los faltantes se esperan en C3.
+    var bool c3Active = false
+    var int c3Start = na
+    var int c1Start3 = na
+    var float c1High3 = na
+    var float c1Low3 = na
+    var int c3Dir = 0
+    var int c3SweepEnd = na
+    var float c3Pivot5 = na
+    var float c3Pivot15 = na
+    var int c3Pivot5At = na
+    var int c3Pivot15At = na
+    var int c3M5At = na
+    var int c3M15At = na
+    var float c3Invalidation = na
+    // Metadatos del CRT ratificado que se encuentra en C3.
+    var string c3ModelKind = "NONE"
+    var bool c3PatternValid = false
+    var int c3ModelC1 = na
+    var int c3C2Start = na // Solo metadato para asociar PDH/PDL, sin alterar MSS.
+
+    // Clasificacion diagnostica del ultimo cierre C2, aun si no es operativo.
+    var string last2CClassification = "NONE"
+    var int last2CClassificationAt = na
+
+    // Memoria controlada del ULTIMO CRT realmente ratificado, NO de
+    // cualquier MSS aislado. Los flags se copian desde C2/C3 y no se
+    // inventan desde eventos antiguos no vinculados al ciclo.
+    var int lastC1 = na
+    var int lastDir = 0
+    var int lastConfirmedAt = na
+    var float lastHi = na
+    var float lastLo = na
+    var int lastSweepAt = na
+    var int lastM5 = na
+    var int lastM15 = na
+    var float lastM5Level = na
+    var float lastM15Level = na
+    var int lastM5PivotAt = na
+    var int lastM15PivotAt = na
+    var string lastModelKind = "NONE"
+    var bool lastPatternValid = false
+    var int lastModelC1 = na
+    var int lastC2Start = na // Memoria del mismo CRT ratificado.
+    // Conteos solo del historial M5 efectivamente cargado. No
+    // certifican que existan alertas ni muestran CRT antiguos.
+    var int qaC1Ready = 0
+    var int qaC2Ratified = 0
+    var string qaLastC2Gate = "ESPERA C1"
+    // Auditoria acumulada en M5 cargadas; cada contador cambia SOLO
+    // en un cierre H4 o transicion terminal de candidato Inside.
+    var int qaAudit2C = 0
+    var int qaAudit3C = 0
+    var int qaAuditInside = 0
+    var int qaAuditM4 = 0
+    var int qaAuditMN = 0
+    var int qaAuditC2Data = 0
+    var int qaAuditC2Double = 0
+    var int qaAuditC2NoSweep = 0
+    var int qaAuditC2Outside = 0
+    var int qaAuditC2Hour = 0
+    var int qaAuditC3Invalid = 0
+    var int qaAuditInsideData = 0
+    var int qaAuditInsideDouble = 0
+    var int qaAuditInsideOther = 0
+    var int qaAuditInsideExpire = 0
+    var int qaAuditMNNoTerminal = 0
+    var int qaAuditMNDouble = 0
+    var int qaAuditMNOutside = 0
+    // V34.11L historical markers, updated on CLOSED M5/H4 transitions.
+    var int qaLastCandidate2CAt = na
+    var int qaLastCandidate2CCycle = na
+    var int qaTrue3CSignedAt = na
+    var True3CMssCandidate qaTrue3CPending = na
+    var True3CMssCandidate qaTrue3CConfirmed = na
+    var int qaLastRatified2CAt = na
+    var int qaLastRejectedExpansionAt = na
+    var int qaLastConfirmed3CAt = na
+    var int qaLastInsideReturnAt = na
+    var int qaLastInsideContinuationAt = na
+    var int qaLastMulti4At = na
+    var int qaLastMultiNAt = na
+    var int qaLastRetest15At = na
+    var int qaAuditH4Incomplete = 0
+    // Una H4 no-48 NO implica siempre feed defectuoso. Disjuntas:
+    // DST NY, sesion/parcial, discontinuidad M5 INTERNA.
+    var int qaAuditH4DST = 0
+    var int qaAuditH4Session = 0
+    var int qaAuditH4Internal = 0
+    var int qaAuditC1H4Closed = 0
+    var int qaAuditC1HourCandidates = 0
+    var int qaAuditC1BadClock = 0
+    var int qaAuditC1BadData = 0
+    var int qaAuditC1BadRange = 0
+    // H4 evidence: these count violated boundary/count predicates, not
+    // necessarily broken market data. Any one H4 may fail several.
+    var int qaH4BadStart = 0
+    var int qaH4BadEnd = 0
+    var int qaH4BadBars = 0
+    var int qaH4LastBars = na
+    var int qaH4LastStartOffsetMin = na
+    var int qaH4LastEndOffsetMin = na
+
+    // Procesamos la ULTIMA M5 cerrada, no la M5 en formacion.
+    // f_engine() debe evaluarse incondicionalmente en cada barra M5.
+    // V34.11j: measure each 33 feed independently on its LAST CLOSED M5.
+    // A phase +2 on metals cannot be normalized to +1 from NZDCAD.
+    // Reject nonzero seconds; BTC clock and model remain untouched.
+    int qaLastM5PhaseMin = not na(barT) ? minute(barT, TZ) % 5 : na
+    int qaNativeSourcePhaseMin = qaPhase1NonBtc and not isBTC and not na(barT) and second(barT, TZ) == 0 ? qaLastM5PhaseMin : 0
+    // A native +p M15 is :p/:15+p/:30+p/:45+p; H1 is at hh:p.
+    // Native-source QA is NOT a validated NY :00 entry setup.
+    int bucketH1 = qaNativeSourcePhaseMin > 0 ? timestamp(TZ, year(barT, TZ), month(barT, TZ), dayofmonth(barT, TZ), hour(barT, TZ), qaNativeSourcePhaseMin, 0) : time("60")[1]
+    int nativeM15Minute = int(math.floor(minute(barT, TZ) / 15)) * 15 + qaNativeSourcePhaseMin
+    int bucket15 = qaNativeSourcePhaseMin > 0 ? timestamp(TZ, year(barT, TZ), month(barT, TZ), dayofmonth(barT, TZ), hour(barT, TZ), nativeM15Minute, 0) : time("15")[1]
+    int bucketH4NY = isBTC ? f_btc_crt_h4_ny(barT) : isIndex ? f_index_crt_h4_ny(barT) : f_forex_metal_crt_h4_ny(barT)
+    int bucketH4 = bucketH4NY + qaNativeSourcePhaseMin * 60000
+
+    // QA: al aparecer una nueva M5 despues de un hueco, descartar
+    // acumuladores y swings M15 de la cadena anterior. No permitir que
+    // pivotes confirmados con barras discontinuas crucen a un nuevo CRT.
+    // Explicitly initialize on the first usable CLOSED M5 bar.
+    // On subsequent disconnections, a stale pre-gap pivot is forbidden.
+    // Pine v6 bool never na; this guard documents first-segment intent.
+    if (na(qaExtraM5SegmentStart) or not previousM5Continuous) and not na(barT)
+        qaExtraM5SegmentStart := barT
+        lastCompleteM15CloseAt := na
+        m15Bucket := na
+        m15Count := 0
+        m15LastEnd := na
+        m15Start := na
+        prev15Close := na
+        prev15End := na
+        array.clear(highs15)
+        array.clear(lows15)
+        array.clear(times15)
+        lastHigh15 := na
+        lastLow15 := na
+        lastHigh15At := na
+        lastLow15At := na
+        // Un hueco M5 invalida los pivotes/MSS auxiliares pendientes.
+        array.clear(qaMultiNMssCandidates)
+        qaMultiNMss15At := na
+        qaMultiNMss5At := na
+        qaMultiNPivot5 := na
+        qaMultiNPivot5At := na
+        qaMultiNPivot15 := na
+        qaMultiNPivot15At := na
+        qaMultiNSweepAt := na
+        // La barrida 3C nunca puede cruzar una discontinuidad M5.
+        qaTrue3CPending := na
+        array.clear(qaMulti4MssCandidates)
+        if array.size(insideCandidates) > 0
+            for z = 0 to array.size(insideCandidates) - 1
+                InsideCandidate stale = array.get(insideCandidates, z)
+                stale.mss15At := na
+                stale.pivot15 := na
+                stale.pivot15At := na
+                stale.mss5At := na
+                stale.pivot5 := na
+                stale.pivot5At := na
+
+    // ---- CERRAR M15 ANTERIOR ----
+    if not na(barT) and not na(bucket15)
+        bool next15 = not na(m15Bucket) and bucket15 != m15Bucket
+        if next15
+            bool fullM15 = m15Count == 3 and m15LastEnd == bucket15 and m15Start + MIN15 == m15LastEnd
+            if fullM15
+                // Solo tras TRES M5 consecutivas: la M15 esta cerrada.
+                // Un MSS M5 previo nunca actualiza este timestamp.
+                lastCompleteM15CloseAt := m15LastEnd
+                array.push(highs15, m15High)
+                array.push(lows15, m15Low)
+                array.push(times15, m15Start)
+                if array.size(highs15) > 48
+                    array.shift(highs15)
+                    array.shift(lows15)
+                    array.shift(times15)
+                int n = array.size(highs15)
+                int pivot = n - 1 - right15
+                if pivot >= left15 and pivot >= 0
+                    float candH = array.get(highs15, pivot)
+                    float candL = array.get(lows15, pivot)
+                    bool okHi = true
+                    bool okLo = true
+                    for j = -left15 to right15
+                        if j != 0
+                            okHi := okHi and candH > array.get(highs15, pivot + j)
+                            okLo := okLo and candL < array.get(lows15, pivot + j)
+                    if okHi
+                        lastHigh15 := candH
+                        lastHigh15At := array.get(times15, pivot)
+                    if okLo
+                        lastLow15 := candL
+                        lastLow15At := array.get(times15, pivot)
+
+                // QA: MSS M15 requiere cierre anterior INMEDIATO y completo.
+                // Tras huecos, inicios de feed o pausas no se inventa cross.
+                bool prev15Continuous = not na(prev15End) and prev15End == m15Start and not na(prev15Close)
+                // Comprobar rompimientos M15 correspondientes al MISMO CRT.
+                // Se ejecuta ANTES del cierre H4: incluye el ultimo M15 de C2.
+                int closed15At = m15LastEnd
+                if c2Active and c2Dir != 0 and c2StrictSweep and not c2Double and not na(c2SweepEnd) and closed15At > c2SweepEnd
+                    // El pivote debe ser M15 confirmado y ANTERIOR
+                    // a la barrida C2; ruptura por CIERRE de M15, no M5.
+                    bool frozenPivot15 = not na(c2Pivot15) and not na(c2Pivot15At) and c2Pivot15At < c2SweepEnd
+                    bool exact15Close = closed15At == bucket15 and f_m15_phase_ok(closed15At, qaNativeSourcePhaseMin)
+                    bool eligible15 = exact15Close and frozenPivot15 and prev15Continuous and (c2Dir == 1 ? (m15Close > c2Pivot15 and prev15Close <= c2Pivot15) : (m15Close < c2Pivot15 and prev15Close >= c2Pivot15))
+                    if eligible15 and na(c2M15At)
+                        c2M15At := closed15At
+                if c3Active and not na(c3SweepEnd) and closed15At > c3Start and closed15At > c3SweepEnd
+                    bool frozenPivot15 = not na(c3Pivot15) and not na(c3Pivot15At) and c3Pivot15At < c3SweepEnd
+                    bool exact15Close = closed15At == bucket15 and f_m15_phase_ok(closed15At, qaNativeSourcePhaseMin)
+                    bool eligible15 = exact15Close and frozenPivot15 and prev15Continuous and (c3Dir == 1 ? (m15Close > c3Pivot15 and prev15Close <= c3Pivot15) : (m15Close < c3Pivot15 and prev15Close >= c3Pivot15))
+                    if eligible15 and na(c3M15At)
+                        c3M15At := closed15At
+                        if lastC1 == c1Start3
+                            lastM15 := closed15At
+                // MSS M15 independientes: solo CIERRE real de 3 M5 del mismo feed.
+                // Al ratificar H4 podremos publicar la prueba propia, no antes.
+                if array.size(insideCandidates) > 0
+                    for ix = 0 to array.size(insideCandidates) - 1
+                        InsideCandidate q = array.get(insideCandidates, ix)
+                        bool eligibleInsideM15 = (q.state == "SWEPT" or q.state == "RATIFIED") and q.sweepDir != 0 and q.sweptLow != q.sweptHigh and not na(q.sweepAt) and not na(q.pivot15) and not na(q.pivot15At) and q.pivot15At < q.sweepAt and closed15At > q.sweepAt and closed15At <= q.sweepH4Start + 2 * H4MS and na(q.mss15At) and prev15Continuous and closed15At == bucket15 and f_m15_phase_ok(closed15At, qaNativeSourcePhaseMin)
+                        bool crossedInside = q.sweepDir == 1 ? m15Close > q.pivot15 and prev15Close <= q.pivot15 : m15Close < q.pivot15 and prev15Close >= q.pivot15
+                        if eligibleInsideM15 and crossedInside
+                            q.mss15At := closed15At
+                // Multi4 M15 es independiente del M5 y de 2C/Inside/Multi-N.
+                // Solo pivot L2/R2 confirmado ANTES de la primera barrida C2a.
+                // Se cuenta cierre M15 de 3 M5 completas, continuo y posterior
+                // a sweep; el cuarto H4 (C3) es el limite causal superior.
+                if array.size(qaMulti4MssCandidates) > 0
+                    for q4i = 0 to array.size(qaMulti4MssCandidates) - 1
+                        Multi4MssCandidate q4 = array.get(qaMulti4MssCandidates, q4i)
+                        bool eligible4M15 = not q4.doubleSweep and q4.direction != 0 and not na(q4.sweepAt) and q4.sweepAt > q4.c2aStart and q4.sweepAt <= q4.c2aStart + H4MS and not na(q4.pivot15) and not na(q4.pivot15At) and q4.pivot15At < q4.sweepAt and na(q4.mss15At) and closed15At > q4.sweepAt and closed15At <= q4.c2aStart + 3 * H4MS and prev15Continuous and closed15At == bucket15 and f_m15_phase_ok(closed15At, qaNativeSourcePhaseMin)
+                        bool crossed4M15 = q4.direction == 1 ? m15Close > q4.pivot15 and prev15Close <= q4.pivot15 : q4.direction == -1 ? m15Close < q4.pivot15 and prev15Close >= q4.pivot15 : false
+                        if eligible4M15 and crossed4M15
+                            q4.mss15At := closed15At
+                if array.size(qaMultiNMssCandidates) > 0
+                    for mi = 0 to array.size(qaMultiNMssCandidates) - 1
+                        MultiNMssCandidate q = array.get(qaMultiNMssCandidates, mi)
+                        bool eligibleMultiM15 = not q.doubleSweep and q.direction != 0 and not na(q.pivot15) and not na(q.pivot15At) and not na(q.sweepAt) and q.pivot15At < q.sweepAt and na(q.mss15At) and closed15At > q.sweepAt and closed15At <= q.terminalH4Start + H4MS and prev15Continuous and closed15At == bucket15 and f_m15_phase_ok(closed15At, qaNativeSourcePhaseMin)
+                        bool crossedMulti = q.direction == 1 ? m15Close > q.pivot15 and prev15Close <= q.pivot15 : m15Close < q.pivot15 and prev15Close >= q.pivot15
+                        if eligibleMultiM15 and crossedMulti
+                            q.mss15At := closed15At
+                // Extender Multi-N ya ratificado hasta max. una H4 adicional.
+                bool eligibleRatifiedMulti = not na(qaMultiNAt) and not na(qaMultiNSweepAt) and not na(qaMultiNPivot15At) and not na(qaMultiNPivot15) and qaMultiNPivot15At < qaMultiNSweepAt and na(qaMultiNMss15At) and closed15At > qaMultiNSweepAt and closed15At <= qaMultiNAt + H4MS and closed15At == bucket15 and f_m15_phase_ok(closed15At, qaNativeSourcePhaseMin) and prev15Continuous
+                bool crossedRatifiedMulti = qaMultiNDir == 1 ? m15Close > qaMultiNPivot15 and prev15Close <= qaMultiNPivot15 : qaMultiNDir == -1 ? m15Close < qaMultiNPivot15 and prev15Close >= qaMultiNPivot15 : false
+                if eligibleRatifiedMulti and crossedRatifiedMulti
+                    qaMultiNMss15At := closed15At
+                // 3C TRUE: pivote M15 PRE-barrida propio, cierre de TRES
+                // M5 del proveedor, nunca una confirmacion prestada del 2C.
+                if not na(qaTrue3CPending)
+                    True3CMssCandidate q3 = qaTrue3CPending
+                    bool eligible3M15 = q3.direction != 0 and not q3.doubleSweep and not na(q3.sweepAt) and not na(q3.pivot15) and not na(q3.pivot15At) and q3.pivot15At < q3.sweepAt and na(q3.mss15At) and closed15At > q3.sweepAt and closed15At <= q3.c3Start + H4MS and prev15Continuous and closed15At == bucket15 and f_m15_phase_ok(closed15At, qaNativeSourcePhaseMin)
+                    bool crossed3M15 = q3.direction == 1 ? m15Close > q3.pivot15 and prev15Close <= q3.pivot15 : q3.direction == -1 ? m15Close < q3.pivot15 and prev15Close >= q3.pivot15 : false
+                    if eligible3M15 and crossed3M15
+                        q3.mss15At := closed15At
+                // QA RETEST M15: nunca disparar en la misma barra MSS,
+                // ni por una M5, ni reusar el pivote de un CRT distinto.
+                int qaCycle = c3Active ? c1Start3 : c2Active ? c1Start2 : na
+                int qaMssAt = c3Active ? c3M15At : c2Active ? c2M15At : na
+                int qaDir = c3Active ? c3Dir : c2Active ? c2Dir : 0
+                float qaLevel = c3Active ? c3Pivot15 : c2Active ? c2Pivot15 : na
+                if na(qaCycle) or na(qaMssAt) or na(qaLevel)
+                    qaRetest15State := "SIN MSS15"
+                    qaRetest15At := na
+                    qaRetest15High := na
+                    qaRetest15Low := na
+                    qaRetest15Close := na
+                    qaRetest15Pivot := na
+                    qaRetestCycleC1 := na
+                    qaRetestSourceMssAt := na
+                else
+                    bool freshQaRetest = na(qaRetestCycleC1) or qaRetestCycleC1 != qaCycle or na(qaRetestSourceMssAt) or qaRetestSourceMssAt != qaMssAt
+                    if freshQaRetest
+                        qaRetestCycleC1 := qaCycle
+                        qaRetestSourceMssAt := qaMssAt
+                        qaRetest15At := na
+                        qaRetest15High := na
+                        qaRetest15Low := na
+                        qaRetest15Close := na
+                        qaRetest15Pivot := na
+                        qaRetest15State := "ESPERA RETEST"
+                    bool postMss15 = closed15At > qaMssAt and closed15At <= qaMssAt + 4 * 3600000 and f_m15_phase_ok(closed15At, qaNativeSourcePhaseMin)
+                    bool touchedRetest = qaDir == 1 ? m15Low <= qaLevel and m15Close > qaLevel : qaDir == -1 ? m15High >= qaLevel and m15Close < qaLevel : false
+                    if na(qaRetest15At) and postMss15 and prev15Continuous and touchedRetest
+                        qaRetest15At := closed15At
+                        qaRetest15High := m15High
+                        qaRetest15Low := m15Low
+                        qaRetest15Close := m15Close
+                        qaRetest15Pivot := qaLevel
+                        qaRetest15State := "RETEST M15 QA"
+                prev15Close := m15Close
+                prev15End := m15LastEnd
+            else
+                lastCompleteM15CloseAt := na
+                // Una M15 omitida o incompleta invalida pivotes construidos
+                // con muestras discontinuas, y el cierre previo del MSS.
+                prev15Close := na
+                prev15End := na
+                array.clear(highs15)
+                array.clear(lows15)
+                array.clear(times15)
+                lastHigh15 := na
+                lastLow15 := na
+                lastHigh15At := na
+                lastLow15At := na
+
+            m15Bucket := bucket15
+            m15High := bH
+            m15Low := bL
+            m15Close := bC
+            m15Count := 1
+            m15LastEnd := barEnd
+            m15Start := bucket15
+        else if na(m15Bucket)
+            m15Bucket := bucket15
+            m15High := bH
+            m15Low := bL
+            m15Close := bC
+            m15Count := 1
+            m15LastEnd := barEnd
+            m15Start := bucket15
+        else
+            if barT != m15LastEnd
+                m15Count := -100 // M15 incompleta: no publicar MSS.
+                // No conservar swings ni el cierre de un M15 sin continuidad.
+                prev15Close := na
+                prev15End := na
+                array.clear(highs15)
+                array.clear(lows15)
+                array.clear(times15)
+                lastHigh15 := na
+                lastLow15 := na
+                lastHigh15At := na
+                lastLow15At := na
+            else if m15Count >= 0
+                m15Count += 1
+            m15High := math.max(m15High, bH)
+            m15Low := math.min(m15Low, bL)
+            m15Close := bC
+            m15LastEnd := barEnd
+
+    // ---- M5A: CIERRE H1, FVG SIN LOOKAHEAD ----
+    if not na(barT) and not na(bucketH1)
+        bool nextH1 = not na(h1Bucket) and bucketH1 != h1Bucket
+        if nextH1
+            bool fullH1 = h1Continuous and h1Count == 12 and h1FirstT == h1Bucket and h1LastEnd == h1Bucket + 3600000
+            if fullH1 and not na(h1Prev) and not na(h1Prev2)
+                bool chainH1 = h1Prev.valid and h1Prev2.valid and h1Prev2.endAt == h1Prev.startAt and h1Prev.endAt == h1Bucket
+                if chainH1
+                    if h1Low > h1Prev2.hi
+                        f_add_context_fvg(fvgsH1, "H1", 1, h1Low, h1Prev2.hi, h1LastEnd, previousBarEnd == h1LastEnd and previousSessionLast5)
+                    else if h1High < h1Prev2.lo
+                        f_add_context_fvg(fvgsH1, "H1", -1, h1Prev2.lo, h1High, h1LastEnd, previousBarEnd == h1LastEnd and previousSessionLast5)
+            h1Prev2 := h1Prev
+            h1Prev := FvgBar.new(h1Bucket, h1LastEnd, h1High, h1Low, fullH1)
+            h1Bucket := bucketH1
+            h1FirstT := barT
+            h1LastEnd := barEnd
+            h1High := bH
+            h1Low := bL
+            h1Count := 1
+            h1Continuous := true
+        else if na(h1Bucket)
+            h1Bucket := bucketH1
+            h1FirstT := barT
+            h1LastEnd := barEnd
+            h1High := bH
+            h1Low := bL
+            h1Count := 1
+            h1Continuous := true
+        else
+            h1Continuous := h1Continuous and barT == h1LastEnd
+            h1High := math.max(h1High, bH)
+            h1Low := math.min(h1Low, bL)
+            h1Count += 1
+            h1LastEnd := barEnd
+
+    // ---- CERRAR H4 ANTERIOR Y ABRIR NUEVA ----
+    if not na(barT) and not na(bucketH4)
+        bool nextH4 = not na(h4Bucket) and bucketH4 != h4Bucket
+        if nextH4
+            // QA: registrar cuántos bloques H4 del mismo feed se han
+            // observado; no confundir respuesta de request.security con
+            // presencia de C1 válida ni inventar formaciones CRT.
+            qaAuditC1H4Closed += 1
+            // Last H4 timestamp/candle evidence before opening the next.
+            // Time deltas are based on the same M5 feed, not chart M15/H4.
+            qaH4LastBars := h4Count
+            qaH4LastStartOffsetMin := na(h4FirstT) ? na : int((h4FirstT - h4Bucket) / 60000)
+            qaH4LastEndOffsetMin := na(h4LastEnd) ? na : int((h4LastEnd - (h4Bucket + H4MS)) / 60000)
+            if h4FirstT != h4Bucket
+                qaH4BadStart += 1
+            if h4LastEnd != h4Bucket + H4MS
+                qaH4BadEnd += 1
+            if h4Count != 48
+                qaH4BadBars += 1
+            // M5A: Tres H4 completas consecutivas, sin conectar gaps de mercado.
+            bool fullH4 = h4Continuous and h4Count == 48 and h4FirstT == h4Bucket and h4LastEnd == h4Bucket + H4MS
+            if not fullH4
+                qaAuditH4Incomplete += 1
+                int spanH4Ms = bucketH4 - h4Bucket
+                bool exactDSTBlock = (spanH4Ms == H4MS + 3600000 or spanH4Ms == H4MS - 3600000) and h4Continuous and h4FirstT == h4Bucket and h4LastEnd == bucketH4 and h4Count * 300000 == spanH4Ms
+                if exactDSTBlock
+                    // Completa en horario local NY, duración real 3/5h.
+                    qaAuditH4DST += 1
+                else if not h4Continuous
+                    // Hueco dentro de un bloque que sí tenía M5.
+                    qaAuditH4Internal += 1
+                else
+                    // Inicio/fin incompleto (historial o horario de
+                    // mercado); no atribuir a pérdida del proveedor.
+                    qaAuditH4Session += 1
+            if fullH4 and not na(h4Prev) and not na(h4Prev2)
+                bool chainH4 = h4Prev.valid and h4Prev2.valid and h4Prev2.endAt == h4Prev.startAt and h4Prev.endAt == h4Bucket
+                if chainH4
+                    if h4Low > h4Prev2.hi
+                        f_add_context_fvg(fvgsH4, "H4", 1, h4Low, h4Prev2.hi, h4LastEnd, previousBarEnd == h4LastEnd and previousSessionLast5)
+                    else if h4High < h4Prev2.lo
+                        f_add_context_fvg(fvgsH4, "H4", -1, h4Prev2.lo, h4High, h4LastEnd, previousBarEnd == h4LastEnd and previousSessionLast5)
+            h4Prev2 := h4Prev
+            h4Prev := FvgBar.new(h4Bucket, h4LastEnd, h4High, h4Low, fullH4)
+            // QA MULTI4: barrida y retorno se distribuyen en DOS H4
+            // consecutivas, luego una tercera H4 de distribucion.
+            // Es una familia experimental, NO sustituye la C2 unica del
+            // modelo soberano C1/C2/C3 y NUNCA produce un MSS confirmado.
+            if not fullH4
+                array.clear(qaFourH4)
+                qaMulti4Kind := "H4 INCOMPLETA"
+                qaMulti4At := na
+                qaMulti4C1 := na
+                qaMulti4SweepAt := na
+                qaMulti4Pivot5 := na
+                qaMulti4Pivot5At := na
+                qaMulti4Mss5At := na
+                qaMulti4Pivot15 := na
+                qaMulti4Pivot15At := na
+                qaMulti4Mss15At := na
+                array.clear(qaMulti4MssCandidates)
+            else
+                array.push(qaFourH4, MultiH4.new(h4Bucket, h4LastEnd, h4High, h4Low, h4Close, true))
+                if array.size(qaFourH4) > 4
+                    array.shift(qaFourH4)
+                if array.size(qaFourH4) == 4
+                    MultiH4 m1 = array.get(qaFourH4, 0)
+                    MultiH4 m2 = array.get(qaFourH4, 1)
+                    MultiH4 m3 = array.get(qaFourH4, 2)
+                    MultiH4 m4 = array.get(qaFourH4, 3)
+                    bool fourConsecutive = m1.endAt == m2.startAt and m2.endAt == m3.startAt and m3.endAt == m4.startAt
+                    bool allowedC1 = f_allowed(hour(m1.startAt, TZ), isIndex)
+                    bool sweptLow4 = m2.lo < m1.lo and m2.hi <= m1.hi and m3.hi <= m1.hi
+                    bool sweptHigh4 = m2.hi > m1.hi and m2.lo >= m1.lo and m3.lo >= m1.lo
+                    bool c2aReturn = m2.cl >= m1.lo and m2.cl <= m1.hi
+                    bool c2bReturn = m3.cl >= m1.lo and m3.cl <= m1.hi
+                    bool multiBull = sweptLow4 and c2aReturn and c2bReturn and m3.lo <= m1.lo and m4.cl > m3.cl and m4.cl >= m1.lo
+                    bool multiBear = sweptHigh4 and c2aReturn and c2bReturn and m3.hi >= m1.hi and m4.cl < m3.cl and m4.cl <= m1.hi
+                    if fourConsecutive and allowedC1 and (multiBull != multiBear)
+                        qaAuditM4 += 1
+                        qaLastMulti4At := m4.endAt
+                        qaMulti4Kind := multiBull ? "MULTI4 BULL QA" : "MULTI4 BEAR QA"
+                        qaMulti4At := m4.endAt
+                        qaMulti4C1 := m1.startAt
+                        qaMulti4SweepAt := na
+                        qaMulti4Pivot5 := na
+                        qaMulti4Pivot5At := na
+                        qaMulti4Mss5At := na
+                        qaMulti4Pivot15 := na
+                        qaMulti4Pivot15At := na
+                        qaMulti4Mss15At := na
+                        // Extraer MSS M5/M15 exclusivamente del mismo candidato
+                        // de C1/C2a/direccion. Nunca prestar pivotes de otra familia.
+                        if array.size(qaMulti4MssCandidates) > 0
+                            for idx4 = 0 to array.size(qaMulti4MssCandidates) - 1
+                                Multi4MssCandidate q4 = array.get(qaMulti4MssCandidates, idx4)
+                                int dir4 = multiBull ? 1 : -1
+                                if q4.c1Start == m1.startAt and q4.c2aStart == m2.startAt and q4.direction == dir4 and not q4.doubleSweep and not na(q4.sweepAt) and q4.sweepAt <= m2.endAt
+                                    qaMulti4SweepAt := q4.sweepAt
+                                    qaMulti4Pivot5 := q4.pivot5
+                                    qaMulti4Pivot5At := q4.pivot5At
+                                    qaMulti4Mss5At := q4.mss5At
+                                    qaMulti4Pivot15 := q4.pivot15
+                                    qaMulti4Pivot15At := q4.pivot15At
+                                    qaMulti4Mss15At := q4.mss15At
+                                    break
+                // Cada H4 completa elegible puede ser una C1 de futuro
+                // MULTI4; se mantienen hasta 4 candidatos por feed.
+                if f_allowed(hour(h4Bucket, TZ), isIndex)
+                    array.push(qaMulti4MssCandidates, Multi4MssCandidate.new(h4Bucket, bucketH4, h4High, h4Low, 0, na, na, na, na, na, na, na, false))
+                    if array.size(qaMulti4MssCandidates) > 4
+                        array.shift(qaMulti4MssCandidates)
+            // QA MULTI-N: no imponer el MULTI4 distribuido a modelos
+            // C1 + N interiores + barrida terminal. Conserva los dos
+            // detectores por separado; nunca crea MSS o alertas.
+            if not fullH4
+                array.clear(qaMultiNHistory)
+                qaMultiNKind := "H4 INCOMPLETA"
+                qaMultiNAt := na
+                qaMultiNC1 := na
+                qaMultiNDir := 0
+                qaTrue3CPending := na
+            else
+                array.push(qaMultiNHistory, MultiH4.new(h4Bucket, h4LastEnd, h4High, h4Low, h4Close, true))
+                if array.size(qaMultiNHistory) > 7
+                    array.shift(qaMultiNHistory)
+                int nHistory = array.size(qaMultiNHistory)
+                // TRUE 3-CANDLE STRUCTURE (Rowdy slide 8/20):
+                // C1 range; CLOSED C2 setup with NO C1 sweep;
+                // CLOSED C3 sweeps ONE C1 boundary and returns strictly inside.
+                // This is not the legacy 2C whose C3 simply distributes.
+                // Source is this symbol's 48-M5/closed-H4 bounded history.
+                // An Inside that only sweeps C2 is NOT a true C3 C1 sweep.
+                if nHistory >= 3
+                    MultiH4 trueC1 = array.get(qaMultiNHistory, nHistory - 3)
+                    MultiH4 trueC2 = array.get(qaMultiNHistory, nHistory - 2)
+                    MultiH4 trueC3 = array.get(qaMultiNHistory, nHistory - 1)
+                    bool threeClosed = trueC1.valid and trueC2.valid and trueC3.valid and trueC1.endAt == trueC2.startAt and trueC2.endAt == trueC3.startAt
+                    bool setupNoSweep = trueC2.hi <= trueC1.hi and trueC2.lo >= trueC1.lo and trueC2.cl > trueC1.lo and trueC2.cl < trueC1.hi
+                    bool c3LowRaid = trueC3.lo < trueC1.lo and trueC3.hi <= trueC1.hi
+                    bool c3HighRaid = trueC3.hi > trueC1.hi and trueC3.lo >= trueC1.lo
+                    bool c3ClosesBack = trueC3.cl > trueC1.lo and trueC3.cl < trueC1.hi
+                    bool allowedTrue3C = f_allowed(hour(trueC1.startAt, TZ), isIndex)
+                    if threeClosed and allowedTrue3C and setupNoSweep and (c3LowRaid != c3HighRaid) and c3ClosesBack
+                        // Signed timestamp conserves direction without adding
+                        // another field to the near-128-field Signal UDT.
+                        // Structural evidence only: MSS5/15 remain UNVERIFIED
+                        // until first sweep and pivots are recorded separately.
+                        qaTrue3CSignedAt := (c3LowRaid ? 1 : -1) * trueC3.endAt
+                        // Aceptar solo el mismo C1 y C3, tras evidencia M5
+                        // cerrada y sin barrida contraria; si falta, queda N/V.
+                        if not na(qaTrue3CPending)
+                            True3CMssCandidate owned3 = qaTrue3CPending
+                            int expectedDir3 = c3LowRaid ? 1 : -1
+                            if owned3.c1Start == trueC1.startAt and owned3.c3Start == trueC3.startAt and owned3.direction == expectedDir3 and not owned3.doubleSweep and not na(owned3.sweepAt)
+                                qaTrue3CConfirmed := owned3
+                // Preparar EL PROXIMO C3, solo con C1 y C2 completas,
+                // contiguas y sin barrida C1. No usar el MSS de Inside.
+                qaTrue3CPending := na
+                if nHistory >= 2
+                    MultiH4 preC1 = array.get(qaMultiNHistory, nHistory - 2)
+                    MultiH4 preC2 = array.get(qaMultiNHistory, nHistory - 1)
+                    bool preReady3 = preC1.valid and preC2.valid and preC1.endAt == preC2.startAt and preC2.endAt == bucketH4 and f_allowed(hour(preC1.startAt, TZ), isIndex) and preC2.hi <= preC1.hi and preC2.lo >= preC1.lo and preC2.cl > preC1.lo and preC2.cl < preC1.hi
+                    if preReady3
+                        qaTrue3CPending := True3CMssCandidate.new(preC1.startAt, bucketH4, preC1.hi, preC1.lo, 0, na, na, na, na, na, na, na, false)
+                if nHistory >= 4
+                    bool multiNAuditable = false
+                    bool multiNMatched = false
+                    bool multiNSawDouble = false
+                    bool multiNSawOutside = false
+                    bool multiNSawNoTerminal = false
+                    // Un mismo C1 puede producir varias interpretaciones.
+                    // Preferir la C1 mas reciente (N menor) y registrar
+                    // solo una observacion QA por vela terminal.
+                    for consolidationCount = 2 to 5
+                        int needed = consolidationCount + 2
+                        if needed <= nHistory
+                            int c1Idx = nHistory - needed
+                            MultiH4 beginH4 = array.get(qaMultiNHistory, c1Idx)
+                            MultiH4 endH4 = array.get(qaMultiNHistory, nHistory - 1)
+                            bool consecutive = true
+                            bool internalBars = true
+                            MultiH4 priorH4 = beginH4
+                            for j = c1Idx + 1 to nHistory - 1
+                                MultiH4 nextBar = array.get(qaMultiNHistory, j)
+                                consecutive := consecutive and priorH4.endAt == nextBar.startAt
+                                priorH4 := nextBar
+                            for j = c1Idx + 1 to nHistory - 2
+                                MultiH4 consolidate = array.get(qaMultiNHistory, j)
+                                internalBars := internalBars and consolidate.hi < beginH4.hi and consolidate.lo > beginH4.lo
+                            bool validTimeC1 = f_allowed(hour(beginH4.startAt, TZ), isIndex)
+                            bool sweepLowN = endH4.lo < beginH4.lo and endH4.hi <= beginH4.hi
+                            bool sweepHighN = endH4.hi > beginH4.hi and endH4.lo >= beginH4.lo
+                            bool returnN = endH4.cl >= beginH4.lo and endH4.cl <= beginH4.hi
+                            if consecutive and internalBars and validTimeC1
+                                multiNAuditable := true
+                                bool sweptBoth = endH4.lo < beginH4.lo and endH4.hi > beginH4.hi
+                                multiNSawDouble := multiNSawDouble or sweptBoth
+                                multiNSawOutside := multiNSawOutside or (sweepLowN != sweepHighN) and not returnN
+                                multiNSawNoTerminal := multiNSawNoTerminal or (not sweepLowN and not sweepHighN and not sweptBoth)
+                            if consecutive and internalBars and validTimeC1 and (sweepLowN != sweepHighN) and returnN
+                                multiNMatched := true
+                                qaAuditMN += 1
+                                qaLastMultiNAt := endH4.endAt
+                                qaMultiNKind := sweepLowN ? "MULTI-N BULL QA" : "MULTI-N BEAR QA"
+                                qaMultiNAt := endH4.endAt
+                                qaMultiNC1 := beginH4.startAt
+                                qaMultiNDir := sweepLowN ? 1 : -1
+                                // Solo extraer MSS del MISMO candidato C1
+                                // y H4 terminal, con barrida no ambigua.
+                                qaMultiNSweepAt := na
+                                qaMultiNPivot15 := na
+                                qaMultiNPivot15At := na
+                                qaMultiNMss15At := na
+                                qaMultiNMss5At := na
+                                qaMultiNPivot5 := na
+                                qaMultiNPivot5At := na
+                                if array.size(qaMultiNMssCandidates) > 0
+                                    for k = 0 to array.size(qaMultiNMssCandidates) - 1
+                                        MultiNMssCandidate qaOwn = array.get(qaMultiNMssCandidates, k)
+                                        if qaOwn.c1Start == qaMultiNC1 and qaOwn.terminalH4Start == h4Bucket and qaOwn.direction == qaMultiNDir and not qaOwn.doubleSweep
+                                            qaMultiNSweepAt := qaOwn.sweepAt
+                                            qaMultiNPivot15 := qaOwn.pivot15
+                                            qaMultiNPivot15At := qaOwn.pivot15At
+                                            qaMultiNMss15At := qaOwn.mss15At
+                                            qaMultiNPivot5 := qaOwn.pivot5
+                                            qaMultiNPivot5At := qaOwn.pivot5At
+                                            qaMultiNMss5At := qaOwn.mss5At
+                                            break
+                                break
+                    // Solo UNA razon por vela H4 terminal: el mismo cierre
+                    // puede cumplir varias N candidatas. No contar intentos
+                    // intrabar M5 ni la misma barra dos veces.
+                    if multiNAuditable and not multiNMatched
+                        if multiNSawDouble
+                            qaAuditMNDouble += 1
+                        else if multiNSawOutside
+                            qaAuditMNOutside += 1
+                        else if multiNSawNoTerminal
+                            qaAuditMNNoTerminal += 1
+            // Los candidatos pertenecen exclusivamente a la H4 que
+            // ACABA de cerrar; no se arrastran a un ciclo nuevo.
+            array.clear(qaMultiNMssCandidates)
+            // C3 solo se invalida por el CIERRE de su H4, NO por cierre M5.
+            // La mecha o un cierre intrabar M5 que atraviese el extremo de C2
+            // no revocan el CRT cuando la C3 H4 finalmente cierra recuperada.
+            if c3Active and c3Start == h4Bucket
+                bool validC3Close = fullH4
+                bool invalidAtC3Close = validC3Close and not na(c3Invalidation) and (c3Dir == 1 ? h4Close < c3Invalidation : h4Close > c3Invalidation)
+                if invalidAtC3Close or not validC3Close
+                    qaAuditC3Invalid += 1
+                else if validC3Close
+                    qaAudit3C += 1
+                    qaLastConfirmed3CAt := h4LastEnd
+                if (invalidAtC3Close or not validC3Close) and lastC1 == c1Start3
+                    lastConfirmedAt := na
+                    lastM5 := na
+                    lastM15 := na
+                    lastModelKind := "NONE"
+                    lastPatternValid := false
+                    lastModelC1 := na
+                c3Active := false
+                c3ModelKind := "NONE"
+                c3PatternValid := false
+                c3ModelC1 := na
+                c3C2Start := na
+
+            // M3B.2 INTEGRADO: clasificar solo al cierre H4 de la manipulacion.
+            // Una barrida M5 no equivale por si sola a un CRT ratificado.
+            if array.size(insideCandidates) > 0
+                for ic = 0 to array.size(insideCandidates) - 1
+                    InsideCandidate cand = array.get(insideCandidates, ic)
+                    bool closesSweepH4 = not na(cand.sweepH4Start) and cand.sweepH4Start == h4Bucket
+                    if closesSweepH4 and (cand.state == "SWEPT" or cand.state == "AMBIGUOUS")
+                        bool closedH4Complete = fullH4
+                        if not closedH4Complete
+                            qaAuditInsideData += 1
+                            cand.state := "DATA_GAP"
+                            cand.isPatternValid := false
+                        else if cand.state == "AMBIGUOUS" or (cand.sweptLow and cand.sweptHigh)
+                            qaAuditInsideDouble += 1
+                            cand.state := "AMBIGUOUS"
+                            cand.modelKind := "NONE"
+                            cand.isPatternValid := false
+                        else
+                            bool returnC2 = h4Close >= cand.c2Low and h4Close <= cand.c2High
+                            if returnC2
+                                qaAuditInside += 1
+                                qaLastInsideReturnAt := h4LastEnd
+                                cand.state := "RATIFIED"
+                                cand.modelKind := cand.sweepDir == 1 ? "INSIDE_RETURN_BULL" : "INSIDE_RETURN_BEAR"
+                                cand.isPatternValid := true
+                            else if h4Close < cand.c1Low or h4Close > cand.c1High
+                                qaAuditInsideOther += 1
+                                qaLastInsideContinuationAt := h4LastEnd
+                                cand.state := "CONTINUATION"
+                                cand.modelKind := h4Close < cand.c1Low ? "INSIDE_CONTINUATION_DOWN" : "INSIDE_CONTINUATION_UP"
+                                cand.isPatternValid := false // Experimental, sin entradas
+                            else
+                                // Cierra dentro de C1 pero fuera de C2.
+                                qaAuditInsideOther += 1
+                                cand.state := "UNRESOLVED"
+                                cand.modelKind := "NONE"
+                                cand.isPatternValid := false
+
+            // ---- M3B.3B: EXPIRACION Y GAPS (DESPUES de clasificar 3B.2) ----
+            // No confundir una pausa normal entre sesiones con un hueco M5
+            // interno. Contamos cierres H4 verificados, no tiempo UTC / 4h.
+            bool insideH4Closed = fullH4
+            if array.size(insideCandidates) > 0
+                for ageI = 0 to array.size(insideCandidates) - 1
+                    InsideCandidate ageCand = array.get(insideCandidates, ageI)
+                    bool awaiting = ageCand.state == "SEEKING" or ageCand.state == "SWEPT"
+                    bool eligibleH4 = h4Bucket >= ageCand.c2End
+                    if awaiting and eligibleH4
+                        if not h4Continuous
+                            // Hay velas M5 en esta H4 pero falta continuidad interna.
+                            qaAuditInsideData += 1
+                            ageCand.state := "DATA_GAP"
+                            ageCand.isPatternValid := false
+                        else if insideH4Closed
+                            if ageCand.state == "SEEKING" and (h4Close < ageCand.c1Low or h4Close > ageCand.c1High)
+                                qaAuditInsideOther += 1
+                                ageCand.state := "INVALIDATED"
+                                ageCand.isPatternValid := false
+                            else
+                                ageCand.h4Life += 1
+                                if ageCand.h4Life >= maxH4Life
+                                    qaAuditInsideExpire += 1
+                                    ageCand.state := "EXPIRED"
+                                    ageCand.isPatternValid := false
+            // Los estados RATIFIED/CONTINUATION/AMBIGUOUS/UNRESOLVED son
+            // terminales: no se reactivan ni consumen mas vida H4.
+
+            // C2 pasa a C3 solo cuando la H4 de C2 CIERRA dentro de C1.
+            bool c2Done = c2Active and c2Start == h4Bucket
+            if c2Done
+                bool inside = h4Close >= c1Low2 and h4Close <= c1High2
+                // El modulo 1 permanece OBLIGATORIO para cualquier clasificacion.
+                bool validC2Data = fullH4
+                // M3B.1: C2 estrictamente interior a C1 al cierre H4 real.
+                // No ratifica Inside, no altera C2-sweep, MSS ni dashboard.
+                bool strictH4Inside = validC2Data and h4High < c1High2 and h4Low > c1Low2
+                if strictH4Inside
+                    string insideId = syminfo.tickerid + "|" + str.tostring(c1Start2) + "|INSIDE"
+                    bool alreadyStored = false
+                    int candidateCount = array.size(insideCandidates)
+                    if candidateCount > 0
+                        for j = 0 to candidateCount - 1
+                            InsideCandidate existing = array.get(insideCandidates, j)
+                            if existing.id == insideId
+                                alreadyStored := true
+                                break
+                    if not alreadyStored
+                        InsideCandidate cand = InsideCandidate.new(insideId, c1Start2, c1High2, c1Low2, h4High, h4Low, bucketH4, na, na, 0, false, false, "SEEKING", "NONE", false, 0, na, na, na, na, na, na)
+                        // Una memoria llena descarta primero terminales sin
+                        // ratificacion, despues SEEKING, SWEPT y finalmente
+                        // el RATIFIED mas antiguo si todos son importantes.
+                        if array.size(insideCandidates) >= 10
+                            int dropIdx = na
+                            for tier = 0 to 3
+                                if na(dropIdx)
+                                    for mi = 0 to array.size(insideCandidates) - 1
+                                        string st = array.get(insideCandidates, mi).state
+                                        bool discardable = tier == 0 ? (st == "EXPIRED" or st == "INVALIDATED" or st == "DATA_GAP" or st == "AMBIGUOUS" or st == "UNRESOLVED" or st == "CONTINUATION") : tier == 1 ? st == "SEEKING" : tier == 2 ? st == "SWEPT" : st == "RATIFIED"
+                                        if discardable
+                                            dropIdx := mi
+                                            break
+                            array.remove(insideCandidates, na(dropIdx) ? 0 : dropIdx)
+                        array.push(insideCandidates, cand)
+                bool strictSingleSweep = c2Dir != 0 and c2StrictSweep and not c2Double
+                bool expansionBull = c2Dir == 1 and h4Close < c1Low2
+                bool expansionBear = c2Dir == -1 and h4Close > c1High2
+                string classified2C = "NONE"
+                if validC2Data and strictSingleSweep
+                    if inside and c2Returned
+                        classified2C := "CRT_2C_RETURN"
+                    else if expansionBull or expansionBear
+                        classified2C := "CRT_2C_EXPANSION"  // Solo diagnostico, NUNCA ratificado
+                last2CClassification := classified2C
+                last2CClassificationAt := bucketH4
+                if classified2C == "CRT_2C_EXPANSION"
+                    qaLastRejectedExpansionAt := h4LastEnd
+                bool validRange = classified2C == "CRT_2C_RETURN"
+                bool exactHour3 = hour(bucketH4, TZ) == ((hour(c1Start2, TZ) + 8) % 24)
+                // Una causa por cierre de C2; son descartes H4, no
+                // señales. Incluye BTC, FX e indices del feed actual.
+                if not validC2Data
+                    qaAuditC2Data += 1
+                else if c2Double
+                    qaAuditC2Double += 1
+                else if not strictSingleSweep
+                    qaAuditC2NoSweep += 1
+                else if not inside or not c2Returned
+                    qaAuditC2Outside += 1
+                else if not exactHour3
+                    qaAuditC2Hour += 1
+                if isBTC
+                    qaLastC2Gate := not validC2Data ? "C2 M5 NO 48" : c2Double ? "C2 DOBLE BARRIDA" : not strictSingleSweep ? "C2 SIN BARRIDA" : not inside ? "C2 CIERRE FUERA" : not c2Returned ? "C2 SIN RETORNO" : not exactHour3 ? "C3 HORA INVALIDA" : "CRT C2 RATIFICADO"
+                if validRange and exactHour3
+                    qaAudit2C += 1
+                    qaLastRatified2CAt := h4LastEnd
+                    if isBTC
+                        qaC2Ratified += 1
+                    // Registrar el CRT al CIERRE H4 de C2. M5/M15 se
+                    // conservan solo si ya se confirmaron en esa C2.
+                    lastC1 := c1Start2
+                    lastDir := c2Dir
+                    lastConfirmedAt := bucketH4
+                    lastHi := c1High2
+                    lastLo := c1Low2
+                    lastSweepAt := c2SweepEnd
+                    lastM5 := c2M5At
+                    lastM15 := c2M15At
+                    lastM5Level := c2Pivot5
+                    lastM15Level := c2Pivot15
+                    lastM5PivotAt := c2Pivot5At
+                    lastM15PivotAt := c2Pivot15At
+                    lastModelKind := classified2C
+                    lastPatternValid := true
+                    lastModelC1 := c1Start2
+                    lastC2Start := c2Start
+                    c3ModelKind := classified2C
+                    c3PatternValid := true
+                    c3ModelC1 := c1Start2
+                    c3C2Start := c2Start
+                    c3Active := true
+                    c3Start := bucketH4
+                    c1Start3 := c1Start2
+                    c1High3 := c1High2
+                    c1Low3 := c1Low2
+                    c3Dir := c2Dir
+                    c3SweepEnd := c2SweepEnd
+                    c3Pivot5 := c2Pivot5
+                    c3Pivot15 := c2Pivot15
+                    c3Pivot5At := c2Pivot5At
+                    c3Pivot15At := c2Pivot15At
+                    c3M5At := c2M5At
+                    c3M15At := c2M15At
+                    c3Invalidation := c2Dir == 1 ? h4Low : h4High
+                c2Active := false
+
+            // La H4 que acaba de cerrar puede ser C1 del SIGUIENTE ciclo,
+            // incluso si la H4 nueva ya es C3 de un ciclo anterior.
+            c2Active := false
+            c2Dir := 0
+            c2StrictSweep := false
+            c2Double := false
+            c2Returned := false
+            c2SweepEnd := na
+            c2M5At := na
+            c2M15At := na
+            c2Pivot5 := na
+            c2Pivot15 := na
+            c2Pivot5At := na
+            c2Pivot15At := na
+            int lastC1Hour = hour(h4Bucket, TZ)
+            int expectedC2 = (lastC1Hour + 4) % 24
+            bool c1AllowedHour = f_allowed(lastC1Hour, isIndex)
+            bool c1AlignedNext = hour(bucketH4, TZ) == expectedC2
+            bool c1CompleteData = fullH4
+            bool c1HasRange = h4High > h4Low
+            // Cada cierre elegible por HORA aporta exactamente una
+            // clasificación: mala ancla, datos, rango o C1 apta.
+            if c1AllowedHour
+                qaAuditC1HourCandidates += 1
+                if not c1AlignedNext
+                    qaAuditC1BadClock += 1
+                else if not c1CompleteData
+                    qaAuditC1BadData += 1
+                else if not c1HasRange
+                    qaAuditC1BadRange += 1
+            if c1AllowedHour and c1AlignedNext and c1CompleteData and c1HasRange
+                c2Active := true
+                // BUG corregido V34.10v: este contador ES por feed.
+                // Antes solo incrementaba en BTC pero audit2C sí
+                // sumaba Forex/índices, generando el imposible 5/0.
+                qaC1Ready += 1
+                if isBTC
+                    qaLastC2Gate := "C1 VALIDA ESPERA C2"
+                c2Start := bucketH4
+                c1Start2 := h4Bucket
+                c1High2 := h4High
+                c1Low2 := h4Low
+
+            h4Bucket := bucketH4
+            h4High := bH
+            h4Low := bL
+            h4Close := bC
+            h4Count := 1
+            h4FirstT := barT
+            h4LastEnd := barEnd
+            h4Continuous := true
+        else if na(h4Bucket)
+            h4Bucket := bucketH4
+            h4High := bH
+            h4Low := bL
+            h4Close := bC
+            h4Count := 1
+            h4FirstT := barT
+            h4LastEnd := barEnd
+            h4Continuous := true
+        else
+            h4Continuous := h4Continuous and barT == h4LastEnd
+            h4High := math.max(h4High, bH)
+            h4Low := math.min(h4Low, bL)
+            h4Close := bC
+            h4Count += 1
+            h4LastEnd := barEnd
+
+    // ---- M4B: ESTADO DE LIQUIDEZ DE LA SESION DE REFERENCIA ----
+    // M4A ya procesó esta M5 cerrada. Después del cambio H4,
+    // c2Active/c3Active corresponden al H4 actual, incluso en su primera M5.
+    bool hasLiquidityRef = prev_valid and not na(prev_timestamp) and not na(prev_PDH) and not na(prev_PDL)
+    if not hasLiquidityRef
+        liquidityRefAt := na
+        pdhTaken := false
+        pdlTaken := false
+        pdhSweepAt := na
+        pdlSweepAt := na
+        pdhSweepStage := 0
+        pdlSweepStage := 0
+        pdhSweepC1 := na
+        pdlSweepC1 := na
+    else
+        if na(liquidityRefAt) or liquidityRefAt != prev_timestamp
+            liquidityRefAt := prev_timestamp
+            pdhTaken := false
+            pdlTaken := false
+            pdhSweepAt := na
+            pdlSweepAt := na
+            pdhSweepStage := 0
+            pdlSweepStage := 0
+            pdhSweepC1 := na
+            pdlSweepC1 := na
+        // No comparar velas del dia anterior con el nuevo PDH/PDL,
+        // ni after-hours con niveles RTH. Solo M5 cerrada elegible.
+        bool eligibleLiquidityBar = pdhInSession and not na(barT) and not na(barEnd) and barT >= liquidityRefAt
+        if eligibleLiquidityBar
+            int eventStage = c3Active and bucketH4 == c3Start ? 3 : c2Active and bucketH4 == c2Start ? 2 : 0
+            int eventC1 = eventStage == 3 ? c1Start3 : eventStage == 2 ? c1Start2 : na
+            if not pdhTaken and bH > prev_PDH
+                pdhTaken := true
+                pdhSweepAt := barEnd
+                pdhSweepStage := eventStage
+                pdhSweepC1 := eventC1
+            if not pdlTaken and bL < prev_PDL
+                pdlTaken := true
+                pdlSweepAt := barEnd
+                pdlSweepStage := eventStage
+                pdlSweepC1 := eventC1
+
+    // ---- M3B.2 INTEGRADO: PRIMERA BARRIDA M5 DE INSIDE BAR ----
+    // M5 cerrada [1]; solo despues del cierre H4 de C2.
+    // Se rastrean ambos extremos durante una MISMA H4 de manipulacion.
+    if not na(barT) and not na(bucketH4) and array.size(insideCandidates) > 0
+        for ic = 0 to array.size(insideCandidates) - 1
+            InsideCandidate cand = array.get(insideCandidates, ic)
+            if cand.state == "SEEKING" and barT >= cand.c2End
+                bool brokeLow = bL < cand.c2Low
+                bool brokeHigh = bH > cand.c2High
+                if brokeLow or brokeHigh
+                    cand.sweepAt := barEnd
+                    cand.sweepH4Start := bucketH4
+                    cand.sweptLow := brokeLow
+                    cand.sweptHigh := brokeHigh
+                    cand.sweepDir := brokeLow and not brokeHigh ? 1 : brokeHigh and not brokeLow ? -1 : 0
+                    cand.state := brokeLow and brokeHigh ? "AMBIGUOUS" : "SWEPT"
+                    // C1 y pivote son DEL Inside. Solo la primera M5
+                    // barrida congela un pivote M15 anterior y confirmado.
+                    bool freshInside15 = cand.sweepDir == 1 ? not na(lastHigh15At) and lastHigh15At < barT and barT - lastHigh15At <= maxPivotAge * 60000 : cand.sweepDir == -1 ? not na(lastLow15At) and lastLow15At < barT and barT - lastLow15At <= maxPivotAge * 60000 : false
+                    cand.pivot15 := freshInside15 ? (cand.sweepDir == 1 ? lastHigh15 : lastLow15) : na
+                    cand.pivot15At := freshInside15 ? (cand.sweepDir == 1 ? lastHigh15At : lastLow15At) : na
+                    cand.mss15At := na
+                    bool freshInside5 = cand.sweepDir == 1 ? not na(lastHigh5At) and not na(qaExtraM5SegmentStart) and lastHigh5At >= qaExtraM5SegmentStart and lastHigh5At < barT and barT - lastHigh5At <= maxPivotAge * 60000 : cand.sweepDir == -1 ? not na(lastLow5At) and not na(qaExtraM5SegmentStart) and lastLow5At >= qaExtraM5SegmentStart and lastLow5At < barT and barT - lastLow5At <= maxPivotAge * 60000 : false
+                    cand.pivot5 := freshInside5 ? (cand.sweepDir == 1 ? lastHigh5 : lastLow5) : na
+                    cand.pivot5At := freshInside5 ? (cand.sweepDir == 1 ? lastHigh5At : lastLow5At) : na
+                    cand.mss5At := na
+            else if cand.state == "SWEPT" and bucketH4 == cand.sweepH4Start
+                cand.sweptLow := cand.sweptLow or bL < cand.c2Low
+                cand.sweptHigh := cand.sweptHigh or bH > cand.c2High
+                if cand.sweptLow and cand.sweptHigh
+                    cand.sweepDir := 0
+                    cand.state := "AMBIGUOUS"
+                    cand.mss15At := na
+                    cand.pivot15 := na
+                    cand.pivot15At := na
+                    cand.mss5At := na
+                    cand.pivot5 := na
+                    cand.pivot5At := na
+
+    // Barrida inicial de TRUE 3C en la C3 propia: solo M5 cerradas,
+    // niveles de C1 propia, doble barrida bloqueante y pivotes congelados.
+    if not na(qaTrue3CPending) and not na(barT) and bucketH4 == qaTrue3CPending.c3Start
+        True3CMssCandidate q3 = qaTrue3CPending
+        bool low3 = bL < q3.c1Low
+        bool high3 = bH > q3.c1High
+        if q3.direction == 0 and not q3.doubleSweep and (low3 or high3)
+            if low3 and high3
+                q3.doubleSweep := true
+            else
+                q3.direction := low3 ? 1 : -1
+                q3.sweepAt := barEnd
+                bool fresh3M5 = q3.direction == 1 ? not na(lastHigh5At) and not na(qaExtraM5SegmentStart) and lastHigh5At >= qaExtraM5SegmentStart and lastHigh5At < barT and barT - lastHigh5At <= maxPivotAge * 60000 : not na(lastLow5At) and not na(qaExtraM5SegmentStart) and lastLow5At >= qaExtraM5SegmentStart and lastLow5At < barT and barT - lastLow5At <= maxPivotAge * 60000
+                q3.pivot5 := fresh3M5 ? (q3.direction == 1 ? lastHigh5 : lastLow5) : na
+                q3.pivot5At := fresh3M5 ? (q3.direction == 1 ? lastHigh5At : lastLow5At) : na
+                bool fresh3M15 = q3.direction == 1 ? not na(lastHigh15At) and lastHigh15At < barT and barT - lastHigh15At <= maxPivotAge * 60000 : not na(lastLow15At) and lastLow15At < barT and barT - lastLow15At <= maxPivotAge * 60000
+                q3.pivot15 := fresh3M15 ? (q3.direction == 1 ? lastHigh15 : lastLow15) : na
+                q3.pivot15At := fresh3M15 ? (q3.direction == 1 ? lastHigh15At : lastLow15At) : na
+        else if q3.direction != 0 and (low3 and high3 or q3.direction == 1 and high3 or q3.direction == -1 and low3)
+            q3.doubleSweep := true
+            q3.mss5At := na
+            q3.mss15At := na
+            q3.pivot5 := na
+            q3.pivot5At := na
+            q3.pivot15 := na
+            q3.pivot15At := na
+
+    // Multi4: la primera barrida debe ocurrir en C2a, no en C2b/C3.
+    // Hasta cerrar CUATRO H4 completas, esta evidencia es solo candidata.
+    if not na(barT) and array.size(qaMulti4MssCandidates) > 0
+        for idx4 = 0 to array.size(qaMulti4MssCandidates) - 1
+            Multi4MssCandidate q4 = array.get(qaMulti4MssCandidates, idx4)
+            bool inMulti4Window = bucketH4 >= q4.c2aStart and bucketH4 < q4.c2aStart + 3 * H4MS
+            if inMulti4Window and not q4.doubleSweep
+                bool low4 = bL < q4.c1Low
+                bool high4 = bH > q4.c1High
+                if bucketH4 == q4.c2aStart and q4.direction == 0 and (low4 or high4)
+                    if low4 and high4
+                        q4.doubleSweep := true
+                    else
+                        q4.direction := low4 ? 1 : -1
+                        q4.sweepAt := barEnd
+                        bool fresh4M5 = q4.direction == 1 ? not na(lastHigh5At) and not na(qaExtraM5SegmentStart) and lastHigh5At >= qaExtraM5SegmentStart and lastHigh5At < barT and barT - lastHigh5At <= maxPivotAge * 60000 : not na(lastLow5At) and not na(qaExtraM5SegmentStart) and lastLow5At >= qaExtraM5SegmentStart and lastLow5At < barT and barT - lastLow5At <= maxPivotAge * 60000
+                        q4.pivot5 := fresh4M5 ? (q4.direction == 1 ? lastHigh5 : lastLow5) : na
+                        q4.pivot5At := fresh4M5 ? (q4.direction == 1 ? lastHigh5At : lastLow5At) : na
+                        bool fresh4M15 = q4.direction == 1 ? not na(lastHigh15At) and not na(qaExtraM5SegmentStart) and lastHigh15At >= qaExtraM5SegmentStart and lastHigh15At < barT and barT - lastHigh15At <= maxPivotAge * 60000 : not na(lastLow15At) and not na(qaExtraM5SegmentStart) and lastLow15At >= qaExtraM5SegmentStart and lastLow15At < barT and barT - lastLow15At <= maxPivotAge * 60000
+                        q4.pivot15 := fresh4M15 ? (q4.direction == 1 ? lastHigh15 : lastLow15) : na
+                        q4.pivot15At := fresh4M15 ? (q4.direction == 1 ? lastHigh15At : lastLow15At) : na
+                else if q4.direction != 0 and (low4 and high4 or q4.direction == 1 and high4 or q4.direction == -1 and low4)
+                    // Cualquier segunda barrida del extremo contrario
+                    // en C2a/C2b/C3 invalida ambos MSS propios (M5/M15).
+                    q4.doubleSweep := true
+                    q4.mss5At := na
+                    q4.mss15At := na
+                    q4.pivot5 := na
+                    q4.pivot5At := na
+                    q4.pivot15 := na
+                    q4.pivot15At := na
+
+    // Multi-N propio: antes de cerrar H4 terminal, cada C1 viable
+    // tiene un candidato diferente (max. 4). No usar el MSS del CRT 3C.
+    // La validacion ESTRUCTURAL sigue ocurriendo al cierre H4.
+    if not na(barT) and not na(bucketH4) and array.size(qaMultiNHistory) >= 3
+        int nHistoryMss = array.size(qaMultiNHistory)
+        MultiH4 latestClosed = array.get(qaMultiNHistory, nHistoryMss - 1)
+        if latestClosed.endAt == bucketH4
+            for consolidationCount = 2 to 5
+                int needed = consolidationCount + 1
+                if needed <= nHistoryMss
+                    int beginIndex = nHistoryMss - needed
+                    MultiH4 firstClosed = array.get(qaMultiNHistory, beginIndex)
+                    MultiH4 priorClosed = firstClosed
+                    bool chainOk = true
+                    bool insideOk = true
+                    for j = beginIndex + 1 to nHistoryMss - 1
+                        MultiH4 currentClosed = array.get(qaMultiNHistory, j)
+                        chainOk := chainOk and currentClosed.startAt == priorClosed.endAt
+                        insideOk := insideOk and currentClosed.hi < firstClosed.hi and currentClosed.lo > firstClosed.lo
+                        priorClosed := currentClosed
+                    bool validMN = chainOk and insideOk and f_allowed(hour(firstClosed.startAt, TZ), isIndex)
+                    if validMN
+                        bool lowSweep = bL < firstClosed.lo
+                        bool highSweep = bH > firstClosed.hi
+                        if lowSweep or highSweep
+                            int candidateIndex = na
+                            if array.size(qaMultiNMssCandidates) > 0
+                                for k = 0 to array.size(qaMultiNMssCandidates) - 1
+                                    MultiNMssCandidate existing = array.get(qaMultiNMssCandidates, k)
+                                    if existing.c1Start == firstClosed.startAt and existing.terminalH4Start == bucketH4
+                                        candidateIndex := k
+                                        break
+                            if na(candidateIndex)
+                                int candidateDir = lowSweep and not highSweep ? 1 : highSweep and not lowSweep ? -1 : 0
+                                bool freshMN15 = candidateDir == 1 ? not na(lastHigh15At) and lastHigh15At < barT and barT - lastHigh15At <= maxPivotAge * 60000 : candidateDir == -1 ? not na(lastLow15At) and lastLow15At < barT and barT - lastLow15At <= maxPivotAge * 60000 : false
+                                float frozenLevel = freshMN15 ? (candidateDir == 1 ? lastHigh15 : lastLow15) : na
+                                int frozenAt = freshMN15 ? (candidateDir == 1 ? lastHigh15At : lastLow15At) : na
+                                bool freshMN5 = candidateDir == 1 ? not na(lastHigh5At) and not na(qaExtraM5SegmentStart) and lastHigh5At >= qaExtraM5SegmentStart and lastHigh5At < barT and barT - lastHigh5At <= maxPivotAge * 60000 : candidateDir == -1 ? not na(lastLow5At) and not na(qaExtraM5SegmentStart) and lastLow5At >= qaExtraM5SegmentStart and lastLow5At < barT and barT - lastLow5At <= maxPivotAge * 60000 : false
+                                float frozenLevel5 = freshMN5 ? (candidateDir == 1 ? lastHigh5 : lastLow5) : na
+                                int frozenAt5 = freshMN5 ? (candidateDir == 1 ? lastHigh5At : lastLow5At) : na
+                                array.push(qaMultiNMssCandidates, MultiNMssCandidate.new(firstClosed.startAt, bucketH4, candidateDir, barEnd, frozenLevel, frozenAt, na, lowSweep and highSweep, frozenLevel5, frozenAt5, na))
+                            else
+                                MultiNMssCandidate existing = array.get(qaMultiNMssCandidates, candidateIndex)
+                                bool bothSides = lowSweep and highSweep or existing.direction == 1 and highSweep or existing.direction == -1 and lowSweep
+                                if bothSides
+                                    existing.doubleSweep := true
+                                    existing.mss15At := na
+                                    existing.pivot15 := na
+                                    existing.pivot15At := na
+                                    existing.mss5At := na
+                                    existing.pivot5 := na
+                                    existing.pivot5At := na
+    // ---- M5B CANDIDATO: SEGUIMIENTO FVG H1/H4 EN ESTA M5 CERRADA ----
+    // Va despues de crear FVG nuevos en el cambio de H1/H4: permite que
+    // la primera M5 de la siguiente ventana toque el FVG recien confirmado.
+    if not na(barT) and not na(barEnd)
+        if array.size(fvgsH1) > 0
+            for fi = 0 to array.size(fvgsH1) - 1
+                FvgContext zoneH1 = array.get(fvgsH1, fi)
+                f_update_context_fvg(zoneH1, barT, barEnd, bL, bH, bC, firstSession5, lastSession5)
+        if array.size(fvgsH4) > 0
+            for fi = 0 to array.size(fvgsH4) - 1
+                FvgContext zoneH4 = array.get(fvgsH4, fi)
+                f_update_context_fvg(zoneH4, barT, barEnd, bL, bH, bC, firstSession5, lastSession5)
+
+    // ---- BARRIDA Y RETORNO C2 (velas M5 cerradas) ----
+    // QA: tocar CRH/CRL (igualdad) solo puede crear un C2 PROVISIONAL.
+    // Direccion y c2Double definitivos dependen EXCLUSIVAMENTE de barridas estrictas.
+    if c2Active and not na(barT) and bucketH4 == c2Start
+        bool strictLow = bL < c1Low2
+        bool strictHigh = bH > c1High2
+        bool touchLow = bL <= c1Low2
+        bool touchHigh = bH >= c1High2
+        // Dos extremos estrictamente barridos, incluso en una unica M5.
+        if strictLow and strictHigh
+            c2Double := true
+        if c2Dir == 0 and not c2Double
+            if strictLow != strictHigh
+                c2Dir := strictLow ? 1 : -1
+            else if allowTouches and touchLow != touchHigh
+                // Toque exacto unilateral: provisional, sin MSS confirmado.
+                c2Dir := touchLow ? 1 : -1
+        if c2Dir != 0 and not c2Double
+            bool chosenStrict = c2Dir == 1 ? strictLow : strictHigh
+            bool oppositeStrict = c2Dir == 1 ? strictHigh : strictLow
+            // Si solo hubo toque preliminar, la PRIMERA barrida REAL elige
+            // la direccion, aun si ocurre en el lado opuesto al toque.
+            if not c2StrictSweep and oppositeStrict and not chosenStrict
+                c2Dir := -c2Dir
+                chosenStrict := true
+                oppositeStrict := false
+                c2Returned := false
+            // Descartar UNICAMENTE cuando se han barrido estrictamente
+            // ambos limites; un toque exacto del otro lado NO basta.
+            if c2StrictSweep and oppositeStrict
+                c2Double := true
+            if not c2Double
+                bool firstStrictSweep = not c2StrictSweep and chosenStrict
+                if firstStrictSweep
+                    c2StrictSweep := true
+                    c2SweepEnd := barEnd
+                    c2Returned := false
+                    bool lowSide = c2Dir == 1
+                    bool fresh5 = lowSide ? (not na(lastHigh5At) and lastHigh5At < barT and barT - lastHigh5At <= maxPivotAge * 60000) : (not na(lastLow5At) and lastLow5At < barT and barT - lastLow5At <= maxPivotAge * 60000)
+                    bool fresh15 = lowSide ? (not na(lastHigh15At) and lastHigh15At < barT and barT - lastHigh15At <= maxPivotAge * 60000) : (not na(lastLow15At) and lastLow15At < barT and barT - lastLow15At <= maxPivotAge * 60000)
+                    c2Pivot5 := fresh5 ? (lowSide ? lastHigh5 : lastLow5) : na
+                    c2Pivot15 := fresh15 ? (lowSide ? lastHigh15 : lastLow15) : na
+                    c2Pivot5At := fresh5 ? (lowSide ? lastHigh5At : lastLow5At) : na
+                    c2Pivot15At := fresh15 ? (lowSide ? lastHigh15At : lastLow15At) : na
+                c2Returned := c2Returned or (bC >= c1Low2 and bC <= c1High2)
+                // MSS M5 no puede ocurrir ANTES NI DURANTE la vela de barrida.
+                bool cross5 = c2Dir == 1 ? (not na(c2Pivot5) and bC > c2Pivot5 and prevClose <= c2Pivot5) : (not na(c2Pivot5) and bC < c2Pivot5 and prevClose >= c2Pivot5)
+                if c2StrictSweep and previousM5Continuous and barT >= c2SweepEnd and cross5 and na(c2M5At)
+                    c2M5At := barEnd
+
+    // ---- MSS en C3 ratificada (misma direccion, mismo swing congelado) ----
+    if c3Active and not na(barT) and bucketH4 == c3Start
+        // No invalidar aqui por una vela M5. Solo el cierre H4 completo
+        // de C3 puede atravesar la mecha de C2 para invalidar el CRT.
+        bool cross5c3 = c3Dir == 1 ? (not na(c3Pivot5) and bC > c3Pivot5 and prevClose <= c3Pivot5) : (not na(c3Pivot5) and bC < c3Pivot5 and prevClose >= c3Pivot5)
+        if c3Active and previousM5Continuous and barEnd > c3Start and barEnd > c3SweepEnd and cross5c3 and na(c3M5At)
+            c3M5At := barEnd
+            if lastC1 == c1Start3
+                lastM5 := barEnd
+
+    // 3C TRUE M5 propio: cierre cruzado posterior al sweep de C3.
+    // No se acepta la vela de la barrida ni se copia MSS del 2C.
+    if previousM5Continuous and not na(qaTrue3CPending) and bucketH4 == qaTrue3CPending.c3Start
+        True3CMssCandidate q3 = qaTrue3CPending
+        bool eligible3M5 = q3.direction != 0 and not q3.doubleSweep and not na(q3.sweepAt) and not na(q3.pivot5) and not na(q3.pivot5At) and q3.pivot5At < q3.sweepAt and barT >= q3.sweepAt and barEnd <= q3.c3Start + H4MS and na(q3.mss5At)
+        bool crossed3M5 = q3.direction == 1 ? bC > q3.pivot5 and prevClose <= q3.pivot5 : q3.direction == -1 ? bC < q3.pivot5 and prevClose >= q3.pivot5 : false
+        if eligible3M5 and crossed3M5
+            q3.mss5At := barEnd
+
+    // MSS M5 Multi4: solo el pivote congelado en C2a, cierre posterior
+    // y continuo hasta C3 (cuarta H4), sin arrastre de Inside/Multi-N.
+    if previousM5Continuous and array.size(qaMulti4MssCandidates) > 0
+        for idx4 = 0 to array.size(qaMulti4MssCandidates) - 1
+            Multi4MssCandidate q4 = array.get(qaMulti4MssCandidates, idx4)
+            bool eligible4M5 = q4.direction != 0 and not q4.doubleSweep and not na(q4.sweepAt) and not na(q4.pivot5) and not na(q4.pivot5At) and q4.pivot5At < q4.sweepAt and barT >= q4.sweepAt and barEnd <= q4.c2aStart + 3 * H4MS and bucketH4 >= q4.c2aStart and na(q4.mss5At)
+            bool cross4M5 = q4.direction == 1 ? bC > q4.pivot5 and prevClose <= q4.pivot5 : q4.direction == -1 ? bC < q4.pivot5 and prevClose >= q4.pivot5 : false
+            if eligible4M5 and cross4M5
+                q4.mss5At := barEnd
+
+    // QA M5 causal para Inside y Multi-N; no se hereda el MSS 2C.
+    // Solo M5 cerradas y CONTIGUAS, pivote congelado en primera barrida,
+    // posterior al sweep, dentro de su propia ventana de H4.
+    if previousM5Continuous and not na(barT) and not na(barEnd)
+        if array.size(insideCandidates) > 0
+            for k5 = 0 to array.size(insideCandidates) - 1
+                InsideCandidate own5 = array.get(insideCandidates, k5)
+                bool eligibleInside5 = (own5.state == "SWEPT" or own5.state == "RATIFIED") and own5.sweepDir != 0 and own5.sweptLow != own5.sweptHigh and not na(own5.sweepAt) and not na(own5.sweepH4Start) and not na(own5.pivot5) and not na(own5.pivot5At) and own5.pivot5At < own5.sweepAt and na(own5.mss5At) and barT >= own5.sweepAt and barEnd <= own5.sweepH4Start + 2 * H4MS
+                bool crossedInside5 = own5.sweepDir == 1 ? bC > own5.pivot5 and prevClose <= own5.pivot5 : own5.sweepDir == -1 ? bC < own5.pivot5 and prevClose >= own5.pivot5 : false
+                if eligibleInside5 and crossedInside5
+                    own5.mss5At := barEnd
+        if array.size(qaMultiNMssCandidates) > 0
+            for k5 = 0 to array.size(qaMultiNMssCandidates) - 1
+                MultiNMssCandidate ownN5 = array.get(qaMultiNMssCandidates, k5)
+                bool eligibleMultiN5 = not ownN5.doubleSweep and ownN5.direction != 0 and not na(ownN5.sweepAt) and not na(ownN5.pivot5) and not na(ownN5.pivot5At) and ownN5.pivot5At < ownN5.sweepAt and na(ownN5.mss5At) and barT >= ownN5.sweepAt and barEnd <= ownN5.terminalH4Start + H4MS and bucketH4 == ownN5.terminalH4Start
+                bool crossedMultiN5 = ownN5.direction == 1 ? bC > ownN5.pivot5 and prevClose <= ownN5.pivot5 : ownN5.direction == -1 ? bC < ownN5.pivot5 and prevClose >= ownN5.pivot5 : false
+                if eligibleMultiN5 and crossedMultiN5
+                    ownN5.mss5At := barEnd
+
+    // Actualizar swing M5 DESPUES de la barrida: no congelar un pivot que
+    // acababa de confirmarse simultaneamente con la vela de manipulacion.
+    if not na(pH5)
+        lastHigh5 := pH5
+        lastHigh5At := time[right5 + 1]
+    if not na(pL5)
+        lastLow5 := pL5
+        lastLow5At := time[right5 + 1]
+
+    // Priorizar el CRT ratificado en C3 sobre una NUEVA C2 provisional
+    // superpuesta. La nueva C2 permanece registrada internamente y se
+    // mostrara cuando termine la C3, si aun continua vigente.
+    bool partial = showCandidate and c2Active and c2Dir != 0 and not c2Double and (showAtSweep or c2Returned)
+    if partial and (na(qaLastCandidate2CCycle) or qaLastCandidate2CCycle != c2Start)
+        qaLastCandidate2CCycle := c2Start
+        qaLastCandidate2CAt := barEnd
+    bool recent = keepLastCRT and not na(lastConfirmedAt) and barEnd >= lastConfirmedAt and barEnd - lastConfirmedAt <= keepHours * 3600000
+    int outPhase = c3Active ? 2 : partial ? 1 : recent ? 3 : 0
+    int outDir = outPhase == 2 ? c3Dir : outPhase == 1 ? c2Dir : outPhase == 3 ? lastDir : 0
+    int outC1 = outPhase == 2 ? c1Start3 : outPhase == 1 ? c1Start2 : outPhase == 3 ? lastC1 : na
+    int outC2Start = outPhase == 2 ? c3C2Start : outPhase == 1 ? c2Start : outPhase == 3 ? lastC2Start : na
+    float outHi = outPhase == 2 ? c1High3 : outPhase == 1 ? c1High2 : outPhase == 3 ? lastHi : na
+    float outLo = outPhase == 2 ? c1Low3 : outPhase == 1 ? c1Low2 : outPhase == 3 ? lastLo : na
+    int outSweep = outPhase == 2 ? c3SweepEnd : outPhase == 1 ? c2SweepEnd : outPhase == 3 ? lastSweepAt : na
+    int outM5At = outPhase == 2 ? c3M5At : outPhase == 1 ? c2M5At : outPhase == 3 ? lastM5 : na
+    int outM15At = outPhase == 2 ? c3M15At : outPhase == 1 ? c2M15At : outPhase == 3 ? lastM15 : na
+    float outM5Level = outPhase == 2 ? c3Pivot5 : outPhase == 1 ? c2Pivot5 : outPhase == 3 ? lastM5Level : na
+    float outM15Level = outPhase == 2 ? c3Pivot15 : outPhase == 1 ? c2Pivot15 : outPhase == 3 ? lastM15Level : na
+    int outM5PivotAt = outPhase == 2 ? c3Pivot5At : outPhase == 1 ? c2Pivot5At : outPhase == 3 ? lastM5PivotAt : na
+    int outM15PivotAt = outPhase == 2 ? c3Pivot15At : outPhase == 1 ? c2Pivot15At : outPhase == 3 ? lastM15PivotAt : na
+    // El modelo es metadato independiente; phase y ticks MSS no cambian.
+    bool c3IdentityOK = outPhase == 2 and c3ModelC1 == outC1
+    bool lastIdentityOK = outPhase == 3 and lastModelC1 == outC1
+    bool rejectedRecent = outPhase == 0 and last2CClassification == "CRT_2C_EXPANSION" and not na(last2CClassificationAt) and barEnd >= last2CClassificationAt and barEnd - last2CClassificationAt < H4MS
+    string outModel = c3IdentityOK ? c3ModelKind : outPhase == 1 ? "PENDING" : lastIdentityOK ? lastModelKind : rejectedRecent ? "CRT_2C_EXPANSION" : "NONE"
+    bool outValid = c3IdentityOK ? c3PatternValid : lastIdentityOK ? lastPatternValid : false
+    string outPdhStatus = hasLiquidityRef ? (pdhTaken ? "TAKEN" : "INTACTO") : "N/D"
+    string outPdlStatus = hasLiquidityRef ? (pdlTaken ? "TAKEN" : "INTACTO") : "N/D"
+    bool pdhInDisplayedCRT = pdhTaken and outPhase > 0 and pdhSweepC1 == outC1 and (pdhSweepStage == 2 or pdhSweepStage == 3)
+    bool pdlInDisplayedCRT = pdlTaken and outPhase > 0 and pdlSweepC1 == outC1 and (pdlSweepStage == 2 or pdlSweepStage == 3)
+    // QA SOLO: FVG mas recientemente FORMADO en cada TF (no el ultimo vigente).
+    int qaCountH1 = array.size(fvgsH1)
+    int qaCodeH1 = -1
+    float qaTopH1 = na
+    float qaBottomH1 = na
+    float qaPenH1 = na
+    int qaFormH1 = na
+    int qaGapH1 = na
+    if qaCountH1 > 0
+        FvgContext qaH1 = array.get(fvgsH1, qaCountH1 - 1)
+        qaCodeH1 := f_fvg_code(qaH1.state)
+        qaTopH1 := qaH1.top
+        qaBottomH1 := qaH1.bottom
+        qaPenH1 := qaH1.maxPenetration * 100.0
+        qaFormH1 := qaH1.formedAt
+        qaGapH1 := qaH1.gapObservedAt
+    int qaCountH4 = array.size(fvgsH4)
+    int qaCodeH4 = -1
+    float qaTopH4 = na
+    float qaBottomH4 = na
+    float qaPenH4 = na
+    int qaFormH4 = na
+    int qaGapH4 = na
+    if qaCountH4 > 0
+        FvgContext qaH4 = array.get(fvgsH4, qaCountH4 - 1)
+        qaCodeH4 := f_fvg_code(qaH4.state)
+        qaTopH4 := qaH4.top
+        qaBottomH4 := qaH4.bottom
+        qaPenH4 := qaH4.maxPenetration * 100.0
+        qaFormH4 := qaH4.formedAt
+        qaGapH4 := qaH4.gapObservedAt
+    // No promover un MSS M5 a MSS M15 ni aceptar un cierre de 15m
+    // no visto por el agregador M15 del mismo proveedor.
+    bool validIndependent15 = not na(outM15At) and not na(outM15Level) and not na(outM15PivotAt) and not na(outSweep) and outM15PivotAt < outSweep and outM15At > outSweep and f_m15_phase_ok(outM15At, qaNativeSourcePhaseMin) and not na(lastCompleteM15CloseAt) and outM15At <= lastCompleteM15CloseAt
+    int verifiedM15At = validIndependent15 ? outM15At : na
+    // Clasificador QA de MODELOS, sin cambiar CRT ni eventos M5/M15.
+    // BTC+Forex mantienen C1, C2 y C3 H4 consecutivas obligatorias.
+    // Los modelos 2C, expansion e Inside NO se promueven a entradas
+    // por su etiqueta: esperan CRT 3C ratificado + MSS M15 cerrado.
+    string entryFamily = "NINGUNO"
+    string entryStage = "SIN CRT"
+    int entryConfirmedAt = na
+    if outPhase == 1
+        entryFamily := "CRT 2C CANDIDATO"
+        entryStage := "ESPERA CIERRE C2"
+    else if outPhase == 2 and outValid and outModel == "CRT_2C_RETURN"
+        bool confirmedM15 = not na(verifiedM15At) and not na(outM15PivotAt) and not na(outSweep) and outM15PivotAt < outSweep
+        if confirmedM15
+            // Confirmacion M15 en C2 se acepta SOLO tras ratificar C2.
+            bool m15WasC2 = not na(c3Start) and verifiedM15At <= c3Start
+            entryFamily := m15WasC2 ? "CRT 3C REV MSS C2" : "CRT 3C REV MSS C3"
+            entryStage := "M15 CONFIRMADO"
+            entryConfirmedAt := m15WasC2 ? c3Start : verifiedM15At
+        else
+            entryFamily := "CRT 3C REVERSAL"
+            entryStage := "ESPERA MSS M15"
+    else if rejectedRecent
+        entryFamily := "CRT EXPANSION"
+        entryStage := "DIAG NO ENTRADA"
+    else if outPhase == 3
+        entryFamily := "CRT 3C HISTORICO"
+        entryStage := "EXPIRADO"
+    // Familias extra: diagnostico de 4 H4 / retest M15 posterior.
+    // Ninguna crea confirmacion de entrada, y caducan con su contexto.
+    bool multiVisible = not na(qaMulti4At) and barEnd >= qaMulti4At and barEnd - qaMulti4At <= H4MS
+    string outMulti4Kind = multiVisible ? qaMulti4Kind : "MULTI4 ESP"
+    // Exigir evidencia coherente con el MSS M15 expuesto por este mismo CRT.
+    // Guarda contra un retest antiguo, un cambio de pivot o OHLC incongruente.
+    bool retestOHLCValid = not na(qaRetest15At) and not na(qaRetestSourceMssAt) and not na(qaRetest15Pivot) and not na(qaRetest15High) and not na(qaRetest15Low) and not na(qaRetest15Close) and qaRetest15High >= qaRetest15Low and qaRetest15Close <= qaRetest15High and qaRetest15Close >= qaRetest15Low and qaRetest15At > qaRetestSourceMssAt and qaRetest15At <= qaRetestSourceMssAt + 4 * 3600000 and (outDir == 1 ? qaRetest15Low <= qaRetest15Pivot and qaRetest15Close > qaRetest15Pivot : outDir == -1 ? qaRetest15High >= qaRetest15Pivot and qaRetest15Close < qaRetest15Pivot : false)
+    bool retestVisible = outPhase == 2 and not na(qaRetestCycleC1) and qaRetestCycleC1 == outC1 and not na(verifiedM15At) and qaRetestSourceMssAt == verifiedM15At and not na(outM15Level) and qaRetest15Pivot == outM15Level and retestOHLCValid
+    string outRetest15State = retestVisible ? "RETEST M15 QA" : outPhase == 2 and not na(verifiedM15At) ? "RETEST ESP" : "SIN MSS15"
+    int outRetest15At = retestVisible ? qaRetest15At : na
+    if retestVisible
+        qaLastRetest15At := outRetest15At
+    // Dentro de este modulo el Inside Bar H4 y su continuacion
+    // permanecen experimentales, sin adjudicar un MSS de otro ciclo.
+    string insideFamilyDiag = "NINGUNO"
+    string insideStageDiag = "SIN INSIDE"
+    int insideNum = array.size(insideCandidates)
+    if insideNum > 0
+        InsideCandidate insideLast = array.get(insideCandidates, insideNum - 1)
+        insideFamilyDiag := insideLast.modelKind == "INSIDE_RETURN_BULL" or insideLast.modelKind == "INSIDE_RETURN_BEAR" ? "INSIDE RETURN" : insideLast.state == "CONTINUATION" ? "INSIDE CONTINUATION" : insideLast.state == "SEEKING" or insideLast.state == "SWEPT" ? "INSIDE PENDIENTE" : "INSIDE DESCARTADO"
+        insideStageDiag := insideLast.state == "RATIFIED" ? "SOLO DIAGNOSTICO" : insideLast.state
+    // QA: encontrar un Inside RATIFIED aun cuando un candidato SEEKING
+    // posterior sea el ultimo del array. Expirar tras UNA H4.
+    bool extraInside = false
+    int extraInsideAt = na
+    int extraInsideC1 = na
+    int extraInsideDir = 0
+    int extraInsideSweep = na
+    float extraInsidePivot = na
+    int extraInsidePivotAt = na
+    int extraInsideMssAt = na
+    float extraInsidePivot5 = na
+    int extraInsidePivot5At = na
+    int extraInsideMss5At = na
+    if array.size(insideCandidates) > 0 and not na(barEnd)
+        for ii = 0 to array.size(insideCandidates) - 1
+            InsideCandidate q = array.get(insideCandidates, ii)
+            int closedAt = na(q.sweepH4Start) ? na : q.sweepH4Start + H4MS
+            bool ratifiedNow = q.state == "RATIFIED" and q.isPatternValid and (q.sweepDir == 1 or q.sweepDir == -1) and not na(q.c1Start) and not na(q.sweepAt) and not na(closedAt) and barEnd >= closedAt and barEnd < closedAt + H4MS
+            if ratifiedNow and (na(extraInsideAt) or closedAt >= extraInsideAt)
+                extraInside := true
+                extraInsideAt := closedAt
+                extraInsideC1 := q.c1Start
+                extraInsideDir := q.sweepDir
+                extraInsideSweep := q.sweepAt
+                extraInsidePivot := q.pivot15
+                extraInsidePivotAt := q.pivot15At
+                extraInsideMssAt := q.mss15At
+                extraInsidePivot5 := q.pivot5
+                extraInsidePivot5At := q.pivot5At
+                extraInsideMss5At := q.mss5At
+    // H4 auxiliares son mutuamente auditables, pero la UDT mantiene
+    // SOLO el evento QA mas reciente: nunca atribuir MSS del CRT base.
+    bool extraMulti = multiVisible and not na(qaMulti4C1) and (qaMulti4Kind == "MULTI4 BULL QA" or qaMulti4Kind == "MULTI4 BEAR QA")
+    bool extraMultiN = not na(qaMultiNAt) and barEnd >= qaMultiNAt and barEnd - qaMultiNAt < H4MS and not na(qaMultiNC1) and (qaMultiNDir == 1 or qaMultiNDir == -1)
+    // Solo un 3C TRUE con evidencia pre-sweep y C1/H4 propios puede
+    // ocupar los campos QA de confirmacion; de otro modo permanece N/V.
+    bool extraTrue3C = false
+    if not na(qaTrue3CConfirmed) and not na(qaTrue3CSignedAt) and not na(barEnd)
+        True3CMssCandidate q3 = qaTrue3CConfirmed
+        extraTrue3C := q3.c3Start + H4MS == math.abs(qaTrue3CSignedAt) and q3.direction == (qaTrue3CSignedAt > 0 ? 1 : -1) and not q3.doubleSweep and not na(q3.sweepAt) and barEnd >= q3.c3Start + H4MS and barEnd < q3.c3Start + 2 * H4MS
+    bool extraFamily = extraTrue3C or extraInside or extraMulti or extraMultiN
+    bool extraSelectInside = not extraTrue3C and extraInside and (not extraMulti or extraInsideAt >= qaMulti4At) and (not extraMultiN or extraInsideAt >= qaMultiNAt)
+    bool extraSelectMultiN = not extraTrue3C and not extraSelectInside and extraMultiN and (not extraMulti or qaMultiNAt >= qaMulti4At)
+    string extraKind = not extraFamily ? "NONE" : extraTrue3C ? "3C TRUE QA" : extraSelectInside ? "INSIDE QA" : extraSelectMultiN ? "MULTI-N QA" : "MULTI4 QA"
+    int extraC1 = not extraFamily ? na : extraTrue3C ? qaTrue3CConfirmed.c1Start : extraSelectInside ? extraInsideC1 : extraSelectMultiN ? qaMultiNC1 : qaMulti4C1
+    int extraDirection = not extraFamily ? 0 : extraTrue3C ? qaTrue3CConfirmed.direction : extraSelectInside ? extraInsideDir : extraSelectMultiN ? qaMultiNDir : qaMulti4Kind == "MULTI4 BULL QA" ? 1 : -1
+    int extraAt = not extraFamily ? na : extraTrue3C ? qaTrue3CConfirmed.c3Start + H4MS : extraSelectInside ? extraInsideAt : extraSelectMultiN ? qaMultiNAt : qaMulti4At
+    int extraSweepAt = not extraFamily ? na : extraTrue3C ? qaTrue3CConfirmed.sweepAt : extraSelectInside ? extraInsideSweep : extraSelectMultiN ? qaMultiNSweepAt : qaMulti4SweepAt
+    float extraPivot15 = not extraFamily ? na : extraTrue3C ? qaTrue3CConfirmed.pivot15 : extraSelectInside ? extraInsidePivot : extraSelectMultiN ? qaMultiNPivot15 : qaMulti4Pivot15
+    int extraPivotAt = not extraFamily ? na : extraTrue3C ? qaTrue3CConfirmed.pivot15At : extraSelectInside ? extraInsidePivotAt : extraSelectMultiN ? qaMultiNPivot15At : qaMulti4Pivot15At
+    int extraMssAt = not extraFamily ? na : extraTrue3C ? qaTrue3CConfirmed.mss15At : extraSelectInside ? extraInsideMssAt : extraSelectMultiN ? qaMultiNMss15At : qaMulti4Mss15At
+    float extraPivot5 = not extraFamily ? na : extraTrue3C ? qaTrue3CConfirmed.pivot5 : extraSelectInside ? extraInsidePivot5 : extraSelectMultiN ? qaMultiNPivot5 : qaMulti4Pivot5
+    int extraPivot5At = not extraFamily ? na : extraTrue3C ? qaTrue3CConfirmed.pivot5At : extraSelectInside ? extraInsidePivot5At : extraSelectMultiN ? qaMultiNPivot5At : qaMulti4Pivot5At
+    int extraMss5At = not extraFamily ? na : extraTrue3C ? qaTrue3CConfirmed.mss5At : extraSelectInside ? extraInsideMss5At : extraSelectMultiN ? qaMultiNMss5At : qaMulti4Mss5At
+    bool extraMss5Causal = extraFamily and not na(extraC1) and not na(extraSweepAt) and not na(extraPivot5) and not na(extraPivot5At) and not na(extraMss5At) and extraPivot5At < extraSweepAt and extraMss5At > extraSweepAt and extraMss5At <= extraAt + H4MS and extraMss5At % MIN5 == qaNativeSourcePhaseMin * 60000
+    // Distinta C1 y M15; no se hereda el pivote del CRT principal.
+    bool extraMssCausal = extraFamily and not na(extraC1) and not na(extraSweepAt) and not na(extraPivot15) and not na(extraPivotAt) and not na(extraMssAt) and extraPivotAt < extraSweepAt and extraMssAt > extraSweepAt and extraMssAt <= lastCompleteM15CloseAt and f_m15_phase_ok(extraMssAt, qaNativeSourcePhaseMin) and extraMssAt <= extraAt + H4MS
+    // Chart-level C1 evidence comes from the SAME f_engine M5 source.
+    // Exactly one family can own these two prices. Priority will match the
+    // owner monitor: current 2C > independent true3C > Inside/Multi QA.
+    int familyC1At = na
+    float familyC1Hi = na
+    float familyC1Lo = na
+    int familyEventAt = na
+    int familyDir = 0
+    string familyVisualKind = "NONE"
+    bool ownTrue3CClosed = not na(qaTrue3CSignedAt) and not na(barEnd) and barEnd >= math.abs(qaTrue3CSignedAt) and barEnd < math.abs(qaTrue3CSignedAt) + H4MS
+    if ownTrue3CClosed and array.size(qaMultiNHistory) >= 3
+        for visI = 2 to array.size(qaMultiNHistory) - 1
+            MultiH4 visC3 = array.get(qaMultiNHistory, visI)
+            if visC3.endAt == math.abs(qaTrue3CSignedAt)
+                MultiH4 visC1 = array.get(qaMultiNHistory, visI - 2)
+                familyC1At := visC1.startAt
+                familyC1Hi := visC1.hi
+                familyC1Lo := visC1.lo
+                familyEventAt := visC3.endAt
+                familyDir := qaTrue3CSignedAt > 0 ? 1 : -1
+                familyVisualKind := "3C TRUE QA"
+                break
+    // If no true3C won, look up the exact C1 of the selected Extra
+    // family. Different families cannot borrow the base 2C's CRH/CRL.
+    if familyVisualKind == "NONE" and extraFamily and not na(extraC1)
+        if extraSelectInside and array.size(insideCandidates) > 0
+            for visI = 0 to array.size(insideCandidates) - 1
+                InsideCandidate visInside = array.get(insideCandidates, visI)
+                if visInside.c1Start == extraC1 and visInside.state == "RATIFIED" and visInside.isPatternValid
+                    familyC1At := visInside.c1Start
+                    familyC1Hi := visInside.c1High
+                    familyC1Lo := visInside.c1Low
+                    familyEventAt := extraAt
+                    familyDir := extraDirection
+                    familyVisualKind := "INSIDE QA"
+                    break
+        else if extraSelectMultiN and array.size(qaMultiNHistory) > 0
+            for visI = 0 to array.size(qaMultiNHistory) - 1
+                MultiH4 visMultiN = array.get(qaMultiNHistory, visI)
+                if visMultiN.startAt == extraC1 and visMultiN.valid
+                    familyC1At := visMultiN.startAt
+                    familyC1Hi := visMultiN.hi
+                    familyC1Lo := visMultiN.lo
+                    familyEventAt := extraAt
+                    familyDir := extraDirection
+                    familyVisualKind := "MULTI-N QA"
+                    break
+        else if array.size(qaFourH4) > 0
+            for visI = 0 to array.size(qaFourH4) - 1
+                MultiH4 visMulti4 = array.get(qaFourH4, visI)
+                if visMulti4.startAt == extraC1 and visMulti4.valid
+                    familyC1At := visMulti4.startAt
+                    familyC1Hi := visMulti4.hi
+                    familyC1Lo := visMulti4.lo
+                    familyEventAt := extraAt
+                    familyDir := extraDirection
+                    familyVisualKind := "MULTI4 QA"
+                    break
+    bool familyHasOwnC1 = familyVisualKind != "NONE" and not na(familyC1At) and not na(familyC1Hi) and not na(familyC1Lo) and familyC1Hi > familyC1Lo and familyDir != 0 and not na(familyEventAt)
+    FamilyVisual outFamilyVisual = FamilyVisual.new(familyC1At, familyC1Hi, familyC1Lo, familyEventAt, familyDir, familyVisualKind, familyHasOwnC1)
+    // V34.11a: dedicated QA evidence for all SEVEN legacy category roles.
+    // Inside CONTINUATION is an observed rejection, never a live CRT.
+    bool insideContinuationNow = false
+    if array.size(insideCandidates) > 0 and not na(barEnd)
+        for catI = 0 to array.size(insideCandidates) - 1
+            InsideCandidate q = array.get(insideCandidates, catI)
+            int endOfInsideH4 = na(q.sweepH4Start) ? na : q.sweepH4Start + H4MS
+            if q.state == "CONTINUATION" and not na(endOfInsideH4) and barEnd >= endOfInsideH4 and barEnd < endOfInsideH4 + H4MS
+                insideContinuationNow := true
+    // Bit 1 is the TRUE independent 3C: C2 setup, C3 sweep of C1.
+    // Old category3C=outPhase==2 was merely the 2C pattern during C3.
+    bool category2CActiveC3 = outPhase == 2 and outValid and outModel == "CRT_2C_RETURN"
+    bool categoryTrue3C = not na(qaTrue3CSignedAt) and not na(barEnd) and barEnd >= math.abs(qaTrue3CSignedAt) and barEnd < math.abs(qaTrue3CSignedAt) + H4MS
+    bool category2CPending = outPhase == 1 and not na(outC1)
+    bool category2CExpansion = rejectedRecent
+    bool categoryInsideReturn = extraInside
+    bool categoryInsideContinuation = insideContinuationNow
+    bool categoryMultiCandle = extraMulti or extraMultiN
+    bool categoryM15Retest = retestVisible
+    int qaCatalogMask = (categoryTrue3C ? 1 : 0) + (category2CPending ? 2 : 0) + (category2CExpansion ? 4 : 0) + (categoryInsideReturn ? 8 : 0) + (categoryInsideContinuation ? 16 : 0) + (categoryMultiCandle ? 32 : 0) + (categoryM15Retest ? 64 : 0)
+    Signal.new(outPhase, outDir, outC1, outHi, outLo, outSweep, outM5At, verifiedM15At, outM5Level, outM15Level, outM5PivotAt, outM15PivotAt, outModel, outValid, outPdhStatus, outPdlStatus, pdhSweepAt, pdlSweepAt, pdhSweepStage, pdlSweepStage, pdhSweepC1, pdlSweepC1, outC2Start, outPhase == 2 ? c3Start : na, liquidityRefAt, pdhInDisplayedCRT, pdlInDisplayedCRT, qaCountH1, qaCodeH1, qaTopH1, qaBottomH1, qaPenH1, qaFormH1, qaGapH1, qaCountH4, qaCodeH4, qaTopH4, qaBottomH4, qaPenH4, qaFormH4, qaGapH4, bucketH4, h4Count, hasLiquidityRef ? prev_PDH : na, hasLiquidityRef ? prev_PDL : na, hasLiquidityRef ? prev_timestamp : na, currentChartDay, currentChartHigh, currentChartLow, currentChartContinuous, qaC1Ready, qaC2Ratified, qaLastC2Gate, not na(bucketH4) ? hour(bucketH4, TZ) : na, lastCompleteM15CloseAt, entryFamily, entryStage, entryConfirmedAt, insideFamilyDiag, insideStageDiag, outMulti4Kind, multiVisible ? qaMulti4At : na, outRetest15State, outRetest15At, retestVisible ? qaRetest15High : na, retestVisible ? qaRetest15Low : na, retestVisible ? qaRetest15Close : na, retestVisible ? qaRetest15Pivot : na, extraKind, extraFamily, extraC1, extraDirection, extraAt, extraMultiN ? qaMultiNKind : "MULTI-N ESP", extraMultiN ? qaMultiNAt : na, extraSweepAt, extraPivot15, extraPivotAt, extraMssCausal ? extraMssAt : na, extraC1, qaAudit2C, qaAudit3C, qaAuditInside, qaAuditM4, qaAuditMN, qaAuditC2Data, qaAuditC2Double, qaAuditC2NoSweep, qaAuditC2Outside, qaAuditC2Hour, qaAuditC3Invalid, qaAuditInsideData, qaAuditInsideDouble, qaAuditInsideOther, qaAuditInsideExpire, qaAuditMNNoTerminal, qaAuditMNDouble, qaAuditMNOutside, qaAuditH4Incomplete, qaAuditH4DST, qaAuditH4Session, qaAuditH4Internal, qaAuditC1H4Closed, qaAuditC1HourCandidates, qaAuditC1BadClock, qaAuditC1BadData, qaAuditC1BadRange, qaCatalogMask, qaH4BadStart, qaH4BadEnd, qaH4BadBars, qaH4LastBars, qaH4LastStartOffsetMin, qaH4LastEndOffsetMin, qaLastM5PhaseMin, qaNativeSourcePhaseMin, qaLastCandidate2CAt, qaLastRatified2CAt, qaLastRejectedExpansionAt, qaLastConfirmed3CAt, qaLastInsideReturnAt, qaLastInsideContinuationAt, qaLastMulti4At, qaLastMultiNAt, qaLastRetest15At, qaLastCandidate2CCycle, qaTrue3CSignedAt, outFamilyVisual, extraMss5Causal ? extraPivot5 : na, extraMss5Causal ? extraPivot5At : na, extraMss5Causal ? extraMss5At : na, extraMss5Causal ? extraC1 : na)
+
+// ============================================================================
+// QORE CRT TRADER R1 - SIMULACION DEL INDICADOR ORIGINAL POR GRAFICO
+// Un solo motor nativo f_engine() sobre M5, sin request.security().
+// Las siete familias son hipotesis, NO categorias aprobadas de trading.
+// Pine permite strategy.* para el simbolo actual, no 34 ordenes simultaneas.
+// Todo el backtest permanece NO CERTIFICADO hasta paridad y datos de broker.
+// ============================================================================
+string trGrp = "QORE Trader R1 / Investigación (NO LIVE)"
+trEnable = input.bool(false, "Habilitar SOLO ordenes simuladas", group=trGrp)
+trModel = input.string("F1 | CRT 2C MSS15 C2", "Familia del ensayo", options=["F1 | CRT 2C MSS15 C2", "F2 | CRT 2C MSS15 C3", "F3 | TRUE 3C MSS5", "F4 | INSIDE MSS15", "F5 | MULTI4 MSS15", "F6 | MULTI-N MSS15", "F7 | RETEST M15", "ALL | 7 familias (conflictos bloqueados)"], group=trGrp)
+trQty = input.float(1.0, "Cantidad fija hipotetica (NO lotes verificados)", minval=0.000001, maxval=100000, group=trGrp)
+trSLBuffer = input.float(0.15, "Buffer SL / rango C1", minval=0.01, maxval=2.0, step=0.01, group=trGrp)
+trMinRR = input.float(1.0, "R:R minimo antes de aceptar operacion", minval=0.1, maxval=10, step=0.1, group=trGrp)
+trMaxRiskPercent = input.float(5.0, "Riesgo precio maximo relativo a entrada (%)", minval=0.05, maxval=30, step=0.05, group=trGrp)
+trPlot = input.bool(true, "Dibujar entradas hipoteticas", group=trGrp)
+trStrict = input.bool(true, "Exigir H4 NY fase 0 del proveedor", group=trGrp, tooltip="La reconstruccion H4 con fase +1/+2m continua en QA; desactivar NO certifica paridad de proveedor.")
+
+// Mismo catalogo de 34 feeds IC, extraido del Pine fuente inmovil.
+var array<string> qoreUniverse = array.from("IC:AUDJPY", "IC:GBPUSD", "IC:GBPJPY", "IC:XAUUSD", "IC:USTEC", "IC:US500", "IC:US30", "IC:BTCUSD", "IC:AUDUSD", "IC:USDCAD", "IC:USDJPY", "IC:EURUSD", "IC:USDCHF", "IC:NZDUSD", "IC:NZDJPY", "IC:NZDCHF", "IC:XAGUSD", "IC:AUDCAD", "IC:AUDCHF", "IC:AUDNZD", "IC:CADCHF", "IC:CADJPY", "IC:CHFJPY", "IC:EURAUD", "IC:EURCAD", "IC:EURCHF", "IC:EURGBP", "IC:EURJPY", "IC:EURNZD", "IC:GBPAUD", "IC:GBPCAD", "IC:GBPCHF", "IC:GBPNZD", "IC:NZDCAD")
+string trTicker = ticker.standard(syminfo.tickerid)
+bool trKnown = str.upper(syminfo.prefix) == "IC" and array.includes(qoreUniverse, trTicker)
+bool trIsM5 = timeframe.isminutes and timeframe.multiplier == 5
+bool trIsFlat = strategy.position_size == 0 and strategy.opentrades == 0
+
+// f_engine lee SOLO time[1]/OHLC[1] CERRADO del mismo M5. Cada barra
+// historica recibe su Signal completo: ninguna fuente ajena al grafico.
+Signal tr = f_engine()
+int trEndClosed = time_close[1]
+bool trPhaseOK = not na(tr.qaSourcePhaseMin) and tr.qaSourcePhaseMin >= 0 and tr.qaSourcePhaseMin <= 4
+bool trReady = trEnable and trKnown and trIsM5 and barstate.isconfirmed and not na(trEndClosed) and trPhaseOK and (not trStrict or tr.qaSourcePhaseMin == 0)
+bool trCoreGeom = trReady and tr.phase == 2 and tr.isPatternValid and tr.modelKind == "CRT_2C_RETURN" and not na(tr.crtRatifiedAt) and not na(tr.c1Start) and not na(tr.crtC2Start) and tr.crtRatifiedAt >= tr.crtC2Start + H4MS and not na(tr.crh) and not na(tr.crl) and tr.crh > tr.crl and (tr.direction == 1 or tr.direction == -1) and not na(tr.sweepAt) and not na(tr.m15PivotAt) and tr.m15PivotAt < tr.sweepAt and not na(tr.m15At) and tr.m15At > tr.sweepAt and f_m15_phase_ok(tr.m15At, tr.qaSourcePhaseMin) and tr.m15At <= tr.qaLastClosedM15At
+bool trExtraGeom = trReady and tr.extraFamilyValid and not na(tr.extraFamilyC1) and not na(tr.extraFamilyRatifiedAt) and tr.extraFamilyRatifiedAt <= trEndClosed and (tr.extraFamilyDirection == 1 or tr.extraFamilyDirection == -1) and not na(tr.familyVisual) and tr.familyVisual.structuralQA and tr.familyVisual.c1Start == tr.extraFamilyC1 and tr.familyVisual.eventClosedAt == tr.extraFamilyRatifiedAt and tr.familyVisual.direction == tr.extraFamilyDirection and not na(tr.familyVisual.c1High) and not na(tr.familyVisual.c1Low) and tr.familyVisual.c1High > tr.familyVisual.c1Low
+bool trExtraM15Own = trExtraGeom and tr.extraFamilyM15C1 == tr.extraFamilyC1 and not na(tr.extraFamilySweepAt) and not na(tr.extraFamilyM15Pivot) and not na(tr.extraFamilyM15PivotAt) and tr.extraFamilyM15PivotAt < tr.extraFamilySweepAt and not na(tr.extraFamilyM15At) and tr.extraFamilyM15At > tr.extraFamilySweepAt and tr.extraFamilyM15At <= tr.extraFamilyRatifiedAt and tr.extraFamilyM15At <= tr.qaLastClosedM15At and f_m15_phase_ok(tr.extraFamilyM15At, tr.qaSourcePhaseMin)
+bool trExtraM5Own = trExtraGeom and tr.extraFamilyM5C1 == tr.extraFamilyC1 and not na(tr.extraFamilySweepAt) and not na(tr.extraFamilyM5Pivot) and not na(tr.extraFamilyM5PivotAt) and tr.extraFamilyM5PivotAt < tr.extraFamilySweepAt and not na(tr.extraFamilyM5At) and tr.extraFamilyM5At > tr.extraFamilySweepAt and tr.extraFamilyM5At <= tr.extraFamilyRatifiedAt and tr.extraFamilyM5At <= trEndClosed and tr.extraFamilyM5At % MIN5 == tr.qaSourcePhaseMin * 60000
+bool trRetest = trCoreGeom and tr.retest15State == "RETEST M15 QA" and not na(tr.retest15At) and tr.retest15At > tr.m15At and tr.retest15At <= trEndClosed and tr.retest15At <= tr.m15At + H4MS and not na(tr.retest15High) and not na(tr.retest15Low) and not na(tr.retest15Close) and tr.retest15Low <= tr.retest15Close and tr.retest15Close <= tr.retest15High and not na(tr.retest15Pivot) and tr.retest15Pivot == tr.m15Level
+
+// Guardas estrictas: catalogMask 2/4/16, CRT pendientes/expansiones/
+// historicos, y QA sin MSS propio JAMAS pueden abrir posiciones.
+bool trF1 = trCoreGeom and tr.entryFamily == "CRT 3C REV MSS C2" and tr.entryStage == "M15 CONFIRMADO" and tr.entryConfirmedAt == tr.crtRatifiedAt and tr.entryConfirmedAt <= trEndClosed
+bool trF2 = trCoreGeom and tr.entryFamily == "CRT 3C REV MSS C3" and tr.entryStage == "M15 CONFIRMADO" and tr.entryConfirmedAt == tr.m15At and tr.entryConfirmedAt <= trEndClosed and tr.m15At > tr.crtRatifiedAt
+bool trF3 = trExtraM5Own and tr.extraFamilyKind == "3C TRUE QA"
+bool trF4 = trExtraM15Own and tr.extraFamilyKind == "INSIDE QA"
+bool trF5 = trExtraM15Own and tr.extraFamilyKind == "MULTI4 QA"
+bool trF6 = trExtraM15Own and tr.extraFamilyKind == "MULTI-N QA"
+bool trF7 = trRetest
+var array<string> trSeen = array.new_string(7, "")
+var int trSignalsSeen = 0
+var int trRejectedRisk = 0
+var int trConflicts = 0
+var int trSubmitted = 0
+bool trPlaced = false
+string trPlacedName = "NONE"
+int trCountNow = 0
+int trOnlyIndex = -1
+int trOnlyDirection = 0
+int trOnlyAt = na
+int trOnlyC1 = na
+float trOnlyHi = na
+float trOnlyLo = na
+float trOnlyRetestHi = na
+float trOnlyRetestLo = na
+for j = 0 to 6
+    bool on = j == 0 ? trF1 : j == 1 ? trF2 : j == 2 ? trF3 : j == 3 ? trF4 : j == 4 ? trF5 : trF6
+    if j == 6
+        on := trF7
+    bool selected = trModel == "ALL | 7 familias (conflictos bloqueados)" or (j == 0 and trModel == "F1 | CRT 2C MSS15 C2") or (j == 1 and trModel == "F2 | CRT 2C MSS15 C3") or (j == 2 and trModel == "F3 | TRUE 3C MSS5") or (j == 3 and trModel == "F4 | INSIDE MSS15") or (j == 4 and trModel == "F5 | MULTI4 MSS15") or (j == 5 and trModel == "F6 | MULTI-N MSS15") or (j == 6 and trModel == "F7 | RETEST M15")
+    int eventAt = j == 0 ? tr.entryConfirmedAt : j == 1 ? tr.entryConfirmedAt : j == 6 ? tr.retest15At : tr.extraFamilyRatifiedAt
+    int eventC1 = j < 2 or j == 6 ? tr.c1Start : tr.extraFamilyC1
+    int eventDir = j < 2 or j == 6 ? tr.direction : tr.extraFamilyDirection
+    string eventKey = str.tostring(eventC1) + "|" + str.tostring(eventAt)
+    bool newEvent = on and selected and not na(eventAt) and eventAt <= trEndClosed and not na(eventC1) and array.get(trSeen, j) != eventKey
+    if newEvent
+        array.set(trSeen, j, eventKey)
+        trSignalsSeen += 1
+        trCountNow += 1
+        trOnlyIndex := j
+        trOnlyDirection := eventDir
+        trOnlyAt := eventAt
+        trOnlyC1 := eventC1
+        trOnlyHi := j < 2 or j == 6 ? tr.crh : tr.familyVisual.c1High
+        trOnlyLo := j < 2 or j == 6 ? tr.crl : tr.familyVisual.c1Low
+        trOnlyRetestHi := j == 6 ? tr.retest15High : na
+        trOnlyRetestLo := j == 6 ? tr.retest15Low : na
+
+if trCountNow > 1
+    // ALL nunca escoge arbitrariamente una familia de la misma vela.
+    trConflicts += 1
+else if trCountNow == 1 and trIsFlat
+    float range = trOnlyHi - trOnlyLo
+    float buffer = math.max(syminfo.mintick, range * trSLBuffer)
+    float lo = trOnlyIndex == 6 and not na(trOnlyRetestLo) ? trOnlyRetestLo : trOnlyLo
+    float hi = trOnlyIndex == 6 and not na(trOnlyRetestHi) ? trOnlyRetestHi : trOnlyHi
+    float stopPx = trOnlyDirection == 1 ? lo - buffer : hi + buffer
+    float targetPx = trOnlyDirection == 1 ? trOnlyHi : trOnlyLo
+    float risk = trOnlyDirection == 1 ? close - stopPx : stopPx - close
+    float reward = trOnlyDirection == 1 ? targetPx - close : close - targetPx
+    bool geometryOK = range > syminfo.mintick and not na(stopPx) and not na(targetPx) and stopPx > 0 and targetPx > 0 and risk > syminfo.mintick and reward > syminfo.mintick and reward / risk >= trMinRR and risk / close * 100 <= trMaxRiskPercent
+    if geometryOK
+        string familyName = trOnlyIndex == 0 ? "F1_C2" : trOnlyIndex == 1 ? "F2_C3" : trOnlyIndex == 2 ? "F3_TRUE3C" : trOnlyIndex == 3 ? "F4_INSIDE" : trOnlyIndex == 4 ? "F5_MULTI4" : trOnlyIndex == 5 ? "F6_MULTIN" : "F7_RETEST"
+        if trOnlyDirection == 1
+            strategy.entry("QORE-L", strategy.long, qty=trQty, comment=familyName)
+            strategy.exit("QORE-LX", from_entry="QORE-L", stop=stopPx, limit=targetPx, comment="R1_SLTP")
+        else
+            strategy.entry("QORE-S", strategy.short, qty=trQty, comment=familyName)
+            strategy.exit("QORE-SX", from_entry="QORE-S", stop=stopPx, limit=targetPx, comment="R1_SLTP")
+        trSubmitted += 1
+        trPlaced := true
+        trPlacedName := familyName
+    else
+        trRejectedRisk += 1
+
+plotshape(trPlot and trPlaced and trOnlyDirection == 1, title="QA BUY simulado", style=shape.triangleup, location=location.belowbar, size=size.tiny, color=color.teal, text="QA L")
+plotshape(trPlot and trPlaced and trOnlyDirection == -1, title="QA SELL simulado", style=shape.triangledown, location=location.abovebar, size=size.tiny, color=color.orange, text="QA S")
+plot(trKnown and trIsM5 ? trSignalsSeen : na, title="QA eventos familiares", display=display.data_window)
+plot(trSubmitted, title="QA ordenes hipoteticas enviadas al emulador", display=display.data_window)
+plot(trConflicts, title="QA grupos simultaneos bloqueados", display=display.data_window)
+plot(trRejectedRisk, title="QA señales rechazadas por SL/TP/R:R", display=display.data_window)
+
+var table trBoard = table.new(position.bottom_right, 1, 5, border_width=1)
+if barstate.islast
+    string trStatus = not trKnown ? "BLOQUEADO: fuera de 34 IC" : not trIsM5 ? "BLOQUEADO: abrir M5" : not trEnable ? "QA SIN ENTRADAS: activar simulacion" : trStrict and not trPhaseOK ? "QA SIN FASE DE FUENTE" : "QA ESTRATEGIA EXPERIMENTAL"
+    table.cell(trBoard, 0, 0, "QORE CRT TRADER R1 | NO LIVE", text_color=color.white, bgcolor=color.rgb(22, 38, 54))
+    table.cell(trBoard, 0, 1, trStatus, text_color=color.orange, bgcolor=color.new(color.black, 40))
+    table.cell(trBoard, 0, 2, "34 MERCADOS UNO POR GRAFICO", text_color=color.white, bgcolor=color.new(color.black, 40))
+    table.cell(trBoard, 0, 3, "Eventos: " + str.tostring(trSignalsSeen) + " | Ordenes QA: " + str.tostring(trSubmitted), text_color=color.white, bgcolor=color.new(color.black, 40))
+    table.cell(trBoard, 0, 4, "PINE COMPILACION Y PARIDAD PENDIENTES", text_color=color.orange, bgcolor=color.new(color.black, 40))
