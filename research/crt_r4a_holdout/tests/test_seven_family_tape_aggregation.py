@@ -10,13 +10,13 @@ from pathlib import Path
 from research.crt_r4a_holdout.aggregate_seven_family_events import (
     validate_event_tape,
 )
+from research.crt_r4a_holdout.economic_replay_io import digest
 from research.crt_r4a_holdout.seven_family_contract import Family
 from research.crt_r4a_holdout.seven_family_event_tape import (
+    GATES_NOT_SATISFIED,
     PINE_BLOB,
     SCHEMA,
-    GATES_NOT_SATISFIED,
 )
-from research.crt_r4a_holdout.economic_replay_io import digest
 
 T = datetime(2024, 2, 1, 8, tzinfo=UTC)
 
