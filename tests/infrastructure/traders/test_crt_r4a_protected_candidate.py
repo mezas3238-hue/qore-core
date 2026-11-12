@@ -130,13 +130,12 @@ class TestCRTR4AProtectedCandidate(unittest.TestCase):
             replace(self.risk, environment=MarketRuntimeEnvironment.PRODUCTION)
 
     def test_06_rejects_unknown_market_or_provider_feed(self) -> None:
-        for changes in (
-            {"symbol": "USDTRY"},
-            {"source_feed": "OANDA"},
-            {"source_pine_blob": "0" * 40},
-        ):
-            with self.subTest(changes=changes), self.assertRaises(CRTCandidateError):
-                replace(self.signal, **changes)
+        with self.assertRaises(CRTCandidateError):
+            replace(self.signal, symbol="USDTRY")
+        with self.assertRaises(CRTCandidateError):
+            replace(self.signal, source_feed="OANDA")
+        with self.assertRaises(CRTCandidateError):
+            replace(self.signal, source_pine_blob="0" * 40)
 
     def test_07_rejects_foreign_quote_broker(self) -> None:
         with self.assertRaises(CRTCandidateError):
