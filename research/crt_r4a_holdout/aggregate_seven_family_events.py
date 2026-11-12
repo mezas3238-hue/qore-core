@@ -280,7 +280,7 @@ def main() -> None:
                 (by_symbol / f"{row['canonical_symbol']}.jsonl").write_bytes(payload)
                 digest.update(payload)
                 combined.write(payload)
-                n += payload.count(b"\\n")
+                n += payload.count(bytes((10,)))
         if n != report["totals"]["family_event_sum_not_unique_trades"]:
             raise ValueError("consolidated event tape count mismatch")
         report["totals"]["all_events_sha256"] = digest.hexdigest()
