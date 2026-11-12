@@ -375,15 +375,16 @@ def test_protected_market_needs_both_native_levels() -> None:
     submission = _submission(suffix=102)
     base = build_ctrader_demo_order_create_plan(_configuration(), submission)
     assert isinstance(base, Success)
-    for only in (
-        {"relative_stop_loss": 700},
-        {"relative_take_profit": 1700},
-    ):
-        try:
-            replace(base.value, **only)
-            assert False, "missing paired protection was accepted"
-        except CTraderDemoExecutionValidationError:
-            pass
+    try:
+        replace(base.value, relative_stop_loss=700)
+        assert False, "missing take profit accepted"
+    except CTraderDemoExecutionValidationError:
+        pass
+    try:
+        replace(base.value, relative_take_profit=1700)
+        assert False, "missing stop loss accepted"
+    except CTraderDemoExecutionValidationError:
+        pass
 
 
 def test_native_market_levels_reject_zero_negative_bool() -> None:
