@@ -44,6 +44,10 @@ class ObservedFamily:
     has_parent_owned_mss: bool = False
     independently_mss_certified: bool = False
     broker_orders_executed: int = 0
+    retest_high: float | None = None
+    retest_low: float | None = None
+    retest_close: float | None = None
+    retest_closed_at: datetime | None = None
 
 
 class SecondaryGeometryObserver:
@@ -62,6 +66,7 @@ class SecondaryGeometryObserver:
         self, family: Family, g: Geometry, *,
         parent: str | None = None,
         own_parent_mss: bool = False,
+        source_m15: M15Close | None = None,
     ) -> None:
         key = (family, g.c1_at, g.ratified_at)
         if key in self._seen:
@@ -72,7 +77,11 @@ class SecondaryGeometryObserver:
             parent, own_parent_mss,
             # Geometry, even after a retest of parent MSS, is not a
             # certified own independent MSS.
-            False,
+            False, 0,
+            source_m15.high if source_m15 is not None else None,
+            source_m15.low if source_m15 is not None else None,
+            source_m15.close if source_m15 is not None else None,
+            source_m15.closed_at if source_m15 is not None else None,
         ))
 
     def on_closed_h4(self, closed: ClosedH4 | None) -> None:
@@ -119,7 +128,8 @@ class SecondaryGeometryObserver:
             if g is not None:
                 self._register(
                     Family.M15_RETEST, g,
-                    parent=event.identity, own_parent_mss=True
+                    parent=event.identity, own_parent_mss=True,
+                    source_m15=closed,
                 )
                 self._retested_parents.add(event.identity)
 

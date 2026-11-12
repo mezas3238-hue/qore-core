@@ -80,6 +80,11 @@ class AuxiliaryMssEvent:
     own_pivot_frozen_pre_sweep: bool = True
     broker_orders_executed: int = 0
     pine_parity_certified: bool = False
+    c1_high: float | None = None
+    c1_low: float | None = None
+    terminal_high: float | None = None
+    terminal_low: float | None = None
+    terminal_close: float | None = None
 
 
 class AuxiliaryOwnedMss:
@@ -99,7 +104,9 @@ class AuxiliaryOwnedMss:
     def _count(self, key: str) -> None:
         self.stats[key] = self.stats.get(key, 0) + 1
 
-    def _emit(self, p: AuxiliaryPending, g: Geometry) -> None:
+    def _emit(
+        self, p: AuxiliaryPending, g: Geometry, terminal: ClosedH4
+    ) -> None:
         pivot = p.own_pivot15
         if (
             p.double_sweep or p.direction == 0
@@ -132,6 +139,9 @@ class AuxiliaryOwnedMss:
             p.c1.opened_at, p.sweep_at,
             pivot.pivot_at, pivot.level, p.own_mss15_at,
             g.ratified_at, max(g.ratified_at, p.own_mss15_at),
+            c1_high=p.c1.high, c1_low=p.c1.low,
+            terminal_high=terminal.high, terminal_low=terminal.low,
+            terminal_close=terminal.close,
         ))
         self._count("signals_" + p.family.value)
 
@@ -179,7 +189,7 @@ class AuxiliaryOwnedMss:
                     # A missing MSS on this owner means NO signal, not fallback.
                     multi_n_geometry_selected = True
                 self._count("geometry_" + p.family.value)
-                self._emit(p, g)
+                self._emit(p, g, closed)
         self.pending = [
             p for p in self.pending if p.terminal_end > closed.closed_at
         ]
