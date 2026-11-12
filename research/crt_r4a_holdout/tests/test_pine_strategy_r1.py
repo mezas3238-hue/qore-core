@@ -225,7 +225,7 @@ class PineR1SourceQA(unittest.TestCase):
             self.adapter,
         )
         self.assertIn(
-            "bar_index - trLastEntryBar >= trMaxHoldM5",
+            "bar_index - trLastEntryBar >= trMaxHoldM5 or trClockExpired",
             self.adapter,
         )
         self.assertIn(
@@ -305,6 +305,24 @@ class PineR1SourceQA(unittest.TestCase):
         self.assertIn('"NO BID/ASK"', self.adapter)
         self.assertIn('"NO CERT"', self.adapter)
         self.assertIn('"SIN SWAP"', self.adapter)
+
+
+    def test_21_calendar_gaps_also_trigger_bounded_exit(self) -> None:
+        self.assertIn(
+            "strategy.opentrades.entry_time(0)", self.adapter
+        )
+        self.assertIn(
+            "time_close - strategy.opentrades.entry_time(0) >= "
+            "trMaxHoldM5 * MIN5",
+            self.adapter,
+        )
+        self.assertIn(
+            "or trClockExpired", self.adapter
+        )
+        self.assertIn(
+            'strategy.close("QORE-S", comment="QA_TIME_STOP")',
+            self.adapter,
+        )
 
 
 if __name__ == "__main__":
