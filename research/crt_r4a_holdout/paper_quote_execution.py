@@ -183,6 +183,10 @@ def simulate_single(
         previous, last_end = bar.opened_at, bar.closed_at
         if bar.opened_at < plan.available_at:
             continue  # No intrabar fill from a candle already open at signal.
+        # Expiration is known by the clock even without a later quote;
+        # it cannot be misclassified as a missing-market-data profit.
+        if entry is None and bar.opened_at >= plan.expiry_at:
+            return PaperResult("EXPIRED_NO_FILL", **ref)
         # The first tradable M5 must exist within one full candle of signal
         # availability. Reject an apparently profitable fill after missing M5.
         if entry is None and bar.opened_at - plan.available_at >= M5:
