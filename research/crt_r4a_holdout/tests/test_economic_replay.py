@@ -46,8 +46,18 @@ def ticket(
         symbol=symbol, provider_cohort=provider,
         family=family, source_event_id=name,
         direction=1, mss_at=T - timedelta(minutes=15),
-        ratified_at=T, available_at=at,
+        ratified_at=(
+            T - timedelta(minutes=30)
+            if family is Family.TWO_C_MSS_C3 else T
+        ), available_at=at,
         geometry=G, atr_h4=D("4"), price_tick=D("0.1"),
+    )
+
+
+def no_fill_bar(index: int = 0) -> BidAskM5:
+    return bar(
+        index, bo="112", bh="113", bl="111", bc="112",
+        ao="112.2", ah="113.2", al="112", ac="112.2",
     )
 
 
@@ -72,7 +82,7 @@ class SevenFamilyBridgeQA(unittest.TestCase):
         self.assertEqual(result.broker_orders_executed, 0)
 
     def test_02_no_realized_pnl_when_limit_never_fills(self) -> None:
-        quotes = tape(bar(0, al="110.0"))
+        quotes = tape(no_fill_bar())
         result = replay_symbol((ticket(),), quotes, quantity=D("1"))
         self.assertEqual(result.all_families.closed, 0)
         self.assertIsNone(result.all_families.net_quote)
@@ -87,7 +97,7 @@ class SevenFamilyBridgeQA(unittest.TestCase):
         self.assertEqual(result.observations[0].result.entry_fill, D("110.3"))
 
     def test_04_all_seven_families_are_accounted_individually(self) -> None:
-        quotes = tape(bar(0, al="112.0"))
+        quotes = tape(no_fill_bar())
         result = replay_symbol(
             tuple(ticket(f, name=f.value) for f in Family),
             quotes, quantity=D("1"),
@@ -112,7 +122,7 @@ class SevenFamilyBridgeQA(unittest.TestCase):
         )
 
     def test_06_opposite_family_same_id_can_be_distinct_events(self) -> None:
-        quotes = tape(bar(0, al="112.0"))
+        quotes = tape(no_fill_bar())
         r = replay_symbol(
             (ticket(name="one"), ticket(Family.MULTI4, name="one")),
             quotes, quantity=D("1"),
@@ -194,6 +204,27 @@ class SevenFamilyBridgeQA(unittest.TestCase):
         self.assertEqual(result.all_families.closed, 0)
         self.assertEqual(result.all_families.blocked, 1)
         self.assertEqual(result.observations[0].status, "BLOCKED_QUOTE_GAP")
+
+
+    def test_19_wrong_c3_mss_timing_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "own-family"):
+            FrozenResearchSignal(
+                symbol="EURUSD", provider_cohort="SYNTHETIC_TEST_ONLY",
+                family=Family.TWO_C_MSS_C3, source_event_id="invalid",
+                direction=1, mss_at=T - timedelta(minutes=15),
+                ratified_at=T, available_at=T,
+                geometry=G, atr_h4=D("4"), price_tick=D("0.1"),
+            )
+
+    def test_20_wrong_c2_mss_timing_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "own-family"):
+            FrozenResearchSignal(
+                symbol="EURUSD", provider_cohort="SYNTHETIC_TEST_ONLY",
+                family=Family.TWO_C_MSS_C2, source_event_id="invalid",
+                direction=1, mss_at=T + timedelta(minutes=5),
+                ratified_at=T, available_at=T + timedelta(minutes=5),
+                geometry=G, atr_h4=D("4"), price_tick=D("0.1"),
+            )
 
 
 if __name__ == "__main__":

@@ -172,9 +172,21 @@ def simulate_single(
             raise ValueError("requires actual bid/ask M5 quote bars")
         if previous is not None and bar.opened_at <= previous:
             raise ValueError("nonmonotone quote tape")
+        # A quote discontinuity while an order can be pending/open invalidates
+        # the entire sample. Never guess stop/target sequencing through gaps.
+        if previous is not None and bar.opened_at - previous != M5:
+            if entry is not None or previous >= plan.available_at:
+                return PaperResult(
+                    "BLOCKED_QUOTE_GAP", **ref,
+                    entry_at=entry_at, entry_fill=entry,
+                )
         previous, last_end = bar.opened_at, bar.closed_at
         if bar.opened_at < plan.available_at:
             continue  # No intrabar fill from a candle already open at signal.
+        # The first tradable M5 must exist within one full candle of signal
+        # availability. Reject an apparently profitable fill after missing M5.
+        if entry is None and bar.opened_at - plan.available_at >= M5:
+            return PaperResult("BLOCKED_QUOTE_GAP", **ref)
         just_filled = False
         if entry is None:
             if bar.opened_at >= plan.expiry_at:

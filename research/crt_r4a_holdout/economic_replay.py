@@ -58,6 +58,7 @@ class FrozenResearchSignal:
             self.symbol not in SYMBOLS
             or self.provider_cohort not in ALLOWED_COHORTS
             or not isinstance(self.family, Family)
+            or not isinstance(self.source_event_id, str)
             or not self.source_event_id.strip()
             or self.direction not in (1, -1)
             or self.source_pine_blob != SOURCE_PINE
@@ -68,6 +69,18 @@ class FrozenResearchSignal:
             for t in (self.mss_at, self.ratified_at, self.available_at)
         ) or self.available_at < max(self.mss_at, self.ratified_at):
             raise ValueError("noncausal signal timestamp")
+        if (
+            self.family is Family.TWO_C_MSS_C2
+            and self.mss_at > self.ratified_at
+        ) or (
+            self.family is Family.TWO_C_MSS_C3
+            and self.mss_at <= self.ratified_at
+        ) or (
+            self.family in (Family.TRUE_3C, Family.INSIDE_RETURN,
+                            Family.MULTI4, Family.MULTIN)
+            and self.mss_at > self.ratified_at
+        ):
+            raise ValueError("MSS timestamp violates own-family C2/C3/H4 timing")
         if (
             not self.atr_h4.is_finite() or self.atr_h4 <= 0
             or not self.price_tick.is_finite() or self.price_tick <= 0
