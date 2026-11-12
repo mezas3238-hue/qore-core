@@ -261,5 +261,51 @@ class PineR1SourceQA(unittest.TestCase):
         )
 
 
+    def test_17_per_family_emulated_trade_counts_are_source_attributed(self) -> None:
+        for marker in (
+            "var array<int> trEventsByFam = array.new_int(7, 0)",
+            "var array<int> trOrdersByFam = array.new_int(7, 0)",
+            "var array<int> trClosedByFam = array.new_int(7, 0)",
+            "array.set(trEventsByFam, j,",
+            "array.set(trOrdersByFam, trOnlyIndex,",
+            "strategy.closedtrades.entry_comment(tradeNum)",
+            "strategy.closedtrades.profit(tradeNum)",
+            "trProcessedClosed := strategy.closedtrades",
+        ):
+            self.assertIn(marker, self.adapter)
+
+    def test_18_unowned_exit_never_gets_family_profit(self) -> None:
+        self.assertIn(
+            "if familyNum >= 0 and not na(pl)", self.adapter
+        )
+        self.assertIn(
+            "trUnknownAttribution += 1", self.adapter
+        )
+        self.assertIn(
+            "sourceFam == \"F7_RETEST\" ? 6 : -1", self.adapter
+        )
+
+    def test_19_pf_is_undefined_without_losses(self) -> None:
+        self.assertIn(
+            'closed > 0 and grossLost > 0 ? '
+            'str.tostring(grossWon / grossLost, "#.###") : "N/D"',
+            self.adapter,
+        )
+        self.assertNotIn("PF CERTIFICADO", self.adapter)
+
+    def test_20_all_family_panel_is_informational_only(self) -> None:
+        self.assertIn(
+            'input.bool(true, "Mostrar tabla de siete familias (PNL emulador)"',
+            self.adapter,
+        )
+        self.assertIn(
+            "table.new(position.bottom_right, 6, 11",
+            self.adapter,
+        )
+        self.assertIn('"NO BID/ASK"', self.adapter)
+        self.assertIn('"NO CERT"', self.adapter)
+        self.assertIn('"SIN SWAP"', self.adapter)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
