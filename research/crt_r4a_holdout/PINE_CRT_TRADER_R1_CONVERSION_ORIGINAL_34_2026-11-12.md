@@ -62,3 +62,38 @@ El código original era de aproximadamente 3.547 líneas y su retorno `Signal` e
 - [TradingView — Declaración `strategy()`](https://www.tradingview.com/pine-script-docs/language/declaration-statements/)
 - [TradingView — Emulador, estrategia y entradas/salidas](https://www.tradingview.com/pine-script-docs/concepts/strategies/)
 - [TradingView — Chart estándar](https://www.tradingview.com/pine-script-docs/concepts/chart-information/)
+
+
+## Actualización R1 — coherencia temporal, cierre por tiempo y PnL por familia
+
+**Implementado en el código experimental. No cambia el `f_engine()` original.**
+
+**Disponibilidad económica:** R1 calcula la hora de cada oportunidad a partir de su información propia:
+- F1/F2: `entryConfirmedAt` del 2C, posterior a ratificación y MSS15.
+- F3: `max(extraFamilyRatifiedAt, extraFamilyM5At)` del TRUE3C.
+- F4/F5/F6: `max(extraFamilyRatifiedAt, extraFamilyM15At)` de la familia independiente seleccionada.
+- F7: `retest15At`, después del MSS15 del CRT padre.
+
+Una señal que se materializa más de **una vela M5 después de su propia hora de disponibilidad** no puede abrir entrada retrospectiva: queda identificada como `trRejectedStale`. El motor sigue confirmando su geometría, pero la **capa de trading** no debe operar una oportunidad vieja por el hecho de que la función recuerde el último evento.
+
+**Revisión de evidencia causal fuente:** la cinta histórica investigada de 2024–2025 con **23.919 observaciones y 33 símbolos** indica que todas sus filas cumplen `available_at = max(mss_at, ratified_at)`. Los desgloses por familia son:
+
+| Familia | MSS anterior a ratificación | MSS mismo instante | MSS posterior | Total |
+|---|---:|---:|---:|---:|
+| F1 2C C2 | 3.707 | 559 | 0 | 4.266 |
+| F2 2C C3 | 0 | 0 | 7.966 | 7.966 |
+| F3 TRUE 3C | 1.703 | 45 | 0 | 1.748 |
+| F4 Inside | 484 | 70 | 0 | 554 |
+| F5 Multi4 | 626 | 21 | 0 | 647 |
+| F6 Multi-N | 322 | 47 | 0 | 369 |
+| F7 M15 retest * | 8.369 | 0 | 0 | 8.369 |
+
+* En F7 `mss_at` es el MSS del **CRT padre** y `ratified_at` registra la disponibilidad del retest. **No demuestra paridad Pine**. El archivo de fuente no contiene el broker bid/ask, y los 12 mercados Atlas siguen no homologados.
+
+**Límite de permanencia:** 144 velas M5 por defecto. R1 impone el primero de dos límites: 144 velas observadas **o 12 horas continuas de reloj desde la apertura registrada por el emulador**. Si el mercado no cotiza durante un salto de sesión, no se puede ejecutar el cierre hasta la siguiente vela disponible. Es una hipótesis de salida de prueba, **no una garantía contractual**.
+
+**Tabla por familia en la estrategia:** añade 7 filas F1–F7 con Eventos, Órdenes QA, Cierres QA, PF QA y PnL QA. La atribución de cada trade cerrado se obtiene de `strategy.closedtrades.entry_comment(tradeNum)` generado por la orden original, no de coincidencia aproximada de horarios. Un trade que no corresponda a una de las siete etiquetas no se atribuye: aumenta `trUnknownAttribution`. Si no hay pérdidas cerradas, PF muestra `N/D`, no infinito. Los PnL son **solo cifras del emulador de TradingView, nunca beneficios reales de cuenta**. El cálculo no valida spread histórico bid/ask ni swaps.
+
+**Limitación pendiente:** el `Signal` original retorna una única familia auxiliar escogida por prioridad por vela. Por tanto, las filas F3–F6 **pueden omitir eventos auxiliares superpuestos**. No afirmar cobertura completa 7/7 en una misma vela sin instrumentar la exportación de siete identidades individuales dentro del motor, sin cambiar su lógica. La tabla es una auditoría de oportunidades **expuestas**, no una certificación de 23.919 entradas equivalentes.
+
+**Estado QA:** los tests del archivo `test_pine_strategy_r1.py` comprueban la identidad original del motor y las rutas de cronología, stop por reloj y atribución de cierres. Registro del flujo [QORE CRT Trader R1 Pine QA](https://github.com/mezas3238-hue/qore-core/actions/workflows/crt-r4a-pine-trader-r1-qa.yml). El resultado final de GitHub Actions **NO sustituye** compilar y ejecutar la estrategia dentro de TradingView.
