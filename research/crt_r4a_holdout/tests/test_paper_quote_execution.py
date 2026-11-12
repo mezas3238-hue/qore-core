@@ -116,7 +116,7 @@ class QuoteExecutionQA(unittest.TestCase):
 
     def test_08_reject_nonmonotone_quotes(self) -> None:
         with self.assertRaisesRegex(ValueError, "nonmonotone"):
-            simulate_single(Plan(), [q(0, al="101"), q(0)],
+            simulate_single(Plan(), [q(0, al="100.1"), q(0)],
                             quantity=D("1"), costs=C0)
 
     def test_09_reject_illogical_bid_ask(self) -> None:
