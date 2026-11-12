@@ -377,12 +377,12 @@ def test_protected_market_needs_both_native_levels() -> None:
     assert isinstance(base, Success)
     try:
         replace(base.value, relative_stop_loss=700)
-        assert False, "missing take profit accepted"
+        raise AssertionError("missing take profit accepted")
     except CTraderDemoExecutionValidationError:
         pass
     try:
         replace(base.value, relative_take_profit=1700)
-        assert False, "missing stop loss accepted"
+        raise AssertionError("missing stop loss accepted")
     except CTraderDemoExecutionValidationError:
         pass
 
@@ -397,7 +397,7 @@ def test_native_market_levels_reject_zero_negative_bool() -> None:
                 relative_stop_loss=invalid,
                 relative_take_profit=100,
             )
-            assert False, "invalid native SL was accepted"
+            raise AssertionError("invalid native SL was accepted")
         except CTraderDemoExecutionValidationError:
             pass
 
@@ -416,7 +416,7 @@ def test_protected_market_json_cannot_omit_levels_or_tamper() -> None:
                 relative_take_profit=1700,
                 body_json=raw,
             )
-            assert False, "mismatched cTrader payload was accepted"
+            raise AssertionError("mismatched cTrader payload was accepted")
         except CTraderDemoExecutionValidationError:
             pass
 
@@ -433,6 +433,6 @@ def test_protected_relative_market_rejected_for_limit_type() -> None:
             relative_stop_loss=700,
             relative_take_profit=1700,
         )
-        assert False, "relative MARKET protection applied to a LIMIT order"
+        raise AssertionError("relative MARKET protection applied to a LIMIT order")
     except CTraderDemoExecutionValidationError:
         pass
