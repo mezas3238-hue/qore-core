@@ -2431,7 +2431,11 @@ else if trCountNow == 1 and trIsFlat
 
 // Una salida temporal experimental evita exponer posiciones perpetuas que
 // sesgarian un estudio de SL/TP. No reemplaza un stop real ni un broker.
-if strategy.position_size != 0 and not na(trLastEntryBar) and bar_index - trLastEntryBar >= trMaxHoldM5
+// Si hay salto de sesion, 144 velas NO son 12h de reloj.
+// Aplicar el primero de: limite por barras cerradas o reloj UTC continuo.
+// Aun con expiracion, no hay fill hasta una proxima vela negociable.
+bool trClockExpired = strategy.opentrades > 0 and time_close - strategy.opentrades.entry_time(0) >= trMaxHoldM5 * MIN5
+if strategy.position_size != 0 and not na(trLastEntryBar) and (bar_index - trLastEntryBar >= trMaxHoldM5 or trClockExpired)
     if strategy.position_size > 0
         strategy.close("QORE-L", comment="QA_TIME_STOP")
     else
