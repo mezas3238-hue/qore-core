@@ -60,3 +60,24 @@ IDs differ, a symbol is disabled or mismatched, provider volume constraints do
 not match configuration, Risk authorization is absent/expired, or the safety
 switch is not enabled. After a possible mutation with an unknown response, block
 resubmission and reconcile the original order.
+
+## CRT Trader certification-specific safety (2026-11-12)
+
+The existing generic first-operation canary instructions do **not** authorize
+the CRT Trader. The current `CTraderOrderCreatePlan` and
+`CTraderOpenApiExecutionTransport.submit_order()` do not carry provider-native
+stop loss / take profit. QORE CRT must NOT issue even a DEMO canary unless
+both native protections can be attached atomically to the opening order,
+their presence is verified on the resulting position, and the pretrade
+Risk/CIBO and independent certification gates have passed.
+
+For cTrader `ProtoOANewOrderReq`, absolute `stopLoss`/`takeProfit` is not
+supported for MARKET. MARKET uses `relativeStopLoss` and
+`relativeTakeProfit` in 1/100000 price units. A standalone native-distance
+proposal under `crt_r4a_native_bracket.py` is **not** a wire-eligible
+`ExecutionSubmission` nor proof of an attached stop.
+
+No operator should bypass the blockage by placing a naked MARKET order then
+amending position SL/TP afterwards; that exposes an unprotected interval.
+The CRT certification gate remains CLOSED in the absence of independently
+observed protected provider fills and a fresh profitable OOS window.
